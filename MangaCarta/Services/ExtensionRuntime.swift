@@ -689,61 +689,25 @@ private extension JSValue {
 extension JSONValue {
 
     /// The Foundation shape this value takes on the way into a context.
+    ///
+    /// Defers to `HostJSONValueConverter` so the runtime and the host capabilities agree
+    /// on which values may cross the extension boundary. This used to be a second,
+    /// laxer implementation: it could not fail, so an integer past 2^53 went into a
+    /// context silently widened to a double, while the same value through a host
+    /// capability was refused.
     var foundationValue: Any {
-        switch self {
-        case .null: return NSNull()
-        case .bool(let flag): return NSNumber(value: flag)
-        case .int(let value): return NSNumber(value: value)
-        case .double(let value): return NSNumber(value: value)
-        case .string(let value): return value
-        case .array(let items): return items.map(\.foundationValue)
-        case .object(let members): return members.mapValues(\.foundationValue)
-        }
+        get throws { try HostJSONValueConverter.foundationValue(self) }
     }
 
     /// Reads JSON-shaped Foundation back into the closed enum, so a value that crossed
     /// the bridge can be compared and stored. Returns `nil` for anything the bridge
     /// would not have produced.
+    ///
+    /// The `nil` shape is kept deliberately: the one caller formats error details, where
+    /// throwing would be perverse. Only the *rules* are shared, via
+    /// `HostJSONValueConverter` — the failure style stays local to the call site.
     init?(converting value: Any) {
-        switch value {
-        case is NSNull:
-            self = .null
-        case let string as String:
-            self = .string(string)
-        case let number as NSNumber:
-            if CFGetTypeID(number) == CFBooleanGetTypeID() {
-                self = .bool(number.boolValue)
-            } else if let integer = Int(exactly: number.doubleValue) {
-                self = .int(integer)
-            } else {
-                self = .double(number.doubleValue)
-            }
-        case let array as [Any]:
-            guard let items = JSONValue.converting(array) else { return nil }
-            self = .array(items)
-        case let object as [String: Any]:
-            guard let members = JSONValue.converting(object) else { return nil }
-            self = .object(members)
-        default:
-            return nil
-        }
-    }
-
-    private static func converting(_ array: [Any]) -> [JSONValue]? {
-        var items: [JSONValue] = []
-        for element in array {
-            guard let converted = JSONValue(converting: element) else { return nil }
-            items.append(converted)
-        }
-        return items
-    }
-
-    private static func converting(_ object: [String: Any]) -> [String: JSONValue]? {
-        var members: [String: JSONValue] = [:]
-        for (key, element) in object {
-            guard let converted = JSONValue(converting: element) else { return nil }
-            members[key] = converted
-        }
-        return members
+        guard let converted = try? HostJSONValueConverter.convert(value) else { return nil }
+        self = converted
     }
 }

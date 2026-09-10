@@ -353,6 +353,62 @@ private func hostCapabilityError(
     }
 }
 
+/// The three limits that separate this converter from S4's lenient
+/// `JSONValue.init?(converting:)`. Until these existed, every one of them could be
+/// deleted with the whole suite still green, so the stricter rule was unverified —
+/// which is no basis for making it the module-wide one.
+@Suite("Host JSON conversion limits")
+struct HostJSONValueConverterTests {
+
+    @Test("Nesting deeper than the cap is refused rather than recursed")
+    func nestingBeyondTheDepthCapIsRefused() throws {
+        var deep: Any = 1
+        for _ in 0...HostJSONValueConverter.maximumDepth { deep = [deep] }
+
+        let error = #expect(throws: HostCapabilityError.self) {
+            try HostJSONValueConverter.convert(deep)
+        }
+        #expect(error?.code == .invalidResponse)
+
+        var shallow: Any = 1
+        for _ in 1..<HostJSONValueConverter.maximumDepth { shallow = [shallow] }
+        #expect(throws: Never.self) { try HostJSONValueConverter.convert(shallow) }
+    }
+
+    @Test("An integer past the safe range is refused, not silently widened to a double")
+    func integerBeyondTheSafeRangeIsRefused() throws {
+        let unsafe = NSNumber(value: Int64(9_007_199_254_740_993))
+
+        let error = #expect(throws: HostCapabilityError.self) {
+            try HostJSONValueConverter.convert(unsafe)
+        }
+        #expect(error?.code == .invalidResponse)
+
+        // The boundary itself still converts, and stays an integer.
+        let safe = NSNumber(value: Int64(9_007_199_254_740_991))
+        #expect(try HostJSONValueConverter.convert(safe) == .int(9_007_199_254_740_991))
+
+        // The reverse direction refuses it too, so a value cannot re-enter out of range.
+        #expect(throws: HostCapabilityError.self) {
+            try HostJSONValueConverter.foundationValue(.int(9_007_199_254_740_993))
+        }
+    }
+
+    @Test("Infinity and NaN are refused in both directions")
+    func nonFiniteNumbersAreRefused() throws {
+        for value in [Double.infinity, -Double.infinity, Double.nan] {
+            let error = #expect(throws: HostCapabilityError.self) {
+                try HostJSONValueConverter.convert(NSNumber(value: value))
+            }
+            #expect(error?.code == .invalidResponse)
+
+            #expect(throws: HostCapabilityError.self) {
+                try HostJSONValueConverter.foundationValue(.double(value))
+            }
+        }
+    }
+}
+
 private func temporaryDirectory() -> URL {
     FileManager.default.temporaryDirectory
         .appendingPathComponent("HostCapabilityTests-\(UUID().uuidString)", isDirectory: true)

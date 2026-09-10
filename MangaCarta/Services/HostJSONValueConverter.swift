@@ -9,7 +9,7 @@
 import Foundation
 
 enum HostJSONValueConverter {
-    private static let maximumDepth = 128
+    static let maximumDepth = 128
     private static let maximumSafeInteger = 9_007_199_254_740_991.0
 
     static func convert(_ value: Any) throws -> JSONValue {
