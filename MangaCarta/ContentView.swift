@@ -31,6 +31,7 @@ extension EnvironmentValues {
 struct ContentView: View {
     @State private var selectedTab: AppTab = .home
     @StateObject private var webViewService = WebViewService.shared
+    @StateObject private var extensionBrowserManager = ExtensionBrowserManager.shared
 
     var body: some View {
         Group {
@@ -98,6 +99,22 @@ struct ContentView: View {
         .sheet(isPresented: $webViewService.isChallengeActive,
                onDismiss: { webViewService.cancelChallenge() },
                content: { CloudflareChallengeView() })
+        .sheet(isPresented: extensionChallengePresented,
+               onDismiss: { extensionBrowserManager.cancelActiveChallenge() },
+               content: {
+                   if let challenge = extensionBrowserManager.activeChallenge {
+                       ExtensionBrowserChallengeView(challenge: challenge)
+                   }
+               })
+    }
+
+    private var extensionChallengePresented: Binding<Bool> {
+        Binding(
+            get: { extensionBrowserManager.activeChallenge != nil },
+            set: { presented in
+                if !presented { extensionBrowserManager.cancelActiveChallenge() }
+            }
+        )
     }
 }
 
