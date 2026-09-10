@@ -501,7 +501,8 @@ final class ExtensionHostCapabilityFactory {
         )
         cookieJars[declaration.qualifiedId] = jar
         return ExtensionHostCapabilities(
-            http: HostHTTPClient(allowedOrigins: declaration.network.httpOrigins,
+            http: HostHTTPClient(sourceID: declaration.qualifiedId,
+                                 allowedOrigins: declaration.network.httpOrigins,
                                  transport: transport,
                                  resolver: resolver,
                                  cookies: jar),

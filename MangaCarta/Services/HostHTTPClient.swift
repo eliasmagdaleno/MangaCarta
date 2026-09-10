@@ -25,24 +25,32 @@ struct HostHTTPClient: Sendable {
     private let policy: HostURLPolicy
     private let transport: any HostHTTPTransport
     private let cookies: HostHTTPCookieJar
+    private let sourceID: QualifiedSourceID
 
     init(sourceID: QualifiedSourceID,
          allowedOrigins: [String],
          transport: any HostHTTPTransport = URLSessionHostHTTPTransport(),
          resolver: any HostNameResolving = SystemHostResolver()) {
-        self.init(allowedOrigins: allowedOrigins,
+        self.init(sourceID: sourceID,
+                  allowedOrigins: allowedOrigins,
                   transport: transport,
                   resolver: resolver,
                   cookies: HostHTTPCookieJar(sourceID: sourceID))
     }
 
-    init(allowedOrigins: [String],
+    /// Takes a jar rather than making one, so a caller serving several Sources can keep each
+    /// Source's cookies alive across invocations. `sourceID` is required alongside it because
+    /// the jar checks the two agree: handing one Source's jar to another Source's client
+    /// yields no cookies instead of silently pooling them.
+    init(sourceID: QualifiedSourceID,
+         allowedOrigins: [String],
          transport: any HostHTTPTransport,
          resolver: any HostNameResolving,
          cookies: HostHTTPCookieJar) {
         policy = HostURLPolicy(allowedOrigins: allowedOrigins, resolver: resolver)
         self.transport = transport
         self.cookies = cookies
+        self.sourceID = sourceID
     }
 
     func request(_ input: HostHTTPRequest) async throws -> HostHTTPResponse {
@@ -63,7 +71,7 @@ struct HostHTTPClient: Sendable {
             for (name, value) in authorHeaders {
                 request.setValue(value, forHTTPHeaderField: name)
             }
-            if let cookie = await cookies.header(for: url) {
+            if let cookie = await cookies.header(for: url, sourceID: sourceID) {
                 request.setValue(cookie, forHTTPHeaderField: "Cookie")
             }
 
@@ -74,7 +82,7 @@ struct HostHTTPClient: Sendable {
                 throw HostCapabilityError(code: .resourceLimit,
                                           message: "the HTTP response exceeded the host limit")
             }
-            await cookies.store(responseHeaders: response.headers, for: url)
+            await cookies.store(responseHeaders: response.headers, for: url, sourceID: sourceID)
 
             if Self.redirectStatuses.contains(response.statusCode),
                let location = header("location", in: response.headers) {
@@ -235,6 +243,10 @@ struct HostHTTPClient: Sendable {
     }
 }
 
+/// One Source's HTTP cookies. Isolation used to rest entirely on each Source being handed a
+/// distinct jar, with `sourceID` stored and then discarded — so pooling every Source into one
+/// jar compiled clean and passed the whole suite. Each call now names the Source it is acting
+/// for and the jar refuses to answer for any other.
 actor HostHTTPCookieJar {
     private let sourceID: QualifiedSourceID
     private var cookiesByOrigin: [String: [HTTPCookie]] = [:]
@@ -243,7 +255,8 @@ actor HostHTTPCookieJar {
         self.sourceID = sourceID
     }
 
-    func header(for url: URL) -> String? {
+    func header(for url: URL, sourceID: QualifiedSourceID) -> String? {
+        guard sourceID == self.sourceID else { return nil }
         guard let origin = HostURLPolicy.canonicalOrigin(for: url) else { return nil }
         let now = Date()
         let path = url.path.isEmpty ? "/" : url.path
@@ -255,7 +268,8 @@ actor HostHTTPCookieJar {
         return HTTPCookie.requestHeaderFields(with: cookies)["Cookie"]
     }
 
-    func store(responseHeaders: [String: String], for url: URL) {
+    func store(responseHeaders: [String: String], for url: URL, sourceID: QualifiedSourceID) {
+        guard sourceID == self.sourceID else { return }
         guard let origin = HostURLPolicy.canonicalOrigin(for: url) else { return }
         let parsed = HTTPCookie.cookies(withResponseHeaderFields: responseHeaders, for: url)
         guard !parsed.isEmpty else { return }
@@ -269,7 +283,6 @@ actor HostHTTPCookieJar {
             }
         }
         cookiesByOrigin[origin] = current
-        _ = sourceID
     }
 }
 

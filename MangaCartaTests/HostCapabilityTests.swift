@@ -154,6 +154,111 @@ struct HostHTTPTests {
         #expect(await transport.requestedURLs().isEmpty)
     }
 
+    @Test("A non-HTTPS destination is refused even at a declared host")
+    func plainHTTPIsRefused() async throws {
+        let transport = ScriptedHostHTTPTransport { request, _ in
+            HostHTTPTransportResponse(statusCode: 200,
+                                      url: try #require(request.url),
+                                      headers: [:],
+                                      body: Data())
+        }
+        let client = HostHTTPClient(
+            sourceID: QualifiedSourceID(rawValue: "repo/source-a"),
+            allowedOrigins: ["https://allowed.example"],
+            transport: transport,
+            resolver: FixedHostResolver(addresses: ["93.184.216.34"])
+        )
+
+        let error = await hostCapabilityError {
+            try await client.request(HostHTTPRequest(
+                url: try #require(URL(string: "http://allowed.example/start"))
+            ))
+        }
+
+        // The host matches a declared origin; only the scheme differs.
+        #expect(error?.code == .policyDenied)
+        #expect(await transport.requestedURLs().isEmpty)
+    }
+
+    @Test("A URL carrying credentials is refused before it reaches transport")
+    func urlCredentialsAreRefused() async throws {
+        let transport = ScriptedHostHTTPTransport { request, _ in
+            HostHTTPTransportResponse(statusCode: 200,
+                                      url: try #require(request.url),
+                                      headers: [:],
+                                      body: Data())
+        }
+        let client = HostHTTPClient(
+            sourceID: QualifiedSourceID(rawValue: "repo/source-a"),
+            allowedOrigins: ["https://allowed.example"],
+            transport: transport,
+            resolver: FixedHostResolver(addresses: ["93.184.216.34"])
+        )
+
+        let error = await hostCapabilityError {
+            try await client.request(HostHTTPRequest(
+                url: try #require(URL(string: "https://reader:secret@allowed.example/start"))
+            ))
+        }
+
+        #expect(error?.code == .policyDenied)
+        #expect(await transport.requestedURLs().isEmpty)
+    }
+
+    @Test("One Source's HTTP cookies never reach another Source, even from a shared jar")
+    func cookiesDoNotCrossSources() async throws {
+        let sourceA = QualifiedSourceID(rawValue: "repo/source-a")
+        let sourceB = QualifiedSourceID(rawValue: "repo/source-b")
+        let jar = HostHTTPCookieJar(sourceID: sourceA)
+        let resolver = FixedHostResolver(addresses: ["93.184.216.34"])
+        let url = try #require(URL(string: "https://allowed.example/start"))
+
+        let setCookie = ScriptedHostHTTPTransport { request, _ in
+            HostHTTPTransportResponse(
+                statusCode: 200,
+                url: try #require(request.url),
+                headers: ["Set-Cookie": "session=secret; Path=/; Secure"],
+                body: Data()
+            )
+        }
+        let clientA = HostHTTPClient(sourceID: sourceA,
+                                     allowedOrigins: ["https://allowed.example"],
+                                     transport: setCookie,
+                                     resolver: resolver,
+                                     cookies: jar)
+        _ = try await clientA.request(HostHTTPRequest(url: url))
+
+        // Source A gets its own cookie back on a second request.
+        let echoA = ScriptedHostHTTPTransport { request, _ in
+            HostHTTPTransportResponse(statusCode: 200,
+                                      url: try #require(request.url),
+                                      headers: [:],
+                                      body: Data())
+        }
+        let clientA2 = HostHTTPClient(sourceID: sourceA,
+                                      allowedOrigins: ["https://allowed.example"],
+                                      transport: echoA,
+                                      resolver: resolver,
+                                      cookies: jar)
+        _ = try await clientA2.request(HostHTTPRequest(url: url))
+        #expect(await echoA.sentCookieHeaders() == ["session=secret"])
+
+        // Source B, handed the very same jar, gets nothing.
+        let echoB = ScriptedHostHTTPTransport { request, _ in
+            HostHTTPTransportResponse(statusCode: 200,
+                                      url: try #require(request.url),
+                                      headers: [:],
+                                      body: Data())
+        }
+        let clientB = HostHTTPClient(sourceID: sourceB,
+                                     allowedOrigins: ["https://allowed.example"],
+                                     transport: echoB,
+                                     resolver: resolver,
+                                     cookies: jar)
+        _ = try await clientB.request(HostHTTPRequest(url: url))
+        #expect(await echoB.sentCookieHeaders() == [nil])
+    }
+
     @Test("HTTP does not retry statuses and exposes parsed Retry-After")
     func statusesAreReturnedWithoutAutomaticRetry() async throws {
         let transport = ScriptedHostHTTPTransport { request, _ in
@@ -442,6 +547,7 @@ private actor ScriptedHostHTTPTransport: HostHTTPTransport {
 
     private let handler: Handler
     private var urls: [String] = []
+    private var cookies: [String?] = []
 
     init(handler: @escaping Handler) {
         self.handler = handler
@@ -449,10 +555,15 @@ private actor ScriptedHostHTTPTransport: HostHTTPTransport {
 
     func send(_ request: URLRequest) async throws -> HostHTTPTransportResponse {
         urls.append(request.url?.absoluteString ?? "<missing>")
+        cookies.append(request.value(forHTTPHeaderField: "Cookie"))
         return try handler(request, urls.count)
     }
 
     func requestedURLs() -> [String] {
         urls
+    }
+
+    func sentCookieHeaders() -> [String?] {
+        cookies
     }
 }
