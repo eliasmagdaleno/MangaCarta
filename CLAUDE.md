@@ -171,6 +171,17 @@ The app builds and the core reading loop is implemented.
   while the displayed `Manga` stays put, because ADR-0001 makes the Work the identity and a
   Listing only one source's copy. A `nil` chapter count means **unknown, never zero**; see
   ADR-0004 and its amendments for the evidence tiers and the reasoning behind each control.
+- **Extension runtime:** Phase 3 shipped 2026-09-11 — a JavaScriptCore substrate for
+  configuration-backed Sources, per ADR-0003 and the Host API design. `ExtensionRuntime` builds one
+  `JSContext` per invocation from a bundle script plus a validated `SourceDeclaration`;
+  `SourceDeclarationValidator` and `ExtensionDomainValidator` police what goes in and what comes
+  back; `SourceLifecycleRegistry` owns disable/uninstall/reinstall. `HTMLSelectorThemeEngine` is the
+  first engine — **one bundle serving three differently configured Sources, with no site baked into
+  it**; WeebCentral is a declaration, not code.
+  **The compiled `WeebCentralSource` is still what the app actually uses.** The port proves
+  equivalence; cutting over is a separate decision (see #162's scope boundary). Two known gaps:
+  only `host.browser` is bridged into the runtime, so `host.http`/`host.storage`/`host.log` are
+  unreachable from an engine (#164), and there is no repository format or installer yet (Phase 4).
 - Design/spec/plan for shipped work live in `docs/superpowers/{specs,plans}/`.
 
 Still minimal: no cross-device sync. Content refresh is no longer manual-only (see above);
