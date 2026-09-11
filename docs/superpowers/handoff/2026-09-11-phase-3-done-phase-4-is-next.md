@@ -132,9 +132,15 @@ third unrelated state appears.
 
 ## Launch blockers that are not features
 
-- **No app icon.** `AppIcon.appiconset/` holds only `Contents.json`. Being outsourced — **order it
-  early so it is not the long pole.** Unchanged across **ten** handoffs now. This is the one blocker
-  that cannot be compressed by working harder later. It needs the *MangaCarta* name on it.
+- **No real app icon.** Still outsourced, still **order it early so it is not the long pole**, and
+  it needs the *MangaCarta* name on it. This is the one blocker that cannot be compressed by working
+  harder later, and it has been open across **ten** handoffs.
+  **A placeholder shipped 2026-09-11 (#165) and changes nothing about that.** It exists so builds
+  are identifiable rather than blank squares. `scripts/make-app-icon.swift` draws it — Ink & Seal:
+  paper, screentone, a serif mark on a hairline plate, one vermilion seal carrying 漫 — and
+  optionally renders a preview with iOS's rounded-rect mask applied, which is the only cheap way to
+  see whether something near a corner gets bitten off. **Replace that file; do not refine it**, and
+  do not read its existence as progress against this blocker.
 - **#149 and #150** — now researched, both awaiting a decision (above).
 - **Adult-source gating** — settled by ADR-0022. Not a blocker, just a thing not to undo.
 - No listing screenshots, privacy-policy URL, App Store description, or TestFlight run. Note #149
@@ -314,10 +320,9 @@ Re-verify any that becomes load-bearing rather than trusting this list.
 
 ## Repository state
 
-- `main` at `71cffd6`. Merged since the last handoff: **#162** (S6), **#163** (launch-blocker
-  research).
-- **One open PR: #160**, which carries this handoff. Its title still says "S5 landed, S6 is all that
-  is left" — reused rather than stacked, so retitle it when merging.
+- `main` at `52ed0d0`. Merged since the last handoff: **#162** (S6), **#163** (launch-blocker
+  research), **#160** (this handoff), **#165** (placeholder app icon).
+- **No open PRs.**
 - `gh issue list`: **#90** (VoiceOver, ready-for-human), **#149** (MAL privacy label — researched,
   decision owed), **#150** (name clearance — researched, decision owed), **#161** (reinstall
   validation — a Phase 4 decision), **#164** (host capability bridge — new, real).
