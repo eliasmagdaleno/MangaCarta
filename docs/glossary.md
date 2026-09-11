@@ -183,7 +183,19 @@ while doing it, and that is where the axis is spent: it drives **generation of t
 `MangaSource`, registered in `SourceRegistry`.
 
 **Extension** — a Source that is *not* compiled into the app; loaded at runtime, authored
-against a host API. None exist yet — see ADR-0003.
+against a host API. See ADR-0003. Since Amendment 2 the precise shape is: an Extension is an
+*engine*, and a Source is a declaration that selects it with a configuration.
+
+**Repository** — one JSON index document at an HTTPS URL, plus the engine scripts it points at,
+served from a static host. Its identity is a UUID the installer mints when the reader adds it —
+never the URL, which is only where it currently lives — so a *move* keeps the identity and a
+*replacement* gets a new one, distinguished by the reader's gesture. See ADR-0003 Amendment 4 and
+the repository format design.
+
+**Bundle** — one engine script plus the declaration records that select it, listed in a
+Repository's index under an `id` and an integer `version`. The unit the installer *fetches* and
+*updates*; the reader installs Sources, not bundles. Two installed Sources from one bundle share
+one script.
 
 **Substrate** — the engine an Extension's code runs inside: JavaScriptCore, a `WKWebView`, or a
 WebAssembly VM. Not the extension, and not the API — just what executes it.

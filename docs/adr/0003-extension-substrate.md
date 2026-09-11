@@ -343,3 +343,172 @@ takes a `SPIKE_DESTINATION` override so the experiment can be re-run against a n
 - An explicit reader data-removal action maps onto `removeDataStoreForIdentifier:` per Source,
   which is a cleaner story than pruning one shared jar by domain.
 - The UA stays host-owned and pinned, per §9. Nothing here changes that.
+
+## Amendment 4 — repository identity is installer-minted, attestation is the maintainer's, and a typed declaration is a validated one (2026-09-11)
+
+Amendments 1–3 stand unchanged. This amendment makes the decisions Phase 4 cannot start without:
+it closes the Host API design's **evidence gates 3 and 4**, decides issue **#161**, and places
+signing. The wire shapes, validation rules and operation semantics that follow from these decisions
+are specified in the
+[repository format design](../superpowers/specs/2026-09-11-repository-format-design.md); this
+amendment owns the decisions and their reasons and does not restate the bytes.
+
+Two of the questions here were the user's, not the design's — whether a reader-installed adult
+Source is reachable at all, and whether signing is in v1 — because both are product calls with
+App Review consequences. Their answers are recorded where marked; the design is structured so
+that either answer slots in.
+
+### Context
+
+Phase 3 proved that a Source is one engine script plus a validated declaration, and nothing else:
+`HTMLSelectorThemeEngine` serves three differently configured declarations with no site in the
+engine. Phase 4 has to get those bytes from a URL a reader types into `SourceLifecycleRegistry`,
+and the design's "Identity lifecycle" section had already fixed the hardest constraint before any
+installer existed: a repository *move* keeps its identity, a repository *replacement* gets a new
+one, and Listings, pins and storage key on that identity. A URL cannot tell those two apart.
+
+The other constraint is not technical. This project has **no moderation capacity** — no review
+team, no approval queue, no one to notice an under-classified Source and act. A design that assumes
+one is a design that will not be implemented, and the design's "Adult classification" section
+wrote the word "approved" without being able to say who approves.
+
+### Decisions
+
+**1. The package format is a static index and nothing more.** One JSON document at an HTTPS URL;
+per bundle, one engine script and one or more inline declaration records; per script, a SHA-256
+the index states. The reader installs Sources, the installer fetches bundles, the maintainer
+versions bundles with an integer. Every field beyond "a script and its declarations" was added
+against a reason a reader can check, and the format design lists what was considered and left out.
+The index carries its own integer `format`, separate from the per-declaration `hostAPI` range: one
+versions the document the installer reads, the other the contract an engine runs against, and
+giving them different grammars is deliberate so they cannot be mistaken for each other.
+
+**2. Gate 3 — repository identity is minted by the installer, not derived from anything.** A
+version-4 UUID at first add, persisted locally, bound to the URL it was added from, shown to the
+reader as that URL. The qualified Source id is that UUID joined to the declaration's `localId`. A
+URL change is a reader-confirmed re-point of an existing identity; a fork served from a new URL is
+a new identity unless the reader chooses the re-point gesture instead. **The reader's gesture is
+the only thing that distinguishes a move from a replacement, and in format 1 it is sufficient**;
+the format design's "Repository identity" section tabulates each gesture. This keeps `QualifiedSourceID` stable — which is what Listings, pins,
+`host.storage` and the per-Source WebKit store (Amendment 3) all depend on — with no signing
+infrastructure and no key to lose.
+
+The migration to key-based identity is named, not implied: when a signed format exists, the key
+becomes an **attribute bound to the UUID** on the first verified index, never a replacement for it.
+Rotation is a statement signed by the previous key; an index under a key that is neither bound nor
+provably rotated is a replacement unless the reader says otherwise. Nothing keyed by the UUID
+migrates when a key is bound or rotated. What a key adds that the gesture cannot provide is
+recognising a move *without* a redirect or a reader's assertion.
+
+**3. Gate 4 — the maintainer attests, the reader trusts, the host enforces what it can, and the
+reader is the only reviewer there is.** Classification is attested by the repository maintainer by
+serving the declaration; there is no other party. The trust decision is the reader's, made once, by
+adding the repository URL, and the app treats every repository identically — **no "approved"
+status exists in v1**, because no authority exists to grant it. The design's per-Listing rule is
+the mechanical enforcement: a Listing an engine labels adult is adult regardless of its Source's
+class, which makes honest per-Listing labelling the thing a maintainer is actually attesting.
+
+What happens to an under-classified Source: **the reader elevates it locally**, and the effective
+class is the maximum of the declared class and that elevation. The design's "Adult classification"
+section said such a Source "is disabled pending corrected metadata"; that sentence assumed an
+approving authority that observes the violation and there is none, so this amendment refines it:
+the enforcement is the reader's elevation rather than disablement, the Source sits behind the
+adult gate from that moment, and no update lowers the effective class, because lowering required
+re-review and there is no reviewer. A disabled Source would punish the reader who noticed; a gated
+one serves both the reader who wants it hidden and the reader who wants it labelled. "Approved"
+becomes meaningful only with signing, where it can mean "signed by a key this app pins" — a
+curated first-party index — and that is where it waits.
+
+**4. #161 — a `SourceDeclaration` exists only as the validator's output.** `reinstall` keeps its
+typed parameter; what changes is that the type's memberwise initialiser becomes inaccessible
+outside `SourceDeclarationValidator`, so "must already have passed validation" stops being prose
+and becomes a fact the compiler enforces. The installer takes the index's raw JSON, validates every
+declaration from those bytes under the qualified id it minted, and hands the registry the result;
+there is no other way to obtain one. A stored declaration is therefore raw JSON re-validated at
+every launch, which is also the right behaviour on its own: an app update that tightens the
+validator or retires a Host API version refuses the Source at launch with a sentence, instead of
+running it under rules it was never checked against. Making `reinstall` itself take raw JSON was
+the other option
+and is rejected: the registry would then need the qualified id and the host's supported versions to
+validate, which are the installer's inputs, and it would be parsing a document it does not own. The
+type-level fix closes the same gap at the point where the value is born. The one test that
+hand-builds a `SourceDeclaration` today moves to a JSON fixture. **#161 closes against this
+amendment.**
+
+**5. Signing is placed, whichever way the product answer goes.** A signed format changes exactly
+three things: an index must verify under a key bound to the repository's UUID before it is parsed,
+the script digest becomes something a signature vouches for rather than a maintainer's bare claim,
+and automatic update application becomes defensible. An unsigned format asks the reader to trust
+HTTPS, the host operator, the maintainer, and the domain staying in the maintainer's hands; what
+bounds misplaced trust is the Host API's sandbox — declared origins, bounded storage, no
+credentials — and the decision that **updates are offered, never applied automatically**, so a
+hijacked domain reaches only a reader who taps Update. Signing protects updates, not first
+install: with no curated key list, the first install is trust-on-first-use either way. The
+recommendation to the user was to defer to format 2; **the answer is recorded below.**
+
+**6. Retention is indefinite and bounded by quota, not by time; the quota number is not chosen
+here.** Ordinary uninstall and repository removal retain the Source record, its storage, its WebKit
+store, and every Listing and pin, until the reader's explicit erase. A time-based sweeper would need
+a policy nobody has evidence for. The storage quota stays the provisional tunable already marked as
+the open gate in code; the format design states the measurement that settles it and the decision
+rule applied to that measurement, so that the number lands from the corpus rather than from feel.
+
+**7. Updates are reader-confirmed and bundle-atomic; index refresh is foreground-only.** The
+bundle is the unit because its Sources share one script and a Source must never run a script it
+was not validated alongside. Refresh does not join the library's background pipeline, which polls
+for chapters; polling for engines is a separate decision. An installed Source its repository stops
+listing stays installed — the identity lifecycle already forbids deleting the reader's references on
+absence, and a dropped listing cannot be told from a temporary one.
+
+### The user's answers
+
+- **Installed adult Sources:** OPEN at the time of writing. Options and consequences are in the
+  format design's "Adult Sources" section; the ADR-0022 amendment records the answer.
+- **Signing in v1:** OPEN at the time of writing. Options and consequences are in the format
+  design's "Signing" section; this amendment records the answer here when it arrives.
+
+### Alternatives rejected
+
+- **Identity is the URL.** Rejected because the design already requires a move and a replacement
+  to differ, and a URL cannot express the difference.
+- **Identity is a maintainer-chosen id in the index.** Rejected because two maintainers can choose
+  the same string, a fork inherits it, and the app cannot tell the fork from the original — the
+  same reason `localId` alone is not identity.
+- **Key-derived identity in v1.** Rejected because it makes signing a prerequisite for installing
+  anything, puts a key-rotation format on the critical path of a phase that has none of the
+  evidence to design one well, and turns a lost key into lost Listings. Minting first and binding
+  a key later gets the same end state with nothing migrating.
+- **An "approved repository" list, or any host-side review status.** Rejected because nobody can
+  grant it. Naming it would make the design read as moderated when it is not.
+- **Host-detected under-classification that disables the Source.** Rejected on the evidence of
+  the first port: WeebCentral declares `none` and maps its adult tag to `erotica` per Listing,
+  which is the intended use of per-Listing elevation, not a violation. One adult Listing from a
+  `none` Source is normal; a machine cannot tell "occasionally labels adult" from "is an adult site
+  with unlabelled Listings", and the second is the only real under-classification.
+- **`reinstall` takes raw JSON.** Rejected for the reason in decision 4.
+- **Automatic updates in an unsigned format.** Rejected because it removes the one point at which
+  a reader stands between a hijacked domain and their device.
+- **Semver for bundles.** Rejected because the installer asks one question of a version — "is it
+  greater" — and a grammar with no consumer rots.
+- **A time-bounded retention sweeper.** Rejected because no evidence supports any particular
+  duration and the retained state per Source is quota-bounded already.
+
+### Consequences
+
+- S2 parses and validates the index and takes `SourceDeclaration`'s initialiser private to the
+  validator; `ExtensionRuntimeTests` moves its hand-built declaration to a JSON fixture; a
+  structural test in the style of `ManifestValidationCodeFreeTests` guards that no other file
+  constructs one.
+- S3 mints identity, persists the three records the format design names, wraps the registry's
+  transitions, and re-validates stored declarations at launch. Phase 4 acceptance criterion 4 as
+  worded — two repositories colliding on a qualified id — is unreachable by construction, since
+  distinct UUIDs cannot collide; the test it implies is the within-index duplicate-`localId`
+  rejection naming both occurrences, alongside criterion 3's proof that two repositories serving
+  the same `localId` yield distinct qualified ids.
+- S5's repositories screen carries the gestures this amendment makes load-bearing: "Add", "Change
+  repository URL", "Remove", "Erase data", "Treat as adult", and a confirmed re-point on redirect.
+  Each is an identity decision or a trust decision the reader is making, and the copy should say so.
+- The Host API design's "Adult classification" sentence "the Source is disabled pending corrected
+  metadata" is now read with decision 3: the enforcement is reader elevation and gating, not
+  disablement. The design is not edited; this amendment is the record.
+- Nothing about the Host API contract changes. Every gate closed here was an installer question.
