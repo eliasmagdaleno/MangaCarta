@@ -77,76 +77,15 @@ final class HostBrowserJSCapability: ExtensionHostCapability {
     private func promise(for requestValue: JSValue,
                          in context: JSContext,
                          scope: ExtensionInvocationScope) -> JSValue? {
-        guard let promiseType = context.objectForKeyedSubscript("Promise") else { return nil }
-
-        var resolve: JSValue?
-        var reject: JSValue?
-        let executor: @convention(block) (JSValue?, JSValue?) -> Void = { onResolve, onReject in
-            resolve = onResolve
-            reject = onReject
-        }
-        guard let promise = promiseType.construct(withArguments: [executor]),
-              let resolve, let reject else {
-            return nil
-        }
-
-        let request: HostBrowserRequest
-        do {
-            request = try Self.decodeRequest(requestValue, bridge: scope.bridge)
-        } catch let error as HostCapabilityError {
-            Self.settle(reject, with: error, in: context)
-            return promise
-        } catch {
-            Self.settle(reject,
-                        with: HostCapabilityError(code: .invalidRequest,
-                                                  message: "\(error)"),
-                        in: context)
-            return promise
-        }
-
-        // Admission before work: a cancelled invocation starts no browser navigation.
-        let work = CancellableWork()
-        guard let call = scope.admitHostCall(onCancel: { work.cancel() }) else {
-            Self.settle(reject,
-                        with: HostCapabilityError(code: .cancelled,
-                                                  message: "the invocation was cancelled"),
-                        in: context)
-            return promise
-        }
-
-        work.task = Task { [extractor] in
-            do {
-                let result = try await extractor.extract(request)
-                call.deliver { context in
-                    guard let converted = Self.resultValue(result, in: context) else {
-                        Self.settle(reject,
-                                    with: HostCapabilityError(
-                                        code: .invalidResponse,
-                                        message: "the extraction result is not a JSON value"),
-                                    in: context)
-                        return
-                    }
-                    resolve.call(withArguments: [converted])
-                }
-            } catch let error as HostCapabilityError {
-                call.deliver { context in Self.settle(reject, with: error, in: context) }
-            } catch is CancellationError {
-                call.deliver { context in
-                    Self.settle(reject,
-                                with: HostCapabilityError(code: .cancelled,
-                                                          message: "the invocation was cancelled"),
-                                in: context)
-                }
-            } catch {
-                call.deliver { context in
-                    Self.settle(reject,
-                                with: HostCapabilityError(code: .navigation,
-                                                          message: "\(error)"),
-                                in: context)
-                }
-            }
-        }
-        return promise
+        HostJSCapabilitySupport.promise(
+            for: requestValue,
+            in: context,
+            scope: scope,
+            plan: HostJSPromisePlan(
+                decode: { value, bridge in try Self.decodeRequest(value, bridge: bridge) },
+                perform: { [extractor] request in try await extractor.extract(request) },
+                encode: { result, context in Self.resultValue(result, in: context) },
+                fallbackErrorCode: .navigation))
     }
 
     // MARK: - Conversion
@@ -199,45 +138,4 @@ final class HostBrowserJSCapability: ExtensionHostCapability {
                        in: context)
     }
 
-    /// Rejects with a real `Error` carrying `hostErrorCode`, which is the same channel
-    /// the runtime's own cancellation error uses.
-    private static func settle(_ reject: JSValue,
-                               with error: HostCapabilityError,
-                               in context: JSContext) {
-        guard let errorType = context.objectForKeyedSubscript("Error"),
-              let value = errorType.construct(withArguments: [error.message]) else {
-            return
-        }
-        value.setObject(error.code.rawValue, forKeyedSubscript: "hostErrorCode" as NSString)
-        if let seconds = error.retryAfterSeconds {
-            value.setObject(seconds, forKeyedSubscript: "retryAfterSeconds" as NSString)
-        }
-        reject.call(withArguments: [value])
-    }
-}
-
-/// A box so `onCancel` can reach a `Task` created after admission.
-private final class CancellableWork {
-    private let lock = NSLock()
-    private var stored: Task<Void, Never>?
-    private var cancelled = false
-
-    var task: Task<Void, Never>? {
-        get { lock.withLock { stored } }
-        set {
-            let shouldCancel: Bool = lock.withLock {
-                stored = newValue
-                return cancelled
-            }
-            if shouldCancel { newValue?.cancel() }
-        }
-    }
-
-    func cancel() {
-        let pending: Task<Void, Never>? = lock.withLock {
-            cancelled = true
-            return stored
-        }
-        pending?.cancel()
-    }
 }
