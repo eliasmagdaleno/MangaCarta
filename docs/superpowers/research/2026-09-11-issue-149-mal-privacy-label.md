@@ -19,10 +19,17 @@ primary functionality. The Settings screen makes MAL sign-in/sync optional and s
 name, but completion-driven queue delivery is automatic rather than an affirmative choice on
 each chapter. Therefore the exception cannot safely be used for this implementation.
 
-Sources (read 2026-09-11): [Apple, App Privacy Details on the App Store](https://developer.apple.com/go/?id=info-1)
-(definition and exception); [Apple, Learn More About App Privacy](https://apps.apple.com/us/iphone/story/id1538632801)
-(the exception's current wording); [Apple, Manage app privacy](https://developer.apple.com/help/app-store-connect/manage-app-information/manage-app-privacy)
+Sources (read 2026-09-11): [Apple, App Privacy Details on the App Store](https://developer.apple.com/app-store/app-privacy-details/)
+— the canonical page, which owns both the collection definition and the optional-disclosure
+criteria, and which states the decisive clause verbatim: data is optional to disclose only when,
+among other criteria, "the user affirmatively chooses to provide the data for collection **each
+time**"; [Apple, Manage app privacy](https://developer.apple.com/help/app-store-connect/manage-app-information/manage-app-privacy)
 (developer responsibility to report app and third-party-partner practices).
+
+Cited to that page deliberately. An earlier draft of this document sourced the exception to a
+`developer.apple.com/go/` redirect shortlink and to an App Store editorial story; neither is a
+stable home for a rule, and this conclusion reverses a shipped decision, so it should rest on the
+page Apple maintains as the definition.
 
 ## What the shipped code sends
 
