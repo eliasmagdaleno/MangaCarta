@@ -751,3 +751,68 @@ enum BCP47 {
         return text.count == 4 && (text.first?.isNumber ?? false)
     }
 }
+
+// MARK: - The validated record
+
+/// A Source declaration that has passed every rule in the Host API design and may be
+/// registered.
+///
+/// An instance of this type is a Source the host has already agreed to register: its
+/// capabilities satisfy the registration invariants, its origins are canonical HTTPS,
+/// its adult class is stated, and its declared Host API range intersects this build's.
+/// Nothing here is optional-because-we-were-unsure; everything absent has a stated
+/// fail-closed meaning at the validator.
+///
+/// **There is no way to obtain one except from `SourceDeclarationValidator`.** The
+/// initialiser is `fileprivate`, which is why the record is declared in this file rather
+/// than beside its parts in `SourceDeclaration.swift`: ADR-0003 Amendment 4 (decision 4,
+/// closing #161) turns "must already have passed validation" from a doc comment on
+/// `SourceLifecycleRegistry.reinstall` into a fact the compiler enforces. A stored
+/// declaration is therefore raw JSON, re-validated at every launch; a test that needs a
+/// typed value goes through the validator from a JSON fixture.
+struct SourceDeclaration: Equatable, Sendable {
+    /// Supplied by the installer, never derived from anything in the declaration.
+    let qualifiedId: QualifiedSourceID
+    /// Immutable across updates. Identity, unlike `name`.
+    let localId: String
+    /// Display text. Not identity: nothing may key off it.
+    let name: String
+    let engine: String
+    /// The engine's private vocabulary, carried verbatim. Unknown keys survive *here*
+    /// and nowhere else in the record.
+    let configuration: JSONValue
+    let adult: AdultClassification
+    let capabilities: SourceCapabilities
+    let languages: LanguagePolicy
+    let network: NetworkPolicy
+    let presentation: SourcePresentation
+    let hostAPI: HostAPIVersionRange
+    /// The highest version this build implements that lies inside `hostAPI`.
+    let selectedHostAPIVersion: HostAPIVersion
+
+    fileprivate init(qualifiedId: QualifiedSourceID,
+                     localId: String,
+                     name: String,
+                     engine: String,
+                     configuration: JSONValue,
+                     adult: AdultClassification,
+                     capabilities: SourceCapabilities,
+                     languages: LanguagePolicy,
+                     network: NetworkPolicy,
+                     presentation: SourcePresentation,
+                     hostAPI: HostAPIVersionRange,
+                     selectedHostAPIVersion: HostAPIVersion) {
+        self.qualifiedId = qualifiedId
+        self.localId = localId
+        self.name = name
+        self.engine = engine
+        self.configuration = configuration
+        self.adult = adult
+        self.capabilities = capabilities
+        self.languages = languages
+        self.network = network
+        self.presentation = presentation
+        self.hostAPI = hostAPI
+        self.selectedHostAPIVersion = selectedHostAPIVersion
+    }
+}
