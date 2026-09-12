@@ -87,6 +87,52 @@ final class ManifestValidationCodeFreeTests: XCTestCase {
         }
     }
 
+    // MARK: - Phase 4 criterion 2: a `SourceDeclaration` exists only as the validator's output
+
+    /// ADR-0003 Amendment 4, decision 4: `SourceDeclaration`'s initialiser is inaccessible
+    /// outside `SourceDeclarationValidator`, so "must already have passed validation" is a
+    /// fact the compiler enforces rather than prose. The compiler is the real guard; this
+    /// test pins the *access modifier* the compiler enforces it through, so a later hand
+    /// that widens `fileprivate` back to internal goes red here instead of silently
+    /// reopening the gap #161 closed.
+    func testSourceDeclarationInitialiserIsFilePrivateToTheValidator() throws {
+        let validator = try source(of: "MangaCarta/Models/SourceDeclarationValidator.swift")
+        XCTAssertTrue(validator.contains("struct SourceDeclaration:"),
+                      "SourceDeclaration must be declared in the validator's file — fileprivate "
+                      + "is Swift's only way to scope an initialiser to one other type")
+        XCTAssertTrue(validator.contains("fileprivate init(qualifiedId: QualifiedSourceID"),
+                      "SourceDeclaration's only initialiser must be fileprivate")
+    }
+
+    /// The other half of the same claim, in the style of the token scan above: no Swift
+    /// file in the app or its tests spells a `SourceDeclaration(` construction other than
+    /// the validator. A test that needs one goes through the validator from JSON, as
+    /// `ExtensionRuntimeFixtures` now does.
+    func testNoFileOutsideTheValidatorConstructsADeclaration() throws {
+        // Spelled in two halves so this file does not match its own scan.
+        let construction = "SourceDeclaration" + "("
+        let roots = ["MangaCarta", "MangaCartaTests", "MangaCartaUITests"]
+        var offenders: [String] = []
+        for root in roots {
+            let directory = repositoryRoot.appendingPathComponent(root)
+            guard let enumerator = FileManager.default.enumerator(at: directory,
+                                                                  includingPropertiesForKeys: nil) else {
+                continue
+            }
+            for case let url as URL in enumerator where url.pathExtension == "swift" {
+                if url.lastPathComponent == "SourceDeclarationValidator.swift" { continue }
+                let text = try String(contentsOf: url, encoding: .utf8)
+                for line in text.split(separator: "\n", omittingEmptySubsequences: false)
+                where !line.trimmingCharacters(in: .whitespaces).hasPrefix("//")
+                    && line.contains(construction) {
+                    offenders.append("\(url.lastPathComponent): \(line.trimmingCharacters(in: .whitespaces))")
+                }
+            }
+        }
+        XCTAssertEqual(offenders, [],
+                       "only SourceDeclarationValidator may construct a SourceDeclaration")
+    }
+
     /// The behavioural companion to the structural claim: JavaScript that arrives inside
     /// `configuration` — the one place unknown keys survive — comes back out as inert
     /// text, byte for byte, with nothing about the host's own policy disturbed.

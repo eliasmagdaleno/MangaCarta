@@ -122,10 +122,11 @@ final class SourceLifecycleRegistry {
     /// moves back to `.registered`. `name`, `engine`, `configuration`, and
     /// `capabilities` may all differ from what was remembered; `qualifiedId` and
     /// `localId` may not, and `validateUpdate` is exactly the rule that already
-    /// enforces that. `declaration` must already have passed
-    /// `SourceDeclarationValidator.validate` (so its `adult` classification, among
-    /// everything else, is already known-valid) — this method never trusts a cached
-    /// declaration in place of revalidating the one being installed now.
+    /// enforces that. `declaration` has already passed `SourceDeclarationValidator
+    /// .validate` — not by convention but by type: since ADR-0003 Amendment 4 (#161) a
+    /// `SourceDeclaration` can only be obtained as that validator's output — and this
+    /// method never trusts a cached declaration in place of revalidating the one being
+    /// installed now.
     ///
     /// A `QualifiedSourceID` this registry has never seen reinstalls exactly like a
     /// fresh `register`: there is nothing to revalidate against, so it simply becomes
