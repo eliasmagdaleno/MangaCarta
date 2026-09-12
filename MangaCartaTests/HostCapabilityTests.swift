@@ -9,6 +9,7 @@
 import Foundation
 import Testing
 import WebKit
+import XCTest
 @testable import MangaCarta
 
 @Suite("Host HTTP capability")
@@ -455,6 +456,162 @@ private func hostCapabilityError(
         return nil
     } catch {
         return error as? HostCapabilityError
+    }
+}
+
+/// Acceptance criterion 7 tests the JavaScript seam, not the typed host services.
+/// These first tests intentionally install no adapters: they are the red tracer
+/// bullets for the three missing `context.host` capabilities.
+final class HostCapabilityBridgeTests: XCTestCase {
+
+    func testAnEngineCanCallHostHTTP() async throws {
+        let sourceID = QualifiedSourceID(rawValue: "repo-a:example")
+        let transport = BridgeHTTPTransport()
+        let client = HostHTTPClient(sourceID: sourceID,
+                                    allowedOrigins: ["https://example.test"],
+                                    transport: transport,
+                                    resolver: BridgeHostResolver())
+        let runtime = ExtensionRuntime(
+            bundleScript: """
+            registerEngine("madara", { invoke: function (operation, request, context) {
+              return context.host.http.request({
+                url: "https://example.test/api", method: "POST",
+                headers: { "Content-Type": "text/plain" }, body: "hello"
+              })
+                .then(function (response) {
+                  return { ok: true, value: { status: response.status } };
+                });
+            } });
+            """,
+            declaration: ExtensionRuntimeFixtures.declaration(),
+            capabilities: [HostHTTPJSCapability(client: client)])
+
+        let value = try await runtime.invoke(.search, request: [:])
+        let object = try XCTUnwrap(value as? [String: Any])
+        XCTAssertEqual(object["status"] as? Int, 200)
+        let request = await transport.lastRequest()
+        XCTAssertEqual(request?.httpMethod, "POST")
+        XCTAssertEqual(request?.httpBody, Data("hello".utf8))
+    }
+
+    func testAnEngineCanCallHostStorage() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("mangacarta-s1-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let repository = try HostStorageRepository(directory: directory)
+        let storage = HostStorage(
+            sourceID: QualifiedSourceID(rawValue: "repo-a:example"),
+            repository: repository)
+        let runtime = ExtensionRuntime(
+            bundleScript: """
+            registerEngine("madara", { invoke: function (operation, request, context) {
+              return context.host.storage.set("answer", 42)
+                .then(function () { return context.host.storage.get("answer"); })
+                .then(function (value) { return { ok: true, value: { stored: value } }; });
+            } });
+            """,
+            declaration: ExtensionRuntimeFixtures.declaration(),
+            capabilities: [HostStorageJSCapability(storage: storage)])
+
+        let value = try await runtime.invoke(.search, request: [:])
+        let object = try XCTUnwrap(value as? [String: Any])
+        XCTAssertEqual(object["stored"] as? Int, 42)
+        let stored = try await storage.get("answer")
+        XCTAssertEqual(stored, .int(42))
+    }
+
+    func testAnEngineCanCallHostLog() async throws {
+        let buffer = HostDiagnosticBuffer()
+        let logger = HostLogger(
+            sourceID: QualifiedSourceID(rawValue: "repo-a:example"),
+            operation: .search,
+            invocationID: UUID(),
+            hostAPIVersion: HostAPIVersion(major: 1, minor: 0),
+            buffer: buffer)
+        let runtime = ExtensionRuntime(
+            bundleScript: """
+            registerEngine("madara", { invoke: function (operation, request, context) {
+              return context.host.log("info", "bridge.probe", { answer: 42 })
+                .then(function () { return { ok: true, value: { logged: true } }; });
+            } });
+            """,
+            declaration: ExtensionRuntimeFixtures.declaration(),
+            capabilities: [HostLogJSCapability(logger: logger)])
+
+        let value = try await runtime.invoke(.search, request: [:])
+        let object = try XCTUnwrap(value as? [String: Any])
+        XCTAssertEqual(object["logged"] as? Bool, true)
+        let entries = await buffer.export()
+        XCTAssertEqual(entries.count, 1)
+        XCTAssertEqual(entries.first?.event, "bridge.probe")
+    }
+
+    func testEachCapabilityPreservesHostErrorCodesAcrossTheEngineBoundary() async throws {
+        let sourceID = QualifiedSourceID(rawValue: "repo-a:example")
+        let client = HostHTTPClient(sourceID: sourceID,
+                                    allowedOrigins: ["https://example.test"],
+                                    transport: BridgeHTTPTransport(),
+                                    resolver: BridgeHostResolver())
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("mangacarta-s1-errors-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let storage = HostStorage(sourceID: sourceID,
+                                  repository: try HostStorageRepository(directory: directory))
+        let logger = HostLogger(sourceID: sourceID,
+                                operation: .search,
+                                invocationID: UUID(),
+                                hostAPIVersion: HostAPIVersion(major: 1, minor: 0),
+                                buffer: HostDiagnosticBuffer())
+        let runtime = ExtensionRuntime(
+            bundleScript: """
+            registerEngine("madara", { invoke: function (operation, request, context) {
+              var call;
+              if (request.kind === "http") {
+                call = context.host.http.request({ url: "not a URL" });
+              } else if (request.kind === "storage") {
+                call = context.host.storage.get(42);
+              } else {
+                call = context.host.log("nope", "bridge.probe");
+              }
+              return call.then(function () {
+                return { ok: true, value: { code: "missing" } };
+              }).catch(function (error) {
+                return { ok: true, value: { code: error.hostErrorCode } };
+              });
+            } });
+            """,
+            declaration: ExtensionRuntimeFixtures.declaration(),
+            capabilities: [HostHTTPJSCapability(client: client),
+                           HostStorageJSCapability(storage: storage),
+                           HostLogJSCapability(logger: logger)])
+
+        for (kind, expectedCode) in [("http", "policy_denied"),
+                                     ("storage", "invalid_request"),
+                                     ("log", "invalid_request")] {
+            let value = try await runtime.invoke(.search, request: ["kind": kind])
+            let object = try XCTUnwrap(value as? [String: Any])
+            XCTAssertEqual(object["code"] as? String, expectedCode, kind)
+        }
+    }
+}
+
+private actor BridgeHTTPTransport: HostHTTPTransport {
+    private var request: URLRequest?
+
+    func send(_ request: URLRequest) async throws -> HostHTTPTransportResponse {
+        self.request = request
+        return HostHTTPTransportResponse(statusCode: 200,
+                                         url: request.url!,
+                                         headers: [:],
+                                         body: Data("ok".utf8))
+    }
+
+    func lastRequest() -> URLRequest? { request }
+}
+
+private struct BridgeHostResolver: HostNameResolving {
+    func addresses(for host: String) async throws -> [String] {
+        ["93.184.216.34"]
     }
 }
 
