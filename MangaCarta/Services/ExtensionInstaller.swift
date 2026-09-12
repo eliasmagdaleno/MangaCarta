@@ -340,29 +340,11 @@ final class ExtensionInstaller {
     @discardableResult
     func install(localId: String, from repositoryID: UUID) async throws -> InstalledSourceRecord {
         let repository = try activeRepository(repositoryID)
-        guard let listing = listings[repositoryID] else {
-            throw ExtensionInstallError.notRefreshed(repositoryID)
-        }
-        guard let entry = listing.entry(localId: localId),
-              let bundle = listing.index.bundles.first(where: { $0.id == entry.bundleId }) else {
-            throw ExtensionInstallError.notListed(localId: localId)
-        }
-        if case .failure(let error) = entry.outcome {
-            throw ExtensionInstallError.declarationRejected(localId: localId, error)
-        }
-
+        let (entry, bundle) = try installableEntry(localId: localId, in: repositoryID)
         let qualifiedId = Self.qualifiedID(repositoryID: repositoryID, localId: localId)
         let existing = store.source(qualifiedId)
         if let existing, existing.state != .uninstalled {
             throw ExtensionInstallError.alreadyInstalled(qualifiedId)
-        }
-        // Two Sources from one bundle share one script file, so a new Source cannot be
-        // installed at a version its installed sibling is not on. Update the bundle first.
-        if let installedBundle = store.bundle(bundle.id, in: repositoryID),
-           installedBundle.version != bundle.version {
-            throw ExtensionInstallError.bundleUpdatePending(bundleId: bundle.id,
-                                                            installed: installedBundle.version,
-                                                            offered: bundle.version)
         }
 
         // Step 1: the script, digest-checked against the index's promise.
@@ -434,6 +416,30 @@ final class ExtensionInstaller {
         return record
     }
 
+    /// The precondition of §6.3: the Source's declaration validated in the most recent
+    /// refresh. Also refuses a new Source from a bundle whose installed sibling is on a
+    /// different version — they would share one script file — until the bundle is updated.
+    private func installableEntry(localId: String,
+                                  in repositoryID: UUID) throws -> (RepositoryListing.Entry, RepositoryBundle) {
+        guard let listing = listings[repositoryID] else {
+            throw ExtensionInstallError.notRefreshed(repositoryID)
+        }
+        guard let entry = listing.entry(localId: localId),
+              let bundle = listing.index.bundles.first(where: { $0.id == entry.bundleId }) else {
+            throw ExtensionInstallError.notListed(localId: localId)
+        }
+        if case .failure(let error) = entry.outcome {
+            throw ExtensionInstallError.declarationRejected(localId: localId, error)
+        }
+        if let installedBundle = store.bundle(bundle.id, in: repositoryID),
+           installedBundle.version != bundle.version {
+            throw ExtensionInstallError.bundleUpdatePending(bundleId: bundle.id,
+                                                            installed: installedBundle.version,
+                                                            offered: bundle.version)
+        }
+        return (entry, bundle)
+    }
+
     // MARK: Update bundle (§6.4)
 
     /// Applies an update the most recent refresh offered: all-or-nothing across every
@@ -455,25 +461,8 @@ final class ExtensionInstaller {
         // Step 1.
         let script = try await fetchVerifiedScript(for: bundle)
 
-        // Step 2: every installed Source the new bundle lists, validated from raw JSON
-        // under its existing qualified id, then checked against the installed declaration.
-        // Nothing is touched until every one has passed.
-        struct Staged {
-            let record: InstalledSourceRecord
-            let declaration: SourceDeclaration
-            let rawDeclaration: JSONValue
-        }
-        var staged: [Staged] = []
-        for record in store.sources(inBundle: bundleId, repositoryID: repositoryID)
-        where record.state != .uninstalled {
-            guard let entry = listing.entry(localId: record.localId) else { continue }
-            let next = try validated(entry.rawDeclaration, localId: record.localId, as: record.qualifiedId)
-            if let previous = registry.declaration(for: record.qualifiedId),
-               let refusal = updateRule(previous, next) {
-                throw ExtensionInstallError.updateRefused(localId: record.localId, refusal)
-            }
-            staged.append(Staged(record: record, declaration: next, rawDeclaration: entry.rawDeclaration))
-        }
+        // Step 2: nothing is touched until every installed Source has passed.
+        let staged = try stagedUpdates(from: listing, bundleId: bundleId, repositoryID: repositoryID)
 
         // Step 3: persist, then reconnect each through the registry.
         let previousScript = store.scriptData(for: bundleId, in: repositoryID)
@@ -509,6 +498,32 @@ final class ExtensionInstaller {
             }
             launchRefusals[item.record.qualifiedId] = nil
         }
+    }
+
+    private struct StagedUpdate {
+        let record: InstalledSourceRecord
+        let declaration: SourceDeclaration
+        let rawDeclaration: JSONValue
+    }
+
+    /// Every installed Source the new bundle lists, validated from raw JSON under its
+    /// existing qualified id, then checked against the installed declaration by the
+    /// update rule. The first refusal ends the update.
+    private func stagedUpdates(from listing: RepositoryListing,
+                               bundleId: String,
+                               repositoryID: UUID) throws -> [StagedUpdate] {
+        var staged: [StagedUpdate] = []
+        for record in store.sources(inBundle: bundleId, repositoryID: repositoryID)
+        where record.state != .uninstalled {
+            guard let entry = listing.entry(localId: record.localId) else { continue }
+            let next = try validated(entry.rawDeclaration, localId: record.localId, as: record.qualifiedId)
+            if let previous = registry.declaration(for: record.qualifiedId),
+               let refusal = updateRule(previous, next) {
+                throw ExtensionInstallError.updateRefused(localId: record.localId, refusal)
+            }
+            staged.append(StagedUpdate(record: record, declaration: next, rawDeclaration: entry.rawDeclaration))
+        }
+        return staged
     }
 
     // MARK: Disable / enable / uninstall (§6.5)
