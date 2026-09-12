@@ -20,7 +20,7 @@ handoff does not restate them.** #168 tracks slice state.
 |---|---|---|
 | D0 | Repository format design + the decisions the phase could not start without | ✅ **merged `9f70750`** (#169) |
 | S1 | Host capability bridge — `host.http`, `host.storage`, `host.log` | ✅ **merged `4de2f43`** (#170, closed #164) |
-| S2 | Package parsing + validation (criteria 1, 2-parsing) | **in flight** |
+| S2 | Package parsing + validation (criteria 1, 2-parsing) | **PR #173 open, unreviewed** |
 | S3 | `RepositoryStore` + installer pipeline (criteria 2-registry, 3, 4, 5, 6) | **in flight** |
 | S4 | `ExtensionSource: MangaSource` + dynamic registration (criteria 8, 9) | not started — **unblocked** |
 | S5 | Settings UI (criterion 10) | not started, needs S3 |
@@ -65,13 +65,34 @@ the user chose the recommended branch on each.
 
 ### 1. The two workers in flight — supervise, do not assume
 
-**S2** — `phase4-s2-package-parsing`, Codex `gpt-5.6-luna` high, terminal
-`term_4bba9de0-c09c-44bc-bb76-77bac2dbde71`. Owns the iPhone 17 Pro simulator. Building
-`MangaCarta/Models/RepositoryIndex.swift` + tests; no commit yet at the time of writing.
+**S2 — finished, and its PR is #173, open and awaiting review.** `phase4-s2-package-parsing`,
+Codex `gpt-5.6-luna` high, commit `5f4ffd6`, rebased and containing `origin/main`. 611 insertions,
+no deletions, three files. Reports **1006 total, 1001 passed, 0 failed, 5 skipped** on the iPhone 17
+Pro — the baseline plus exactly its 12 new tests — with 11 tests for criterion 1 and three
+mutations.
 
-**S3** — `phase4-s3-installer`, Claude `claude-opus-5` high, terminal
-`term_e9ac50f7-9ba1-461d-93b5-6b1571289f9a`. One commit, `0e06ee1`, doing the #161 type-level change
-first — which was right, because it ripples through every test that hand-builds a declaration.
+**What was checked, and what was not.** Static review confirms the two things that mattered:
+declaration validation delegates to `SourceDeclarationValidator` from the raw `JSONValue` and never
+constructs a `SourceDeclaration` (so it is compatible with S3's #161 change), and duplicate
+`localId` errors name **both** occurrences, which is what criterion 4 leans on. **An independent
+re-run of one of its mutations was deliberately not done** — S3 was mid-`xcodebuild` and a second
+build produces the wedge that looks like a real failure. **Do that before merging**; the
+cross-bundle `localId` duplicate branch is the one worth picking.
+
+**Its worker then died on the same stop-hook failure as S1** (`Worked for 26m 55s`), *after* the PR
+was open and pushed. Benign — it cost only the `worker_done` message.
+
+**S3 — still running at the time of writing.** `phase4-s3-installer`, Claude `claude-opus-5` high,
+terminal `term_e9ac50f7-9ba1-461d-93b5-6b1571289f9a`. One commit, `0e06ee1`, doing the #161
+type-level change first — right, because it ripples through every test that hand-builds a
+declaration. Last seen running its own mutation checks against `ExtensionInstallerTests` on the
+iPhone 17 (`mut-c3f`, `mut-c4a` — it is working clause by clause, which is what was asked).
+
+**Nothing is watching it any more.** The session monitor that was watching both workers died with
+its session. A fresh session should re-establish one, or check by hand:
+`orca orchestration check --terminal term_15c0eb64-b03c-4606-add4-e337286e7ea7 --types
+worker_done,escalation,question`, the worktree's `git status -sb`, and — the part `check` cannot
+tell you — the terminal preview.
 
 **A deliberate exception is running right now, and it is not the repository convention.** Both are
 code slices that need to run tests, so serializing one of them would have made TDD impossible for it.
@@ -142,7 +163,12 @@ it if a third unrelated state appears.
 
 Everything in the previous handoff still holds. What today added:
 
-- **A Codex worker can end its turn on a stop-hook failure and go idle without escalating.** S1 did:
+- **A Codex worker can end its turn on a stop-hook failure and go idle without escalating. This is
+  reproducible, not a one-off — it has now happened to both Codex workers dispatched today**, S1 and
+  S2, at 17m and 27m respectively. **It is worth diagnosing at the source**: the hook is Orca's own
+  global agent hook in `~/.claude/settings.json`, the repository has no `.claude/settings.json`, and
+  it appears to return invalid JSON when Codex rather than Claude reads its output. Until then,
+  every Codex dispatch here will hit it. S1 did:
   the preview read `Hook failed / hook returned invalid stop hook JSON output` after `Worked for
   17m 10s`, its commit was intact, and **`orca orchestration check` reported nothing** — a hook
   killing a turn is not an escalation. Cost ~25 minutes of assuming it was still working. The hook is
@@ -158,7 +184,12 @@ Everything in the previous handoff still holds. What today added:
   blind; check whether the instruction took effect.
 - **Two code slices can run in parallel by giving one a different simulator device**, at the cost of
   the second not having the seeded fixture. Say so in the brief, in as many words, and bound it to
-  unit tests.
+  unit tests. **But the isolation is partial, and the claim made when this was set up was too
+  strong.** S2 reported two full-scheme attempts hitting the `DebuggerLLDB.DebuggerVersionStore`
+  wedge after its unit tests while its unit-target bundle completed cleanly — the CoreSimulator
+  service is shared even when the devices are not. The split still let both workers do TDD, which was
+  the point; it is not clean isolation, and **a reviewer should still not build while a worker is
+  building.**
 - **Watch for two workers creating the same file.** Cheap to catch with
   `git -C <worktree> status --porcelain` on each; expensive at rebase.
 - **`gh pr merge` and the GitHub MCP merge are both blocked by auto mode's classifier.** The user
