@@ -143,7 +143,11 @@ final class ExtensionInstallerTests: XCTestCase {
                                 version: version,
                                 scriptURL: url,
                                 scriptSHA256: sha256(scriptData ?? transport.scripts[url] ?? Data()),
-                                sources: sources)
+                                sources: sources.map(served))
+    }
+
+    private func served(_ raw: JSONValue) -> RepositorySourceRecord {
+        RepositorySourceRecord(rawJSON: raw, localID: raw.objectValue?["localId"]?.stringValue)
     }
 
     private func index(name: String = "Example Repository", bundles: [RepositoryBundle]) -> RepositoryIndex {
@@ -438,7 +442,7 @@ final class ExtensionInstallerTests: XCTestCase {
         let (repositoryID, _) = try await addAndInstallSite1(installer)
         let lying = RepositoryBundle(id: "engine", version: 2, scriptURL: scriptURL2,
                                      scriptSHA256: sha256(Data("something else".utf8)),
-                                     sources: [declaration(localId: "site-1")])
+                                     sources: [served(declaration(localId: "site-1"))])
         serve(index(bundles: [lying]), at: urlA)
         _ = try await installer.refresh(repositoryID)
 

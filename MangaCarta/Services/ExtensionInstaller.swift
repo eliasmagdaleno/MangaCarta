@@ -671,8 +671,9 @@ final class ExtensionInstaller {
         var entries: [RepositoryListing.Entry] = []
         var seen: [String: String] = [:]
         for (bundleIndex, bundle) in index.bundles.enumerated() {
-            for (sourceIndex, raw) in bundle.sources.enumerated() {
+            for (sourceIndex, served) in bundle.sources.enumerated() {
                 let path = "bundles[\(bundleIndex)].sources[\(sourceIndex)]"
+                let raw = served.rawJSON
                 let localId = raw.objectValue?["localId"]?.stringValue
                 if let localId {
                     if let first = seen[localId] {

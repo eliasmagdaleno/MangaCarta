@@ -32,6 +32,16 @@ struct RepositoryIndex: Equatable, Sendable {
     let bundles: [RepositoryBundle]
 }
 
+/// One declaration record **exactly as served**. Raw on purpose: the installer
+/// re-validates it from these bytes under the qualified id it mints (ADR-0003 Amendment
+/// 4, decision 4) and persists it as served, not as a typed value. A `SourceDeclaration`
+/// exists only as the validator's output.
+struct RepositorySourceRecord: Equatable, Sendable {
+    let rawJSON: JSONValue
+    /// The `localId` string if the record carries one; grammar is the validator's.
+    let localID: String?
+}
+
 /// One engine script plus the declarations that select it — the unit of fetch and of
 /// update.
 struct RepositoryBundle: Equatable, Sendable {
@@ -43,11 +53,8 @@ struct RepositoryBundle: Equatable, Sendable {
     let scriptURL: URL
     /// 64 lowercase hex characters: the SHA-256 of the script bytes as served.
     let scriptSHA256: String
-    /// The declaration records **exactly as served**, in index order. Raw on purpose: the
-    /// installer re-validates each from these bytes under the qualified id it mints
-    /// (ADR-0003 Amendment 4, decision 4), and persists them as served, not as typed
-    /// values. A `SourceDeclaration` exists only as the validator's output.
-    let sources: [JSONValue]
+    /// In index order.
+    let sources: [RepositorySourceRecord]
 }
 
 /// What an index fetch came back with.
