@@ -33,6 +33,19 @@ struct QualifiedSourceID: Hashable, Sendable {
     let rawValue: String
 }
 
+extension QualifiedSourceID: Codable {
+    /// Persisted as the bare string — "store it" — so the installed-Source record carries
+    /// the id exactly as minted and nothing on the way to disk reads structure into it.
+    init(from decoder: Decoder) throws {
+        rawValue = try decoder.singleValueContainer().decode(String.self)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
+}
+
 /// The operations a Source may declare, named exactly as the design's "Entry points"
 /// table names them.
 enum SourceOperation: String, CaseIterable, Hashable, Sendable {
@@ -81,7 +94,7 @@ struct SourceCapabilities: Equatable, Sendable {
 /// The design's "Adult classification": required, and fail-closed. A missing or
 /// unrecognized value prevents registration; it never defaults to `none`. Repository
 /// review may strengthen a declaration but never weaken it.
-enum AdultClassification: String, Equatable, Sendable {
+enum AdultClassification: String, Equatable, Sendable, Codable {
     case none
     case mixed
     case adultOnly

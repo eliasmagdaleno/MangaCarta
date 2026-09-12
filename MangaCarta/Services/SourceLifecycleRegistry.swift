@@ -65,7 +65,10 @@ final class SourceLifecycleRegistry {
     /// design's §11 treats them as separate lifecycle events, and collapsing them into
     /// one would make a future distinction (e.g. auto re-enable vs. requiring an
     /// explicit reinstall) a breaking change instead of an additive one.
-    enum State: Equatable {
+    ///
+    /// `String`-backed and `Codable` so the installer's installed-Source record can
+    /// persist this state as-is, rather than keeping a second enum that mirrors it.
+    enum State: String, Equatable, Codable {
         case registered
         case disabled
         case uninstalled
