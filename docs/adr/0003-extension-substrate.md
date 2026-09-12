@@ -355,8 +355,8 @@ amendment owns the decisions and their reasons and does not restate the bytes.
 
 Two of the questions here were the user's, not the design's — whether a reader-installed adult
 Source is reachable at all, and whether signing is in v1 — because both are product calls with
-App Review consequences. Their answers are recorded where marked; the design is structured so
-that either answer slots in.
+App Review consequences. The design was written with both branches so the answer would slot in;
+the answers, both the recommended branch, are recorded under "The user's answers" below.
 
 ### Context
 
@@ -443,8 +443,10 @@ HTTPS, the host operator, the maintainer, and the domain staying in the maintain
 bounds misplaced trust is the Host API's sandbox — declared origins, bounded storage, no
 credentials — and the decision that **updates are offered, never applied automatically**, so a
 hijacked domain reaches only a reader who taps Update. Signing protects updates, not first
-install: with no curated key list, the first install is trust-on-first-use either way. The
-recommendation to the user was to defer to format 2; **the answer is recorded below.**
+install: with no curated key list, the first install is trust-on-first-use either way. Because
+identity is minted rather than key-derived (decision 2), deferring costs no migration later: a key
+binds to an identity that already exists. **Deferred to format 2 — the user's answer, recorded
+below.**
 
 **6. Retention is indefinite and bounded by quota, not by time; the quota number is not chosen
 here.** Ordinary uninstall and repository removal retain the Source record, its storage, its WebKit
@@ -460,12 +462,16 @@ for chapters; polling for engines is a separate decision. An installed Source it
 listing stays installed — the identity lifecycle already forbids deleting the reader's references on
 absence, and a dropped listing cannot be told from a temporary one.
 
-### The user's answers
+### The user's answers (2026-09-11)
 
-- **Installed adult Sources:** OPEN at the time of writing. Options and consequences are in the
-  format design's "Adult Sources" section; the ADR-0022 amendment records the answer.
-- **Signing in v1:** OPEN at the time of writing. Options and consequences are in the format
-  design's "Signing" section; this amendment records the answer here when it arrives.
+- **Installed adult Sources: accepted, behind the existing gate.** The recommended option. A
+  `mixed` or `adultOnly` declaration installs under the default-off "Show adult sources" gate that
+  ADR-0022 deliberately retained, with a one-time acknowledgement at install. ADR-0022 Amendment 1
+  records the decision and its App Review reasoning; the format design's "Adult Sources" section
+  has the mechanics.
+- **Signing: deferred to format 2.** The recommended option. Format 1 is unsigned; the script
+  digest and the reserved key-binding slot are the seams format 2 uses; updates stay
+  reader-confirmed until then. Decision 5 above is the reasoning.
 
 ### Alternatives rejected
 

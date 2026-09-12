@@ -1,9 +1,8 @@
 # Phase 4 repository format design
 
 **Date:** 2026-09-11
-**Status:** Design specification. Two sections are marked **OPEN** pending a product answer;
-each carries the text that becomes normative on either answer, so the answer slots in rather
-than forcing a rewrite.
+**Status:** Design specification. The two product questions it was written around — installed
+adult Sources and signing — were answered by the user on 2026-09-11 and are resolved in §7 and §9.
 **Evidence baseline:** repository commit `86557d7`, after Phase 3 closed (#162).
 
 ## Purpose and ownership
@@ -357,28 +356,23 @@ fulfillment already handles as unavailable.
 Sets the local adult elevation on an installed Source's record (§7.2). Reversible only by the same
 reader; never lowered by an update.
 
-## 7. Adult Sources — OPEN pending the product answer
+## 7. Adult Sources
 
-ADR-0022 decides what ships *in* the build. A reader-installed Source is not in the build, so the
-question of whether one may be installed is a product call with App Review consequences, raised to
-the user with this design. The ADR-0022 amendment records the answer; this section carries the
-mechanics for either.
+ADR-0022 decides what ships *in* the build. A reader-installed Source is not in the build, so
+whether one may be installed was a product call with App Review consequences; the user decided it
+on 2026-09-11 and [ADR-0022 Amendment 1](../../adr/0022-no-adult-source-in-the-release-build.md#amendment-1--a-reader-installed-adult-source-is-reachable-behind-the-existing-gate-2026-09-11)
+records the decision and its reasoning. This section is the mechanics.
 
-### 7.1 Install-time handling (either answer)
+### 7.1 Install-time handling
 
-**If installed adult Sources are accepted (recommended):** a `mixed` or `adultOnly` declaration
-installs like any other, registers under the existing adult gate (`SourceRegistry
-.visibleSources(includeAdult:)`), and the install presents a one-time acknowledgement sheet
-naming the Source, its repository, and its class before step 3 of §6.3. Declining ends the
-install with nothing persisted. The "Show adult sources" toggle appears by ADR-0022's existing
-rule the moment such a Source is registered.
+A `mixed` or `adultOnly` declaration installs like any other and registers under the existing
+adult gate (`SourceRegistry.visibleSources(includeAdult:)`). Before step 3 of §6.3 the install
+presents a **one-time acknowledgement sheet** naming the Source, its repository, and its class.
+Declining ends the install with nothing persisted — no record, no script, no registry entry. The
+"Show adult sources" toggle appears by ADR-0022's existing rule the moment such a Source is
+registered, and is hidden again by the same rule when none is.
 
-**If installed adult Sources are refused:** §6.3 ends before step 1 for a `mixed` or `adultOnly`
-declaration, the listing shows the Source as not available in this build, and the toggle never
-appears. Per-Listing elevation (§7.2) still runs for `none` Sources; the elevated Listings have
-nothing to be shown under and are dropped from feeds with a warning.
-
-### 7.2 Classification enforcement (either answer)
+### 7.2 Classification enforcement
 
 The declared class is what the maintainer attests by serving the declaration (Amendment 4, Gate 4).
 The host's mechanical enforcement is the Host API design's own: `mixed` and `adultOnly` Sources sit
@@ -425,29 +419,27 @@ every Listing and pin. Retention is **indefinite, bounded by quota rather than b
 removed repositories with "Erase data" (§6.8) beside each, which is the uninstall-retention UI the
 design's "Storage" section said could not be fixed before the installer existed.
 
-## 9. Signing — OPEN pending the product answer
+## 9. Signing
 
-Raised to the user with this design; the reasoning either way is Amendment 4's. This section
-carries the mechanics for either answer.
+Deferred to format 2 by the user's decision of 2026-09-11; ADR-0003 Amendment 4's decision 5 owns
+the reasoning and records the answer. Format 1 is as written above. What the reader trusts in
+format 1 is HTTPS, the host operator, the maintainer, and the domain staying in the maintainer's
+hands; what bounds the damage from misplaced trust is the Host API's own sandbox — declared
+origins, bounded storage, no credentials — and §6.4's rule that updates are reader-confirmed.
 
-**If deferred to format 2 (recommended):** format 1 is as written. What the reader trusts is
-HTTPS, the host operator, the maintainer, and the domain staying in the maintainer's hands. What
-bounds the damage from misplaced trust is the Host API's own sandbox — declared origins, bounded
-storage, no credentials — and §6.4's rule that updates are reader-confirmed. The seams format 2
-would use already exist: `scriptSHA256` is what a signature over the index transitively covers, and
-`boundKey` is where the key binds (§5.4).
+Two seams exist in format 1 so that format 2 adds a signature without moving anything else:
+`scriptSHA256` (§2.2) is what a signature over the index transitively covers, and `boundKey`
+(§5.4, §8.1) is where the key binds to the repository's UUID.
 
-**If signed in v1:** the index is accompanied by a detached signature at `<index URL>.sig` —
-an Ed25519 signature (CryptoKit `Curve25519.Signing`, no dependency) over the index bytes exactly
-as served, so no canonical-JSON step exists to get wrong. The index gains a required `publicKey`
-(base64 raw Ed25519 public key) and an optional `previousKeys` list, each entry a new-key
-statement signed by the previous key. The installer verifies before parsing; binds the key on the
-first verified index per §5.4; refuses an index whose key is neither bound nor provably rotated
-from the bound key, naming the repository and offering "trust the new key" as an explicit reader
-action that is the signed equivalent of §5.3's fork-or-move choice. `scriptSHA256` becomes
-integrity the signature vouches for rather than a maintainer's bare claim. Automatic update
-application becomes defensible and may be offered as a setting. A maintainer signing script ships
-under `scripts/`.
+For the record, what format 2 is expected to add, so the seams are not later reinvented: a
+detached signature at `<index URL>.sig` — Ed25519 (CryptoKit `Curve25519.Signing`, no
+dependency) over the index bytes exactly as served, so no canonical-JSON step exists to get
+wrong; a required `publicKey` and an optional `previousKeys` list of new-key statements each
+signed by the previous key; verification before parsing; key binding on the first verified index
+per §5.4; refusal of an index whose key is neither bound nor provably rotated, with "trust the new
+key" as an explicit reader action that is the signed equivalent of §5.3's fork-or-move choice;
+automatic update application offered as a setting; and a maintainer signing script under
+`scripts/`. None of that is format 1, and none of it is decided until format 2's own design.
 
 ## 10. Bounds
 
