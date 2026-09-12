@@ -2,15 +2,17 @@
 //  SourceDeclaration.swift
 //  MangaCarta
 //
-//  A validated Source declaration — the record that says "this Source uses that engine
-//  with this configuration". The Host API design's "Source declaration" section owns the
-//  wire shape; this file owns the Swift value it becomes once every rule has been met.
+//  The parts of a validated Source declaration — the record that says "this Source uses
+//  that engine with this configuration". The Host API design's "Source declaration"
+//  section owns the wire shape; this file owns the Swift values its fields become once
+//  every rule has been met.
 //
-//  An instance of this type is a Source the host has already agreed to register: its
-//  capabilities satisfy the registration invariants, its origins are canonical HTTPS,
-//  its adult class is stated, and its declared Host API range intersects this build's.
-//  Nothing here is optional-because-we-were-unsure; everything absent has a stated
-//  fail-closed meaning at the validator.
+//  The record itself, `SourceDeclaration`, lives in `SourceDeclarationValidator.swift`,
+//  and not here, for one reason: ADR-0003 Amendment 4 (decision 4, closing #161) makes a
+//  `SourceDeclaration` something that exists *only* as the validator's output, and Swift's
+//  only way to scope an initialiser to one other type is `fileprivate` in that type's
+//  file. The parts below have ordinary initialisers because none of them, on its own,
+//  claims to have been validated; only the whole record does.
 //
 
 import Foundation
@@ -152,27 +154,4 @@ enum SourceDeclarationLimits {
     /// widest value the compiled sources already use, not a measured one. The behaviour
     /// that is NOT provisional is that a declaration is clamped rather than obeyed.
     static let imagePrefetchConcurrency = 1...8
-}
-
-/// A Source declaration that has passed every rule in the Host API design and may be
-/// registered.
-struct SourceDeclaration: Equatable, Sendable {
-    /// Supplied by the installer, never derived from anything in the declaration.
-    let qualifiedId: QualifiedSourceID
-    /// Immutable across updates. Identity, unlike `name`.
-    let localId: String
-    /// Display text. Not identity: nothing may key off it.
-    let name: String
-    let engine: String
-    /// The engine's private vocabulary, carried verbatim. Unknown keys survive *here*
-    /// and nowhere else in the record.
-    let configuration: JSONValue
-    let adult: AdultClassification
-    let capabilities: SourceCapabilities
-    let languages: LanguagePolicy
-    let network: NetworkPolicy
-    let presentation: SourcePresentation
-    let hostAPI: HostAPIVersionRange
-    /// The highest version this build implements that lies inside `hostAPI`.
-    let selectedHostAPIVersion: HostAPIVersion
 }

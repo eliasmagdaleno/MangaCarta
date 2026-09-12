@@ -292,6 +292,10 @@ final class ExtensionRuntimeTests: XCTestCase {
 
 enum ExtensionRuntimeFixtures {
 
+    /// A validated declaration, obtained the only way one can be: from JSON through
+    /// `SourceDeclarationValidator`. This used to hand-build the struct; ADR-0003
+    /// Amendment 4 (decision 4, #161) made the initialiser private to the validator, so
+    /// the fixture is now the same path a real install takes.
     static func declaration(
         qualifiedID: String = "repo-a:example",
         engine: String = "madara",
@@ -300,24 +304,30 @@ enum ExtensionRuntimeFixtures {
             "selectors": .object(["title": .string(".t")])
         ])
     ) -> SourceDeclaration {
-        SourceDeclaration(
-            qualifiedId: QualifiedSourceID(rawValue: qualifiedID),
-            localId: "example",
-            name: "Example Manga",
-            engine: engine,
-            configuration: configuration,
-            adult: .none,
-            capabilities: SourceCapabilities(enabled: [.search, .detail, .chapters,
-                                                       .pages, .popular]),
-            languages: LanguagePolicy(mode: .fixed, tags: ["en"]),
-            network: NetworkPolicy(httpOrigins: ["https://example.test"],
-                                   browserOrigins: ["https://example.test"],
-                                   assetOrigins: ["https://cdn.example.test"]),
-            presentation: .empty,
-            hostAPI: HostAPIVersionRange(minimum: HostAPIVersion(major: 1, minor: 0),
-                                         maximumExclusive: HostAPIVersion(major: 2, minor: 0))!,
-            selectedHostAPIVersion: HostAPIVersion(major: 1, minor: 0)
-        )
+        let json: JSONValue = .object([
+            "localId": .string("example"),
+            "name": .string("Example Manga"),
+            "engine": .string(engine),
+            "configuration": configuration,
+            "adult": .string("none"),
+            "capabilities": .object(["search": .bool(true), "detail": .bool(true),
+                                     "chapters": .bool(true), "pages": .bool(true),
+                                     "popular": .bool(true)]),
+            "languages": .object(["mode": .string("fixed"),
+                                  "values": .array([.string("en")])]),
+            "network": .object(["httpOrigins": .array([.string("https://example.test")]),
+                                "browserOrigins": .array([.string("https://example.test")]),
+                                "assetOrigins": .array([.string("https://cdn.example.test")])]),
+            "hostAPI": .object(["minimum": .string("1.0"), "maximumExclusive": .string("2.0")])
+        ])
+        switch SourceDeclarationValidator.validate(json: json,
+                                                   qualifiedId: QualifiedSourceID(rawValue: qualifiedID),
+                                                   hostAPI: .v1) {
+        case .success(let declaration):
+            return declaration
+        case .failure(let error):
+            preconditionFailure("fixture declaration failed to validate: \(error)")
+        }
     }
 }
 
