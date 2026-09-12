@@ -351,7 +351,9 @@ final class ExtensionInstallerTests: XCTestCase {
                                                  "chapters": true, "pages": true, "webURL": true])
         serveUpdatedBundle(at: urlA, declaration: updated)
 
-        guard case .refreshed(let listing) = try await installer.refresh(repositoryID) else { return XCTFail() }
+        guard case .refreshed(let listing) = try await installer.refresh(repositoryID) else {
+            return XCTFail("expected a refreshed listing")
+        }
         XCTAssertEqual(listing.availableUpdates, ["engine": 2])
 
         try await installer.updateBundle("engine", in: repositoryID)
@@ -455,14 +457,14 @@ final class ExtensionInstallerTests: XCTestCase {
         // Same version, republished with different bytes: a diagnostic, not an update.
         serve(index(bundles: [bundle(version: 1, script: scriptURL2, sources: [declaration(localId: "site-1")])]),
               at: urlA)
-        guard case .refreshed(let same) = try await installer.refresh(repositoryID) else { return XCTFail() }
+        guard case .refreshed(let same) = try await installer.refresh(repositoryID) else { return XCTFail("expected a refreshed listing") }
         XCTAssertEqual(same.availableUpdates, [:])
         await XCTAssertThrowsErrorAsync(try await installer.updateBundle("engine", in: repositoryID)) { error in
             XCTAssertEqual(error as? ExtensionInstallError, .noUpdateAvailable(bundleId: "engine"))
         }
 
         serve(index(bundles: [bundle(version: 0, sources: [declaration(localId: "site-1")])]), at: urlA)
-        guard case .refreshed(let lower) = try await installer.refresh(repositoryID) else { return XCTFail() }
+        guard case .refreshed(let lower) = try await installer.refresh(repositoryID) else { return XCTFail("expected a refreshed listing") }
         XCTAssertEqual(lower.availableUpdates, [:], "a lower version is not a downgrade offer")
     }
 
@@ -487,7 +489,9 @@ final class ExtensionInstallerTests: XCTestCase {
         let (repositoryID, qualifiedId) = try await addAndInstallSite1(installer)
         serve(index(bundles: [bundle(sources: [declaration(localId: "site-2")])]), at: urlA)
 
-        guard case .refreshed(let listing) = try await installer.refresh(repositoryID) else { return XCTFail() }
+        guard case .refreshed(let listing) = try await installer.refresh(repositoryID) else {
+            return XCTFail("expected a refreshed listing")
+        }
 
         XCTAssertEqual(listing.noLongerListed, [qualifiedId])
         XCTAssertTrue(registry.isActive(qualifiedId))
