@@ -367,10 +367,14 @@ records the decision and its reasoning. This section is the mechanics.
 
 A `mixed` or `adultOnly` declaration installs like any other and registers under the existing
 adult gate (`SourceRegistry.visibleSources(includeAdult:)`). Before step 3 of §6.3 the install
-presents a **one-time acknowledgement sheet** naming the Source, its repository, and its class.
-Declining ends the install with nothing persisted — no record, no script, no registry entry. The
-"Show adult sources" toggle appears by ADR-0022's existing rule the moment such a Source is
-registered, and is hidden again by the same rule when none is.
+presents a **one-time sheet** naming the Source, its repository, and its class, and asking the
+reader to confirm they are 18 or over — the **declared-age gate** (ADR-0022 Amendment 2, decided
+2026-09-16; before that date this was a plain acknowledgement). The confirmation is stored once per
+device, beside the "Show adult sources" preference and cleared with it; a reader who has already
+confirmed sees the sheet name the Source and its class but is not asked again. Declining ends the
+install with nothing persisted — no record, no script, no registry entry. The "Show adult sources"
+toggle appears by ADR-0022's existing rule the moment such a Source is registered *and* the age is
+confirmed, and is hidden again by the same rule when none is.
 
 ### 7.2 Classification enforcement
 

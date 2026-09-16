@@ -139,3 +139,93 @@ gate treats both the same, and a maintainer who wanted through would declare `mi
   adds — and whether to publish one is a separate decision nobody has made.
 - If Review objects, the reversal is the installer refusing the two classes, and this amendment is
   where the reason for that reversal should be recorded as Amendment 2.
+
+## Amendment 2 — submit with installable adult Sources reachable, behind a declared-age gate; and a correction to Amendment 1's premise (2026-09-16)
+
+Amendment 1 decided that a reader-installed adult Source is reachable. It deferred a separate,
+dated question — what the app does *at submission* about the App Review exposure it named — to
+#171. This amendment records that decision, made by the user on 2026-09-16 on the write-up in
+#171, and corrects a factual premise Amendment 1 rested on. Per this repository's rule the
+premise is not edited in place; it is corrected here.
+
+### The correction
+
+Amendment 1 says the reader-installs-it posture "is the posture Paperback and Aidoku take, and
+neither is on the App Store." **Paperback is on the App Store**, and has been for three years:
+`id1626613373`, v0.8.11 dated 2025-02-28, age rating 16+, privacy label "does not collect any
+data", described in two sentences as "An Ad-Free Komga client for iOS. Supports an extensive
+scripting API using TypeScript/JavaScript to extend the app functionality." Its reviews confirm
+that the App Store build is the one in which readers add repositories themselves. Aidoku is not
+on the App Store and says no plans for a release have been made. So the honest reading of the
+risk is not "nobody with this posture has been approved"; it is that one app with this exact
+posture has been approved and has stayed up, positioned as a client for a reader-supplied
+service with a scripting seam, shipping no sources. A precedent, not a guarantee.
+
+### Context
+
+The guidelines were re-read from the live page on 2026-09-16. Amendment 1 named 1.1.4 and 1.2.
+**1.2 is a poor fit** — it governs user-generated content (posting, reporting, blocking users), and
+nothing here is posted. **The rule that fits is 4.7**: "Apps may offer certain software that is not
+embedded in the binary, specifically HTML5 and JavaScript mini apps … and plug-ins. You are
+responsible for all such software offered in your app." An engine script installed from a
+repository is a plug-in not embedded in the binary. Its sub-rules are concrete: 4.7.4 requires "an
+index of software and metadata available in your app … universal links that lead to all of the
+software offered", and 4.7.5 requires "a way for users to identify software that exceeds the app's
+age rating, and … an age restriction mechanism based on verified or declared age." The rule 4.7
+is an exception to, 2.5.2, forbids downloading or executing code that changes the app's features
+outright.
+
+The load-bearing phrase is "software **offered in** your app". The build ships no default
+repository, no source list and no index — ADR-0003 Amendment 4 chose that for its own reasons —
+so there is a defensible reading under which the app offers nothing and the reader brings the
+software. That is Paperback's position, and it is why 4.7.4 has nothing to attach to in v1.
+**Shipping a default repository would change this**; that decision, if it is ever made, reopens
+this amendment.
+
+### Decision
+
+**The app is submitted with reader-installed adult Sources reachable as Amendment 1 specifies,
+with one mitigation: the install-time acknowledgement for a `mixed` or `adultOnly` Source is a
+declared-age gate.** The sheet asks the reader to confirm they are 18 or over; the confirmation is
+stored once, on the device; declining ends the install with nothing persisted, as before; and the
+"Show adult sources" toggle stays hidden until a confirmed reader has an adult Source registered.
+The mechanics are the repository format design's "Adult Sources" section; the term is the
+glossary's "declared-age gate".
+
+The App Store answers follow from this and are recorded here so they are decided once:
+
+- **Age rating:** answered honestly on the two shipped sources, expecting 16+/17+ as Paperback's
+  16+. "Unrestricted Web Access" is not the lever — the app embeds no navigable browser.
+- **Description:** what the app is, in Paperback's register — a reader for MangaDex with an
+  extension seam. It names no sites, does not say "any source", and does not mention adult content.
+- **Review notes:** state plainly that the build ships two content sources and no extension
+  repository; that extensions are configuration-backed sources a reader may add by URL from a
+  repository they choose; that each declares its own content class; and that any adult class is
+  hidden by default, requires the reader's declared age, and is never listed or recommended by the
+  app. Name the gate. Do not volunteer a guideline number.
+- **Privacy policy:** names MAL, the fields, retention and revocation, per #149 — same pass.
+
+### Alternatives considered
+
+**Submit as amended with the plain acknowledgement.** Rejected because 4.7.5's wording — "verified
+or declared age" — is satisfied by a declared-age question and not by an acknowledgement that
+names a class. The gate is a few lines in the sheet Settings builds anyway and turns the weakest
+citation into a rule met by construction.
+
+**Refuse `mixed` and `adultOnly` at install for v1.** Rejected again, for Amendment 1's two
+reasons — it is the irreversible direction and it makes honest per-Listing elevation
+self-defeating — and now for a third: the precedent says the posture can pass, so the cost of
+refusing is paid against a risk that is smaller than Amendment 1 believed.
+
+**A verified-age gate.** Rejected: 4.7.5 accepts declared age, verification would need a service
+and a data flow the privacy label would have to carry, and the app has no account to bind it to.
+
+### Consequences
+
+- The Phase 4 S5 brief carries the gate; the acknowledgement sheet the repository format design
+  §7.1 describes is the gate, not a sibling of it.
+- The declared-age confirmation is a per-device preference, stored beside the "Show adult sources"
+  preference and cleared with it; it is not a per-Source or per-Repository fact.
+- If Review objects anyway, the reversal is unchanged — the installer refusing the two classes —
+  and the reason is recorded as Amendment 3.
+- #171 closes when this amendment is merged and the S5 brief carries the gate.

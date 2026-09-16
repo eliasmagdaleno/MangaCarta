@@ -197,6 +197,12 @@ Repository's index under an `id` and an integer `version`. The unit the installe
 *updates*; the reader installs Sources, not bundles. Two installed Sources from one bundle share
 one script.
 
+**Declared-age gate** — the one-time, per-device confirmation that the reader is 18 or over,
+asked the first time a `mixed` or `adultOnly` Extension is installed and required before the "Show
+adult sources" toggle appears. Declared, not verified; stored beside the adult-sources preference
+and cleared with it. Why it is a declaration and not a plain acknowledgement is ADR-0022
+Amendment 2.
+
 **Substrate** — the engine an Extension's code runs inside: JavaScriptCore, a `WKWebView`, or a
 WebAssembly VM. Not the extension, and not the API — just what executes it.
 
