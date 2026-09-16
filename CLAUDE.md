@@ -179,9 +179,14 @@ The app builds and the core reading loop is implemented.
   first engine — **one bundle serving three differently configured Sources, with no site baked into
   it**; WeebCentral is a declaration, not code.
   **The compiled `WeebCentralSource` is still what the app actually uses.** The port proves
-  equivalence; cutting over is a separate decision (see #162's scope boundary). Two known gaps:
-  only `host.browser` is bridged into the runtime, so `host.http`/`host.storage`/`host.log` are
-  unreachable from an engine (#164), and there is no repository format or installer yet (Phase 4).
+  equivalence; cutting over is a separate decision (see #162's scope boundary).
+- **Phase 4 (repository format + installer) is half landed** as of 2026-09-16: all three host
+  capabilities are bridged (#170, closed #164); `RepositoryIndexValidator` parses format-1 indexes
+  (#173); `RepositoryStore` + `ExtensionInstaller` mint identity, install, update and persist over
+  `SourceLifecycleRegistry` (#175). **None of it is reachable from the app yet** — nothing
+  constructs `ExtensionInstaller` outside tests, `SourceRegistry.builtInSources()` is still the
+  hard-coded pair, and there is no `MangaSource` adapter over `ExtensionRuntime`. That adapter is
+  S4; Settings UI and the WeebCentral cutover are S5/S6. The live handoff tracks slice state.
 - Design/spec/plan for shipped work live in `docs/superpowers/{specs,plans}/`.
 
 Still minimal: no cross-device sync. Content refresh is no longer manual-only (see above);
