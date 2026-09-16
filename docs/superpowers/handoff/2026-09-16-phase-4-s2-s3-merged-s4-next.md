@@ -56,18 +56,23 @@ preamble above it.
 
 ## What is owed
 
-### 1. Dispatch S4
+### 1. S4 — dispatched 2026-09-16 16:20 PDT, in flight. Supervise it.
 
-Brief: plan → "S4 — `ExtensionSource: MangaSource` and dynamic registration", with the shared
-preamble verbatim on top. Two things to add to the brief that the plan predates:
+Claude `claude-opus-5` high, worktree `~/orca/workspaces/Manga-Reader/phase4-s4-extension-source`,
+branch `eliasmagdaleno/phase4-s4-extension-source` off `4dc56dc`. **Orca run `run_9df2075071af`**,
+coordinator `term_a8a4b76b-d9ad-4513-9e10-0531230af89e`, task `task_cef7b617642a`, dispatch
+`ctx_2c0c2e83031f`, agent terminal `term_173f94dd-a2e8-4626-8ec8-85bf77fb016a`. It has the iPhone
+17 Pro.
 
-- The launch wiring: `AppComposition` constructs a `RepositoryStore` + `ExtensionInstaller`, calls
-  `restoreInstalledSources()`, and the registry takes installed Sources from the lifecycle registry.
-  The injected-registry rule stands — `AppComposition.registry` is the one, never `.shared`.
-- **#176 and #177** (below) are S3 follow-ups an S4 worker will be near; either fix them in a
-  separate PR first or leave them alone, but do not fold them into S4.
+Its brief is the plan's S4 section under the shared preamble (with the plan's "Amendment 3"
+corrected to 4), plus what the plan predates: the launch wiring is its job (`AppComposition`
+constructs `RepositoryStore` + `ExtensionInstaller`, calls `restoreInstalledSources()`, the
+injected registry takes installed Sources and reflects lifecycle changes at runtime); no production
+`RepositoryTransport` is needed for criteria 8/9; **#176 and #177 stay out of it**; installed
+Sources are *added* to `builtInSources()`, never substituted. Baseline given: 1034/1029/0/5.
 
-One worker, Claude or Codex; if Codex, expect the stop-hook death (see "Dispatch mechanics").
+Check with `orca orchestration check --terminal term_a8a4b76b-d9ad-4513-9e10-0531230af89e --types
+worker_done,escalation,question --json`, the worktree's `git status -sb`, and the terminal preview.
 
 ### 2. Two S3 follow-ups, filed from review — #176, #177
 
@@ -158,6 +163,8 @@ rebase, then merge.
 - **Worktrees: four.** The main checkout; `Manga-Reader-worktree-helper` (unrelated);
   `phase4-s2-package-parsing` and `phase4-s3-installer` under `~/orca/workspaces/Manga-Reader/` —
   **both merged, safe to remove**, not yet removed.
-- Orca run `run_a28b59b9c029`, coordinator `term_15c0eb64-b03c-4606-add4-e337286e7ea7` — may be
-  dead after a runtime restart; a fresh S4 dispatch may need a fresh run.
+- **Worktrees: five** with `phase4-s4-extension-source` (live work — do not clean up).
+- Orca run `run_a28b59b9c029` is dead — its coordinator terminal no longer exists. S4 runs under
+  **`run_9df2075071af`** (above). `run-create` needs `--from <a live terminal handle>` from outside
+  an Orca terminal; any live terminal works as coordinator.
 - `docs/superpowers/handoff/` holds this file and `archive/` (81 archived handoffs plus README).
