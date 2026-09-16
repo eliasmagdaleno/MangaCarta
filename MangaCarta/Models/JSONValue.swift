@@ -69,6 +69,25 @@ extension JSONValue: Decodable {
     }
 }
 
+extension JSONValue: Encodable {
+
+    /// The inverse of `init(from:)`, so a raw declaration can be persisted as ordinary
+    /// JSON by the installer (the repository format design's "What the installer
+    /// persists": the declaration is stored as served, not as a typed value).
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .null: try container.encodeNil()
+        case .bool(let flag): try container.encode(flag)
+        case .int(let integer): try container.encode(integer)
+        case .double(let number): try container.encode(number)
+        case .string(let string): try container.encode(string)
+        case .array(let items): try container.encode(items)
+        case .object(let dictionary): try container.encode(dictionary)
+        }
+    }
+}
+
 extension JSONValue {
 
     var objectValue: [String: JSONValue]? {
