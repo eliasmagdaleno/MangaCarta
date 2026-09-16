@@ -275,6 +275,14 @@ gating.
 Criterion 10. Add a repository by URL; list repositories and their Sources; install, disable,
 uninstall, update; surface every failure as a sentence.
 
+**The adult install sheet is a declared-age gate** (ADR-0022 Amendment 2, 2026-09-16 — decided
+after this plan was written): the sheet for a `mixed` or `adultOnly` Source names the Source, its
+repository and its class *and* asks the reader to confirm they are 18 or over, once per device,
+stored beside the "Show adult sources" preference and cleared with it. The "Show adult sources"
+toggle stays hidden until a confirmed reader has an adult Source registered. The mechanics are the
+repository format design §7.1; `ExtensionInstaller`'s `acknowledgeAdult` closure is the seam the
+sheet answers through. The copy must not imply developer moderation.
+
 Rows are namespaced in this codebase's accessibility identifiers (`browseSource.`,
 `preferredSource.`) because a bare query matches the wrong list — follow that. A hermetic UI test is
 a merge condition; `UpdatesUITests` and `SourcePreferenceUITests` run on every PR and anything in
