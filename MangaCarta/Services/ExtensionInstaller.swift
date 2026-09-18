@@ -552,13 +552,13 @@ final class ExtensionInstaller {
                             to state: SourceLifecycleRegistry.State,
                             registryMove: () throws -> Void) throws {
         guard var record = store.source(id) else { throw ExtensionInstallError.unknownSource(id) }
+        record.state = state
+        try persist { $0.sources[id] = record }
         do {
             try registryMove()
         } catch let error as SourceLifecycleError {
             throw ExtensionInstallError.lifecycle(error)
         }
-        record.state = state
-        try persist { $0.sources[id] = record }
     }
 
     // MARK: Remove repository (§6.7)
@@ -568,15 +568,6 @@ final class ExtensionInstaller {
     func removeRepository(_ repositoryID: UUID) throws {
         var record = try activeRepository(repositoryID)
         let installed = store.sources(in: repositoryID).filter { $0.state != .uninstalled }
-        for source in installed {
-            do {
-                try registry.uninstall(source.qualifiedId)
-            } catch let error as SourceLifecycleError {
-                // A Source refused at launch was never registered; uninstalling it is
-                // a record change only.
-                guard error == .unknownSource else { throw ExtensionInstallError.lifecycle(error) }
-            }
-        }
         record.state = .removed
         try persist { snapshot in
             snapshot.repositories[repositoryID] = record
@@ -587,6 +578,15 @@ final class ExtensionInstaller {
             }
             for key in snapshot.bundles.keys where key.repositoryID == repositoryID {
                 snapshot.bundles[key] = nil
+            }
+        }
+        for source in installed {
+            do {
+                try registry.uninstall(source.qualifiedId)
+            } catch let error as SourceLifecycleError {
+                // A Source refused at launch was never registered; uninstalling it is
+                // a record change only.
+                guard error == .unknownSource else { throw ExtensionInstallError.lifecycle(error) }
             }
         }
         store.deleteScripts(in: repositoryID)

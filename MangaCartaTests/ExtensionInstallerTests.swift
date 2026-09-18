@@ -557,6 +557,60 @@ final class ExtensionInstallerTests: XCTestCase {
         try await assertPreserved("reinstall")
     }
 
+    func testDisablePersistFailureLeavesRegistryRegistered() async throws {
+        let registry = SourceLifecycleRegistry()
+        let installer = makeInstaller(registry: registry)
+        let (_, qualifiedId) = try await addAndInstallSite1(installer)
+        let recordBefore = try XCTUnwrap(installer.store.source(qualifiedId))
+        try makeStoreCommitFailing()
+
+        await XCTAssertThrowsErrorAsync(try installer.disable(qualifiedId)) { error in
+            guard case .persistence = error as? ExtensionInstallError else {
+                return XCTFail("expected persistence failure, got \(error)")
+            }
+        }
+
+        XCTAssertTrue(registry.isActive(qualifiedId))
+        XCTAssertEqual(installer.store.source(qualifiedId), recordBefore)
+    }
+
+    func testRemoveRepositoryPersistFailureLeavesRegistryAndRecordsUnchanged() async throws {
+        let registry = SourceLifecycleRegistry()
+        let installer = makeInstaller(registry: registry)
+        let (repositoryID, qualifiedId) = try await addAndInstallSite1(installer)
+        let repositoryBefore = try XCTUnwrap(installer.store.repository(repositoryID))
+        let sourceBefore = try XCTUnwrap(installer.store.source(qualifiedId))
+        try makeStoreCommitFailing()
+
+        await XCTAssertThrowsErrorAsync(try installer.removeRepository(repositoryID)) { error in
+            guard case .persistence = error as? ExtensionInstallError else {
+                return XCTFail("expected persistence failure, got \(error)")
+            }
+        }
+
+        XCTAssertTrue(registry.isActive(qualifiedId))
+        XCTAssertEqual(installer.store.repository(repositoryID), repositoryBefore)
+        XCTAssertEqual(installer.store.source(qualifiedId), sourceBefore)
+    }
+
+    func testCorruptRepositoryFileIsQuarantinedAndCommitRefusesToOverwriteIt() throws {
+        let original = Data("{ definitely not valid JSON".utf8)
+        let repositoryFile = directory.appendingPathComponent("repositories.json")
+        try original.write(to: repositoryFile)
+        let store = RepositoryStore(directory: directory)
+
+        XCTAssertThrowsError(try store.commit { _ in }) { error in
+            XCTAssertEqual(error as? RepositoryStore.StoreError, .unreadable)
+        }
+
+        let quarantined = try FileManager.default.contentsOfDirectory(at: directory,
+                                                                        includingPropertiesForKeys: nil)
+            .first { $0.lastPathComponent.hasPrefix("repositories.json.corrupt-") }
+        XCTAssertEqual(try Data(contentsOf: try XCTUnwrap(quarantined)), original)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: repositoryFile.path),
+                       "the original corrupt path must not be replaced by an empty snapshot")
+    }
+
     func testEraseDataIsTheOnlyPathThatRemovesStorageAndTheRecordAndItNeedsAnUninstall() async throws {
         let installer = makeInstaller()
         let (_, qualifiedId) = try await addAndInstallSite1(installer)
@@ -574,6 +628,11 @@ final class ExtensionInstallerTests: XCTestCase {
         let stored = try await HostStorage(sourceID: qualifiedId, repository: storage).get("cursor")
         XCTAssertNil(stored)
         XCTAssertNil(installer.store.source(qualifiedId), "the record and its binding are gone")
+    }
+
+    private func makeStoreCommitFailing() throws {
+        try FileManager.default.removeItem(at: directory)
+        try Data("not a directory".utf8).write(to: directory)
     }
 
     func testInstalledStateSurvivesRelaunchAndIsReconnectedFromTheRawDeclaration() async throws {
