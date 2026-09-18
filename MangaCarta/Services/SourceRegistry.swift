@@ -4,8 +4,12 @@
 //
 //  The single place that knows which manga sources exist and which one is "active" for
 //  browsing. ViewModels and Services resolve their source through here instead of
-//  referencing a concrete API. Today there is exactly one source (MangaDex); this is the
-//  seam that multi-source support grows into.
+//  referencing a concrete API. Two kinds of source live here: the compiled-in set
+//  (`builtInSources()`), fixed for the life of the process, and the installed set
+//  (Phase 4), which `ExtensionSourceRegistrar` replaces whenever the lifecycle registry
+//  or the repository store changes. Installed sources are *added* after the built-ins,
+//  never substituted for them; registration order is what the fulfillment ranking's last
+//  tiebreak reads (ADR-0004).
 //
 
 import Foundation
@@ -16,8 +20,13 @@ final class SourceRegistry: ObservableObject {
     /// App-wide shared instance. Tests construct their own with injected sources instead.
     static let shared = SourceRegistry()
 
-    /// All sources compiled into the app.
+    /// Every source the app can browse or read from: the built-ins, then the installed
+    /// ones. Replaced as a whole so one `objectWillChange` covers a lifecycle event.
     @Published private(set) var sources: [MangaSource]
+
+    /// The set this registry was constructed with. Installed sources are appended to it
+    /// and never displace it.
+    private let builtIn: [MangaSource]
 
     /// The source used for browsing feeds (Home rails, search). Persisted across launches.
     @Published var activeSourceID: String {
@@ -32,6 +41,7 @@ final class SourceRegistry: ObservableObject {
     init(sources: [MangaSource]? = nil) {
         let sources = sources ?? Self.builtInSources()
         precondition(!sources.isEmpty, "SourceRegistry requires at least one source")
+        self.builtIn = sources
         self.sources = sources
         // Restore the persisted active source if it still exists; otherwise fall back to the first.
         let stored: String?
@@ -57,6 +67,18 @@ final class SourceRegistry: ObservableObject {
     private static func builtInSources() -> [MangaSource] {
         let context = SourceContext(webView: WebViewService.shared)
         return [MangaDexSource(), WeebCentralSource(context: context)]
+    }
+
+    /// Replaces the installed set (Phase 4). The built-ins stay exactly where they were;
+    /// `installed` follows them in the order given. If the browse source was one that is
+    /// no longer here — uninstalled, disabled, refused at launch — browsing moves to the
+    /// first source rather than leaving `activeSourceID` pointing at nothing the picker
+    /// can show. The first source is a built-in, which ADR-0022 keeps non-adult.
+    func setInstalledSources(_ installed: [MangaSource]) {
+        sources = builtIn + installed
+        if source(id: activeSourceID) == nil {
+            activeSourceID = sources[0].id
+        }
     }
 
     /// The currently-active browsing source (never nil — falls back to the first source).
@@ -88,8 +110,10 @@ final class SourceRegistry: ObservableObject {
     }
 
     /// Whether any registered source serves adult content, and therefore whether the
-    /// "show adult sources" control has anything to gate. False in the release build by
-    /// ADR-0022 — the adult source is never merged — which is what hides that control.
+    /// "show adult sources" control has anything to gate. False for the built-in set by
+    /// ADR-0022 — the adult source is never merged — which is what hides that control;
+    /// true the moment a reader installs a `mixed` or `adultOnly` Source (ADR-0022
+    /// Amendment 1), which is what shows it again.
     var hasAdultSource: Bool {
         sources.contains(where: \.isNSFW)
     }

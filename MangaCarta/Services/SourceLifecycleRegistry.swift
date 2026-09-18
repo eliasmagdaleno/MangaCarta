@@ -81,6 +81,14 @@ final class SourceLifecycleRegistry {
 
     private var entries: [QualifiedSourceID: Entry] = [:]
 
+    /// Runs after every successful transition — `register`, `disable`, `uninstall`,
+    /// `reinstall`. This registry owns lifecycle *state*; what the app *serves* is
+    /// `SourceRegistry`'s, and `ExtensionSourceRegistrar` mirrors one into the other
+    /// from here. An observation seam, not a second copy of anything: the mirror reads
+    /// this registry when told to, and holds no state of its own about which id is in
+    /// which state.
+    var didChange: (() -> Void)?
+
     init() {}
 
     /// Registers a Source for the first time under `declaration.qualifiedId`.
@@ -92,6 +100,7 @@ final class SourceLifecycleRegistry {
             throw SourceLifecycleError.alreadyRegistered
         }
         entries[declaration.qualifiedId] = Entry(declaration: declaration, state: .registered)
+        didChange?()
     }
 
     /// Unregisters the Source for new invocations. Per §11, "calls fail as unavailable
@@ -114,6 +123,7 @@ final class SourceLifecycleRegistry {
         guard var entry = entries[id] else { throw SourceLifecycleError.unknownSource }
         entry.state = state
         entries[id] = entry
+        didChange?()
     }
 
     /// Reinstalls (or performs the very first install of) a Source under
@@ -142,6 +152,7 @@ final class SourceLifecycleRegistry {
             }
         }
         entries[declaration.qualifiedId] = Entry(declaration: declaration, state: .registered)
+        didChange?()
     }
 
     /// The declaration this registry currently remembers for `id`, regardless of

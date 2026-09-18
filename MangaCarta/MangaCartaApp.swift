@@ -48,6 +48,9 @@ struct MangaCartaApp: App {
     private let refresh: LibraryRefreshCoordinator
     private let notifier: UpdateNotifier
     private let scheduler: UpdateScheduler
+    /// Installed Sources (Phase 4). Held for the app's lifetime so the registrar keeps
+    /// `registry` current; views reach the sources through `registry`, never this.
+    private let extensions: AppComposition.ExtensionComposition?
 
     /// The graph itself lives in `AppComposition`, where it can be built against temp
     /// storage and asserted on. This initializer does nothing but adopt what it built.
@@ -94,6 +97,7 @@ struct MangaCartaApp: App {
         self.refresh = composed.refresh
         self.notifier = composed.notifier
         self.scheduler = composed.scheduler
+        self.extensions = composed.extensions
         _library = StateObject(wrappedValue: composed.library)
         _history = StateObject(wrappedValue: composed.history)
         _taste = StateObject(wrappedValue: composed.taste)
