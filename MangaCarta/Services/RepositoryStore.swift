@@ -100,12 +100,14 @@ final class RepositoryStore: ObservableObject {
 
     enum StoreError: Error, Equatable {
         case write(String)
+        case unreadable
     }
 
     @Published private(set) var snapshot = Snapshot()
 
     private let directory: URL
     private var loaded = false
+    private var loadError: StoreError?
 
     private var fileURL: URL { directory.appendingPathComponent("repositories.json") }
     private var scriptsDirectory: URL {
@@ -114,7 +116,7 @@ final class RepositoryStore: ObservableObject {
 
     init(directory: URL = WorkStore.applicationSupportDirectory()) {
         self.directory = directory
-        loadIfNeeded()
+        try? loadIfNeeded()
     }
 
     // MARK: Lookup
@@ -157,7 +159,7 @@ final class RepositoryStore: ObservableObject {
     /// if the write succeeded. A thrown error from `mutate` or from the write leaves both
     /// memory and disk untouched.
     func commit(_ mutate: (inout Snapshot) throws -> Void) throws {
-        loadIfNeeded()
+        try loadIfNeeded()
         var staged = snapshot
         try mutate(&staged)
         try write(staged)
@@ -219,11 +221,26 @@ final class RepositoryStore: ObservableObject {
         }
     }
 
-    private func loadIfNeeded() {
+    func loadIfNeeded() throws {
+        if let loadError { throw loadError }
         guard !loaded else { return }
         loaded = true
-        guard let data = try? Data(contentsOf: fileURL),
-              let payload = try? JSONDecoder().decode(RepositoryStorePersisted.self, from: data) else { return }
+        guard let data = try? Data(contentsOf: fileURL) else { return }
+        let payload: RepositoryStorePersisted
+        do {
+            payload = try JSONDecoder().decode(RepositoryStorePersisted.self, from: data)
+        } catch {
+            let timestamp = ISO8601DateFormatter().string(from: Date())
+            let corruptURL = directory.appendingPathComponent("repositories.json.corrupt-\(timestamp)")
+            do {
+                try FileManager.default.moveItem(at: fileURL, to: corruptURL)
+            } catch {
+                // Keep the original in place when quarantine itself fails; either way,
+                // the unreadable state prevents a later commit from overwriting it.
+            }
+            loadError = .unreadable
+            throw StoreError.unreadable
+        }
         var loadedSnapshot = Snapshot()
         for record in payload.repositories { loadedSnapshot.repositories[record.id] = record }
         for record in payload.bundles {
