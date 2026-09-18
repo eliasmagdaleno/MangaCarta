@@ -4,6 +4,14 @@
 submission checklist; #149 links here rather than duplicating it. This is product/regulatory
 research, not legal advice.
 
+## Status
+
+**Decided 2026-09-16.** The user accepted the recommendation below; `MangaCarta/PrivacyInfo.xcprivacy`
+now declares Name, User ID and Product Interaction (linked, not tracking, App Functionality). The App
+Store Connect answers are the table under "Recommended App Store Connect answers" — fill the form from
+it. Still owed: the hosted privacy policy text (names MAL, fields, retention, revocation), which needs
+a URL and therefore waits on #150 (the name); ADR-0022 Amendment 2 commits to it in the same pass.
+
 ## Conclusion
 
 PR #128's conclusion does **not** survive the second pass. Apple defines collection as
