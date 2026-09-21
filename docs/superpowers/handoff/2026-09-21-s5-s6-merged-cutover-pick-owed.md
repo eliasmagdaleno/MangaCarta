@@ -1,6 +1,6 @@
 # Handoff — S5 and S6 are merged; the cutover still needs the user's pick before ADR-0003 A5
 
-Date: 2026-09-21, 14:45 PDT
+Date: 2026-09-21, 15:00 PDT (updated in place: cutover picked and dispatched)
 Repository: `/Users/eliasmagdaleno/Manga-Reader` (GitHub `eliasmagdaleno/MangaCarta`)
 Branch: `docs/handoff-2026-09-21-s5-s6-merged`, off `main` at `3bca188`.
 
@@ -43,35 +43,27 @@ What the review changed before merge (both small, both in the squashes):
 
 ## What is owed
 
-### 1. The cutover fork — the user's pick, asked 2026-09-21 13:0x, still unanswered
+### 1. The cutover — picked (bundled package), recorded, **dispatched and in flight**
 
-The user asked for "ADR-0003 Amendment 5 and widen S6 to the cutover". Drafting stalled on a real
-fork, put to the user in prose:
+The user picked **Option 2, a bundled package**, 2026-09-21 14:49. Recorded in ADR-0003
+**Amendment 5** (+ ADR-0022 Amendment 3, format design §12, glossary "Bundled package") — #199,
+merged. The reader-controls question was answered by the recommendation (stays
+disable/uninstall/erase-able; no Remove / Change URL on the bundled repository) and is in A5 part 4.
 
-- Compiled WeebCentral's id is the bare `"weebcentral"`; an installed Source's id is
-  `<repo-uuid>:weebcentral` (format design §5.2; the id spaces deliberately cannot collide). So
-  the cutover changes WeebCentral's identity and needs a one-time migration of every Listing,
-  history entry and pin stamped `"weebcentral"` — including the seeded simulator fixture's
-  `works.json`.
-- **Option 1 — ship nothing; the reader installs WeebCentral from a repository they add.**
-  Cleanest against ADR-0003 A4 (no default repository) and ADR-0022 A2's Review defence; reverses
-  ADR-0022's "the public release ships MangaDex and WeebCentral"; nothing to migrate *to*.
-- **Option 2 (recommended) — a bundled package.** The app bundle carries the WeebCentral
-  index + script + declaration, installs it at first launch under a fixed app-owned repository
-  UUID, updates only with app updates; no network repository, no URL. Product unchanged; Review
-  sees what it sees today (a `none`-class source). The amendment must say explicitly that A2's
-  "shipping a default repository reopens this" is about a *network* repository offering adult
-  Sources. Cost: the deterministic id migration + re-seeding the fixture.
-- Either way: say whether WeebCentral stays disable/uninstall/erase-able once installed (I'd say
-  yes — it is a Source like any other; the app just re-offers it).
+**Dispatched 2026-09-21 14:58** on S6's retained Codex Luna terminal, so it inherits S6's
+context: task `task_0f17ed20f91b`, dispatch `ctx_0da5b1e054a0`, terminal
+`term_f73f3658-da00-4053-8f5c-a52bfb2d726b`, run `run_e932a373e558`. Brief:
+`docs/superpowers/plans/2026-09-21-phase-4-cutover-brief.md` (nine clauses, each with a mutation
+owed; branch `eliasmagdaleno/phase4-cutover-bundled-weebcentral` off `main`). The worker was told
+to push a draft PR as soon as the first test is green.
 
-**Once picked:** write ADR-0003 Amendment 5 (owner of the decision; the format design owns any new
-wire shape for a bundled package), then dispatch the cutover. #192's "Cutover boundary" section
-lists exactly what the cutover PR deletes (`WeebCentralSource.swift`, the compiled entry in
-`builtInSources()`, the compiled side of `WeebCentralPortTests`/`ExtensionPortHarness`). The
-fixture `MangaCartaTests/__Fixtures__/weebcentral/repository-engine.js` is the Swift
-`bundleScript` verbatim plus a trailing marker comment — after the cutover it, or the bundled
-package, is the only copy.
+**Owed on completion:** the same review-by-mutation protocol as S5/S6 — re-run clause mutations
+yourself, every test class the slice touched; read the migration (clause 6) against every store it
+names *and* the ones it says need no rewrite; confirm the bundled index is `none`-class and the
+`mixed`/`adultOnly` refusal is tested; confirm exactly one copy of the engine script remains; run the
+seeded-fixture proof (clause 9) yourself on the Pro. Then merge with the user's say-so, close #168,
+update `CLAUDE.md` "Current state" (the worker owns one sentence there; check it), and release both
+Orca workers + remove both worktrees.
 
 ### 2. Review findings filed this pass
 
@@ -133,7 +125,7 @@ result-bundle totals; 4) review by mutation, every class; 5) merge with the user
 ## Repository state
 
 - `main` at **`3bca188`**. Merged this pass: #192, #193.
-- **Open PRs:** this handoff.
+- **Open PRs:** none at write time; the cutover PR is expected from the dispatch above.
 - Open issues: #168 (all slices ticked; close with the cutover), #186, #188, #189, #190, #196,
   #197, #150, #90.
 - Orca run `run_e932a373e558`; coordinator `term_59f4a37e-7786-4eed-ad98-199acd1a7284`.
