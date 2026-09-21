@@ -66,7 +66,8 @@ final class RepositorySettingsViewModelTests: XCTestCase {
         let sourceID = ExtensionInstaller.qualifiedID(repositoryID: repository.id, localId: "fixture")
         let install = Task { try await model.composition.installer.install(localId: "fixture", from: repository.id) }
         for _ in 0..<100 where model.pendingAcknowledgement == nil { await Task.yield() }
-        XCTAssertEqual(model.pendingAcknowledgement?.classification, .mixed)
+        XCTAssertEqual(model.pendingAcknowledgement?.acknowledgement.classification, .mixed)
+        XCTAssertEqual(model.pendingAcknowledgement?.asksForAge, true)
         model.answerAgeGate(false)
         do {
             _ = try await install.value
@@ -87,11 +88,21 @@ final class RepositorySettingsViewModelTests: XCTestCase {
         let firstAccepted = await first.value
         XCTAssertTrue(firstAccepted)
         XCTAssertTrue(defaults.bool(forKey: RepositorySettingsViewModel.declaredAgeKey))
-        if defaults.bool(forKey: RepositorySettingsViewModel.declaredAgeKey) {
-            let secondAccepted = await model.composition.adultAcknowledgement.acknowledge(acknowledgement)
-            XCTAssertTrue(secondAccepted)
-            XCTAssertNil(model.pendingAcknowledgement)
-        }
+
+        // Format design §7.1: a confirmed reader still sees the sheet name the Source and
+        // its class, but is not asked again.
+        let second = Task { await model.composition.adultAcknowledgement.acknowledge(acknowledgement) }
+        for _ in 0..<100 where model.pendingAcknowledgement == nil { await Task.yield() }
+        let pending = try XCTUnwrap(model.pendingAcknowledgement)
+        XCTAssertEqual(pending.acknowledgement, acknowledgement)
+        XCTAssertFalse(pending.asksForAge, "confirmed once per device; the sheet names, it does not ask")
+        let copy = RepositorySettingsViewModel.ageConfirmationCopy(for: acknowledgement, asksForAge: false)
+        XCTAssertTrue(copy.contains("Adult Source"))
+        XCTAssertFalse(copy.contains("18 or over"))
+        model.answerAgeGate(true)
+        let secondAccepted = await second.value
+        XCTAssertTrue(secondAccepted)
+        XCTAssertNil(model.pendingAcknowledgement)
     }
 
     func testAdultToggleRequiresBothAgeConfirmationAndRegisteredAdultSource() {
@@ -114,9 +125,13 @@ final class RepositorySettingsViewModelTests: XCTestCase {
         let copy = RepositorySettingsViewModel.ageConfirmationCopy(for: acknowledgement)
         XCTAssertTrue(copy.contains("Reader's Choice"))
         XCTAssertTrue(copy.contains("Community Index"))
-        XCTAssertTrue(copy.contains("adultOnly"))
+        XCTAssertTrue(copy.contains("adult-only"), "the class is a word, not an enum case")
         XCTAssertTrue(copy.contains("18 or over"))
+        XCTAssertTrue(copy.hasPrefix("Community Index declares"),
+                      "the repository is named as the one classifying, not the developer")
         XCTAssertFalse(copy.localizedCaseInsensitiveContains("moderated"))
         XCTAssertFalse(copy.localizedCaseInsensitiveContains("approved"))
+        XCTAssertFalse(copy.localizedCaseInsensitiveContains("is classified"),
+                       "passive voice leaves the classifier unnamed")
     }
 }

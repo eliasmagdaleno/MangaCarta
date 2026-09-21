@@ -371,21 +371,22 @@ private struct RepositorySettingsSection: View {
             }
         }
         .task { model.refreshStoreStatus() }
-        .sheet(item: Binding(get: { model.pendingAcknowledgement.map(AcknowledgementSheet.init) }, set: { if $0 == nil { model.answerAgeGate(false) } })) { item in
+        .sheet(item: Binding(get: { model.pendingAcknowledgement },
+                             set: { if $0 == nil { model.answerAgeGate(false) } })) { item in
             VStack(spacing: 16) {
-                Text("Confirm your age").font(.title2.weight(.semibold))
-                Text(RepositorySettingsViewModel.ageConfirmationCopy(for: item.value))
-                Button("I am 18 or over") { model.answerAgeGate(true) }
-                    .accessibilityIdentifier("repositorySettings.confirmAge")
+                Text(item.asksForAge ? "Confirm your age" : "Adult Source").font(.title2.weight(.semibold))
+                Text(RepositorySettingsViewModel.ageConfirmationCopy(for: item.acknowledgement,
+                                                                     asksForAge: item.asksForAge))
+                if item.asksForAge {
+                    Button("I am 18 or over") { model.answerAgeGate(true) }
+                        .accessibilityIdentifier("repositorySettings.confirmAge")
+                } else {
+                    Button("Install") { model.answerAgeGate(true) }
+                        .accessibilityIdentifier("repositorySettings.continueInstall")
+                }
                 Button("Cancel") { model.answerAgeGate(false) }
             }.padding(24).presentationDetents([.medium])
         }
-    }
-
-    private struct AcknowledgementSheet: Identifiable {
-        let value: AdultInstallAcknowledgement
-        var id: String { value.sourceName + value.repositoryName }
-        init(_ value: AdultInstallAcknowledgement) { self.value = value }
     }
 }
 

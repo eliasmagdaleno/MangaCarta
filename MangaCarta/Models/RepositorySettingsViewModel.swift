@@ -3,7 +3,17 @@ import Foundation
 @MainActor
 final class RepositorySettingsViewModel: ObservableObject {
     @Published var errorMessage: String?
-    @Published var pendingAcknowledgement: AdultInstallAcknowledgement?
+    /// The sheet the installer is waiting on. It always appears for a `mixed` or
+    /// `adultOnly` Source — a reader who has already confirmed their age still sees which
+    /// Source is adult-classed and who says so (format design §7.1) — but only asks the
+    /// age question when the device has no confirmation yet.
+    struct PendingAcknowledgement: Identifiable, Equatable {
+        let acknowledgement: AdultInstallAcknowledgement
+        let asksForAge: Bool
+        var id: String { acknowledgement.repositoryName + "/" + acknowledgement.sourceName }
+    }
+
+    @Published var pendingAcknowledgement: PendingAcknowledgement?
     @Published var storeUnreadable = false
     @Published var availableSources: [UUID: [RepositoryListing.Entry]] = [:]
 
@@ -17,9 +27,10 @@ final class RepositorySettingsViewModel: ObservableObject {
         self.defaults = defaults
         composition.adultAcknowledgement.present = { [weak self] acknowledgement in
             guard let self else { return false }
-            if self.defaults.bool(forKey: Self.declaredAgeKey) { return true }
+            let asksForAge = !self.defaults.bool(forKey: Self.declaredAgeKey)
             return await withCheckedContinuation { continuation in
-                self.pendingAcknowledgement = acknowledgement
+                self.pendingAcknowledgement = PendingAcknowledgement(acknowledgement: acknowledgement,
+                                                                     asksForAge: asksForAge)
                 self.ageAnswer = continuation
             }
         }
@@ -27,7 +38,12 @@ final class RepositorySettingsViewModel: ObservableObject {
 
     static let declaredAgeKey = "settings.declaredAgeOver18"
     static let showAdultSourcesKey = "settings.showAdultSources"
-    static let ageGateCopy = "{source} from {repository} is classified as {classification}. Confirm that you are 18 or over to install this Source."
+    /// Names the maintainer as the one classifying, and never the developer: the class is
+    /// what the repository attests by serving the declaration (format design §7.2), and
+    /// ADR-0022 Amendment 2's copy rule is that nothing here reads as moderated by us.
+    static let declarationCopy = "{repository} declares {source} as {classification}."
+    static let ageQuestionCopy = "Confirm that you are 18 or over to install it."
+    static let alreadyConfirmedCopy = "You have already confirmed your age on this device."
 
     static func shouldShowAdultSourcesToggle(isConfirmed: Bool, hasRegisteredAdultSource: Bool) -> Bool {
         isConfirmed && hasRegisteredAdultSource
@@ -38,11 +54,19 @@ final class RepositorySettingsViewModel: ObservableObject {
         if !visible { defaults.removeObject(forKey: declaredAgeKey) }
     }
 
-    static func ageConfirmationCopy(for acknowledgement: AdultInstallAcknowledgement) -> String {
-        ageGateCopy
+    static func ageConfirmationCopy(for acknowledgement: AdultInstallAcknowledgement,
+                                    asksForAge: Bool = true) -> String {
+        let classification: String
+        switch acknowledgement.classification {
+        case .adultOnly: classification = "adult-only"
+        case .mixed: classification = "mixed adult and general content"
+        case .none: classification = "general content"
+        }
+        let declaration = declarationCopy
             .replacingOccurrences(of: "{source}", with: acknowledgement.sourceName)
             .replacingOccurrences(of: "{repository}", with: acknowledgement.repositoryName)
-            .replacingOccurrences(of: "{classification}", with: acknowledgement.classification.rawValue)
+            .replacingOccurrences(of: "{classification}", with: classification)
+        return declaration + " " + (asksForAge ? ageQuestionCopy : alreadyConfirmedCopy)
     }
 
     func refreshStoreStatus() {
@@ -51,7 +75,9 @@ final class RepositorySettingsViewModel: ObservableObject {
     }
 
     func answerAgeGate(_ confirmed: Bool) {
-        if confirmed { defaults.set(true, forKey: Self.declaredAgeKey) }
+        if confirmed, pendingAcknowledgement?.asksForAge == true {
+            defaults.set(true, forKey: Self.declaredAgeKey)
+        }
         pendingAcknowledgement = nil
         ageAnswer?.resume(returning: confirmed)
         ageAnswer = nil
