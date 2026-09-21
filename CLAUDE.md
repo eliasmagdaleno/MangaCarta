@@ -180,13 +180,18 @@ The app builds and the core reading loop is implemented.
   it**; WeebCentral is a declaration, not code.
   **The compiled `WeebCentralSource` is still what the app actually uses.** The port proves
   equivalence; cutting over is a separate decision (see #162's scope boundary).
-- **Phase 4 (repository format + installer) is half landed** as of 2026-09-16: all three host
-  capabilities are bridged (#170, closed #164); `RepositoryIndexValidator` parses format-1 indexes
-  (#173); `RepositoryStore` + `ExtensionInstaller` mint identity, install, update and persist over
-  `SourceLifecycleRegistry` (#175). **None of it is reachable from the app yet** — nothing
-  constructs `ExtensionInstaller` outside tests, `SourceRegistry.builtInSources()` is still the
-  hard-coded pair, and there is no `MangaSource` adapter over `ExtensionRuntime`. That adapter is
-  S4; Settings UI and the WeebCentral cutover are S5/S6. The live handoff tracks slice state.
+- **Phase 4 (repository format + installer) is landed through S4** as of 2026-09-21: all three host
+  capabilities are bridged (#170); `RepositoryIndexValidator` parses format-1 indexes (#173);
+  `RepositoryStore` + `ExtensionInstaller` mint identity, install, update and persist over
+  `SourceLifecycleRegistry` (#175, #183); and `ExtensionSource` is the `MangaSource` adapter over
+  `ExtensionRuntime` (#184). **Installed Sources are now live in the app graph:** at launch
+  `ExtensionSourceRegistrar` restores every active install from the store into
+  `AppComposition.registry`, *added* beside the built-in pair, never substituted. The host stamps
+  `Manga.sourceId` with the qualified id on every conversion path (the MangaDex `toManga` rule), and a
+  disabled or uninstalled Source fails as unavailable while its Listings, pins and history are kept.
+  What is still missing: a way to *add* a repository from the UI and the declared-age gate (S5), and a
+  production `RepositoryTransport` plus the WeebCentral cutover (S6) — until S6, `builtInSources()` is
+  still the compiled pair. #168 tracks slice state; the live handoff tracks what is in flight.
 - Design/spec/plan for shipped work live in `docs/superpowers/{specs,plans}/`.
 
 Still minimal: no cross-device sync. Content refresh is no longer manual-only (see above);
