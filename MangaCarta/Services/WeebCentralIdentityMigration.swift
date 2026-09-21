@@ -1,14 +1,23 @@
 import Foundation
 
-/// Reconnects persisted references from the former compiled Source to the bundled Source.
-/// It rewrites only payloads that contain the bare id, so a second launch is byte-for-byte
-/// inert and files with no legacy references are untouched.
+/// Reconnects persisted references from the former compiled Source (`"weebcentral"`) to the
+/// bundled Source (`<fixed-uuid>:weebcentral`) — ADR-0003 Amendment 5, part 5. It rewrites
+/// only payloads that contain the bare id, so a second launch is byte-for-byte inert and a
+/// file with no legacy reference is never rewritten.
+///
+/// Two shapes carry a source id: a string *value* equal to the bare id (every `ListingKey`,
+/// `Manga.sourceId`, `source.primaryID`), and a dictionary *key* prefixed with it —
+/// `EntityResolutionStore` keys its cache `"<sourceId>:<mangaId>"`. Both are rewritten.
+///
+/// `listing-counts.json` is deliberately not here: it lives in `Caches/`, is 24h-TTL and
+/// disposable, and a stale entry under the old id is a cache miss, not a wrong answer.
 @MainActor
 enum WeebCentralIdentityMigration {
     static let legacyID = "weebcentral"
     static let qualifiedID = "\(BundledRepositories.weebCentralRepositoryID.uuidString.lowercased()):weebcentral"
 
-    private static let files = ["works.json", "updates.json", "listing-counts.json"]
+    private static let legacyKeyPrefix = legacyID + ":"
+    private static let files = ["works.json", "updates.json"]
     private static let defaultsKeys = [
         "library.items", "library.collections", "history.entries", "history.readMarks",
         "entityResolution.cache", "entityResolution.reverseCache", "taste.tagCache",
@@ -48,7 +57,10 @@ enum WeebCentralIdentityMigration {
     private static func containsLegacy(_ value: Any) -> Bool {
         if let string = value as? String { return string == legacyID }
         if let array = value as? [Any] { return array.contains(where: containsLegacy) }
-        if let object = value as? [String: Any] { return object.values.contains(where: containsLegacy) }
+        if let object = value as? [String: Any] {
+            return object.keys.contains { $0.hasPrefix(legacyKeyPrefix) }
+                || object.values.contains(where: containsLegacy)
+        }
         return false
     }
 
@@ -56,7 +68,14 @@ enum WeebCentralIdentityMigration {
         if let string = value as? String { return string == legacyID ? qualifiedID : string }
         if let array = value as? [Any] { return array.map(replacingLegacy) }
         if let object = value as? [String: Any] {
-            return object.mapValues(replacingLegacy)
+            var rewritten: [String: Any] = [:]
+            for (key, inner) in object {
+                let newKey = key.hasPrefix(legacyKeyPrefix)
+                    ? qualifiedID + ":" + key.dropFirst(legacyKeyPrefix.count)
+                    : key
+                rewritten[newKey] = replacingLegacy(in: inner)
+            }
+            return rewritten
         }
         return value
     }

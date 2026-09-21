@@ -307,7 +307,10 @@ private struct RepositorySettingsSection: View {
             ForEach(repositories.repositories.filter { $0.state == .active }) { repository in
                 VStack(alignment: .leading, spacing: 8) {
                     Text(repository.name).font(.subheadline.weight(.semibold))
-                    Text(repository.indexURL.absoluteString).font(.caption).foregroundStyle(Ink.secondary)
+                    Text(RepositorySettingsViewModel.isBundled(repository)
+                         ? "Shipped with the app; updates arrive with app updates."
+                         : repository.indexURL.absoluteString)
+                        .font(.caption).foregroundStyle(Ink.secondary)
                     ForEach(repositories.sources(in: repository.id), id: \.qualifiedId) { source in
                         HStack {
                             VStack(alignment: .leading) {

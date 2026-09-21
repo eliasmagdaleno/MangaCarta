@@ -75,7 +75,6 @@ struct AppComposition {
     /// current. It is held here so the registrar, the installer and the store live for
     /// the app's lifetime and so a test can drive an install through the real graph.
     let extensions: ExtensionComposition?
-    private let usesBundledRepositoryTransport: Bool
 
     /// The extension subsystem's four owners, built together because they share one
     /// `SourceLifecycleRegistry`: the installer drives it, the registrar mirrors it.
@@ -89,23 +88,37 @@ struct AppComposition {
         let adultAcknowledgement: AdultInstallAcknowledgementHandle
         let usesBundledTransport: Bool
 
-        func installBundledSources() async {
-            guard usesBundledTransport else { return }
+        /// First-launch install of the bundled WeebCentral package (ADR-0003 Amendment 5),
+        /// and on every later launch the refresh that surfaces an app-update's new bundle
+        /// `version`. Awaited by `MangaCartaApp` right after composition so the registry is
+        /// deterministic by the time any view reads it — an earlier draft fired this from
+        /// `init` as an unstructured `Task`, which left `registry.sources` racing.
+        ///
+        /// A record whose Source the reader *uninstalled* is left alone: the guard is on the
+        /// record's existence, not its state, so the app re-offers rather than reinstalls
+        /// (A5 part 4). The repository URL is the constant `bundled.invalid` URL, so there is no
+        /// stale-URL path to repair. Returns the installer's sentence when the package could
+        /// not be installed — a packaging defect, not a reader-facing state: MangaDex stays
+        /// usable and the repositories screen shows the Source as offered.
+        @discardableResult
+        func installBundledSources() async -> String? {
+            guard usesBundledTransport else { return nil }
             let id = BundledRepositories.weebCentralRepositoryID
             do {
                 let repository: RepositoryRecord
                 if let existing = repositories.repository(id) {
                     repository = existing
-                    if existing.indexURL != BundledRepositories.weebCentralURL {
-                        _ = try await installer.changeRepositoryURL(id, to: BundledRepositories.weebCentralURL)
-                    } else { _ = try await installer.refresh(id) }
+                    _ = try await installer.refresh(id)
                 } else {
                     repository = try await installer.addRepository(at: BundledRepositories.weebCentralURL,
                                                                    repositoryID: id)
                 }
-                guard repositories.sources(in: id).isEmpty else { return }
+                guard repositories.sources(in: id).isEmpty else { return nil }
                 _ = try await installer.install(localId: "weebcentral", from: repository.id)
-            } catch { }
+                return nil
+            } catch {
+                return error.localizedDescription
+            }
         }
     }
 
@@ -407,7 +420,6 @@ struct AppComposition {
                                               transport: repositoryTransport,
                                               registry: self.registry)
         self.extensions = extensions
-        self.usesBundledRepositoryTransport = repositoryTransport == nil
     }
 
     /// The installed-Source subsystem (Phase 4). Restores every installed Source from
@@ -436,36 +448,6 @@ struct AppComposition {
         return ExtensionComposition(repositories: repositories, installer: installer, host: host,
                                     registrar: registrar, adultAcknowledgement: acknowledgement,
                                     usesBundledTransport: transport == nil)
-    }
-
-    func installBundledSources() async {
-        guard usesBundledRepositoryTransport, let extensions else { return }
-        await Self.installBundledWeebCentral(in: extensions)
-    }
-
-    private static func installBundledWeebCentral(in extensions: ExtensionComposition) async {
-        let id = BundledRepositories.weebCentralRepositoryID
-        do {
-            let repository: RepositoryRecord
-            if let existing = extensions.repositories.repository(id) {
-                repository = existing
-                if existing.indexURL != BundledRepositories.weebCentralURL {
-                    _ = try await extensions.installer.changeRepositoryURL(
-                        id, to: BundledRepositories.weebCentralURL)
-                } else {
-                    _ = try await extensions.installer.refresh(id)
-                }
-            } else {
-                repository = try await extensions.installer.addRepository(
-                    at: BundledRepositories.weebCentralURL,
-                    repositoryID: id)
-            }
-            guard extensions.repositories.sources(in: id).isEmpty else { return }
-            _ = try await extensions.installer.install(localId: "weebcentral", from: repository.id)
-        } catch {
-            // A malformed bundled resource is a packaging failure. Keep the app's other
-            // sources usable and let the repository screen surface the missing package.
-        }
     }
 
     /// Fulfillment's three pieces (ADR-0004). Extracted from `init` only because it had

@@ -48,8 +48,7 @@ struct BundledRepositoryTransport: RepositoryTransport, @unchecked Sendable {
         }
         let data = try Data(contentsOf: resourceURL)
         let index: RepositoryIndex
-        let validationURL = URL(string: "https://bundled.invalid/weebcentral/index.json")!
-        switch RepositoryIndexValidator.validate(json: data, indexURL: validationURL) {
+        switch RepositoryIndexValidator.validate(json: data, indexURL: BundledRepositories.weebCentralURL) {
         case .success(let value): index = value
         case .failure(let error): throw error
         }
@@ -82,9 +81,18 @@ struct BundledRepositoryTransport: RepositoryTransport, @unchecked Sendable {
     }
 }
 
+/// The one place the bundled package's identity and address are declared (format design §12).
+///
+/// The address is a URL under `bundled.invalid` — `.invalid` is reserved by RFC 2606 and can
+/// never resolve — so the index, its `script` reference and the repository record all pass the
+/// validator's absolute-HTTPS rule while `AppRepositoryTransport` can recognise the host and
+/// read the app bundle instead of the network. It is never shown to the reader.
 enum BundledRepositories {
+    static let host = "bundled.invalid"
     static let weebCentralRepositoryID = UUID(uuidString: "9C6A1C65-2AB0-4B53-8F91-55BDFDEB8E55")!
-    static let weebCentralURL = URL(string: "bundled://weebcentral/index.json")!
+    static let weebCentralURL = URL(string: "https://bundled.invalid/weebcentral/index.json")!
+
+    static func isBundled(_ url: URL) -> Bool { url.host?.lowercased() == host }
 }
 
 struct AppRepositoryTransport: RepositoryTransport, @unchecked Sendable {
@@ -97,12 +105,12 @@ struct AppRepositoryTransport: RepositoryTransport, @unchecked Sendable {
     }
 
     func fetchIndex(at url: URL) async throws -> RepositoryIndexFetchOutcome {
-        if url.scheme == "bundled" { return try await bundled.fetchIndex(at: url) }
+        if BundledRepositories.isBundled(url) { return try await bundled.fetchIndex(at: url) }
         return try await network.fetchIndex(at: url)
     }
 
     func fetchScript(at url: URL) async throws -> Data {
-        if url.scheme == "bundled" { return try await bundled.fetchScript(at: url) }
+        if BundledRepositories.isBundled(url) { return try await bundled.fetchScript(at: url) }
         return try await network.fetchScript(at: url)
     }
 }
