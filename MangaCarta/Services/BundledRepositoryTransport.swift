@@ -42,7 +42,7 @@ struct BundledRepositoryTransport: RepositoryTransport, @unchecked Sendable {
         for bundleRecord in index.bundles {
             for source in bundleRecord.sources {
                 guard let localID = source.localID else { continue }
-                let qualified = ExtensionInstaller.qualifiedID(repositoryID: repositoryID, localId: localID)
+                let qualified = QualifiedSourceID(rawValue: "\(repositoryID.uuidString.lowercased()):\(localID)")
                 switch source.validate(qualifiedId: qualified) {
                 case .success(let declaration):
                     if declaration.adult != .none { throw Error.adultSource(localID) }
