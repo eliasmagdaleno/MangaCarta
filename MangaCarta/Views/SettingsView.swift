@@ -8,7 +8,7 @@ import UserNotifications
 
 struct SettingsView: View {
     @AppStorage(appearanceStorageKey) private var appearanceRaw = AppearanceMode.system.rawValue
-    @AppStorage("settings.showAdultSources") private var showAdultSources = false
+    @AppStorage(RepositorySettingsViewModel.showAdultSourcesKey) private var showAdultSources = false
     @AppStorage(RepositorySettingsViewModel.declaredAgeKey) private var declaredAge = false
     @AppStorage(UpdateNotifier.notificationsEnabledKey) private var notificationsEnabled = true
     /// The graph's registry, not the singleton — the same object the services resolve
@@ -154,14 +154,18 @@ struct SettingsView: View {
                         // control. The stored preference is left alone, so this reappears
                         // with its previous value if an adult source is ever registered.
                         // See ADR-0022.
-                        if registry.hasAdultSource && declaredAge {
+                        if RepositorySettingsViewModel.shouldShowAdultSourcesToggle(
+                            isConfirmed: declaredAge, hasRegisteredAdultSource: registry.hasAdultSource) {
                             Toggle("Show adult sources", isOn: $showAdultSources)
                                 .font(.subheadline)
                                 .tint(Ink.seal)
                                 .padding(.horizontal, Gutter.page)
                                 .onChange(of: showAdultSources) { _, newValue in
                                     registry.enforceAdultGating(includeAdult: newValue)
-                                    if !newValue { declaredAge = false }
+                                    RepositorySettingsViewModel.setAdultSourcesVisible(
+                                        newValue, defaults: .standard)
+                                    declaredAge = UserDefaults.standard.bool(
+                                        forKey: RepositorySettingsViewModel.declaredAgeKey)
                                 }
                         }
 
@@ -370,7 +374,7 @@ private struct RepositorySettingsSection: View {
         .sheet(item: Binding(get: { model.pendingAcknowledgement.map(AcknowledgementSheet.init) }, set: { if $0 == nil { model.answerAgeGate(false) } })) { item in
             VStack(spacing: 16) {
                 Text("Confirm your age").font(.title2.weight(.semibold))
-                Text("\(item.value.sourceName) from \(item.value.repositoryName) is classified as \(item.value.classification.rawValue). Confirm that you are 18 or over to install this Source.")
+                Text(RepositorySettingsViewModel.ageConfirmationCopy(for: item.value))
                 Button("I am 18 or over") { model.answerAgeGate(true) }
                     .accessibilityIdentifier("repositorySettings.confirmAge")
                 Button("Cancel") { model.answerAgeGate(false) }

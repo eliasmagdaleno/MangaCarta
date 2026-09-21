@@ -85,6 +85,7 @@
 		E7CBBD1428324559AFC66FAD /* BrowserInteractionSpikeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCEA6025BCD90B3F70131F41 /* BrowserInteractionSpikeTests.swift */; };
 		F1EDF70D02166B598E8C64BB /* AppCompositionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72871A40D70AAE0566E9CE31 /* AppCompositionTests.swift */; };
 		F2CB6BCB819D4DAA455C6FE0 /* SimulatorSeedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FA3A806F48EF86136C94C85 /* SimulatorSeedTests.swift */; };
+		F335A8FC01FE43617F9FB5C8 /* RepositorySettingsViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CC6FA68B64F974849A2FD5F /* RepositorySettingsViewModelTests.swift */; };
 		F5187CABAE1CAC753A00B58E /* ExtensionCancellationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD39C55F6082921DFE723308 /* ExtensionCancellationTests.swift */; };
 		F93A28197C642D53DC7CEC31 /* ExtensionPortHarness.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06A3DBA01D9E1959777FC658 /* ExtensionPortHarness.swift */; };
 		FBEB5F2F2AFEBA4908593720 /* LibraryRefreshCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E80918D9E1FCC45D4322C48 /* LibraryRefreshCoordinatorTests.swift */; };
@@ -149,6 +150,7 @@
 		8FF07AE22F27097C7728C4C3 /* AdultSourceGatingTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = AdultSourceGatingTests.swift; path = AdultSourceGatingTests.swift; sourceTree = "<group>"; };
 		988991C0F003C55F34001352 /* UpdatesUITests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = UpdatesUITests.swift; path = UpdatesUITests.swift; sourceTree = "<group>"; };
 		9C6FEFC3040D33CD88650572 /* ReaderPresentationTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; path = ReaderPresentationTests.swift; sourceTree = "<group>"; };
+		9CC6FA68B64F974849A2FD5F /* RepositorySettingsViewModelTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = RepositorySettingsViewModelTests.swift; path = RepositorySettingsViewModelTests.swift; sourceTree = "<group>"; };
 		9D36FDBC6AC0513465888FAB /* ChapterRowPresentationTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = ChapterRowPresentationTests.swift; path = ChapterRowPresentationTests.swift; sourceTree = "<group>"; };
 		A7F1E11DDAC54DA6929F8EB2 /* ChapterListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChapterListView.swift; sourceTree = "<group>"; };
 		AC93D3828ABC877B7F41D12D /* MALProgressCoordinatorTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = MALProgressCoordinatorTests.swift; path = MALProgressCoordinatorTests.swift; sourceTree = "<group>"; };
@@ -363,6 +365,7 @@
 				2B1DC8D1ABB8F639591D5ABE /* RepositoryIndexValidatorTests.swift */,
 				558870572443F52BE0F33C08 /* ExtensionInstallerTests.swift */,
 				88AEBBAAB25C6B09F0FE797B /* ExtensionSourceTests.swift */,
+				9CC6FA68B64F974849A2FD5F /* RepositorySettingsViewModelTests.swift */,
 			);
 			path = MangaCartaTests;
 			sourceTree = "<group>";
@@ -614,6 +617,7 @@
 				B2282CBFC63A868370290A54 /* RepositoryIndexValidatorTests.swift in Sources */,
 				65C1F900403A118B566765A5 /* ExtensionInstallerTests.swift in Sources */,
 				16120C8C8E8B95CA75E37B05 /* ExtensionSourceTests.swift in Sources */,
+				F335A8FC01FE43617F9FB5C8 /* RepositorySettingsViewModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

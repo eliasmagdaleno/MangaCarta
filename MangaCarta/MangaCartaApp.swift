@@ -86,6 +86,8 @@ struct MangaCartaApp: App {
             let suite = "repository-settings-ui-test"
             defaults = UserDefaults(suiteName: suite)!
             defaults.removePersistentDomain(forName: suite)
+            UserDefaults.standard.removeObject(forKey: RepositorySettingsViewModel.declaredAgeKey)
+            UserDefaults.standard.removeObject(forKey: RepositorySettingsViewModel.showAdultSourcesKey)
             directory = FileManager.default.temporaryDirectory
                 .appendingPathComponent("MangaCarta-RepositorySettingsUITest", isDirectory: true)
             try? FileManager.default.removeItem(at: directory)

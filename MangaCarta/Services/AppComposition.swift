@@ -124,7 +124,7 @@ struct AppComposition {
         private static let declaration = JSONValue.object([
             "localId": .string("fixture"), "name": .string("Fixture Source"),
             "engine": .string("madara"), "configuration": .object([:]),
-            "adult": .string("none"),
+            "adult": .string("mixed"),
             "capabilities": .object(["search": .bool(true), "popular": .bool(true),
                                       "detail": .bool(true), "chapters": .bool(true), "pages": .bool(true)]),
             "languages": .object(["mode": .string("fixed"), "values": .array([.string("en")])]),

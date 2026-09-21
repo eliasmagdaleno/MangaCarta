@@ -26,6 +26,24 @@ final class RepositorySettingsViewModel: ObservableObject {
     }
 
     static let declaredAgeKey = "settings.declaredAgeOver18"
+    static let showAdultSourcesKey = "settings.showAdultSources"
+    static let ageGateCopy = "{source} from {repository} is classified as {classification}. Confirm that you are 18 or over to install this Source."
+
+    static func shouldShowAdultSourcesToggle(isConfirmed: Bool, hasRegisteredAdultSource: Bool) -> Bool {
+        isConfirmed && hasRegisteredAdultSource
+    }
+
+    static func setAdultSourcesVisible(_ visible: Bool, defaults: UserDefaults) {
+        defaults.set(visible, forKey: showAdultSourcesKey)
+        if !visible { defaults.removeObject(forKey: declaredAgeKey) }
+    }
+
+    static func ageConfirmationCopy(for acknowledgement: AdultInstallAcknowledgement) -> String {
+        ageGateCopy
+            .replacingOccurrences(of: "{source}", with: acknowledgement.sourceName)
+            .replacingOccurrences(of: "{repository}", with: acknowledgement.repositoryName)
+            .replacingOccurrences(of: "{classification}", with: acknowledgement.classification.rawValue)
+    }
 
     func refreshStoreStatus() {
         do { try composition.repositories.loadIfNeeded(); storeUnreadable = false }
@@ -46,7 +64,7 @@ final class RepositorySettingsViewModel: ObservableObject {
         }
     }
 
-    private func sentence(for error: Error) -> String {
+    func sentence(for error: Error) -> String {
         if let error = error as? ExtensionInstallError { return error.message }
         if let error = error as? RepositoryIndexError { return error.message }
         if let error = error as? LocalizedError, let description = error.errorDescription { return description }
