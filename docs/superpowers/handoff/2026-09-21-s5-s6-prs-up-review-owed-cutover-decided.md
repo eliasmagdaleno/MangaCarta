@@ -1,4 +1,4 @@
-# Handoff — S5 (#193) and S6 (#192) are up and unreviewed; the cutover needs the user's pick before ADR-0003 A5
+# Handoff — S5 (#193) and S6 (#192) are up and unreviewed; cutover decided (ADR-0003 A5), dispatch owed
 
 Date: 2026-09-21, 13:50 PDT
 Repository: `/Users/eliasmagdaleno/Manga-Reader` (GitHub `eliasmagdaleno/MangaCarta`)
@@ -25,7 +25,7 @@ criteria, briefs). #168 tracks state (D0–S4 ticked).
 | D0–S4, #176/#177 | ✅ merged; `main` = `e701236` |
 | S5 Settings UI + declared-age gate (criterion 10) | **PR #193 open, unreviewed** |
 | S6 WeebCentral installed + production transport + budgets (criterion 11, #187) | **PR #192 open, unreviewed** |
-| WeebCentral **cutover** (compiled source out of `builtInSources()`) | **blocked on the user's pick (§2), then ADR-0003 Amendment 5, then a follow-up dispatch** |
+| WeebCentral **cutover** (compiled source out of `builtInSources()`) | **decided (ADR-0003 A5); dispatch after #192/#193 merge (§2)** |
 
 Unit suite on `main`: 1064/1059/0/5. #192 claims 1070/1065/0/5 on plain 17; #193 claims
 1074/1069/0/5 on the Pro. **Both touch `AppComposition.swift`**, so whichever merges second needs a
@@ -72,32 +72,20 @@ added — the S4 lesson):
 Full suite after each rebase, totals from the result bundle, on the Pro
 (`id=ADDAB2F8-38C7-4D44-97EA-4E98281CF691`).
 
-### 2. The cutover fork — the user's pick, asked 2026-09-21 13:0x, unanswered
+### 2. The cutover — decided 2026-09-21 (option 1), ADR-0003 Amendment 5 written; dispatch owed
 
-The user asked for "ADR-0003 Amendment 5 and widen S6 to the cutover". Drafting stalled on a real
-fork, put to the user in prose:
+The user chose **ship nothing built in**: `WeebCentralSource` is deleted, `builtInSources()` returns
+MangaDex alone, no bundled package, no default repository, the `weebcentral` id is retired with its
+data retained (not migrated), and #189 is fixed as part of the cutover. **ADR-0003 Amendment 5 owns
+the decision and lists exactly what the cutover PR deletes and updates** — read it, not this.
 
-- Compiled WeebCentral's id is the bare `"weebcentral"`; an installed Source's id is
-  `<repo-uuid>:weebcentral` (format design §5.2; the id spaces deliberately cannot collide). So
-  the cutover changes WeebCentral's identity and needs a one-time migration of every Listing,
-  history entry and pin stamped `"weebcentral"` — including the seeded simulator fixture's
-  `works.json`.
-- **Option 1 — ship nothing; the reader installs WeebCentral from a repository they add.**
-  Cleanest against ADR-0003 A4 (no default repository) and ADR-0022 A2's Review defence; reverses
-  ADR-0022's "the public release ships MangaDex and WeebCentral"; nothing to migrate *to*.
-- **Option 2 (recommended) — a bundled package.** The app bundle carries the WeebCentral
-  index + script + declaration, installs it at first launch under a fixed app-owned repository
-  UUID, updates only with app updates; no network repository, no URL. Product unchanged; Review
-  sees what it sees today (a `none`-class source). The amendment must say explicitly that A2's
-  "shipping a default repository reopens this" is about a *network* repository offering adult
-  Sources. Cost: the deterministic id migration + re-seeding the fixture.
-- Either way: say whether WeebCentral stays disable/uninstall/erase-able once installed (I'd say
-  yes — it is a Source like any other; the app just re-offers it).
-
-**Once picked:** write ADR-0003 Amendment 5 (owner of the decision; the format design owns any new
-wire shape for a bundled package), then dispatch the cutover as a follow-up on S6's retained
-terminal after #192 merges. #192's "Cutover boundary" section lists exactly what the cutover PR
-deletes. Do **not** fold the cutover into #192.
+**Dispatch the cutover after #192 and #193 merge**, as a follow-up on S6's retained terminal
+(`term_f73f3658-da00-4053-8f5c-a52bfb2d726b`, worktree `phase4-s6-weebcentral-installed`, rebased
+onto `main` first). Brief = plan preamble + Amendment 5's "Consequences" bullet as the Target/Change
++ #192's "Cutover boundary" paragraph. It edits `CLAUDE.md` and README lines that say the app ships
+WeebCentral (the amendment names them as the cutover's to update) and re-seeds the Pro fixture
+(`scripts/seed-simulator.sh`) — the one worker so far allowed to touch the fixture; tell it never
+to erase the device. Codex Luna medium is fine; it is deletion plus one registry change.
 
 ### 3. Findings from S4 still open
 

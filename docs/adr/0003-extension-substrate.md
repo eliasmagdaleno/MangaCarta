@@ -2,7 +2,8 @@
 
 - **Status:** Accepted in principle (2026-07-24); host API undesigned. **Amendment 1 below
   narrows "ship zero built-in aggregator sources": MangaDex stays built in as the resolution
-  bridge, and extensions are additive.**
+  bridge, and extensions are additive. Amendment 5 (2026-09-21) removes the compiled WeebCentral:
+  the shipping app registers MangaDex alone.**
 - **Related:** ADR-0001, ADR-0002, ADR-0004, ADR-0016, ADR-0022
 
 ## Context
@@ -518,3 +519,103 @@ absence, and a dropped listing cannot be told from a temporary one.
   metadata" is now read with decision 3: the enforcement is reader elevation and gating, not
   disablement. The design is not edited; this amendment is the record.
 - Nothing about the Host API contract changes. Every gate closed here was an installer question.
+
+## Amendment 5 — WeebCentral leaves the built-in set; the app ships the bridge alone (2026-09-21)
+
+Amendments 1–4 stand unchanged. This amendment makes the cutover decision the Phase 4 plan said
+"belongs in an ADR with the user's agreement, not in a PR body": the compiled `WeebCentralSource`
+is removed, and the shipping app registers **MangaDex and nothing else** at launch. The user chose
+this on 2026-09-21 between the two options recorded under "Alternatives" below.
+
+### Context
+
+Amendment 1 already said it: "the built-in set is the bridge and nothing more; everything a reader
+adds, they add themselves." WeebCentral stayed compiled in for one reason this ADR's consequences
+named — it was the **migration proving-ground**, the real Cloudflare-protected site that would
+validate the Host API. That job is done. Phase 3 ported it to a declaration served by
+`HTMLSelectorThemeEngine` and proved equivalence against captured fixtures; Phase 4's S6 (#192)
+proved acceptance criterion 11 — WeebCentral **installed from a package** through
+`ExtensionInstaller`, engine script and declaration loaded as package data, returning the same
+search, detail, chapter and page results the port's fixtures pin.
+
+So `main` now holds two copies of one Source. `CLAUDE.md`'s document-ownership rule is about
+facts, but the failure it names — two copies that need updating by someone who remembers both
+exist — applies to code exactly as well. The compiled source's five DOM-scraping strings are the
+volatile part when the site redesigns; keeping them beside a declaration that encodes the same
+selectors means the next redesign is fixed twice or, more likely, once.
+
+### Decisions
+
+**1. `WeebCentralSource` is deleted and `SourceRegistry.builtInSources()` returns MangaDex alone.**
+WeebCentral becomes what every non-bridge Source is under Amendment 1: something a reader installs
+from a repository they added by URL. The app does not know it exists.
+
+**2. No bundled package and no default repository.** The app bundle carries no index, no engine
+script and no declaration, so there is nothing the app "offers" in the sense guideline 4.7 turns
+on (ADR-0022 Amendment 2). Amendment 4 chose "no default repository" for its own reasons and
+ADR-0022 Amendment 2 built the App Review defence on that fact; a bundled first-party package would
+be the app offering software again, would reopen that amendment, and would commit this project to
+hosting and versioning a repository — a maintenance decision nobody has made. The engine script and
+the WeebCentral declaration survive only as **test fixtures** (`MangaCartaTests/__Fixtures__/
+weebcentral/repository-*`), which is where #192 already put them.
+
+**3. The compiled id `weebcentral` is retired, and nothing stamped with it is migrated.** An
+installed Source's id is `<repository-uuid>:weebcentral` (repository format design, "The qualified
+Source id"); the two id spaces cannot collide by construction, so no Listing stamped `weebcentral`
+can ever mean an installed Source. Data carrying the old id is **retained, not deleted** — the Host
+API design's identity lifecycle forbids deleting the reader's references on absence, and that rule
+does not get an exception for a Source the app itself withdrew. Such Listings are Listings of an
+unregistered Source: unavailable, offered by the fulfillment picker as unavailable, and never
+routed to another Source. A reader who later installs WeebCentral from a repository gets a **new
+Listing** under the qualified id, joined to the same Work by ADR-0001's identity and ADR-0016's
+bridge — not by any string rewrite. No migration code is written because there is nobody to migrate:
+the app is pre-launch and the only data stamped `weebcentral` is the seeded simulator fixture,
+which is re-seeded.
+
+**4. #189 becomes load-bearing and is fixed in the cutover.** `SourceRegistry.source(for:)` today
+routes *any* unregistered `sourceId` to the active source, a fallback written for legacy entries
+whose `sourceId` is `nil` or `mangadex`. After this amendment a retained `weebcentral` Listing would
+be routed to MangaDex and asked for a WeebCentral id. The fallback narrows to the legacy cases it
+was written for; every other unregistered id is unavailable, which is decision 3 in code.
+
+**5. ADR-0022's consequence "the public release ships MangaDex and WeebCentral" is superseded.**
+ADR-0022 is not edited; it reserved its own Amendment 3 for an App Review reversal and this is not
+one. Its gating machinery (`isNSFW`, `visibleSources(includeAdult:)`,
+`enforceAdultGating(includeAdult:)`) stays, as it said it would, because installed Sources are
+what it now gates.
+
+### Alternatives rejected
+
+- **A bundled package under a fixed app-owned repository UUID, installed at first launch.** The
+  recommended option when the fork was put to the user, and rejected by them. It keeps a fresh
+  install looking as it does today at the cost of decision 2's consequences: the app offers
+  software again, ADR-0022 Amendment 2 reopens, a first-party repository needs an owner, and every
+  `weebcentral` Listing needs a deterministic rewrite to the bundled qualified id — a migration
+  written for a reader base of one simulator.
+- **Keep both copies.** Rejected for the reason in Context; the Phase 4 plan allowed it only
+  "briefly" and only if not silent.
+- **Let the compiled Source keep the bare id `weebcentral` as an installed Source's id.** Rejected
+  because the format design makes the installer's minting function the only producer of a
+  qualified id and keeps the id spaces disjoint; a special case here is the collision the design
+  was written to make impossible.
+
+### Consequences
+
+- **The cutover PR** — after #192 and #193 merge, as a follow-up on S6's terminal — deletes
+  `Models/WeebCentralSource.swift`, the `WeebCentralSource` entry in `builtInSources()`, the
+  compiled side of `WeebCentralPortTests` and `ExtensionPortHarness`, and any test that exists only
+  to exercise the compiled Source; moves `HTMLSelectorThemeEngine`'s Swift-constant script and
+  declaration out of the production target into the test fixtures (the engine *type* stays if
+  anything in production still needs it; the constants do not); narrows the `source(for:)`
+  fallback (#189, with a test that a retained `weebcentral` Listing is unavailable rather than
+  routed); updates `CLAUDE.md`'s "Architecture" and "Current state" and any README line that says
+  the app ships WeebCentral; and re-seeds the iPhone 17 Pro fixture so `works.json` carries no
+  `weebcentral` Listing, or carries one deliberately, as an unavailable-Source test case.
+- `WebViewService`'s shared persistent data store loses its last compiled consumer. Amendment 3's
+  per-Source `WKWebsiteDataStore(forIdentifier:)` is now the only place a Cloudflare clearance
+  lives; whether the shared store is removed is that amendment's question, not this one's.
+- A fresh install of the public build has **one** Source. This is the empty-reader posture the
+  ADR's Context described from the start, narrowed by Amendment 1 to keep the bridge.
+- The reference repository that would let a reader install WeebCentral is **not this project's
+  to host** under decision 2. Publishing one — from a separate repository, under its own name — is
+  a product decision recorded nowhere yet, and it should not be inherited from this amendment.
