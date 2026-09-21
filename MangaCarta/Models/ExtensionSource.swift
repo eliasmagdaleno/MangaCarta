@@ -23,7 +23,7 @@
 //    scroll `PagedMangaLoader` performs lands on consecutive pages without this adapter
 //    ever guessing a cursor's shape.
 //
-//  The request shape sent to the engine is the one the shipped `HTMLSelectorThemeEngine`
+//  The request shape sent to the engine is the one the shipped `bundled theme engine`
 //  reads — `cursor` and `limit` beside the operation's own fields — which is the only
 //  engine contract that exists on `main` today.
 //

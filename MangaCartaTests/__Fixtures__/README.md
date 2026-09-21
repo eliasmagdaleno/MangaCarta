@@ -1,7 +1,7 @@
 # Offline site fixtures
 
 Captured HTML for the S6 port tests (`WeebCentralPortTests`). Nothing here is fetched at
-test time: both the compiled `WeebCentralSource` and the configuration-backed Extension
+test time: both the compiled `bundled WeebCentral Source` and the configuration-backed Extension
 load these files into a `WKWebView` with every subresource blocked and the page's own
 JavaScript disabled, so the DOM under test is exactly the server-rendered markup below.
 

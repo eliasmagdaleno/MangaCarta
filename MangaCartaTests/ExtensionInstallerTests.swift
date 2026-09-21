@@ -82,15 +82,13 @@ final class URLSessionRepositoryTransportTests: XCTestCase {
     }
 
     func testIndexIsParsedAndValidatedBeforeReturning() async throws {
-        let fixtureDirectory = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .appendingPathComponent("__Fixtures__/weebcentral", isDirectory: true)
-        let bytes = try Data(contentsOf: fixtureDirectory.appendingPathComponent("repository-index.json"))
+        let fixtureDirectory = PortFixtures.packageDirectory
+        let bytes = try Data(contentsOf: fixtureDirectory.appendingPathComponent("index.json"))
         StubRepositoryURLProtocol.responses[indexURL.absoluteString] = (200, bytes, [:])
 
         let outcome = try await makeTransport().fetchIndex(at: indexURL)
         guard case .index(let index) = outcome else { return XCTFail("expected parsed index") }
-        XCTAssertEqual(index.name, "WeebCentral Fixture Repository")
+        XCTAssertEqual(index.name, "WeebCentral")
         XCTAssertEqual(index.bundles.map(\.id), ["html-selector"])
     }
 
@@ -915,5 +913,50 @@ func XCTAssertThrowsErrorAsync<T>(_ expression: @autoclosure () async throws -> 
         XCTFail("expected an error", file: file, line: line)
     } catch {
         handler(error)
+    }
+}
+
+@MainActor
+final class BundledRepositoryTransportTests: XCTestCase {
+    private var directory: URL!
+
+    override func setUpWithError() throws {
+        directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let package = PortFixtures.packageDirectory
+        try FileManager.default.copyItem(at: package.appendingPathComponent("index.json"),
+                                         to: directory.appendingPathComponent("index.json"))
+        try FileManager.default.copyItem(at: package.appendingPathComponent("engine.js"),
+                                         to: directory.appendingPathComponent("engine.js"))
+    }
+
+    override func tearDownWithError() throws {
+        try? FileManager.default.removeItem(at: directory)
+    }
+
+    func testBundledIndexValidatesAndScriptDigestMatches() async throws {
+        let transport = BundledRepositoryTransport(resourceDirectory: directory)
+        guard case .index(let index) = try await transport.fetchIndex(at: BundledRepositories.weebCentralURL) else {
+            return XCTFail("bundled index must be local")
+        }
+        let script = try await transport.fetchScript(at: BundledRepositories.weebCentralURL)
+        XCTAssertEqual(index.bundles.first?.scriptSHA256,
+                       SHA256.hash(data: script).map { String(format: "%02x", $0) }.joined())
+    }
+
+    func testBundledAdultDeclarationIsRejected() async throws {
+        let url = directory.appendingPathComponent("index.json")
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        var bundles = try XCTUnwrap(object["bundles"] as? [[String: Any]])
+        var sources = try XCTUnwrap(bundles[0]["sources"] as? [[String: Any]])
+        sources[0]["adult"] = "adultOnly"
+        bundles[0]["sources"] = sources
+        object["bundles"] = bundles
+        try JSONSerialization.data(withJSONObject: object).write(to: url)
+        let transport = BundledRepositoryTransport(resourceDirectory: directory)
+        await XCTAssertThrowsErrorAsync(try await transport.fetchIndex(at: BundledRepositories.weebCentralURL)) { error in
+            XCTAssertEqual(error as? BundledRepositoryTransport.Error,
+                           .adultSource("weebcentral"))
+        }
     }
 }

@@ -351,14 +351,16 @@ private struct RepositorySettingsSection: View {
                     }
                     HStack {
                         Button("Refresh") { model.refreshRepository(repository.id) }
-                        Button("Change URL") {
-                            guard let url = URL(string: repositoryURL), url.scheme?.lowercased() == "https" else {
-                                model.errorMessage = "Enter a valid HTTPS repository URL."
-                                return
+                        if !RepositorySettingsViewModel.isBundled(repository) {
+                            Button("Change URL") {
+                                guard let url = URL(string: repositoryURL), url.scheme?.lowercased() == "https" else {
+                                    model.errorMessage = "Enter a valid HTTPS repository URL."
+                                    return
+                                }
+                                model.run { _ = try await model.composition.installer.changeRepositoryURL(repository.id, to: url) }
                             }
-                            model.run { _ = try await model.composition.installer.changeRepositoryURL(repository.id, to: url) }
+                            Button("Remove") { model.run { try model.composition.installer.removeRepository(repository.id) } }
                         }
-                        Button("Remove") { model.run { try model.composition.installer.removeRepository(repository.id) } }
                     }
                 }
                 .padding(Gutter.page)

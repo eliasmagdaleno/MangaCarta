@@ -192,6 +192,7 @@ struct AppComposition {
          malResolver: MALEntityResolver? = nil,
          registry: SourceRegistry? = nil,
          repositoryTransport: (any RepositoryTransport)? = nil) {
+        WeebCentralIdentityMigration.run(directory: directory, defaults: defaults)
         // Built first: the three commitment paths below (read, save, feedback) all
         // mint into it, so they must share this one instance (ADR-0007).
         let wk = WorkStore(directory: directory)

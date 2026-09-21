@@ -35,8 +35,7 @@ final class SourceRegistry: ObservableObject {
 
     private static let activeKey = "source.activeID"
 
-    /// - Parameter sources: Sources to register, or `nil` for the app's built-in set
-    ///   (MangaDex + WeebCentral, sharing one WebView-backed `SourceContext`).
+    /// - Parameter sources: Sources to register, or `nil` for the built-in MangaDex source.
     ///   Injectable so tests can supply mock sources.
     init(sources: [MangaSource]? = nil) {
         let sources = sources ?? Self.builtInSources()
@@ -61,12 +60,9 @@ final class SourceRegistry: ObservableObject {
         self.activeSourceID = sources.contains(where: { $0.id == stored }) ? stored! : sources[0].id
     }
 
-    /// The app's compiled-in sources. One `SourceContext` (backed by the shared
-    /// Cloudflare-clearing WebView) is built here and handed to every source that
-    /// needs it; MangaDex talks to its own API client and takes no context.
+    /// The app's compiled-in source. WeebCentral is restored through the bundled package.
     private static func builtInSources() -> [MangaSource] {
-        let context = SourceContext(webView: WebViewService.shared)
-        return [MangaDexSource(), WeebCentralSource(context: context)]
+        [MangaDexSource()]
     }
 
     /// Replaces the installed set (Phase 4). The built-ins stay exactly where they were;

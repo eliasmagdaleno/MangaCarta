@@ -178,8 +178,7 @@ The app builds and the core reading loop is implemented.
   back; `SourceLifecycleRegistry` owns disable/uninstall/reinstall. `HTMLSelectorThemeEngine` is the
   first engine — **one bundle serving three differently configured Sources, with no site baked into
   it**; WeebCentral is a declaration, not code.
-  **The compiled `WeebCentralSource` is still what the app actually uses.** The port proves
-  equivalence; cutting over is a separate decision (see #162's scope boundary).
+  **`builtInSources()` is MangaDex only; WeebCentral ships as a bundled repository package.**
 - **Phase 4 (repository format + installer) is landed through S4** as of 2026-09-21: all three host
   capabilities are bridged (#170); `RepositoryIndexValidator` parses format-1 indexes (#173);
   `RepositoryStore` + `ExtensionInstaller` mint identity, install, update and persist over
@@ -194,8 +193,8 @@ The app builds and the core reading loop is implemented.
   `URLSessionRepositoryTransport`, and a `mixed`/`adultOnly` install always shows the declared-age
   sheet (ADR-0022 A2; format design §7.1 — a confirmed reader sees the class named but is not asked
   again). WeebCentral is proven as an installed package against the port fixtures, but
-  **`builtInSources()` is still the compiled pair**: the cutover is a separate decision (ADR-0003
-  Amendment 5, owed) and the live handoff carries the fork. #168 tracks slice state.
+  **`builtInSources()` is MangaDex only; WeebCentral is restored from the bundled package** (ADR-0003
+  Amendment 5). #168 tracks slice state.
 - Design/spec/plan for shipped work live in `docs/superpowers/{specs,plans}/`.
 
 Still minimal: no cross-device sync. Content refresh is no longer manual-only (see above);

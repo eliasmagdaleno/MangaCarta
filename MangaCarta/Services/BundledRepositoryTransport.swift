@@ -21,21 +21,35 @@ struct BundledRepositoryTransport: RepositoryTransport, @unchecked Sendable {
     }
 
     let bundle: Bundle
+    private let resourceDirectory: URL?
     let repositoryID: UUID
 
-    init(bundle: Bundle = .main, repositoryID: UUID = BundledRepositories.weebCentralRepositoryID) {
+    init(bundle: Bundle = .main, repositoryID: UUID = BundledRepositories.weebCentralRepositoryID,
+         resourceDirectory: URL? = nil) {
         self.bundle = bundle
         self.repositoryID = repositoryID
+        self.resourceDirectory = resourceDirectory
+    }
+
+    init(resourceDirectory: URL, repositoryID: UUID = BundledRepositories.weebCentralRepositoryID) {
+        self.init(bundle: .main, repositoryID: repositoryID, resourceDirectory: resourceDirectory)
+    }
+
+    private func resource(_ name: String) -> URL? {
+        if let resourceDirectory { return resourceDirectory.appendingPathComponent(name) }
+        return bundle.url(forResource: name == "index.json" ? "index" : "engine",
+                          withExtension: name == "index.json" ? "json" : "js",
+                          subdirectory: "BundledRepositories/weebcentral")
     }
 
     func fetchIndex(at url: URL) async throws -> RepositoryIndexFetchOutcome {
-        guard let resourceURL = bundle.url(forResource: "index", withExtension: "json",
-                                           subdirectory: "BundledRepositories/weebcentral") else {
+        guard let resourceURL = resource("index.json") else {
             throw Error.missingResource("index.json")
         }
         let data = try Data(contentsOf: resourceURL)
         let index: RepositoryIndex
-        switch RepositoryIndexValidator.validate(json: data, indexURL: resourceURL) {
+        let validationURL = URL(string: "https://bundled.invalid/weebcentral/index.json")!
+        switch RepositoryIndexValidator.validate(json: data, indexURL: validationURL) {
         case .success(let value): index = value
         case .failure(let error): throw error
         }
@@ -55,8 +69,7 @@ struct BundledRepositoryTransport: RepositoryTransport, @unchecked Sendable {
     }
 
     func fetchScript(at url: URL) async throws -> Data {
-        guard let resourceURL = bundle.url(forResource: "engine", withExtension: "js",
-                                           subdirectory: "BundledRepositories/weebcentral") else {
+        guard let resourceURL = resource("engine.js") else {
             throw Error.missingResource("engine.js")
         }
         let data = try Data(contentsOf: resourceURL)

@@ -5,7 +5,7 @@
     {
       "id": "html-selector",
       "version": 1,
-      "script": "engine.js",
+      "script": "https://bundled.invalid/weebcentral/engine.js",
       "scriptSHA256": "01c7b379ceab02674d46afd185ccd0a2534978e79e8ad138c3e574e724a8517d",
       "sources": [
         {
