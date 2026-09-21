@@ -197,6 +197,13 @@ Repository's index under an `id` and an integer `version`. The unit the installe
 *updates*; the reader installs Sources, not bundles. Two installed Sources from one bundle share
 one script.
 
+**Bundled package** — a Repository whose index and engine script are resources in the app bundle
+rather than documents at a URL. Installed by the ordinary installer at first launch under a
+*fixed*, developer-chosen identity (the one exception to installer-minted identity), updated only
+when the app updates, and neither removable nor re-pointable by the reader — though its Sources are
+disable/uninstall/erase-able like any other. WeebCentral ships this way since ADR-0003 Amendment
+5. Not a default repository in ADR-0022 Amendment 2's sense (see its Amendment 3).
+
 **Declared-age gate** — the one-time, per-device confirmation that the reader is 18 or over,
 asked the first time a `mixed` or `adultOnly` Extension is installed and required before the "Show
 adult sources" toggle appears. Declared, not verified; stored beside the adult-sources preference
