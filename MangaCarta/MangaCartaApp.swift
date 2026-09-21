@@ -63,6 +63,7 @@ struct MangaCartaApp: App {
         var defaults = UserDefaults.standard
         var directory = WorkStore.applicationSupportDirectory()
         var updateRegistry: SourceRegistry?
+        var repositoryTransport: (any RepositoryTransport)?
 #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("-uitest-mal-signed-out") {
             (ephemeralCredentials, ephemeralPreferences) = AppComposition.ephemeralMALAccount()
@@ -81,11 +82,23 @@ struct MangaCartaApp: App {
                 ? SourceRegistry(sources: [UpdatesUITestSource(), UpdatesUITestAltSource()])
                 : SourceRegistry(sources: [UpdatesUITestSource()])
         }
+        if ProcessInfo.processInfo.arguments.contains("-uitest-repository-settings") {
+            let suite = "repository-settings-ui-test"
+            defaults = UserDefaults(suiteName: suite)!
+            defaults.removePersistentDomain(forName: suite)
+            UserDefaults.standard.removeObject(forKey: RepositorySettingsViewModel.declaredAgeKey)
+            UserDefaults.standard.removeObject(forKey: RepositorySettingsViewModel.showAdultSourcesKey)
+            directory = FileManager.default.temporaryDirectory
+                .appendingPathComponent("MangaCarta-RepositorySettingsUITest", isDirectory: true)
+            try? FileManager.default.removeItem(at: directory)
+            repositoryTransport = AppComposition.RepositorySettingsUITestTransport()
+        }
 #endif
         let composed = AppComposition(defaults: defaults, directory: directory,
                                       malCredentials: ephemeralCredentials,
                                       malPreferences: ephemeralPreferences,
-                                      registry: updateRegistry)
+                                      registry: updateRegistry,
+                                      repositoryTransport: repositoryTransport)
 #if DEBUG
         if let updateState = UpdatesUITestFixture.state {
             UpdatesUITestFixture.seed(updateState, in: composed)
@@ -141,6 +154,7 @@ struct MangaCartaApp: App {
                 .environmentObject(sourcePreferences)
                 .environmentObject(fulfillment)
                 .environmentObject(registry)
+                .environment(\.extensionComposition, extensions)
                 .preferredColorScheme(appearance.colorScheme)
                 // `onChange` does not fire for the initial value, so launch needs its
                 // own start. `start()` is idempotent, so the `.active` case below

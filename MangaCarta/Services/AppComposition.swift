@@ -16,6 +16,19 @@
 //
 
 import Foundation
+import SwiftUI
+import CryptoKit
+
+private struct ExtensionCompositionEnvironmentKey: EnvironmentKey {
+    static let defaultValue: AppComposition.ExtensionComposition? = nil
+}
+
+extension EnvironmentValues {
+    var extensionComposition: AppComposition.ExtensionComposition? {
+        get { self[ExtensionCompositionEnvironmentKey.self] }
+        set { self[ExtensionCompositionEnvironmentKey.self] = newValue }
+    }
+}
 
 /// The app-wide stores, the upgrade queue and the recommendation engine, wired together.
 ///
@@ -105,6 +118,29 @@ struct AppComposition {
     }
 
 #if DEBUG
+    struct RepositorySettingsUITestTransport: RepositoryTransport {
+        private static let script = Data("registerEngine('madara', {});".utf8)
+        private static let scriptURL = URL(string: "https://fixture.invalid/engine.js")!
+        private static let declaration = JSONValue.object([
+            "localId": .string("fixture"), "name": .string("Fixture Source"),
+            "engine": .string("madara"), "configuration": .object([:]),
+            "adult": .string("mixed"),
+            "capabilities": .object(["search": .bool(true), "popular": .bool(true),
+                                      "detail": .bool(true), "chapters": .bool(true), "pages": .bool(true)]),
+            "languages": .object(["mode": .string("fixed"), "values": .array([.string("en")])]),
+            "network": .object(["httpOrigins": .array([.string("https://fixture.invalid")])]),
+            "hostAPI": .object(["minimum": .string("1.0"), "maximumExclusive": .string("2.0")])
+        ])
+        private static let index = RepositoryIndex(format: 1, name: "Fixture Repository", bundles: [
+            RepositoryBundle(id: "fixture-engine", version: 1, scriptURL: scriptURL,
+                             scriptSHA256: SHA256.hash(data: script).map { String(format: "%02x", $0) }.joined(),
+                             sources: [RepositorySourceRecord(rawJSON: declaration, localID: "fixture")])
+        ])
+
+        func fetchIndex(at url: URL) async throws -> RepositoryIndexFetchOutcome { .index(Self.index) }
+        func fetchScript(at url: URL) async throws -> Data { Self.script }
+    }
+
     /// The account states a UI test can put on screen, for the ones a device cannot be
     /// talked into showing on demand. `signedIn` and `reauthorizationRequired` are reached
     /// through `restore()`'s real branches — a cached profile with a credential, and one

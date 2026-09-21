@@ -227,7 +227,8 @@ jobs:
             -parallel-testing-enabled NO \
             test \
             -only-testing:MangaCartaUITests/UpdatesUITests \
-            -only-testing:MangaCartaUITests/SourcePreferenceUITests
+            -only-testing:MangaCartaUITests/SourcePreferenceUITests \
+            -only-testing:MangaCartaUITests/RepositorySettingsUITests
 
       - name: Documentation only — nothing to test
         if: needs.changes.outputs.code != 'true'

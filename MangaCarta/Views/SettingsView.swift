@@ -8,7 +8,8 @@ import UserNotifications
 
 struct SettingsView: View {
     @AppStorage(appearanceStorageKey) private var appearanceRaw = AppearanceMode.system.rawValue
-    @AppStorage("settings.showAdultSources") private var showAdultSources = false
+    @AppStorage(RepositorySettingsViewModel.showAdultSourcesKey) private var showAdultSources = false
+    @AppStorage(RepositorySettingsViewModel.declaredAgeKey) private var declaredAge = false
     @AppStorage(UpdateNotifier.notificationsEnabledKey) private var notificationsEnabled = true
     /// The graph's registry, not the singleton — the same object the services resolve
     /// through. See `MangaDetailView` for what reading the wrong one costs.
@@ -17,6 +18,7 @@ struct SettingsView: View {
     @EnvironmentObject private var history: HistoryStore
     @EnvironmentObject private var works: WorkStore
     @EnvironmentObject private var updates: UpdateStateStore
+    @Environment(\.extensionComposition) private var extensionComposition
     @Environment(\.openURL) private var openURL
     @State private var showingCollectionsSheet = false
     @State private var notificationSummary = NotificationAuthorizationSummary.notRequested
@@ -152,18 +154,27 @@ struct SettingsView: View {
                         // control. The stored preference is left alone, so this reappears
                         // with its previous value if an adult source is ever registered.
                         // See ADR-0022.
-                        if registry.hasAdultSource {
+                        if RepositorySettingsViewModel.shouldShowAdultSourcesToggle(
+                            isConfirmed: declaredAge, hasRegisteredAdultSource: registry.hasAdultSource) {
                             Toggle("Show adult sources", isOn: $showAdultSources)
                                 .font(.subheadline)
                                 .tint(Ink.seal)
                                 .padding(.horizontal, Gutter.page)
                                 .onChange(of: showAdultSources) { _, newValue in
                                     registry.enforceAdultGating(includeAdult: newValue)
+                                    RepositorySettingsViewModel.setAdultSourcesVisible(
+                                        newValue, defaults: .standard)
+                                    declaredAge = UserDefaults.standard.bool(
+                                        forKey: RepositorySettingsViewModel.declaredAgeKey)
                                 }
                         }
 
                         PreferredSourcePicker(sources: registry.visibleSources(
                             includeAdult: showAdultSources))
+                    }
+
+                    if let extensionComposition {
+                        RepositorySettingsSection(composition: extensionComposition)
                     }
 
                     MALAccountSettingsView()
@@ -262,6 +273,120 @@ struct SettingsView: View {
     private func openSystemSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         openURL(url)
+    }
+}
+
+private struct RepositorySettingsSection: View {
+    @StateObject private var model: RepositorySettingsViewModel
+    @ObservedObject private var repositories: RepositoryStore
+    @State private var repositoryURL = ""
+
+    init(composition: AppComposition.ExtensionComposition) {
+        _model = StateObject(wrappedValue: RepositorySettingsViewModel(composition: composition))
+        _repositories = ObservedObject(wrappedValue: composition.repositories)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            InkSectionHeader("Repositories", eyebrow: "Extensions")
+            HStack {
+                TextField("https://example.org/index.json", text: $repositoryURL)
+                    .textInputAutocapitalization(.never)
+                    .keyboardType(.URL)
+                    .accessibilityIdentifier("repositorySettings.url")
+                Button("Add") { model.addRepository(repositoryURL) }
+                    .accessibilityIdentifier("repositorySettings.add")
+            }
+            .padding(.horizontal, Gutter.page)
+
+            if model.storeUnreadable {
+                Text("Installed Sources could not be read. Nothing was removed.")
+                    .font(.footnote).foregroundStyle(Ink.secondary)
+                    .accessibilityIdentifier("repositorySettings.storeUnreadable")
+            }
+            ForEach(repositories.repositories.filter { $0.state == .active }) { repository in
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(repository.name).font(.subheadline.weight(.semibold))
+                    Text(repository.indexURL.absoluteString).font(.caption).foregroundStyle(Ink.secondary)
+                    ForEach(repositories.sources(in: repository.id), id: \.qualifiedId) { source in
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text(source.localId)
+                                Text(source.state.rawValue).font(.caption).foregroundStyle(Ink.secondary)
+                            }
+                            Spacer()
+                            if source.state == .uninstalled {
+                                Button("Install") { model.run { _ = try await model.composition.installer.install(localId: source.localId, from: repository.id) } }
+                            } else {
+                                if let offered = model.composition.installer.listings[repository.id]?.availableUpdates[source.bundleId] {
+                                    Button("Update") { model.run { try await model.composition.installer.updateBundle(source.bundleId, in: repository.id) } }
+                                        .accessibilityLabel("Update to version \(offered)")
+                                }
+                                Button(source.state == .disabled ? "Enable" : "Disable") {
+                                    model.run {
+                                        if source.state == .disabled { try model.composition.installer.enable(source.qualifiedId) }
+                                        else { try model.composition.installer.disable(source.qualifiedId) }
+                                    }
+                                }
+                                Button("Uninstall") { model.run { try model.composition.installer.uninstall(source.qualifiedId) } }
+                            }
+                        }
+                    }
+                    ForEach(model.availableSources[repository.id] ?? [], id: \.path) { entry in
+                        if let localId = entry.localId,
+                           repositories.source(ExtensionInstaller.qualifiedID(repositoryID: repository.id, localId: localId)) == nil {
+                            HStack {
+                                Text(entry.declaration?.name ?? localId)
+                                Spacer()
+                                if entry.declaration != nil {
+                                    Button("Install") {
+                                        model.run { _ = try await model.composition.installer.install(localId: localId, from: repository.id) }
+                                    }
+                                    .accessibilityIdentifier("repositorySettings.install.\(localId)")
+                                } else {
+                                    Text("Not installable").font(.caption)
+                                }
+                            }
+                        }
+                    }
+                    HStack {
+                        Button("Refresh") { model.refreshRepository(repository.id) }
+                        Button("Change URL") {
+                            guard let url = URL(string: repositoryURL), url.scheme?.lowercased() == "https" else {
+                                model.errorMessage = "Enter a valid HTTPS repository URL."
+                                return
+                            }
+                            model.run { _ = try await model.composition.installer.changeRepositoryURL(repository.id, to: url) }
+                        }
+                        Button("Remove") { model.run { try model.composition.installer.removeRepository(repository.id) } }
+                    }
+                }
+                .padding(Gutter.page)
+                .background(RoundedRectangle(cornerRadius: 14).fill(Ink.surface))
+                .padding(.horizontal, Gutter.page)
+            }
+            if let error = model.errorMessage {
+                Text(error).font(.footnote).foregroundStyle(Ink.secondary)
+                    .accessibilityIdentifier("repositorySettings.error")
+            }
+        }
+        .task { model.refreshStoreStatus() }
+        .sheet(item: Binding(get: { model.pendingAcknowledgement },
+                             set: { if $0 == nil { model.answerAgeGate(false) } })) { item in
+            VStack(spacing: 16) {
+                Text(item.asksForAge ? "Confirm your age" : "Adult Source").font(.title2.weight(.semibold))
+                Text(RepositorySettingsViewModel.ageConfirmationCopy(for: item.acknowledgement,
+                                                                     asksForAge: item.asksForAge))
+                if item.asksForAge {
+                    Button("I am 18 or over") { model.answerAgeGate(true) }
+                        .accessibilityIdentifier("repositorySettings.confirmAge")
+                } else {
+                    Button("Install") { model.answerAgeGate(true) }
+                        .accessibilityIdentifier("repositorySettings.continueInstall")
+                }
+                Button("Cancel") { model.answerAgeGate(false) }
+            }.padding(24).presentationDetents([.medium])
+        }
     }
 }
 
