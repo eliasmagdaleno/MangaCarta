@@ -447,10 +447,11 @@ final class InstalledSourceRegistrationTests: XCTestCase {
     // MARK: Adult gating reaches installed Sources
 
     func testAMixedSourceIsGatedBehindTheAdultToggle() async throws {
-        throw XCTSkip("adult classification is exercised by bundled repository transport tests")
+        throw XCTSkip("adult classification registration remains unresolved in cutover continuation")
         XCTAssertFalse(registry.hasAdultSource)
         let id = try await installWeebCentral(adult: "mixed")
         registrar.sync(store.snapshot)
+        await Task.yield()
 
         XCTAssertTrue(registry.hasAdultSource, "the toggle has something to gate")
         XCTAssertFalse(registry.visibleSources(includeAdult: false).contains { $0.id == id.rawValue })
