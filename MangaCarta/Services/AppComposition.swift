@@ -75,9 +75,11 @@ struct AppComposition {
     /// current. It is held here so the registrar, the installer and the store live for
     /// the app's lifetime and so a test can drive an install through the real graph.
     let extensions: ExtensionComposition?
+    private let usesBundledRepositoryTransport: Bool
 
     /// The extension subsystem's four owners, built together because they share one
     /// `SourceLifecycleRegistry`: the installer drives it, the registrar mirrors it.
+    @MainActor
     struct ExtensionComposition {
         let repositories: RepositoryStore
         let installer: ExtensionInstaller
@@ -85,6 +87,26 @@ struct AppComposition {
         let registrar: ExtensionSourceRegistrar
         /// Where S5's acknowledgement sheet plugs in. Declines until then.
         let adultAcknowledgement: AdultInstallAcknowledgementHandle
+        let usesBundledTransport: Bool
+
+        func installBundledSources() async {
+            guard usesBundledTransport else { return }
+            let id = BundledRepositories.weebCentralRepositoryID
+            do {
+                let repository: RepositoryRecord
+                if let existing = repositories.repository(id) {
+                    repository = existing
+                    if existing.indexURL != BundledRepositories.weebCentralURL {
+                        _ = try await installer.changeRepositoryURL(id, to: BundledRepositories.weebCentralURL)
+                    } else { _ = try await installer.refresh(id) }
+                } else {
+                    repository = try await installer.addRepository(at: BundledRepositories.weebCentralURL,
+                                                                   repositoryID: id)
+                }
+                guard repositories.sources(in: id).isEmpty else { return }
+                _ = try await installer.install(localId: "weebcentral", from: repository.id)
+            } catch { }
+        }
     }
 
     /// The AniList pool's two caches (ADR-0011). Held here, not built inside `makeProvider`,
@@ -385,11 +407,7 @@ struct AppComposition {
                                               transport: repositoryTransport,
                                               registry: self.registry)
         self.extensions = extensions
-        if repositoryTransport == nil, let extensions {
-            Task { @MainActor in
-                await Self.installBundledWeebCentral(in: extensions)
-            }
-        }
+        self.usesBundledRepositoryTransport = repositoryTransport == nil
     }
 
     /// The installed-Source subsystem (Phase 4). Restores every installed Source from
@@ -416,7 +434,13 @@ struct AppComposition {
         let registrar = ExtensionSourceRegistrar(store: repositories, lifecycle: lifecycle,
                                                  host: host, registry: registry)
         return ExtensionComposition(repositories: repositories, installer: installer, host: host,
-                                    registrar: registrar, adultAcknowledgement: acknowledgement)
+                                    registrar: registrar, adultAcknowledgement: acknowledgement,
+                                    usesBundledTransport: transport == nil)
+    }
+
+    func installBundledSources() async {
+        guard usesBundledRepositoryTransport, let extensions else { return }
+        await Self.installBundledWeebCentral(in: extensions)
     }
 
     private static func installBundledWeebCentral(in extensions: ExtensionComposition) async {
