@@ -352,9 +352,12 @@ final class InstalledSourceRegistrationTests: XCTestCase {
     // MARK: Fixtures
 
     private func serveWeebCentral(adult: String = "none") throws {
-        let json = PortFixtures.weebCentralJSON
-            .replacingOccurrences(of: "\"adult\": \"none\"", with: "\"adult\": \"\(adult)\"")
-        let raw = try JSONValue(parsing: Data(json.utf8))
+        // Mutate the parsed document, not its text: the fixture JSON is re-serialized from
+        // the bundled index and its whitespace is not something a test should depend on.
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(
+            with: Data(PortFixtures.weebCentralJSON.utf8)) as? [String: Any])
+        object["adult"] = adult
+        let raw = try JSONValue(parsing: JSONSerialization.data(withJSONObject: object))
         let digest = SHA256.hash(data: script).map { String(format: "%02x", $0) }.joined()
         let bundle = RepositoryBundle(id: "html-selector", version: 1,
                                       scriptURL: scriptURL, scriptSHA256: digest,
@@ -447,7 +450,6 @@ final class InstalledSourceRegistrationTests: XCTestCase {
     // MARK: Adult gating reaches installed Sources
 
     func testAMixedSourceIsGatedBehindTheAdultToggle() async throws {
-        throw XCTSkip("adult classification registration remains unresolved in cutover continuation")
         XCTAssertFalse(registry.hasAdultSource)
         let id = try await installWeebCentral(adult: "mixed")
         registrar.sync(store.snapshot)
