@@ -54,7 +54,7 @@ protocol MangaSource {
     var imagePrefetchConcurrency: Int { get }
     /// The human-facing web page for a manga on the source's site (for "open in
     /// browser"). Optional capability; nil when the source has no web presence.
-    func webURL(forManga id: String) -> URL?
+    func webURL(forManga id: String) async throws -> URL?
 
     // NOTE: these three must be protocol requirements (not extension-only) so a
     // source's override is reached through `any MangaSource` — extension-only
@@ -124,7 +124,7 @@ extension MangaSource {
 
     var imagePrefetchConcurrency: Int { 5 }
 
-    func webURL(forManga id: String) -> URL? { nil }
+    func webURL(forManga id: String) async throws -> URL? { nil }
 
     var homeRailTitles: [String] { ["Popular", "Recently Updated", "Newly Added"] }
     var homeRailEyebrows: [String] { [] }

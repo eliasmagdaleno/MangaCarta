@@ -164,11 +164,30 @@ final class ExtensionSource: MangaSource {
         declaration.presentation.feeds[operation]
     }
 
-    /// `MangaSource.webURL(forManga:)` is synchronous and the Host API's `webURL` is an
-    /// invocation; there is no way to serve one from the other without blocking the
-    /// caller, so an installed Source reports no web presence until the protocol's
-    /// signature changes. Recorded in the PR that added this type.
-    func webURL(forManga id: String) -> URL? { nil }
+    func webURL(forManga id: String) async throws -> URL? {
+        let value = try await invoke(.webURL, request: ["listingId": id])
+        guard let object = value as? [String: Any],
+              let rawURL = object["url"] as? String else {
+            throw ExtensionSourceError.invocation(.invalidResponse)
+        }
+        guard let url = URL(string: rawURL),
+              url.scheme == "https",
+              url.user == nil,
+              url.password == nil,
+              let host = url.host,
+              declaration.network.browserOrigins.contains(where: { origin in
+                  guard let allowed = URL(string: origin),
+                        let allowedHost = allowed.host else { return false }
+                  let actualPort = url.port ?? 443
+                  let allowedPort = allowed.port ?? 443
+                  return allowed.scheme == "https"
+                      && allowedHost.caseInsensitiveCompare(host) == .orderedSame
+                      && allowedPort == actualPort
+              }) else {
+            throw ExtensionSourceError.invocation(.invalidResponse)
+        }
+        return url
+    }
 
     // MARK: - Feeds
 

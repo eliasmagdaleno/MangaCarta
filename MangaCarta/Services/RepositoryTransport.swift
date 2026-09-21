@@ -10,6 +10,37 @@
 
 import Foundation
 
+private final class RepositoryRedirectPolicy: NSObject, URLSessionTaskDelegate {
+    func urlSession(_ session: URLSession,
+                    task: URLSessionTask,
+                    willPerformHTTPRedirection response: HTTPURLResponse,
+                    newRequest request: URLRequest,
+                    completionHandler: @escaping (URLRequest?) -> Void) {
+        // Index redirects are surfaced to the installer for explicit confirmation.
+        completionHandler(nil)
+    }
+}
+
+enum RepositoryTransportError: LocalizedError, Equatable {
+    case invalidResponse
+    case httpStatus(Int)
+    case scriptTooLarge(actualBytes: Int, maximumBytes: Int)
+    case network(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidResponse:
+            return "The repository returned an invalid response."
+        case .httpStatus(let status):
+            return "The repository answered with HTTP status \(status)."
+        case .scriptTooLarge(let actual, let maximum):
+            return "Bundle script at 'script' is \(actual) bytes; the maximum is \(maximum) bytes."
+        case .network:
+            return "Couldn't reach the repository. Check the URL and your connection, then try again."
+        }
+    }
+}
+
 /// What an index fetch came back with.
 enum RepositoryIndexFetchOutcome: Equatable, Sendable {
     case index(RepositoryIndex)
@@ -28,4 +59,61 @@ protocol RepositoryTransport: Sendable {
     func fetchIndex(at url: URL) async throws -> RepositoryIndexFetchOutcome
     /// Fetches a bundle's script bytes as served. The digest check is the installer's.
     func fetchScript(at url: URL) async throws -> Data
+}
+
+/// Production repository fetcher. Parsing stays at the transport boundary so the
+/// installer never receives an unchecked index; bundle hashes remain the installer's job.
+final class URLSessionRepositoryTransport: RepositoryTransport, @unchecked Sendable {
+    private let session: URLSession
+
+    init(configuration: URLSessionConfiguration = .default) {
+        self.session = URLSession(configuration: configuration,
+                                  delegate: RepositoryRedirectPolicy(),
+                                  delegateQueue: nil)
+    }
+
+    func fetchIndex(at url: URL) async throws -> RepositoryIndexFetchOutcome {
+        let (data, response) = try await fetch(url)
+        if response.statusCode == 301 || response.statusCode == 308,
+           let location = response.value(forHTTPHeaderField: "Location"),
+           let destination = URL(string: location, relativeTo: url)?.absoluteURL {
+            return .movedPermanently(to: destination)
+        }
+        try requireSuccess(response)
+        switch RepositoryIndexValidator.validate(json: data, indexURL: url) {
+        case .success(let index): return .index(index)
+        case .failure(let error): throw error
+        }
+    }
+
+    func fetchScript(at url: URL) async throws -> Data {
+        let (data, response) = try await fetch(url)
+        try requireSuccess(response)
+        guard data.count <= RepositoryFormatLimits.maximumScriptBytes else {
+            throw RepositoryTransportError.scriptTooLarge(
+                actualBytes: data.count,
+                maximumBytes: RepositoryFormatLimits.maximumScriptBytes)
+        }
+        return data
+    }
+
+    private func fetch(_ url: URL) async throws -> (Data, HTTPURLResponse) {
+        do {
+            let (data, response) = try await session.data(from: url)
+            guard let response = response as? HTTPURLResponse else {
+                throw RepositoryTransportError.invalidResponse
+            }
+            return (data, response)
+        } catch let error as RepositoryTransportError {
+            throw error
+        } catch {
+            throw RepositoryTransportError.network(error.localizedDescription)
+        }
+    }
+
+    private func requireSuccess(_ response: HTTPURLResponse) throws {
+        guard (200..<300).contains(response.statusCode) else {
+            throw RepositoryTransportError.httpStatus(response.statusCode)
+        }
+    }
 }

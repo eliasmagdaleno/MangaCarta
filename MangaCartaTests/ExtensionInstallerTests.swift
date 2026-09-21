@@ -23,6 +23,7 @@ final class FakeRepositoryTransport: RepositoryTransport, @unchecked Sendable {
     var indexes: [URL: RepositoryIndexFetchOutcome] = [:]
     var scripts: [URL: Data] = [:]
     var indexFetches: [URL] = []
+    var scriptFetches: [URL] = []
 
     struct Unreachable: Error {}
 
@@ -33,8 +34,102 @@ final class FakeRepositoryTransport: RepositoryTransport, @unchecked Sendable {
     }
 
     func fetchScript(at url: URL) async throws -> Data {
+        scriptFetches.append(url)
         guard let data = scripts[url] else { throw Unreachable() }
         return data
+    }
+}
+
+private final class StubRepositoryURLProtocol: URLProtocol {
+    static var responses: [String: (Int, Data, [String: String])] = [:]
+    static var shouldFail = false
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        if Self.shouldFail {
+            client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
+            return
+        }
+        guard let url = request.url, let (status, data, headers) = Self.responses[url.absoluteString],
+              let response = HTTPURLResponse(url: url, statusCode: status,
+                                             httpVersion: "HTTP/1.1", headerFields: headers) else {
+            client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
+            return
+        }
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: data)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+}
+
+final class URLSessionRepositoryTransportTests: XCTestCase {
+    private let indexURL = URL(string: "https://repo.test/index.json")!
+    private let scriptURL = URL(string: "https://repo.test/engine.js")!
+
+    private func makeTransport() -> URLSessionRepositoryTransport {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [StubRepositoryURLProtocol.self]
+        return URLSessionRepositoryTransport(configuration: configuration)
+    }
+
+    override func setUp() {
+        StubRepositoryURLProtocol.responses = [:]
+        StubRepositoryURLProtocol.shouldFail = false
+    }
+
+    func testIndexIsParsedAndValidatedBeforeReturning() async throws {
+        let fixtureDirectory = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .appendingPathComponent("__Fixtures__/weebcentral", isDirectory: true)
+        let bytes = try Data(contentsOf: fixtureDirectory.appendingPathComponent("repository-index.json"))
+        StubRepositoryURLProtocol.responses[indexURL.absoluteString] = (200, bytes, [:])
+
+        let outcome = try await makeTransport().fetchIndex(at: indexURL)
+        guard case .index(let index) = outcome else { return XCTFail("expected parsed index") }
+        XCTAssertEqual(index.name, "WeebCentral Fixture Repository")
+        XCTAssertEqual(index.bundles.map(\.id), ["html-selector"])
+    }
+
+    func testPermanentIndexRedirectIsReturnedForConfirmation() async throws {
+        StubRepositoryURLProtocol.responses[indexURL.absoluteString] =
+            (301, Data(), ["Location": "https://new-repo.test/index.json"])
+
+        let outcome = try await makeTransport().fetchIndex(at: indexURL)
+        XCTAssertEqual(outcome, .movedPermanently(to: URL(string: "https://new-repo.test/index.json")!))
+    }
+
+    func testScriptAtLimitIsAcceptedAndOneByteOverIsRefused() async throws {
+        let transport = makeTransport()
+        let atLimit = Data(repeating: 0x61, count: RepositoryFormatLimits.maximumScriptBytes)
+        StubRepositoryURLProtocol.responses[scriptURL.absoluteString] = (200, atLimit, [:])
+        let fetchedAtLimit = try await transport.fetchScript(at: scriptURL)
+        XCTAssertEqual(fetchedAtLimit.count, atLimit.count)
+
+        let overLimit = Data(repeating: 0x61, count: RepositoryFormatLimits.maximumScriptBytes + 1)
+        StubRepositoryURLProtocol.responses[scriptURL.absoluteString] = (200, overLimit, [:])
+        do {
+            _ = try await transport.fetchScript(at: scriptURL)
+            XCTFail("oversized script must be refused")
+        } catch let error as RepositoryTransportError {
+            XCTAssertEqual(error, .scriptTooLarge(actualBytes: overLimit.count,
+                                                  maximumBytes: RepositoryFormatLimits.maximumScriptBytes))
+            XCTAssertTrue(error.localizedDescription.contains("script"))
+        }
+    }
+
+    func testNetworkFailureHasSentenceWorthyCopy() async throws {
+        StubRepositoryURLProtocol.shouldFail = true
+        do {
+            _ = try await makeTransport().fetchIndex(at: indexURL)
+            XCTFail("expected network failure")
+        } catch let error as RepositoryTransportError {
+            XCTAssertEqual(error.localizedDescription,
+                           "Couldn't reach the repository. Check the URL and your connection, then try again.")
+        }
     }
 }
 

@@ -192,5 +192,5 @@ private struct StubSource: MangaSource {
     func mangaDetail(id: String) async throws -> MangaDetail { throw SourceError.unsupported("detail") }
     func chapters(mangaId: String) async throws -> [Chapter] { [] }
     func pageURLs(chapterId: String, preferDataSaver: Bool) async throws -> [URL] { [] }
-    func webURL(forManga id: String) -> URL? { nil }
+    func webURL(forManga id: String) async throws -> URL? { nil }
 }

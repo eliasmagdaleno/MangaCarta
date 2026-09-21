@@ -313,6 +313,14 @@ final class ExtensionSourceTests: XCTestCase {
         XCTAssertEqual(source.name, "WeebCentral")
     }
 
+    func testInstalledSourceReturnsItsDeclaredWebURL() async throws {
+        let source = try weebCentral()
+        let url = try await source.webURL(forManga: PortFixtures.weebSeriesID)
+        XCTAssertEqual(url?.absoluteString,
+                       "https://weebcentral.com/series/\(PortFixtures.weebSeriesID)")
+        XCTAssertEqual(host.invocations.map(\.0), [.webURL])
+    }
+
     // MARK: An engine that echoes its request
 
     private static let echoID = "6f1d9c2e-4b7a-4c1e-9e3d-2a8b5c7d1f00:echo"
@@ -713,5 +721,90 @@ final class InstalledSourceRegistrationTests: XCTestCase {
         await vm.loadAsync()
 
         XCTAssertEqual(vm.errorMessage, ExtensionSourceError.unavailable(name: "WeebCentral").errorDescription)
+    }
+
+    func testInstalledPackageRunsWeebCentralAgainstPinnedPortFixtures() async throws {
+        var measurements: [String: Double] = [:]
+        func measured<T>(_ operation: String, _ body: () async throws -> T) async rethrows -> T {
+            let start = Date()
+            let result = try await body()
+            measurements[operation] = Date().timeIntervalSince(start) * 1_000
+            return result
+        }
+        let fixtureDirectory = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .appendingPathComponent("__Fixtures__/weebcentral", isDirectory: true)
+        let indexURL = URL(string: "https://fixture.test/index.json")!
+        let indexBytes = try Data(contentsOf: fixtureDirectory.appendingPathComponent("repository-index.json"))
+        let scriptBytes = try Data(contentsOf: fixtureDirectory.appendingPathComponent("repository-engine.js"))
+        let parsed: RepositoryIndex
+        switch RepositoryIndexValidator.validate(json: indexBytes, indexURL: indexURL) {
+        case .success(let value): parsed = value
+        case .failure(let error): throw error
+        }
+        let scriptURL = parsed.bundles[0].scriptURL
+        transport.indexes[indexURL] = .index(parsed)
+        transport.scripts[scriptURL] = scriptBytes
+
+        let repository = try await measured("add") { try await installer.addRepository(at: indexURL) }
+        _ = try await measured("refresh") { try await installer.refresh(repository.id) }
+        let installed = try await measured("install") {
+            try await installer.install(localId: "weebcentral", from: repository.id)
+        }
+        let source = try XCTUnwrap(registry.source(id: installed.qualifiedId.rawValue) as? ExtensionSource)
+        XCTAssertEqual(source.script, String(decoding: scriptBytes, as: UTF8.self),
+                       "the installed package bytes must supply the engine")
+        XCTAssertNotEqual(source.script, HTMLSelectorThemeEngine.bundleScript,
+                          "the package marker distinguishes installed bytes from a Swift constant")
+        XCTAssertEqual(source.declaration.name, "WeebCentral",
+                       "the installed package declaration must supply its Source")
+
+        let compiled = PortFixtures.compiledWeebCentral().source
+        let expectedSearch = try await compiled.search(title: "berserk", limit: 8, offset: 0)
+        let actualSearch = try await measured("search") {
+            try await source.search(title: "berserk", limit: 8, offset: 0)
+        }
+        let expectedInstalledSearch = expectedSearch.map {
+            Manga(id: $0.id, sourceId: source.id, title: $0.title,
+                  description: $0.description, status: $0.status, year: $0.year,
+                  coverURL: $0.coverURL, malId: $0.malId, altTitles: $0.altTitles,
+                  contentRating: $0.contentRating)
+        }
+        XCTAssertEqual(actualSearch, expectedInstalledSearch)
+
+        let expectedDetail = try await compiled.mangaDetail(id: PortFixtures.weebSeriesID)
+        let actualDetail = try await measured("detail") {
+            try await source.mangaDetail(id: PortFixtures.weebSeriesID)
+        }
+        XCTAssertEqual(actualDetail.description, expectedDetail.description)
+        XCTAssertEqual(actualDetail.authors, expectedDetail.authors)
+        XCTAssertEqual(actualDetail.tags.map(\.name), expectedDetail.tags.map(\.name))
+        XCTAssertEqual(actualDetail.contentRating, expectedDetail.contentRating)
+
+        let expectedChapters = try await compiled.chapters(mangaId: PortFixtures.weebSeriesID)
+        let actualChapters = try await measured("chapters") {
+            try await source.chapters(mangaId: PortFixtures.weebSeriesID)
+        }
+        XCTAssertEqual(actualChapters, expectedChapters)
+
+        let expectedPages = try await compiled.pageURLs(chapterId: PortFixtures.weebChapterID,
+                                                        preferDataSaver: false)
+        let actualPages = try await measured("pages") {
+            try await source.pageURLs(chapterId: PortFixtures.weebChapterID,
+                                      preferDataSaver: false)
+        }
+        XCTAssertEqual(actualPages, expectedPages)
+
+        let fileManager = FileManager.default
+        let repositoryBytes = try fileManager.attributesOfItem(
+            atPath: directory.appendingPathComponent("repositories.json").path)[.size] as? NSNumber
+        let hostStorageURL = directory.appendingPathComponent("extension-storage.json")
+        let hostStorageByteCount = fileManager.fileExists(atPath: hostStorageURL.path)
+            ? (try fileManager.attributesOfItem(atPath: hostStorageURL.path)[.size] as? NSNumber)?.intValue ?? 0
+            : 0
+        let scriptPath = store.scriptFileURL(for: installed.bundleId, in: repository.id)
+        let packageBytes = try fileManager.attributesOfItem(atPath: scriptPath.path)[.size] as? NSNumber
+        let requests = "add=\(transport.indexFetches.prefix(1).count), refresh=\(transport.indexFetches.dropFirst().count), install=\(transport.scriptFetches.count), search=1, detail=1, chapters=1, pages=1"
+        print("S6_BUDGET milliseconds=\(measurements) requests={\(requests)} storage.repositories.json=\(repositoryBytes?.intValue ?? -1) storage.extension-storage.json=\(hostStorageByteCount) package=\(packageBytes?.intValue ?? -1) index=\(indexBytes.count) script=\(scriptBytes.count)")
     }
 }
