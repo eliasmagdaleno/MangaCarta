@@ -55,6 +55,25 @@ struct AppComposition {
     /// raw ids, and the detail page resolved a source it could not reach.
     let registry: SourceRegistry
 
+    /// Installed Sources (Phase 4), or `nil` when the host's extension storage could not
+    /// be opened — the one failure below that has nowhere honest to go, since a Source
+    /// without `host.storage` and an eraser without a store are both broken promises.
+    /// Views never need this: what they browse is `registry`, which the registrar keeps
+    /// current. It is held here so the registrar, the installer and the store live for
+    /// the app's lifetime and so a test can drive an install through the real graph.
+    let extensions: ExtensionComposition?
+
+    /// The extension subsystem's four owners, built together because they share one
+    /// `SourceLifecycleRegistry`: the installer drives it, the registrar mirrors it.
+    struct ExtensionComposition {
+        let repositories: RepositoryStore
+        let installer: ExtensionInstaller
+        let host: ExtensionHostCapabilityFactory
+        let registrar: ExtensionSourceRegistrar
+        /// Where S5's acknowledgement sheet plugs in. Declines until then.
+        let adultAcknowledgement: AdultInstallAcknowledgementHandle
+    }
+
     /// The AniList pool's two caches (ADR-0011). Held here, not built inside `makeProvider`,
     /// because both are **actors whose state must outlive a rail build**: `AniListPoolStore`
     /// holds the in-flight refresh and the superseded-seeds guard, and a fresh instance per
@@ -126,16 +145,17 @@ struct AppComposition {
     }
 #endif
 
-    /// The four injected seams below all default to the production object. They exist so a
+    /// The injected seams below all default to the production object. They exist so a
     /// test can build **this** graph — not a hand-rolled imitation of it — without a
-    /// Keychain, an AniList request, or a MyAnimeList search.
+    /// Keychain, an AniList request, a MyAnimeList search, or a repository fetch.
     init(defaults: UserDefaults = .standard,
          directory: URL = WorkStore.applicationSupportDirectory(),
          malCredentials: MALCredentialStore? = nil,
          malPreferences: MALAccountPreferenceStore? = nil,
          anilist injectedAniList: AniListAPI? = nil,
          malResolver: MALEntityResolver? = nil,
-         registry: SourceRegistry? = nil) {
+         registry: SourceRegistry? = nil,
+         repositoryTransport: (any RepositoryTransport)? = nil) {
         // Built first: the three commitment paths below (read, save, feedback) all
         // mint into it, so they must share this one instance (ADR-0007).
         let wk = WorkStore(directory: directory)
@@ -324,6 +344,36 @@ struct AppComposition {
         self.registry = registry ?? .shared
         (self.listingCounts, self.sourcePreferences, self.fulfillment) =
             Self.makeFulfillment(works: wk, registry: self.registry, defaults: defaults)
+        self.extensions = Self.makeExtensions(directory: directory,
+                                              transport: repositoryTransport,
+                                              registry: self.registry)
+    }
+
+    /// The installed-Source subsystem (Phase 4). Restores every installed Source from
+    /// its stored declaration at launch — re-validated, per ADR-0003 Amendment 4 — and
+    /// mirrors the result into `registry`, the graph's one. Nothing here touches the
+    /// network: the transport is used only by add, refresh, install and update, none of
+    /// which run at launch.
+    private static func makeExtensions(
+        directory: URL,
+        transport: (any RepositoryTransport)?,
+        registry: SourceRegistry
+    ) -> ExtensionComposition? {
+        guard let host = try? ExtensionHostCapabilityFactory(directory: directory) else { return nil }
+        let repositories = RepositoryStore(directory: directory)
+        let lifecycle = SourceLifecycleRegistry()
+        let acknowledgement = AdultInstallAcknowledgementHandle()
+        let installer = ExtensionInstaller(
+            store: repositories,
+            registry: lifecycle,
+            transport: transport ?? UnavailableRepositoryTransport(),
+            dataEraser: InstalledSourceDataEraser(storage: host.storageRepository),
+            acknowledgeAdult: { await acknowledgement.acknowledge($0) })
+        installer.restoreInstalledSources()
+        let registrar = ExtensionSourceRegistrar(store: repositories, lifecycle: lifecycle,
+                                                 host: host, registry: registry)
+        return ExtensionComposition(repositories: repositories, installer: installer, host: host,
+                                    registrar: registrar, adultAcknowledgement: acknowledgement)
     }
 
     /// Fulfillment's three pieces (ADR-0004). Extracted from `init` only because it had
@@ -357,4 +407,31 @@ final class MALDrainHandle {
 /// reason — the composition owns the store.
 final class MALRefreshHandle: @unchecked Sendable {
     @MainActor weak var account: MALAccountStore?
+}
+
+/// The one-time acknowledgement for a `mixed` or `adultOnly` install (repository format
+/// design §7.1) is a sheet, and the sheet is S5's. Until it is wired here, every adult
+/// install is **declined** and nothing is persisted — the fail-closed answer ADR-0003
+/// Amendment 2 requires of the classification — rather than waved through.
+@MainActor
+final class AdultInstallAcknowledgementHandle {
+    var present: ((AdultInstallAcknowledgement) async -> Bool)?
+
+    func acknowledge(_ acknowledgement: AdultInstallAcknowledgement) async -> Bool {
+        await present?(acknowledgement) ?? false
+    }
+}
+
+/// The production `RepositoryTransport` does not exist yet: `RepositoryTransport.swift`
+/// names it as URLSession composed with `RepositoryIndexValidator`, and that is S5's to
+/// write beside the screen that types a URL. Until then a fetch fails with a sentence.
+/// Everything the installer does at launch and on disable, uninstall and erase needs no
+/// transport, so installed Sources restore and run without one.
+struct UnavailableRepositoryTransport: RepositoryTransport {
+    struct Unavailable: LocalizedError {
+        var errorDescription: String? { "Adding repositories isn't available in this build yet." }
+    }
+
+    func fetchIndex(at url: URL) async throws -> RepositoryIndexFetchOutcome { throw Unavailable() }
+    func fetchScript(at url: URL) async throws -> Data { throw Unavailable() }
 }
