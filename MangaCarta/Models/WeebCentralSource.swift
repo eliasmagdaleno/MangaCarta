@@ -87,7 +87,7 @@ struct WeebCentralSource: MangaSource {
         return strings.compactMap(URL.init(string:))
     }
 
-    func webURL(forManga id: String) -> URL? {
+    func webURL(forManga id: String) async throws -> URL? {
         Self.base.appending(path: "series/\(id)")
     }
 

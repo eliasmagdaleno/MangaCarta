@@ -36,9 +36,7 @@ struct MangaDetailView: View {
         registry.source(id: manga.sourceId)
     }
 
-    private var mangaWebURL: URL? {
-        mangaSource?.webURL(forManga: manga.id)
-    }
+    @State private var mangaWebURL: URL?
 
     // MARK: - Source (ADR-0004)
 
@@ -162,6 +160,7 @@ struct MangaDetailView: View {
             vm.load()
         }
         .task { await reconcileListingCounts() }
+        .task { mangaWebURL = try? await mangaSource?.webURL(forManga: manga.id) }
         .task { await moreLikeThis.load(for: manga) }
         .task { clearNewlyDiscovered() }
         .onChange(of: vm.detailTags) { _, tags in

@@ -1330,19 +1330,22 @@ final class MangaCartaTests: XCTestCase {
 
     // MARK: - Source web URLs (Phase 2 addendum)
 
-    func testMangaDexWebURL() {
-        XCTAssertEqual(MangaDexSource().webURL(forManga: "abc-123")?.absoluteString,
+    func testMangaDexWebURL() async throws {
+        let url = try await MangaDexSource().webURL(forManga: "abc-123")
+        XCTAssertEqual(url?.absoluteString,
                        "https://mangadex.org/title/abc-123")
     }
 
-    @MainActor func testWeebCentralWebURL() {
+    @MainActor func testWeebCentralWebURL() async throws {
         let (source, _) = makeWeebCentral()
-        XCTAssertEqual(source.webURL(forManga: "01J76XYZ")?.absoluteString,
+        let url = try await source.webURL(forManga: "01J76XYZ")
+        XCTAssertEqual(url?.absoluteString,
                        "https://weebcentral.com/series/01J76XYZ")
     }
 
-    func testWebURLDefaultsToNil() {
-        XCTAssertNil(MockSource(id: "x", name: "X").webURL(forManga: "y"))
+    func testWebURLDefaultsToNil() async throws {
+        let url = try await MockSource(id: "x", name: "X").webURL(forManga: "y")
+        XCTAssertNil(url)
     }
 
     // MARK: - Chapter date-added (MangaDex)

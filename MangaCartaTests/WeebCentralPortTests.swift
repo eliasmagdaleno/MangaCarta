@@ -251,7 +251,7 @@ final class WeebCentralPortTests: XCTestCase {
         let ported = try PortFixtures.weebCentral()
         let compiled = PortFixtures.compiledWeebCentral()
 
-        let expected = compiled.source.webURL(forManga: PortFixtures.weebSeriesID)
+        let expected = try await compiled.source.webURL(forManga: PortFixtures.weebSeriesID)
         let raw = try await ported.runtime.invoke(.webURL,
                                                   request: ["listingId": PortFixtures.weebSeriesID])
         let actual = (raw as? [String: Any])?["url"] as? String

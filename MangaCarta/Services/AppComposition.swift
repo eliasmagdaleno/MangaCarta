@@ -366,7 +366,7 @@ struct AppComposition {
         let installer = ExtensionInstaller(
             store: repositories,
             registry: lifecycle,
-            transport: transport ?? UnavailableRepositoryTransport(),
+            transport: transport ?? URLSessionRepositoryTransport(),
             dataEraser: InstalledSourceDataEraser(storage: host.storageRepository),
             acknowledgeAdult: { await acknowledgement.acknowledge($0) })
         installer.restoreInstalledSources()
@@ -420,18 +420,4 @@ final class AdultInstallAcknowledgementHandle {
     func acknowledge(_ acknowledgement: AdultInstallAcknowledgement) async -> Bool {
         await present?(acknowledgement) ?? false
     }
-}
-
-/// The production `RepositoryTransport` does not exist yet: `RepositoryTransport.swift`
-/// names it as URLSession composed with `RepositoryIndexValidator`, and that is S5's to
-/// write beside the screen that types a URL. Until then a fetch fails with a sentence.
-/// Everything the installer does at launch and on disable, uninstall and erase needs no
-/// transport, so installed Sources restore and run without one.
-struct UnavailableRepositoryTransport: RepositoryTransport {
-    struct Unavailable: LocalizedError {
-        var errorDescription: String? { "Adding repositories isn't available in this build yet." }
-    }
-
-    func fetchIndex(at url: URL) async throws -> RepositoryIndexFetchOutcome { throw Unavailable() }
-    func fetchScript(at url: URL) async throws -> Data { throw Unavailable() }
 }
