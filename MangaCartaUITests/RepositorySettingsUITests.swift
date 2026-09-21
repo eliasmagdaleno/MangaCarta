@@ -73,7 +73,7 @@ final class RepositorySettingsUITests: XCTestCase {
         let repositoryName = app.staticTexts["Fixture Repository"].firstMatch
         XCTAssertTrue(repositoryName.waitForExistence(timeout: 5))
         let remove = app.buttons["Remove"].firstMatch
-        XCTAssertTrue(remove.exists)
+        XCTAssertTrue(remove.waitForExistence(timeout: 5))
         remove.tap()
         XCTAssertTrue(repositoryName.waitForNonExistence(timeout: 5))
     }
