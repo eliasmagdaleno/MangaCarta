@@ -518,3 +518,107 @@ absence, and a dropped listing cannot be told from a temporary one.
   metadata" is now read with decision 3: the enforcement is reader elevation and gating, not
   disablement. The design is not edited; this amendment is the record.
 - Nothing about the Host API contract changes. Every gate closed here was an installer question.
+
+## Amendment 5 — WeebCentral ships as a bundled package, and the compiled Source goes (2026-09-21)
+
+Amendments 1–4 stand. Phase 4 S6 (#192) proved the WeebCentral declaration installed from a
+package runs identically to the compiled `WeebCentralSource` against the port fixtures, and left
+the compiled Source in `builtInSources()` because *whether the app stops using it* is a product
+decision, not a slice's. This amendment records that decision, made by the user on 2026-09-21
+from the two options put to them in prose.
+
+### Context
+
+The compiled Source's id is the bare `"weebcentral"`. An installed Source's id is
+`<repository-uuid>:weebcentral` (format design §5.2), and the two id spaces cannot collide by
+design. So the cutover is not a swap of implementations behind one id; it changes WeebCentral's
+identity, and every Listing, history entry and pin stamped `"weebcentral"` — including the seeded
+simulator fixture's `works.json` — has to follow it or be orphaned.
+
+That forces the fork. ADR-0022 says the public release ships MangaDex and WeebCentral; ADR-0003
+Amendment 4 and ADR-0022 Amendment 2 say the build ships **no default repository**, and A2's App
+Review reasoning leans on it ("shipping a default repository would change this"). Either WeebCentral
+stops shipping, or a package ships in a way that does not become the repository A2 was guarding
+against.
+
+### Decision
+
+**WeebCentral ships as a bundled package: the format-1 index, the engine script and the
+declaration are resources in the app bundle, installed through the ordinary installer at first
+launch under a fixed, app-owned repository UUID. The compiled `WeebCentralSource` is deleted, and
+`builtInSources()` is MangaDex alone (Amendment 1).**
+
+The parts, each with its reason:
+
+1. **The same installer, the same records.** The bundled repository is a `RepositoryStore` record
+   like any other and its Source is an `ExtensionSource` like any other; there is no second code
+   path for "the one we ship". What differs is only the transport, which reads the bundle instead
+   of the network, and the identity, which is constant instead of minted. The format design's
+   "Bundled repositories" section owns the shape.
+2. **A fixed UUID, chosen once by the developer.** Amendment 4 mints identity at first add
+   because a URL cannot be trusted to name a repository; a bundle resource has no such problem, and
+   a *constant* identity is what makes the id migration deterministic — the same qualified id on
+   every device, every install, every test — and what lets the fixture be re-seeded once rather
+   than per device. This is the one exception to "the installer mints", and it is an exception
+   the reader cannot reach: no gesture creates or re-points a bundled repository.
+3. **Updates arrive with app updates only.** The bundled index is versioned like any bundle
+   (integer `version`); at launch the installer compares it to the installed record and offers
+   the update by the ordinary reader-confirmed path (Amendment 4, decision 7). No network fetch,
+   no URL, nothing to hijack. It is not a channel for shipping engine changes between releases,
+   and it must not become one, because that is exactly the "software offered in your app" that
+   ADR-0022 A2's defence rests on not existing.
+4. **It stays a Source the reader controls.** Disable, uninstall and erase work as for any
+   installed Source (format design §6.5, §6.8). What the reader cannot do is *remove the bundled
+   repository* or *change its URL* — there is no URL, and the app re-offers the Source on the
+   repositories screen after an uninstall, the way any repository re-offers a Source it still
+   lists. An uninstalled bundled WeebCentral is not reinstalled behind the reader's back at the
+   next launch; first-launch install happens once, keyed on the absence of any record for the
+   fixed id.
+5. **A one-time, deterministic identity migration.** On the first launch after the cutover,
+   every persisted reference to source id `"weebcentral"` — Listings, history entries, pins,
+   update state, source preferences — is rewritten to the fixed qualified id, before the
+   installed Source registers. It runs once, is idempotent, and the seeded simulator fixture is
+   re-seeded so the new id is what tests find. The cutover PR lists each store it touches.
+
+### What this means for ADR-0022 Amendment 2
+
+A2 says: "the build ships no default repository, no source list and no index … Shipping a default
+repository would change this; that decision, if it is ever made, reopens this amendment." **This is
+not that decision.** A2's sentence is about a *network* repository — an index the app fetches and
+whose Sources it offers, which is what "software offered in your app" (guideline 4.7) reaches. A
+package embedded in the binary is app content under 2.5.2's ordinary rules, exactly as the compiled
+Source was, and Review sees what it sees today: a `none`-class source, no repository to add, no
+index reachable from outside the bundle. ADR-0022 Amendment 3 records the clarification on that
+ADR's side so the two cannot drift.
+
+### Alternatives rejected
+
+- **Ship nothing; the reader installs WeebCentral from a repository they add.** Cleanest against
+  the no-default-repository rule and nothing to migrate to. Rejected because it reverses
+  ADR-0022's "the public release ships MangaDex and WeebCentral" for no product reason — a
+  first-launch reader with MangaDex only is the reader Amendment 1 argued against creating — and
+  because a network repository *somewhere* would then have to exist for WeebCentral to be
+  installable at all, which is the thing A2 does not want the app pointing at.
+- **Keep the compiled Source as a fallback beside the package.** Rejected: two copies of one
+  Source is the divergence the S6 brief named ("keeping both *silently* is how two copies of one
+  fact diverge"), and the port fixture is already the Swift constant verbatim plus a marker.
+- **Keep the bare `"weebcentral"` id for the bundled Source.** Rejected: it would make the bundled
+  repository's Sources the one place a qualified id is not `<uuid>:<localId>`, which every store,
+  the registrar and the id-space non-collision argument in §5.2 depend on. A migration once is
+  cheaper than an exception forever.
+- **A bundled repository that also polls a network URL for updates.** Rejected by part 3.
+
+### Consequences
+
+- The cutover PR deletes `WeebCentralSource.swift`, the compiled entry in `builtInSources()`, and
+  the compiled side of `WeebCentralPortTests` / `ExtensionPortHarness`; the fixture engine in
+  `MangaCartaTests/__Fixtures__/weebcentral/` (or the bundled package itself) becomes the only
+  copy of the script. `HTMLSelectorThemeEngine.bundleScript` as a Swift constant goes with it, or
+  becomes a resource read — whichever, there is one copy.
+- `ExtensionSourceRegistrar` restores the bundled Source like any other; nothing in the app graph
+  knows which repository is bundled except the repositories screen (no Remove / Change URL) and the
+  first-launch installer.
+- The glossary gains **Bundled package**; the format design gains "Bundled repositories".
+- ADR-0022's "the public release ships MangaDex and WeebCentral" stays true; how WeebCentral
+  ships changed, not whether.
+- The evidence-gate-1 corpus is unchanged: the installed Source is the one S6 measured.

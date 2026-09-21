@@ -229,3 +229,23 @@ and a data flow the privacy label would have to carry, and the app has no accoun
 - If Review objects anyway, the reversal is unchanged — the installer refusing the two classes —
   and the reason is recorded as Amendment 3.
 - #171 closes when this amendment is merged and the S5 brief carries the gate.
+
+## Amendment 3 — a bundled WeebCentral package is not the default repository Amendment 2 guards against (2026-09-21)
+
+Amendment 2 said that shipping a default repository "reopens this amendment". On 2026-09-21 the
+user decided WeebCentral ships as a **bundled package** — index, script and declaration as app
+bundle resources, installed through the ordinary installer under a fixed app-owned identity,
+updated only with app updates ([ADR-0003 Amendment 5](0003-extension-substrate.md#amendment-5--weebcentral-ships-as-a-bundled-package-and-the-compiled-source-goes-2026-09-21)).
+
+This amendment records that **Amendment 2's sentence is about a network repository** — an index the
+app fetches and whose Sources it offers to the reader, the "software offered in your app" that
+guideline 4.7 reaches — and that a package embedded in the binary is not one. It is app content
+under 2.5.2's ordinary rules, exactly as the compiled `WeebCentralSource` was. Nothing in Amendment
+2's decision or its App Store answers changes: the build still ships two content sources and no
+extension repository, the review notes still say so, and the age rating is still answered on
+those two. What changes is only how one of the two is built.
+
+The condition that *would* reopen Amendment 2 is unchanged and restated so it is not lost: an
+index the app fetches over the network by default, or a bundled package that offers a `mixed` or
+`adultOnly` Source. The reversal Amendment 2 reserved for "if Review objects anyway" is now the
+next amendment, not this one.
