@@ -804,7 +804,12 @@ final class InstalledSourceRegistrationTests: XCTestCase {
             : 0
         let scriptPath = store.scriptFileURL(for: installed.bundleId, in: repository.id)
         let packageBytes = try fileManager.attributesOfItem(atPath: scriptPath.path)[.size] as? NSNumber
-        let requests = "add=\(transport.indexFetches.prefix(1).count), refresh=\(transport.indexFetches.dropFirst().count), install=\(transport.scriptFetches.count), search=1, detail=1, chapters=1, pages=1"
-        print("S6_BUDGET milliseconds=\(measurements) requests={\(requests)} storage.repositories.json=\(repositoryBytes?.intValue ?? -1) storage.extension-storage.json=\(hostStorageByteCount) package=\(packageBytes?.intValue ?? -1) index=\(indexBytes.count) script=\(scriptBytes.count)")
+        let requests = "add=\(transport.indexFetches.prefix(1).count), "
+            + "refresh=\(transport.indexFetches.dropFirst().count), "
+            + "install=\(transport.scriptFetches.count), search=1, detail=1, chapters=1, pages=1"
+        print("S6_BUDGET milliseconds=\(measurements) requests={\(requests)} "
+              + "storage.repositories.json=\(repositoryBytes?.intValue ?? -1) "
+              + "storage.extension-storage.json=\(hostStorageByteCount) "
+              + "package=\(packageBytes?.intValue ?? -1) index=\(indexBytes.count) script=\(scriptBytes.count)")
     }
 }

@@ -421,13 +421,3 @@ final class AdultInstallAcknowledgementHandle {
         await present?(acknowledgement) ?? false
     }
 }
-
-/// A deliberately offline transport for tests that need to prove the unavailable state.
-struct UnavailableRepositoryTransport: RepositoryTransport {
-    struct Unavailable: LocalizedError {
-        var errorDescription: String? { "Adding repositories isn't available in this build yet." }
-    }
-
-    func fetchIndex(at url: URL) async throws -> RepositoryIndexFetchOutcome { throw Unavailable() }
-    func fetchScript(at url: URL) async throws -> Data { throw Unavailable() }
-}
