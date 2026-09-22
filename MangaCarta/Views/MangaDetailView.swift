@@ -327,9 +327,13 @@ struct MangaDetailView: View {
 
     private func continueLink(_ action: ResumeAction, progress: Double?) -> some View {
         NavigationLink {
-            ReaderView(manga: manga, chapter: action.chapter,
-                       source: registry.source(for: manga),
-                       initialPosition: action.startPosition, chapters: vm.chapters)
+            if let source = registry.source(for: manga) {
+                ReaderView(manga: manga, chapter: action.chapter,
+                           source: source,
+                           initialPosition: action.startPosition, chapters: vm.chapters)
+            } else {
+                Text("Source unavailable")
+            }
         } label: {
             ZStack {
                 RoundedRectangle(cornerRadius: 12).fill(Ink.seal)
@@ -538,10 +542,14 @@ struct MangaDetailView: View {
                         NavigationLink {
                             // The row advertises a saved position (ChapterRow's resume marker),
                             // so tapping it has to honour one — ADR-0014 decision 11.
-                            ReaderView(manga: manga, chapter: chapter,
-                                       source: registry.source(for: manga),
-                                       initialPosition: history.entry(forChapter: chapter.id)?.position,
-                                       chapters: vm.chapters)
+                            if let source = registry.source(for: manga) {
+                                ReaderView(manga: manga, chapter: chapter,
+                                           source: source,
+                                           initialPosition: history.entry(forChapter: chapter.id)?.position,
+                                           chapters: vm.chapters)
+                            } else {
+                                Text("Source unavailable")
+                            }
                         } label: {
                             ChapterRow(chapter: chapter)
                         }

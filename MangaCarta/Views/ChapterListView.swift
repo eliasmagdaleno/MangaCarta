@@ -39,10 +39,14 @@ struct ChapterListView: View {
                         NavigationLink {
                             // The row advertises a saved position (ChapterRow's resume marker),
                             // so tapping it has to honour one — ADR-0014 decision 11.
-                            ReaderView(manga: manga, chapter: chapter,
-                                       source: registry.source(for: manga),
-                                       initialPosition: history.entry(forChapter: chapter.id)?.position,
-                                       chapters: chapters)
+                            if let source = registry.source(for: manga) {
+                                ReaderView(manga: manga, chapter: chapter,
+                                           source: source,
+                                           initialPosition: history.entry(forChapter: chapter.id)?.position,
+                                           chapters: chapters)
+                            } else {
+                                Text("Source unavailable")
+                            }
                         } label: {
                             ChapterRow(chapter: chapter)
                         }

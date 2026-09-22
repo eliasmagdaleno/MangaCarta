@@ -59,6 +59,7 @@ final class ExtensionSourceRegistrar {
     /// order is install order, oldest first, so the ranking's last tiebreak (ADR-0004)
     /// is stable across launches.
     func sync(_ snapshot: RepositoryStore.Snapshot) {
+        registry.setKnownSourceIDs(lifecycle.knownSourceIDs)
         var next: [QualifiedSourceID: ExtensionSource] = [:]
         var sources: [ExtensionSource] = []
         let records = snapshot.sources.values.sorted {

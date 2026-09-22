@@ -443,7 +443,7 @@ final class InstalledSourceRegistrationTests: XCTestCase {
         let results = try await source.search(title: "berserk", limit: 8, offset: 0)
         let manga = try XCTUnwrap(results.first)
 
-        XCTAssertEqual(registry.source(for: manga).id, id.rawValue)
+        XCTAssertEqual(registry.source(for: manga)?.id, id.rawValue)
         XCTAssertEqual(registry.sourceForRefresh(sourceId: manga.sourceId).id, id.rawValue)
     }
 

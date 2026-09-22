@@ -152,6 +152,22 @@ final class RegistryInjectionTests: XCTestCase {
         XCTAssertEqual(vm.chapters.count, 3)
     }
 
+    func testDetailDoesNotFallbackForAnUninstalledSource() async {
+        let registry = injectedRegistry(active: Self.injectedB)
+        let uninstalledID = "historical-extension"
+        registry.setKnownSourceIDs([uninstalledID])
+        let manga = Manga(id: "x", sourceId: uninstalledID, title: "Title",
+                          description: "", status: "ongoing", year: nil, coverURL: nil,
+                          malId: nil)
+        let vm = MangaDetailViewModel(manga: manga)
+
+        vm.adopt(registry: registry)
+        await vm.loadAsync()
+
+        XCTAssertNotNil(vm.errorMessage)
+        XCTAssertTrue(vm.chapters.isEmpty)
+    }
+
     /// Loading before the view has adopted a registry says so rather than showing an empty
     /// chapter list, which reads as "this manga has no chapters".
     func testDetailWithoutARegistryReportsNoSourceRatherThanNoChapters() async {
