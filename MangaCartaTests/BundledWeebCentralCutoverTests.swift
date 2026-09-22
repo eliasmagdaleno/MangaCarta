@@ -99,6 +99,21 @@ final class BundledWeebCentralInstallTests: XCTestCase {
                        BundledRepositories.weebCentralURL)
     }
 
+    // A reader who browsed WeebCentral keeps browsing it. The registry is built before any
+    // installed Source registers, so the stored choice is not there to restore at init; it must
+    // be restored when the installed set arrives, not replaced by the MangaDex fallback.
+    func testTheStoredBrowseSourceIsRestoredOnceTheInstalledSourceRegisters() async {
+        let saved = UserDefaults.standard.object(forKey: "source.activeID")
+        defer { UserDefaults.standard.set(saved, forKey: "source.activeID") }
+        UserDefaults.standard.set(qualifiedID, forKey: "source.activeID")
+
+        let (composition, registry) = compose()
+        XCTAssertEqual(registry.activeSourceID, MangaDexSource.sourceID, "not registered yet")
+        await composition.extensions?.installBundledSources()
+
+        XCTAssertEqual(registry.activeSourceID, qualifiedID)
+    }
+
     // A5 part 4: uninstall is respected across launches; the Source is re-offered, not reinstalled.
     func testAnUninstalledBundledSourceStaysUninstalledAtTheNextLaunchAndIsStillOffered() async throws {
         let (first, _) = compose()
@@ -308,6 +323,12 @@ final class WeebCentralIdentityMigrationTests: XCTestCase {
             .replacingOccurrences(of: #""weebcentral:12""#, with: #""\#(qualified):12""#)
         XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), expected,
                        "numbers, key order and non-key strings stay byte-for-byte")
+    }
+
+    func testTheStoredBrowseSourceIsMigrated() {
+        defaults.set(legacy, forKey: "source.activeID")
+        WeebCentralIdentityMigration.run(directory: directory, defaults: defaults)
+        XCTAssertEqual(defaults.string(forKey: "source.activeID"), qualified)
     }
 
     func testASecondRunIsByteForByteInert() throws {

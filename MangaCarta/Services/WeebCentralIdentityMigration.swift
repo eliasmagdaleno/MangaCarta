@@ -21,7 +21,8 @@ enum WeebCentralIdentityMigration {
     private static let defaultsKeys = [
         "library.items", "library.collections", "history.entries", "history.readMarks",
         "entityResolution.cache", "entityResolution.reverseCache", "taste.tagCache",
-        "taste.notInterested", "taste.moreLikeThis", "source.primaryID", "source.workChoices"
+        "taste.notInterested", "taste.moreLikeThis", "source.primaryID", "source.workChoices",
+        "source.activeID"
     ]
 
     static func run(directory: URL, defaults: UserDefaults) {

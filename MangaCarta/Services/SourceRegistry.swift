@@ -30,8 +30,16 @@ final class SourceRegistry: ObservableObject {
 
     /// The source used for browsing feeds (Home rails, search). Persisted across launches.
     @Published var activeSourceID: String {
-        didSet { UserDefaults.standard.set(activeSourceID, forKey: Self.activeKey) }
+        didSet {
+            UserDefaults.standard.set(activeSourceID, forKey: Self.activeKey)
+            chosenSourceID = activeSourceID
+        }
     }
+
+    /// The reader's browse choice as persisted, kept while it cannot be honoured. `init` runs
+    /// before any installed Source registers, so a stored installed id is not there to restore
+    /// yet; `setInstalledSources` restores it when it arrives instead of keeping the fallback.
+    private var chosenSourceID: String?
 
     private static let activeKey = "source.activeID"
 
@@ -58,6 +66,7 @@ final class SourceRegistry: ObservableObject {
         stored = UserDefaults.standard.string(forKey: Self.activeKey)
 #endif
         self.activeSourceID = sources.contains(where: { $0.id == stored }) ? stored! : sources[0].id
+        self.chosenSourceID = stored
     }
 
     /// The app's compiled-in source. WeebCentral is restored through the bundled package.
@@ -72,7 +81,9 @@ final class SourceRegistry: ObservableObject {
     /// can show. The first source is a built-in, which ADR-0022 keeps non-adult.
     func setInstalledSources(_ installed: [MangaSource]) {
         sources = builtIn + installed
-        if source(id: activeSourceID) == nil {
+        if let chosen = chosenSourceID, chosen != activeSourceID, source(id: chosen) != nil {
+            activeSourceID = chosen
+        } else if source(id: activeSourceID) == nil {
             activeSourceID = sources[0].id
         }
     }
