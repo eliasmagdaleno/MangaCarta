@@ -2,7 +2,8 @@
 
 - **Status:** Accepted in principle (2026-07-24); host API undesigned. **Amendment 1 below
   narrows "ship zero built-in aggregator sources": MangaDex stays built in as the resolution
-  bridge, and extensions are additive.**
+  bridge, and extensions are additive.** **Amendment 6 (2026-09-22) reverses Amendments 1 and 5:
+  the App Store build ships no built-in and no bundled Source.**
 - **Related:** ADR-0001, ADR-0002, ADR-0004, ADR-0016, ADR-0022
 
 ## Context
@@ -622,3 +623,111 @@ ADR's side so the two cannot drift.
 - ADR-0022's "the public release ships MangaDex and WeebCentral" stays true; how WeebCentral
   ships changed, not whether.
 - The evidence-gate-1 corpus is unchanged: the installed Source is the one S6 measured.
+
+## Amendment 6 — the App Store build ships no built-in and no bundled Source (2026-09-22)
+
+Amendments 2–4 stand. **Amendment 1 (MangaDex stays built in) and Amendment 5 (WeebCentral ships as
+a bundled package) are reversed.** This records a decision the owner made on 2026-09-22; it was
+first noted in #186, where it also withdrew that issue's follow-up about auto-applying bundled
+updates.
+
+### Context
+
+Amendment 5 kept WeebCentral in the binary on the argument that a package embedded in the app is
+ordinary app content under guideline 2.5.2, and Amendment 1 kept MangaDex compiled in as the
+resolution bridge. Both arguments were about *how code ships*. Neither faced the question that
+decides App Review and takedown exposure for a reader app: **whose content the shipped app
+displays, and on whose permission.** Re-reading the guidelines on that question is what changed
+the answer. None of what follows is legal advice; it is the owner's reading of public documents
+and precedent, recorded so the reasoning can be checked.
+
+**Facts (from the cited sources):**
+
+- **App Review Guidelines** (<https://developer.apple.com/app-store/review/guidelines/>):
+  - 5.2.1 — an app must not use protected third-party material without permission.
+  - 5.2.2 — an app that displays content from a third-party service must be specifically
+    permitted to do so under that service's terms, and must provide the authorization on request.
+  - 5.2.3 — an app must not facilitate illegal file sharing.
+  - 2.5.2 — an app must not download code that changes its features or functionality; 4.7 allows
+    HTML5/JavaScript plug-ins, but "you are responsible for all such software offered in your app".
+- **Precedent.** None of the comparable readers ships a Source. Aidoku is not on the App Store and
+  its FAQ says it "does not host any content" (<https://aidoku.app/help/faq/>). Suwatte is
+  TestFlight-only. Paperback is on the App Store, listed as "An Ad-Free Komga client for iOS"
+  (<https://apps.apple.com/us/app/paperback-comic-manga-reader/id1626613373>) — positioned
+  around a self-hosted server, not a content site.
+- **Kakao Entertainment v. Tachiyomi (January 2024).** After the extensions were removed, Kakao
+  still pursued the app itself, and development stopped
+  (<https://en.wikipedia.org/wiki/Tachiyomi>). Keiyoushi, a successor extension repository, has
+  had extensions removed by DMCA notice
+  (<https://github.com/keiyoushi/extensions-source/issues/14260>).
+- **MangaDex's Acceptable Usage Policy** (<https://api.mangadex.org/docs/>) allows third-party
+  apps, provided they credit MangaDex and the scanlation groups, honour removals, and run no ads or
+  paid services. That permission is MangaDex's to give for its service; it is **not** the
+  copyright holders' permission for the chapters, so 5.2.1 exposure remains for a build that ships
+  a MangaDex Source.
+
+**Inferences (the owner's, labelled as such):**
+
+- A built-in or bundled Source makes the binary itself the thing that displays third-party
+  content, which puts 5.2.1 and 5.2.2 on the app rather than on what a reader chooses to install.
+  An empty app moves that choice to the reader.
+- Emptiness lowers risk; it does not remove it. Tachiyomi shows that a rights holder can pursue the
+  app after its extensions are gone.
+- An empty reader with no evident legitimate use is weak at review. That is why decision 3 gives
+  the app a first-run purpose of its own.
+
+### Decision
+
+1. **MangaCarta ships to the App Store with no bundled and no built-in content Source.** The
+   compiled MangaDex Source is removed from `builtInSources()`, and the bundled WeebCentral
+   package (Amendment 5) is withdrawn. Every Source, MangaDex and WeebCentral included, is
+   installed by the reader from a repository they add by URL, through the ordinary installer
+   (Amendment 4).
+2. **The app ships with no default, suggested or linked repository URL.** The first-party
+   WeebCentral and MangaDex engines are published in a separate public repository under a separate
+   GitHub account or organisation, linked neither from the app nor from its App Store listing.
+   This keeps ADR-0022 Amendment 2's "no default repository" premise true without the exception
+   ADR-0022 Amendment 3 carved for a bundle.
+3. **The app gains a first-run purpose: importing the reader's own local files** (CBZ/ZIP/PDF)
+   through the Files app. It is specified separately — local import spec (forthcoming).
+4. **Accepted consequence: features that depend on MAL ids work only when an installed Source
+   publishes external ids.** More Like This, the MAL/AniList metadata upgrade bridge, and the
+   parts of For You that resolve through MAL ids return nothing on an install with no such Source.
+   The extension contract gains an **external-ids field** (e.g. `malId`) on returned manga, so a
+   MangaDex engine can supply what the compiled Source's `links.mal` supplied. This is the
+   situation Amendment 1 argued against creating; it is now accepted, not avoided.
+5. **#186's follow-up (bundled packages auto-apply their updates) is withdrawn as moot.** With no
+   bundled package there is nothing to auto-apply.
+
+Constraints the release must keep, because each one undoes part of the above if broken:
+
+- No copyrighted manga in screenshots or marketing.
+- No site names (MangaDex, WeebCentral or any other) in App Store metadata.
+- No "free manga" wording anywhere.
+- First-run copy along the lines of "MangaCarta does not provide or host content."
+
+### Alternatives rejected
+
+- **Keep Amendment 5's bundled WeebCentral.** Rejected: the 2.5.2 argument it rested on was sound
+  but beside the point; a bundle is still content the binary displays, which is the 5.2 question.
+- **Keep MangaDex built in (Amendment 1) and drop only WeebCentral.** Rejected: MangaDex's API
+  permission is not the rights holders' permission (5.2.1), and a MangaDex-branded default is
+  exactly what App Review would test against 5.2.2.
+- **Ship empty but suggest or link the first-party repository.** Rejected by decision 2: a link
+  from the app or its listing makes the repository the app's offering in 4.7's sense.
+
+### Consequences
+
+- Code follows in separate PRs: remove the compiled MangaDex Source from `builtInSources()`;
+  remove the bundled WeebCentral package, `ExtensionComposition.installBundledSources()` and the
+  `bundled.invalid` transport route. What happens to already-installed bundled records and to
+  `WeebCentralIdentityMigration` on devices that ran Amendment 5 is the removal PR's to specify.
+- A fresh install has no Source. Browse, search, Home feeds and recommendations must present an
+  empty state that points at local import and at adding a repository, not an error.
+- The extension contract (Host API design) gains the external-ids field; the MangaDex engine in
+  the first-party repository must populate it for the bridge features to work.
+- The format design's "Bundled repositories" section and the glossary's **Bundled package** are
+  marked withdrawn, not deleted.
+- ADR-0022's "the public release ships MangaDex and WeebCentral" and its Amendment 3 no longer
+  describe the release, and ADR-0016's bridge is no longer guaranteed present; those ADRs are
+  amended on their own side.
