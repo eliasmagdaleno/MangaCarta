@@ -85,9 +85,12 @@ final class HomeViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         do {
-            async let popularTask: [Manga] = source.popular(limit: 20, offset: 0)
-            async let updatesTask: [MangaUpdate] = source.latestUpdates(limitTitles: 20, language: "en")
-            async let newTitlesTask: [Manga] = source.newTitles(limit: 20, offset: 0)
+            async let popularTask: [Manga] = source.homeFeedCapabilities.contains(.popular)
+                ? source.popular(limit: 20, offset: 0) : []
+            async let updatesTask: [MangaUpdate] = source.homeFeedCapabilities.contains(.latestUpdates)
+                ? source.latestUpdates(limitTitles: 20, language: "en") : []
+            async let newTitlesTask: [Manga] = source.homeFeedCapabilities.contains(.newTitles)
+                ? source.newTitles(limit: 20, offset: 0) : []
 
             let popular = try await popularTask
             let updates = try await updatesTask

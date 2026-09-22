@@ -553,6 +553,7 @@ final class MangaCartaTests: XCTestCase {
     private struct MinimalSource: MangaSource {
         let id = "minimal"
         let name = "Minimal"
+        var homeFeedCapabilities: Set<SourceOperation> { [.popular] }
         func search(title: String, limit: Int, offset: Int) async throws -> [Manga] { [] }
         func popular(limit: Int, offset: Int) async throws -> [Manga] { [] }
         func mangaDetail(id: String) async throws -> MangaDetail {
@@ -1092,6 +1093,16 @@ final class MangaCartaTests: XCTestCase {
     @MainActor func testHomeViewModelInjectedSourceWins() {
         let vm = HomeViewModel(source: MockSource(id: "mock", name: "Mock"))
         XCTAssertEqual(vm.source.id, "mock")
+    }
+
+    @MainActor func testHomeSkipsUndeclaredFeeds() async throws {
+        let vm = HomeViewModel(source: MinimalSource())
+
+        vm.loadHome()
+        try await Task.sleep(nanoseconds: 100_000_000)
+        try await waitUntil("home load to finish") { !vm.isLoading }
+
+        XCTAssertNil(vm.errorMessage)
     }
 
     /// A source whose FIRST popular() call suspends until the test lets it proceed;
