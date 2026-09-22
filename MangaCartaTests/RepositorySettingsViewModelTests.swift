@@ -81,7 +81,8 @@ final class RepositorySettingsViewModelTests: XCTestCase {
 
     func testConfirmingAgeOncePersistsForLaterAcknowledgements() async throws {
         let model = try makeModel()
-        let acknowledgement = AdultInstallAcknowledgement(sourceName: "Adult Source", repositoryName: "Fixture Repo", classification: .mixed)
+        let acknowledgement = AdultInstallAcknowledgement(sourceName: "Adult Source",
+                                                          repositoryName: "Fixture Repo", classification: .mixed)
         let first = Task { await model.composition.adultAcknowledgement.acknowledge(acknowledgement) }
         await Task.yield()
         model.answerAgeGate(true)
@@ -105,6 +106,38 @@ final class RepositorySettingsViewModelTests: XCTestCase {
         XCTAssertNil(model.pendingAcknowledgement)
     }
 
+    func testOverlappingAgeGateRequestsBothComplete() async throws {
+        let model = try makeModel()
+        let firstAcknowledgement = AdultInstallAcknowledgement(sourceName: "First Source",
+                                                                repositoryName: "Fixture Repo",
+                                                                classification: .mixed)
+        let secondAcknowledgement = AdultInstallAcknowledgement(sourceName: "Second Source",
+                                                                 repositoryName: "Fixture Repo",
+                                                                 classification: .adultOnly)
+
+        let first = Task { await model.composition.adultAcknowledgement.acknowledge(firstAcknowledgement) }
+        for _ in 0..<100 where model.pendingAcknowledgement == nil { await Task.yield() }
+        XCTAssertEqual(model.pendingAcknowledgement?.acknowledgement, firstAcknowledgement)
+
+        let firstFinished = XCTestExpectation(description: "the replaced acknowledgement completes")
+        let firstResult = Task {
+            let result = await first.value
+            firstFinished.fulfill()
+            return result
+        }
+        let second = Task { await model.composition.adultAcknowledgement.acknowledge(secondAcknowledgement) }
+        for _ in 0..<100 where model.pendingAcknowledgement?.acknowledgement != secondAcknowledgement {
+            await Task.yield()
+        }
+        await fulfillment(of: [firstFinished], timeout: 1)
+        let firstAccepted = await firstResult.value
+        XCTAssertFalse(firstAccepted)
+
+        model.answerAgeGate(true)
+        let secondAccepted = await second.value
+        XCTAssertTrue(secondAccepted)
+    }
+
     func testAdultToggleRequiresBothAgeConfirmationAndRegisteredAdultSource() {
         let visible = RepositorySettingsViewModel.shouldShowAdultSourcesToggle(isConfirmed: true, hasRegisteredAdultSource: true)
         XCTAssertTrue(visible)
@@ -121,7 +154,8 @@ final class RepositorySettingsViewModelTests: XCTestCase {
     }
 
     func testGateCopyNamesTheDeclarationWithoutImplyingModeration() {
-        let acknowledgement = AdultInstallAcknowledgement(sourceName: "Reader's Choice", repositoryName: "Community Index", classification: .adultOnly)
+        let acknowledgement = AdultInstallAcknowledgement(sourceName: "Reader's Choice",
+                                                          repositoryName: "Community Index", classification: .adultOnly)
         let copy = RepositorySettingsViewModel.ageConfirmationCopy(for: acknowledgement)
         XCTAssertTrue(copy.contains("Reader's Choice"))
         XCTAssertTrue(copy.contains("Community Index"))
