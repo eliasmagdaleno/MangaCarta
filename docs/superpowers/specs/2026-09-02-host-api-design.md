@@ -698,3 +698,21 @@ open because the available evidence cannot settle them honestly:
 
 None changes the v1 semantic boundary. Each must be resolved before its dependent runtime or
 installer slice is called complete.
+
+## Amendment 3 — paged requests use a nested page value (2026-09-22)
+
+**Decision:** Option B from GitHub issue #186 is adopted. Every paged entry point sends its
+request with the designed nested shape: `{query, page: {cursor, limit}}` for `search`, and
+`{page: {cursor, limit}}` for `popular`, `newTitles`, and `latestUpdates` (with the additional
+fields shown in the Entry points table where applicable). A paged result continues to return
+`Page<T>` with its opaque `nextCursor` field.
+
+The repository system exists so third parties can write engines, and the request shape is
+cheapest to settle before any third-party engines exist. Nesting keeps paging opaque and uniform
+across feeds and leaves room for other paging styles without colliding with query fields. The
+host passes a returned cursor back unchanged; engines own the token's meaning.
+
+The shipped WeebCentral engine was migrated to read `request.page.cursor` and
+`request.page.limit` in the implementation accompanying this amendment. The former flat
+`request.cursor` / `request.limit` shape is not supported, and no compatibility shim is
+provided.

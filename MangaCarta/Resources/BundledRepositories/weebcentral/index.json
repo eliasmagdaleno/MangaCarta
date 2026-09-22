@@ -4,9 +4,9 @@
   "bundles": [
     {
       "id": "html-selector",
-      "version": 1,
+      "version": 2,
       "script": "https://bundled.invalid/weebcentral/engine.js",
-      "scriptSHA256": "01c7b379ceab02674d46afd185ccd0a2534978e79e8ad138c3e574e724a8517d",
+      "scriptSHA256": "88ad0627fe079d8da1768f654883c199d433e43171d965aff0eb0cdc40363974",
       "sources": [
         {
           "localId": "weebcentral",

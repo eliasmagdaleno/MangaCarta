@@ -14,7 +14,8 @@ final class WeebCentralPortTests: XCTestCase {
 
     func testPinnedWeebCentralFixturesDriveSearchDetailChaptersPages() async throws {
         let port = try PortFixtures.weebCentral()
-        let search = try await port.listings(.search, request: ["query": "berserk", "limit": 8])
+        let search = try await port.listings(.search, request: ["query": "berserk",
+                                                                 "page": ["cursor": NSNull(), "limit": 8]])
         XCTAssertEqual(search.items.map(\.title).prefix(3), ["Berserk", "Berserk of Gluttony", "The Berserker's Second Playthrough"])
 
         let detail = try port.validator.validateDetail(try await port.runtime.invoke(
@@ -29,5 +30,22 @@ final class WeebCentralPortTests: XCTestCase {
         let pages = try port.validator.validatePages(try await port.runtime.invoke(
             .pages, request: ["chapterId": PortFixtures.weebChapterID, "quality": "original"])).value
         XCTAssertFalse(pages.isEmpty)
+    }
+
+    func testBundledEngineRequiresNestedPagingRequest() async throws {
+        let port = try PortFixtures.weebCentral()
+        let nested = try await port.runtime.invoke(.search, request: [
+            "query": "berserk", "page": ["cursor": NSNull(), "limit": 8]
+        ]) as? [String: Any]
+        XCTAssertFalse((nested?["items"] as? [[String: Any]] ?? []).isEmpty)
+
+        do {
+            _ = try await port.runtime.invoke(.search, request: [
+                "query": "berserk", "cursor": NSNull(), "limit": 8
+            ])
+            XCTFail("the shipped engine must not accept the pre-186 flat shape")
+        } catch let error as ExtensionInvocationError {
+            XCTAssertEqual(error.code, .invalidRequest)
+        }
     }
 }

@@ -316,8 +316,10 @@ final class ExtensionSource: MangaSource {
                 return []
             case .page(let at, let cursor):
                 var request = fields
-                request["limit"] = limit
-                if let cursor { request["cursor"] = cursor }
+                // Paging is a nested Host API value. The initial cursor is explicitly null;
+                // subsequent cursors are replayed byte-for-byte from the previous response.
+                let pageCursor: Any = cursor.map { $0 as Any } ?? (NSNull() as Any)
+                request["page"] = ["cursor": pageCursor, "limit": limit]
                 let value = try await invoke(operation, request: request)
                 let (items, next, exhausted) = try validated { try parse(value) }
                 cursors.record(key: key, after: at, limit: limit, next: next, exhausted: exhausted)

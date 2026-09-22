@@ -260,15 +260,18 @@ final class ExtensionSourceTests: XCTestCase {
         registerEngine("echo", {
           invoke: function (operation, request, context) {
             \(code.map { "return { ok: false, error: { code: \"\($0)\", message: \"\(message)\" } };" } ?? "")
-            var cursor = request.cursor === null || request.cursor === undefined ? "null" : request.cursor;
-            var id = "cursor=" + cursor + ";limit=" + request.limit;
+            if (!request.page || typeof request.page !== "object") {
+              return { ok: false, error: { code: "invalid_request", message: "nested page required" } };
+            }
+            var cursor = request.page.cursor === null || request.page.cursor === undefined ? "null" : request.page.cursor;
+            var id = "cursor=" + cursor + ";limit=" + request.page.limit;
             if (request.query !== undefined) { id += ";query=" + request.query; }
             var offset = cursor === "null" ? 0 : parseInt(cursor, 10);
             var exhausted = \(exhaustAt.map(String.init) ?? "null");
             var done = exhausted !== null && offset >= exhausted;
             return { ok: true, value: {
               items: [{ id: id, title: "Echo", sourceId: "evil" }],
-              nextCursor: done ? null : String(offset + request.limit),
+              nextCursor: done ? null : String(offset + request.page.limit),
               exhausted: done
             } };
           }
@@ -689,7 +692,8 @@ final class InstalledSourceRegistrationTests: XCTestCase {
 
         let expectedPort = try PortFixtures.weebCentral()
         let expectedSearchPage = try await expectedPort.listings(.search,
-                                                                  request: ["query": "berserk", "limit": 8])
+                                                                  request: ["query": "berserk",
+                                                                           "page": ["cursor": NSNull(), "limit": 8]])
         let actualSearch = try await measured("search") {
             try await source.search(title: "berserk", limit: 8, offset: 0)
         }
