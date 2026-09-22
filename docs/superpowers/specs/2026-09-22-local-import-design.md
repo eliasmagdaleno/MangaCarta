@@ -1,7 +1,8 @@
 # Local import design
 
 **Date:** 2026-09-22
-**Status:** Draft for owner review. Nothing here is built. Open questions are numbered at the end.
+**Status:** Design specification. The owner decided the open questions on 2026-09-22 (see
+"Decisions" at the end); one owner item remains. Nothing here is built.
 **Evidence baseline:** `main` at `70317bc`, after the WeebCentral cutover (#201).
 
 ## Purpose and ownership
@@ -15,11 +16,13 @@ app and read them in the existing reader.**
 This document owns *how* local import is built. The decision that the app ships empty belongs to
 the ADR. Terms **Work**, **Listing**, **Listing key**, **Source** and **Pin** are the glossary's
 and are used without redefinition. If the owner accepts decision 1 below (local files are a
-Source), that choice is an architectural decision and should be promoted to an ADR (or an
-ADR-0001 amendment) before slice 1 merges, not left living here.
+Source) — the architectural decision is
+[ADR-0025](../../adr/0025-local-files-as-a-source.md), which also records why it is compatible with
+ADR-0003 Amendment 6 ([#215](https://github.com/eliasmagdaleno/MangaCarta/pull/215)).
 
 **Non-goals:** Komga, OPDS, Kavita or any network library (future work, see §9); folder sync or
-watch; CBR/RAR, CB7, EPUB; editing metadata beyond rename; cross-device sync of imported files.
+watch; CBR/RAR, CB7, EPUB; editing metadata beyond rename; cross-device sync of imported files;
+matching local Works to MangaDex/AniList/MAL; a vector PDF reader. See §10.
 
 ## 1. Architecture — local files are a `MangaSource`
 
@@ -41,8 +44,7 @@ Why:
   `LocalSource` needs nothing more: `mangaDetail(id:)`, `chapters(mangaId:)` and
   `pageURLs(chapterId:preferDataSaver:)` return values built from the on-disk store; `search`
   filters imported titles by name; `popular`/`newTitles`/`latestUpdates` throw
-  `SourceError.unsupported` via the existing defaults (or `popular` returns "recently imported"
-  — open question 3); `webURL` returns nil.
+  `SourceError.unsupported`; `webURL` returns nil.
 - **The reader needs no new renderer if pages are files.** `ReaderViewModel` asks for
   `pageURLs`; `ImageCache`'s default fetcher is `URLSession.shared.data(from:)`, which accepts
   `file://` URLs and simply skips the `HTTPURLResponse` status check. `LocalSource` therefore
@@ -53,9 +55,10 @@ Trade-offs accepted:
 - **It is compiled, not an Extension.** It reads the app container, which the Host API
   deliberately cannot. That is fine: it is host code, not content, and ADR-0003's
   "no site baked in" rule is about remote Sources.
-- **Source pickers and Home rails must not treat it as a browse Source.** A "Local" option in the
-  Home source picker is acceptable only if its rails are meaningful; otherwise hide it with a
-  capability flag. Open question 3.
+- **It is not a browse Source.** Decided: `local` appears in Library only, never in the Home
+  source picker. `SourceRegistry.visibleSources` excludes it through a declared capability
+  (`isBrowsable`, default `true`) rather than an id comparison, and the Home empty state must not
+  treat "`local` is registered" as "a browse Source exists".
 - **`ImageCache` would copy local pages into its 500 MB disk cache.** Slice 2 adds an
   `isFileURL` bypass so local pages are read directly and never duplicated.
 - **`SourceRegistry.sourceForRefresh` falls back to MangaDex for an unknown id.** Harmless today,
@@ -65,10 +68,11 @@ Trade-offs accepted:
 
 **Recommendation:** copy on import into
 `Application Support/LocalLibrary/<itemId>/`, where `itemId` is a UUID minted at import and is the
-Listing's `mangaId`. Each item directory holds `original.<ext>` (kept, for re-extraction), `pages/`
-(extracted images, zero-padded `0001.jpg` …), `cover.jpg` (thumbnail of page one) and
+Listing's `mangaId`. Each item directory holds `pages/<chapter>/` (extracted images, zero-padded
+`0001.jpg` …, one subdirectory per chapter), `cover.jpg` (thumbnail of page one) and
 `item.json` (title, source filename, SHA-256, byte size, page count, import date, parsed
-ComicInfo fields). A `LocalLibraryStore` owns the index.
+ComicInfo fields). A `LocalLibraryStore` owns the index. **The original archive is not kept:**
+it is unpacked from a temporary copy, which is deleted once extraction succeeds.
 
 Why copy rather than security-scoped bookmarks:
 
@@ -88,13 +92,18 @@ where `WorkStore` already lives. **Survives reinstall:** no — deleting the app
 container. Restoring from a device backup brings it back. Say so in the delete confirmation and in
 Settings.
 
-**Space.** Keeping both `original` and `pages/` roughly doubles use. MVP keeps both (simplest,
-lets a better extractor re-run); open question 2 asks whether to drop the original after a
-successful extraction. Settings shows total local-library size. `pages/` could instead be marked
-`isExcludedFromBackup` since it is re-derivable — recommended.
+**Space.** Only unpacked pages are kept (decided), so an item costs roughly its archive's size.
+Settings shows total local-library size. Because `pages/` is now the *only* copy, it is **not**
+excluded from backup — a device restore is the one path that survives a reinstall. Consequences
+of not keeping the original: a better extractor cannot re-run on old imports (re-import instead),
+and the SHA-256 used for duplicate detection is computed during import and stored in `item.json`.
+Extraction writes to a staging directory moved into place only on success, so a failed import
+leaves nothing behind.
 
-**Deletion.** Deleting an item removes its directory, its `LibraryStore` entry and its Listing from
-the Work; the Work is deleted if that was its only Listing. History entries are kept (as for an
+**Deletion.** Decided: for local items, "Remove from Library" *is* "Delete from device" — one
+action. It removes the item's directory, its `LibraryStore` entry and its Listing from the Work;
+the Work is deleted if that was its only Listing (a local Work outside Library would be an
+unreachable orphan). History entries are kept (as for an
 uninstalled Source), so re-importing the same file (same SHA-256 → same `itemId`, see §5) restores
 read state.
 
@@ -147,26 +156,29 @@ Pure functions, unit-tested:
   any that fail to decode. (WebP decodes on iOS 14+; AVIF on iOS 16+.)
 - Drop `__MACOSX/`, any path component starting with `.` (`.DS_Store`, `._foo.jpg`),
   `Thumbs.db`, and directories.
-- **Nested folders are flattened** in path order: sort by full path using
-  `localizedStandardCompare` (Finder's natural sort, so `page2` < `page10`). One archive with
-  several chapter folders is still one chapter in MVP (open question 4).
+- **Chapters from top-level folders (decided).** After junk is dropped, if the images sit in
+  **two or more top-level folders**, each top-level folder is one chapter, ordered by natural sort
+  of folder name and titled by it. Root images beside such folders form a leading chapter. With a
+  single top-level folder (the common `Title/001.jpg` wrapper) or none, the archive is one
+  chapter. Deeper nesting inside a chapter folder is flattened in path order.
+- **Natural sort** everywhere: `localizedStandardCompare` (Finder's order, so `page2` < `page10`).
+  It is locale-sensitive, so tests pin the locale.
 - **Cover** is the first page after sorting, unless ComicInfo marks a page `Type="FrontCover"`.
 
 ## 4. Metadata
 
-**Recommendation for MVP: one Work per file, one chapter per Work.** Title comes from the
+**MVP: one Work per file; one chapter per file, or one per top-level folder (§3).** Title comes from the
 filename with the extension stripped and underscores turned to spaces. If the CBZ contains
 `ComicInfo.xml` at its root, parse (`XMLParser`, pure) `Series`, `Title`, `Number`, `Volume`,
 `Summary`, `Writer`, `Genre`, `LanguageISO`, `Manga` (`YesAndRightToLeft` → default R→L) and
 `Pages`. When `Series` is present it becomes the display title and `Number`/`Volume` label the
 chapter.
 
-**Grouping several files into one Work** (a series of volume CBZs) is the obvious next step and is
-deferred to slice 6. When it lands, the rule is: files importing in the same batch **with the same
-ComicInfo `Series`** join one Work, each a chapter, ordered by `Volume` then `Number` then natural
-filename sort; files without ComicInfo stay one-per-Work unless the user explicitly merges them
-("Add to series…"). Guessing series from filenames (`Berserk v01.cbz`) is a heuristic that will be
-wrong silently; it should be a suggestion the user confirms, not an automatic merge.
+**Grouping several files into one Work** is slice 6 and uses **ComicInfo `Series` only**
+(decided). A file whose `Series` equals (case- and whitespace-normalised) that of an existing local
+Work joins it — in the same batch or later — with chapters ordered by `Volume`, then `Number`,
+then natural filename sort. Files without ComicInfo `Series` are always one Work each. No filename
+heuristic and no manual merge in v1.
 
 Why not group from the start: one-per-file needs no merge UI, no "split" undo, and no rules for a
 chapter later arriving in a different batch. It is enough for App Review and for a first user.
@@ -196,12 +208,14 @@ new tokens.
 - **Errors** surface per file, never abort the batch: "Not a supported archive", "Encrypted
   archives aren't supported", "No images found", "Password-protected PDFs aren't supported",
   "Not enough storage". Errors become `errorMessage` strings in the view model, per convention.
-- **Duplicates** are detected by SHA-256 of the original. A duplicate is skipped with "Already in
+- **Duplicates** are detected by the SHA-256 of the imported file, stored at import. A duplicate is skipped with "Already in
   your library" and a button that opens it. Same hash ⇒ same `itemId` across delete/re-import, so
   history reattaches.
-- **Deleting.** Swipe or context menu on the Library cell and a "Delete from device" button on the
-  detail page, with a confirmation naming the size freed. "Remove from Library" (existing action)
-  is *not* delete for local items — open question 5 asks whether they should be merged.
+- **Deleting.** For a local item the existing "Remove from Library" action (Library context menu
+  and detail page) is relabelled **"Delete from Device"**, destructive-styled, and always confirms:
+  "Delete *Title* from this iPhone? The imported file (N MB) is removed from MangaCarta and can't
+  be recovered. Reading history is kept." Removing a local item from a *collection* only
+  (ADR-0006) stays non-destructive; only leaving Library deletes.
 
 ## 6. Reading-state integration
 
@@ -223,8 +237,9 @@ protocol requirement `var participatesInUpdates: Bool { get }` (default `true`, 
 registry — not by string-comparing `"local"`, and not by relying on `sourceForRefresh`'s MangaDex
 fallback. A Work whose only Listing is local therefore yields no eligible listings, is never
 enqueued for a fetch, and never produces an `UpdateEvent` or notification. `MetadataUpgradeQueue`
-likewise skips it (no external ids to resolve) unless the owner wants local Works matched to
-MangaDex/AniList metadata (open question 6).
+likewise skips it: decided, v1 does no MAL/AniList/MangaDex matching for local Works, so the
+queue excludes `local` Listings (same capability-based check) and `MALProgressCoordinator` never
+syncs them.
 
 ## 7. Testing
 
@@ -233,14 +248,19 @@ MangaDex/AniList metadata (open question 6).
 - `ZipReaderTests` — fixtures built in-test from byte literals: stored entry, deflate entry,
   multiple entries, CRC mismatch rejected, encrypted flag rejected, ZIP64 rejected, truncated
   EOCD rejected, archive comment before EOCD handled.
-- `PageOrderingTests` — natural sort (`2` < `10`), nested folders flattened, `__MACOSX`,
-  `.DS_Store`, `._` files and non-images dropped, case-insensitive extensions.
+- `PageOrderingTests` — natural sort (`2` < `10`), `__MACOSX`, `.DS_Store`, `._` files and
+  non-images dropped, case-insensitive extensions; **chapter splitting**: two top-level folders →
+  two chapters in natural order, a single wrapper folder → one chapter, root images beside folders
+  → a leading chapter, deeper nesting flattened.
 - `ComicInfoParserTests` — full, partial, malformed XML (falls back to filename), `Manga`
   direction mapping.
-- `LocalLibraryStoreTests` — import into a temp directory, duplicate by hash, delete removes
-  directory and Listing, re-import restores `itemId`.
+- `LocalLibraryStoreTests` — import leaves no archive behind, duplicate by hash, a failed
+  extraction leaves no directory, delete removes directory, Library entry and Listing, re-import
+  restores `itemId`.
 - `LocalSourceTests` — `chapters`/`pageURLs` return file URLs in order; unsupported feeds throw.
 - `LibraryRefreshCoordinatorTests` — a Work with only a local Listing is never fetched.
+- `SourceRegistryTests` — `visibleSources` never includes `local`.
+- `MetadataUpgradeQueueTests` — a local-only Work is never enqueued.
 
 **UI (hermetic, XCUITest):** there is no tap tool and `fileImporter`'s system picker is not
 drivable reliably, so the test does not go through it. A launch argument
@@ -248,30 +268,37 @@ drivable reliably, so the test does not go through it. A launch argument
 makes the app import a fixture CBZ bundled in the UI-test target through the *same*
 `LocalLibraryStore.import(url:)` the picker calls. `LocalImportUITests` then asserts: the empty
 state shows the "does not provide or host content" copy before import; the item appears in
-Library; opening it shows page 1; paging to the end marks it read; screenshots attached at each
-step. Fixture art is original or public domain (§9). Runs on iPhone 17 Pro locally; the test must
+Library; opening it shows page 1; paging to the end marks it read; "Delete from Device" shows
+the warning and, confirmed, returns Library to the empty state; screenshots attached at each step. Fixture art is original or public domain (§9). Runs on iPhone 17 Pro locally; the test must
 not depend on grid position (CI's UI device is iPhone 16 Pro).
 
 ## 8. Slices
 
 Each slice is independently mergeable and leaves the app working.
 
-1. **ZIP reader + page ordering (pure).** `ZipReader`, `PageSelector` in `Models/`. No UI.
-   *Accept:* `ZipReaderTests` and `PageOrderingTests` green, including fixtures from two tools.
-2. **Local library store + `LocalSource`, CBZ/ZIP only.** Storage layout (§2), SHA-256 dedupe,
-   `LocalSource` registered, `ImageCache` file-URL bypass, `participatesInUpdates`.
-   *Accept:* `LocalLibraryStoreTests`, `LocalSourceTests`, and the refresh-skip test in
+1. **ZIP reader + page selection (pure).** `ZipReader`, `PageSelector` (junk filtering, natural
+   sort, top-level-folder chapter splitting) in `Models/`. No UI.
+   *Accept:* `ZipReaderTests` and `PageOrderingTests` green, including the chapter-splitting cases
+   and fixtures from two tools.
+2. **Local library store + `LocalSource`, CBZ/ZIP.** Storage layout (§2) with staging and no kept
+   archive, SHA-256 dedupe, multi-chapter items, `LocalSource` registered, `ImageCache` file-URL
+   bypass, `participatesInUpdates` and `isBrowsable` capabilities.
+   *Accept:* `LocalLibraryStoreTests`, `LocalSourceTests` (a two-folder archive yields two
+   chapters), `SourceRegistryTests`, `MetadataUpgradeQueueTests` and the refresh-skip test in
    `LibraryRefreshCoordinatorTests` green.
-3. **Import UI + empty states.** `fileImporter`, progress banner, per-file errors, delete,
-   Settings row, first-run copy; `-uitest-import-fixture` hook.
-   *Accept:* `LocalImportUITests` green on the hermetic CI suite.
-4. **PDF.** PDFKit rasterisation into the same layout. *Accept:* `PDFImportTests` (a 3-page
-   generated PDF yields 3 ordered pages and a cover).
+3. **Import UI + empty states + delete.** `fileImporter`, progress banner, per-file errors, the
+   single "Delete from Device" action with its warning, Settings row, first-run copy;
+   `-uitest-import-fixture` hook.
+   *Accept:* `LocalImportUITests` green on the hermetic CI suite, including the delete step.
+4. **PDF.** PDFKit rasterisation at ≈2,600 px into the same layout (one chapter per PDF).
+   *Accept:* `PDFImportTests` (a 3-page generated PDF yields 3 ordered pages, a cover, and no
+   retained PDF).
 5. **ComicInfo.xml + open-in.** Parser, title/number/direction; document types for Share-to.
    *Accept:* `ComicInfoParserTests` green; `LocalLibraryStoreTests` asserts Series wins over
    filename.
-6. **Series grouping** (after owner sign-off on §4). *Accept:* a test that three CBZs with the
-   same `Series` import as one Work with three chapters ordered by `Volume`.
+6. **Series grouping by ComicInfo `Series`.** *Accept:* a `LocalLibraryStoreTests` case where
+   three CBZs sharing a `Series` — two in one batch, one imported later — form one Work with
+   chapters ordered by `Volume`, and a CBZ without ComicInfo stays its own Work.
 
 ## 9. App Store angle
 
@@ -287,22 +314,29 @@ the webtoon reader; read marks and the unread badge. **All art must be public do
 original** — e.g. pre-1929 public-domain comic strips, or pages drawn/commissioned for the
 purpose — never a screenshot of a Source's catalog. The same fixtures serve the UI test.
 
-A Komga/OPDS client is the natural next "legitimate purpose" and fits the same Source-shaped
-seam; it is future work, not part of this spec.
+## 10. Future work
 
-## Open questions for the owner
+- A Komga/OPDS client — the next "legitimate purpose", fitting the same Source-shaped seam.
+- Matching local Works to MangaDex/AniList/MAL for metadata and progress sync.
+- A vector PDF reader path (v1 rasterises).
+- Folder watching, CBR/RAR, EPUB.
 
-1. Accept local files as a compiled `MangaSource` with id `local` (decision 1)? If yes, promote it
-   to an ADR (or ADR-0001 amendment) before slice 1.
-2. Keep `original.<ext>` after extraction (≈2× disk, allows re-extraction), or delete it?
-3. Should `local` appear in the Home source picker with rails (e.g. "Recently imported",
-   "Continue reading"), or be hidden from browse entirely and live only in Library?
-4. An archive containing several chapter folders: one chapter (MVP), or one chapter per
-   top-level folder?
-5. For local items, should "Remove from Library" and "Delete from device" be one action?
-6. Should a local Work be eligible for metadata resolution (MangaDex/AniList cover, synopsis,
-   MAL progress sync) via `MetadataUpgradeQueue`, or stay purely local?
-7. Series grouping (slice 6): ComicInfo `Series` only, or also a confirmed filename heuristic?
-8. Is the ≈2,600 px PDF rasterisation width acceptable, or is a vector PDF reader path wanted
-   before release?
-9. Who produces the original/public-domain screenshot and review-fixture art?
+## Decisions (2026-09-22)
+
+The owner answered the draft's open questions on #216:
+
+1. **Local files are a compiled `LocalSource`, id `local`, always registered** — recorded in
+   [ADR-0025](../../adr/0025-local-files-as-a-source.md), compatible with ADR-0003 Amendment 6
+   ([#215](https://github.com/eliasmagdaleno/MangaCarta/pull/215)). (§1)
+2. **The original archive is deleted after unpacking;** only pages are kept. (§2)
+3. **`local` appears in Library only**, not in the Home source picker, for now. (§1)
+4. **Several top-level chapter folders → one chapter per folder.** (§3, slices 1–2)
+5. **Remove from Library and Delete from device are one action**, with a clear warning. (§2, §5)
+6. **No MAL/AniList/MangaDex matching** for local Works in v1. (§6, §10)
+7. **Series grouping uses ComicInfo `Series` only.** (§4, slice 6)
+8. **≈2,600 px PDF rasterisation is fine for v1;** a vector reader is future work. (§3, §10)
+
+Still open (owner item):
+
+9. Who produces the original or public-domain art for the App Store screenshots and the App
+   Review sample file? (§9)
