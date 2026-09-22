@@ -96,8 +96,8 @@ struct AppComposition {
         ///
         /// A record whose Source the reader *uninstalled* is left alone: the guard is on the
         /// record's existence, not its state, so the app re-offers rather than reinstalls
-        /// (A5 part 4). The repository URL is the constant `bundled.invalid` URL, so there is no
-        /// stale-URL path to repair. Returns the installer's sentence when the package could
+        /// (A5 part 4). The repository URL is the constant `bundled.invalid` URL; a record holding
+        /// any other URL (an earlier draft's `bundled://`) is repointed to it. Returns the installer's sentence when the package could
         /// not be installed — a packaging defect, not a reader-facing state: MangaDex stays
         /// usable and the repositories screen shows the Source as offered.
         @discardableResult
@@ -108,7 +108,14 @@ struct AppComposition {
                 let repository: RepositoryRecord
                 if let existing = repositories.repository(id) {
                     repository = existing
-                    _ = try await installer.refresh(id)
+                    if existing.indexURL == BundledRepositories.weebCentralURL {
+                        _ = try await installer.refresh(id)
+                    } else {
+                        // A record from before the URL was the constant: refreshing its stored
+                        // URL would go to the network and fail on every launch. Repoint it; its
+                        // Sources, uninstalled ones included, are kept.
+                        _ = try await installer.changeRepositoryURL(id, to: BundledRepositories.weebCentralURL)
+                    }
                 } else {
                     repository = try await installer.addRepository(at: BundledRepositories.weebCentralURL,
                                                                    repositoryID: id)

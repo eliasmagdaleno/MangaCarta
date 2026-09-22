@@ -79,6 +79,27 @@ final class BundledWeebCentralInstallTests: XCTestCase {
     }
 
     // A5 part 4: uninstall is respected across launches; the Source is re-offered, not reinstalled.
+    // A record left by an earlier draft's `bundled://` URL, verbatim from a simulator that
+    // ran it: the record exists, so the first-launch add is skipped, and a refresh of the
+    // stale URL fails — WeebCentral was never installed on that device, silently.
+    func testARecordWithAStaleBundledURLIsRepointedAndTheSourceInstalled() async throws {
+        let stale = """
+        {"bundles":[],"sources":[],"repositories":[{"addedAt":811722929.185757,\
+        "name":"WeebCentral","format":1,"id":"9C6A1C65-2AB0-4B53-8F91-55BDFDEB8E55",\
+        "indexURL":"bundled:\\/\\/weebcentral\\/index.json",\
+        "lastRefreshedAt":811722929.185757,"state":"active"}]}
+        """
+        try Data(stale.utf8).write(to: directory.appendingPathComponent("repositories.json"))
+
+        let (composition, registry) = compose()
+        let failure = await composition.extensions?.installBundledSources()
+
+        XCTAssertNil(failure)
+        XCTAssertEqual(registry.sources.map(\.id), [MangaDexSource.sourceID, qualifiedID])
+        XCTAssertEqual(composition.extensions?.repositories.repository(repositoryID)?.indexURL,
+                       BundledRepositories.weebCentralURL)
+    }
+
     func testAnUninstalledBundledSourceStaysUninstalledAtTheNextLaunchAndIsStillOffered() async throws {
         let (first, _) = compose()
         await first.extensions?.installBundledSources()
