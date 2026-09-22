@@ -15,6 +15,29 @@ import XCTest
 @Suite("Host HTTP capability")
 struct HostHTTPTests {
 
+    @Test("HTTP rejects a private connected peer after public DNS")
+    func privateConnectedPeerIsRejected() async throws {
+        let url = try #require(URL(string: "https://allowed.example/start"))
+        let fetcher = FixedHTTPMetricsFetcher(result: URLSessionFetchResult(
+            data: Data("private response".utf8),
+            response: HTTPURLResponse(url: url, statusCode: 200,
+                                      httpVersion: nil, headerFields: nil)!,
+            connectedPeerAddress: "10.0.0.5"))
+        let transport = URLSessionHostHTTPTransport(fetcher: fetcher)
+        let client = HostHTTPClient(
+            sourceID: QualifiedSourceID(rawValue: "repo/source-a"),
+            allowedOrigins: ["https://allowed.example"],
+            transport: transport,
+            resolver: FixedHostResolver(addresses: ["93.184.216.34"])
+        )
+
+        let error = await hostCapabilityError {
+            try await client.request(HostHTTPRequest(url: url))
+        }
+
+        #expect(error?.code == .policyDenied)
+    }
+
     @Test("HTTP redirects cannot leave the Source's declared origins")
     func redirectCannotEscapeDeclaredOrigins() async throws {
         let transport = ScriptedHostHTTPTransport { request, _ in
@@ -742,4 +765,10 @@ private actor ScriptedHostHTTPTransport: HostHTTPTransport {
     func sentCookieHeaders() -> [String?] {
         cookies
     }
+}
+
+private struct FixedHTTPMetricsFetcher: URLSessionDataFetching {
+    let result: URLSessionFetchResult
+
+    func fetch(_ request: URLRequest) async throws -> URLSessionFetchResult { result }
 }

@@ -116,6 +116,18 @@ struct HostHTTPTransportResponse: Sendable {
     let url: URL
     let headers: [String: String]
     let body: Data
+    /// The address URLSession actually connected to, when the platform reports it.
+    /// URLProtocol-backed tests and older platform implementations may not provide it.
+    let connectedPeerAddress: String?
+
+    init(statusCode: Int, url: URL, headers: [String: String], body: Data,
+         connectedPeerAddress: String? = nil) {
+        self.statusCode = statusCode
+        self.url = url
+        self.headers = headers
+        self.body = body
+        self.connectedPeerAddress = connectedPeerAddress
+    }
 }
 
 protocol HostHTTPTransport: Sendable {

@@ -10,17 +10,6 @@
 
 import Foundation
 
-private final class RepositoryRedirectPolicy: NSObject, URLSessionTaskDelegate {
-    func urlSession(_ session: URLSession,
-                    task: URLSessionTask,
-                    willPerformHTTPRedirection response: HTTPURLResponse,
-                    newRequest request: URLRequest,
-                    completionHandler: @escaping (URLRequest?) -> Void) {
-        // Index redirects are surfaced to the installer for explicit confirmation.
-        completionHandler(nil)
-    }
-}
-
 enum RepositoryTransportError: LocalizedError, Equatable {
     case invalidResponse
     case httpStatus(Int)
@@ -69,15 +58,14 @@ protocol RepositoryTransport: Sendable {
 /// Production repository fetcher. Parsing stays at the transport boundary so the
 /// installer never receives an unchecked index; bundle hashes remain the installer's job.
 final class URLSessionRepositoryTransport: RepositoryTransport, @unchecked Sendable {
-    private let session: URLSession
+    private let fetcher: any URLSessionDataFetching
     private let destinations: HostDestinationPolicy
 
     init(configuration: URLSessionConfiguration = .default,
-         resolver: any HostNameResolving = SystemHostResolver()) {
+         resolver: any HostNameResolving = SystemHostResolver(),
+         fetcher: (any URLSessionDataFetching)? = nil) {
         self.destinations = HostDestinationPolicy(resolver: resolver)
-        self.session = URLSession(configuration: configuration,
-                                  delegate: RepositoryRedirectPolicy(),
-                                  delegateQueue: nil)
+        self.fetcher = fetcher ?? URLSessionDataFetcher(configuration: configuration) { _ in nil }
     }
 
     func fetchIndex(at url: URL) async throws -> RepositoryIndexFetchOutcome {
@@ -118,9 +106,15 @@ final class URLSessionRepositoryTransport: RepositoryTransport, @unchecked Senda
             throw RepositoryTransportError.network(error.localizedDescription)
         }
         do {
-            let (data, response) = try await session.data(from: url)
+            let result = try await fetcher.fetch(URLRequest(url: url))
+            let data = result.data
+            let response = result.response
             guard let response = response as? HTTPURLResponse else {
                 throw RepositoryTransportError.invalidResponse
+            }
+            if let peer = result.connectedPeerAddress, !HostIPAddress.isPublic(peer) {
+                throw RepositoryTransportError.destinationRefused(
+                    "the connected destination was non-public")
             }
             return (data, response)
         } catch let error as RepositoryTransportError {

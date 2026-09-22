@@ -167,7 +167,7 @@ struct SystemHostResolver: HostNameResolving {
     }
 }
 
-private enum HostIPAddress {
+enum HostIPAddress {
     private static let nonPublicIPv4Ranges: [ClosedRange<UInt32>] = [
         0x0000_0000...0x00FF_FFFF, // 0.0.0.0/8
         0x0A00_0000...0x0AFF_FFFF, // 10.0.0.0/8

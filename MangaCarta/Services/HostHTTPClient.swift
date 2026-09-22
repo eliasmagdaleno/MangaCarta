@@ -76,6 +76,10 @@ struct HostHTTPClient: Sendable {
             }
 
             let response = try await send(request)
+            if let peer = response.connectedPeerAddress, !HostIPAddress.isPublic(peer) {
+                throw HostCapabilityError(code: .policyDenied,
+                                          message: "the connected destination was non-public")
+            }
             try await policy.validate(response.url)
 
             guard response.body.count <= HostCapabilityLimits.responseBodyBytes else {
@@ -286,19 +290,29 @@ actor HostHTTPCookieJar {
     }
 }
 
-final class URLSessionHostHTTPTransport: NSObject, HostHTTPTransport, URLSessionTaskDelegate,
+final class URLSessionHostHTTPTransport: NSObject, HostHTTPTransport,
                                          @unchecked Sendable {
-    private lazy var session: URLSession = {
+    private let fetcher: any URLSessionDataFetching
+
+    override init() {
         let configuration = URLSessionConfiguration.default
         configuration.httpShouldSetCookies = false
         configuration.httpCookieAcceptPolicy = .never
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         configuration.urlCache = nil
-        return URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
-    }()
+        fetcher = URLSessionDataFetcher(configuration: configuration) { _ in nil }
+        super.init()
+    }
+
+    init(fetcher: any URLSessionDataFetching) {
+        self.fetcher = fetcher
+        super.init()
+    }
 
     func send(_ request: URLRequest) async throws -> HostHTTPTransportResponse {
-        let (data, response) = try await session.data(for: request)
+        let result = try await fetcher.fetch(request)
+        let data = result.data
+        let response = result.response
         guard let http = response as? HTTPURLResponse,
               let url = http.url else {
             throw HostCapabilityError(code: .network,
@@ -312,14 +326,7 @@ final class URLSessionHostHTTPTransport: NSObject, HostHTTPTransport, URLSession
         return HostHTTPTransportResponse(statusCode: http.statusCode,
                                          url: url,
                                          headers: headers,
-                                         body: data)
-    }
-
-    func urlSession(_ session: URLSession,
-                    task: URLSessionTask,
-                    willPerformHTTPRedirection response: HTTPURLResponse,
-                    newRequest request: URLRequest,
-                    completionHandler: @escaping (URLRequest?) -> Void) {
-        completionHandler(nil)
+                                         body: data,
+                                         connectedPeerAddress: result.connectedPeerAddress)
     }
 }
