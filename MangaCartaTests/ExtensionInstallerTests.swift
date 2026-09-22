@@ -43,11 +43,13 @@ final class FakeRepositoryTransport: RepositoryTransport, @unchecked Sendable {
 private final class StubRepositoryURLProtocol: URLProtocol {
     static var responses: [String: (Int, Data, [String: String])] = [:]
     static var shouldFail = false
+    static var requestedURLs: [String] = []
 
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
+        Self.requestedURLs.append(request.url?.absoluteString ?? "<missing>")
         if Self.shouldFail {
             client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
             return
@@ -70,15 +72,79 @@ final class URLSessionRepositoryTransportTests: XCTestCase {
     private let indexURL = URL(string: "https://repo.test/index.json")!
     private let scriptURL = URL(string: "https://repo.test/engine.js")!
 
-    private func makeTransport() -> URLSessionRepositoryTransport {
+    /// Every host resolves to a public address unless a test says otherwise.
+    private func makeTransport(resolvingTo addresses: [String] = ["93.184.216.34"])
+        -> URLSessionRepositoryTransport {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [StubRepositoryURLProtocol.self]
-        return URLSessionRepositoryTransport(configuration: configuration)
+        return URLSessionRepositoryTransport(configuration: configuration,
+                                             resolver: RepositoryFixedResolver(addresses: addresses))
     }
 
     override func setUp() {
         StubRepositoryURLProtocol.responses = [:]
         StubRepositoryURLProtocol.shouldFail = false
+        StubRepositoryURLProtocol.requestedURLs = []
+    }
+
+    /// Asserts `operation` is refused by destination policy and that nothing was requested.
+    private func assertRefusedBeforeAnyRequest(_ operation: () async throws -> Void,
+                                               file: StaticString = #filePath, line: UInt = #line) async {
+        do {
+            try await operation()
+            XCTFail("expected the destination to be refused", file: file, line: line)
+        } catch let error as RepositoryTransportError {
+            guard case .destinationRefused = error else {
+                return XCTFail("expected destinationRefused, got \(error)", file: file, line: line)
+            }
+            XCTAssertFalse(error.localizedDescription.isEmpty, file: file, line: line)
+        } catch {
+            XCTFail("expected RepositoryTransportError, got \(error)", file: file, line: line)
+        }
+        XCTAssertEqual(StubRepositoryURLProtocol.requestedURLs, [], file: file, line: line)
+    }
+
+    func testPlainHTTPIndexURLIsRefusedBeforeAnyRequest() async {
+        let insecure = URL(string: "http://repo.test/index.json")!
+        StubRepositoryURLProtocol.responses[insecure.absoluteString] = (200, Data(), [:])
+        await assertRefusedBeforeAnyRequest { _ = try await makeTransport().fetchIndex(at: insecure) }
+    }
+
+    func testIndexHostResolvingToAPrivateAddressIsRefusedBeforeAnyRequest() async {
+        StubRepositoryURLProtocol.responses[indexURL.absoluteString] = (200, Data(), [:])
+        let transport = makeTransport(resolvingTo: ["192.168.1.1"])
+        await assertRefusedBeforeAnyRequest { _ = try await transport.fetchIndex(at: indexURL) }
+    }
+
+    func testIndexHostWithAnyNonPublicAddressAmongPublicOnesIsRefused() async {
+        StubRepositoryURLProtocol.responses[indexURL.absoluteString] = (200, Data(), [:])
+        let transport = makeTransport(resolvingTo: ["93.184.216.34", "127.0.0.1"])
+        await assertRefusedBeforeAnyRequest { _ = try await transport.fetchIndex(at: indexURL) }
+    }
+
+    func testScriptHostResolvingToLinkLocalIsRefusedBeforeAnyRequest() async {
+        StubRepositoryURLProtocol.responses[scriptURL.absoluteString] = (200, Data("x".utf8), [:])
+        let transport = makeTransport(resolvingTo: ["169.254.169.254"])
+        await assertRefusedBeforeAnyRequest { _ = try await transport.fetchScript(at: scriptURL) }
+    }
+
+    func testPlainHTTPScriptURLIsRefusedBeforeAnyRequest() async {
+        let insecure = URL(string: "http://repo.test/engine.js")!
+        StubRepositoryURLProtocol.responses[insecure.absoluteString] = (200, Data("x".utf8), [:])
+        await assertRefusedBeforeAnyRequest { _ = try await makeTransport().fetchScript(at: insecure) }
+    }
+
+    func testATemporaryRedirectIsNotFollowed() async throws {
+        let target = "https://elsewhere.test/engine.js"
+        StubRepositoryURLProtocol.responses[scriptURL.absoluteString] = (302, Data(), ["Location": target])
+        StubRepositoryURLProtocol.responses[target] = (200, Data("x".utf8), [:])
+        do {
+            _ = try await makeTransport().fetchScript(at: scriptURL)
+            XCTFail("a redirect must not be followed")
+        } catch let error as RepositoryTransportError {
+            XCTAssertEqual(error, .httpStatus(302))
+        }
+        XCTAssertEqual(StubRepositoryURLProtocol.requestedURLs, [scriptURL.absoluteString])
     }
 
     func testIndexIsParsedAndValidatedBeforeReturning() async throws {
@@ -129,6 +195,12 @@ final class URLSessionRepositoryTransportTests: XCTestCase {
                            "Couldn't reach the repository. Check the URL and your connection, then try again.")
         }
     }
+}
+
+private struct RepositoryFixedResolver: HostNameResolving {
+    let addresses: [String]
+
+    func addresses(for host: String) async throws -> [String] { addresses }
 }
 
 /// Erases the real `host.storage` namespace and records that it did, so a preservation
