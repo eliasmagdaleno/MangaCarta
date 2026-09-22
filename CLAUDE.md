@@ -175,26 +175,31 @@ The app builds and the core reading loop is implemented.
   configuration-backed Sources, per ADR-0003 and the Host API design. `ExtensionRuntime` builds one
   `JSContext` per invocation from a bundle script plus a validated `SourceDeclaration`;
   `SourceDeclarationValidator` and `ExtensionDomainValidator` police what goes in and what comes
-  back; `SourceLifecycleRegistry` owns disable/uninstall/reinstall. `HTMLSelectorThemeEngine` is the
-  first engine — **one bundle serving three differently configured Sources, with no site baked into
-  it**; WeebCentral is a declaration, not code.
-  **`builtInSources()` is MangaDex only; WeebCentral ships as a bundled repository package.**
-- **Phase 4 (repository format + installer) is landed through S4** as of 2026-09-21: all three host
+  back; `SourceLifecycleRegistry` owns disable/uninstall/reinstall. An engine is one bundle script
+  serving differently configured Sources with no site baked into it; WeebCentral is a declaration,
+  not code.
+- **Phase 4 (repository format + installer) is complete** as of 2026-09-22: all three host
   capabilities are bridged (#170); `RepositoryIndexValidator` parses format-1 indexes (#173);
   `RepositoryStore` + `ExtensionInstaller` mint identity, install, update and persist over
   `SourceLifecycleRegistry` (#175, #183); and `ExtensionSource` is the `MangaSource` adapter over
   `ExtensionRuntime` (#184). **Installed Sources are now live in the app graph:** at launch
   `ExtensionSourceRegistrar` restores every active install from the store into
-  `AppComposition.registry`, *added* beside the built-in pair, never substituted. The host stamps
+  `AppComposition.registry`, *added* beside the built-in Source, never substituted. The host stamps
   `Manga.sourceId` with the qualified id on every conversion path (the MangaDex `toManga` rule), and a
   disabled or uninstalled Source fails as unavailable while its Listings, pins and history are kept.
   **S5 and S6 landed 2026-09-21** (#193, #192): Settings has a repository manager (add by URL,
   refresh, change URL, remove; install/update/disable/enable/uninstall) over the production
   `URLSessionRepositoryTransport`, and a `mixed`/`adultOnly` install always shows the declared-age
   sheet (ADR-0022 A2; format design §7.1 — a confirmed reader sees the class named but is not asked
-  again). WeebCentral is proven as an installed package against the port fixtures, but
-  **`builtInSources()` is MangaDex only; WeebCentral is restored from the bundled package** (ADR-0003
-  Amendment 5). #168 tracks slice state.
+  again).
+  **The WeebCentral cutover landed 2026-09-22** (#201; ADR-0003 Amendment 5, format design §12). The
+  compiled `WeebCentralSource` is deleted and `builtInSources()` is MangaDex alone. WeebCentral ships
+  as a **bundled package** in `MangaCarta/Resources/BundledRepositories/weebcentral/`, which must stay
+  a **folder reference** in the pbxproj — otherwise Xcode flattens it and
+  `url(forResource:subdirectory:)` returns nil. Bundled URLs use the never-resolvable host
+  `bundled.invalid`, which `AppRepositoryTransport` serves from the app bundle;
+  `ExtensionComposition.installBundledSources()` installs on first launch, and
+  `WeebCentralIdentityMigration` rewrites persisted bare `"weebcentral"` ids to the qualified id.
 - Design/spec/plan for shipped work live in `docs/superpowers/{specs,plans}/`.
 
 Still minimal: no cross-device sync. Content refresh is no longer manual-only (see above);
