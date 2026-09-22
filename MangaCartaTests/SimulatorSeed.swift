@@ -206,7 +206,10 @@ enum SimulatorSeed {
         // Two refusals, one of each shape, so the ADR-0018 guard has something to release.
         // `knownTitlesCount: 1` is what `mint` produces from a single listing — the
         // suppression test fails loudly if that ever stops being true.
-        Row(title: "Ranking of Kings", sourceId: "weebcentral", mangaId: "wc-ranking", coverURL: nil,
+        // The bundled Source's qualified id (ADR-0003 A5): the fixture never carries the bare
+        // compiled id, so nothing here depends on the launch-time migration.
+        Row(title: "Ranking of Kings", sourceId: WeebCentralIdentityMigration.qualifiedID,
+            mangaId: "wc-ranking", coverURL: nil,
             malId: nil, anilistId: 0,
             genres: [], tags: [],
             status: .releasing, chapterTotal: nil,

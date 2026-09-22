@@ -191,7 +191,7 @@ final class ReaderViewModelTests: XCTestCase {
     }
 
     /// Both sources `compactMap` their page lists and can return `[]` without throwing
-    /// (`MangaDexAPI.swift:591`, `WeebCentralSource.swift:87`). That used to render a
+    /// (`MangaDexAPI.swift:591`, `bundled WeebCentral Source.swift:87`). That used to render a
     /// blank screen with no message at all.
     func testEmptyPageListBecomesAPermanentErrorRatherThanABlankScreen() async {
         let (vm, _) = makeVM(chapter: Self.chapter("1")) {

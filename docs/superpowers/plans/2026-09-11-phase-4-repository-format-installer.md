@@ -74,6 +74,7 @@ asks rather than assumes.**
 | S4 | `ExtensionSource: MangaSource` + dynamic registration in `SourceRegistry` | S1, D0 | 2 | strongest available |
 | S5 | Settings UI: add repository by URL, manage installed repositories and Sources | S3 | 3 | Sonnet or Codex |
 | S6 | End-to-end proof: WeebCentral installed from a package, not compiled in | S3, S4 | 3 | strongest + review |
+| Cutover | Bundled WeebCentral package is the shipped Source; remove compiled implementation after ADR-0003 Amendment 5 | S6 | 4 | strongest + review |
 
 **S1 runs in Wave 0 alongside D0 deliberately.** It depends on nothing D0 decides — it is a seam
 between two merged slices — and S4 cannot be written without it. Starting it first is free.

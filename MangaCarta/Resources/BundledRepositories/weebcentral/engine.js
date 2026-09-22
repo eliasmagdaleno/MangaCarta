@@ -343,5 +343,3 @@
 
   registerEngine("htmlSelectorTheme", { invoke: invoke });
 })();
-
-// packaged fixture marker: loaded from repository data

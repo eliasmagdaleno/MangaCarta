@@ -1,12 +1,12 @@
 {
   "format": 1,
-  "name": "WeebCentral Fixture Repository",
+  "name": "WeebCentral",
   "bundles": [
     {
       "id": "html-selector",
       "version": 1,
-      "script": "./repository-engine.js",
-      "scriptSHA256": "243d1741a71fabaadc56fdf2911510fc6389ceb72aa25ad6d6cabe7758c9228c",
+      "script": "https://bundled.invalid/weebcentral/engine.js",
+      "scriptSHA256": "01c7b379ceab02674d46afd185ccd0a2534978e79e8ad138c3e574e724a8517d",
       "sources": [
         {
           "localId": "weebcentral",

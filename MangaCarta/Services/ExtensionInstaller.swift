@@ -254,7 +254,9 @@ final class ExtensionInstaller {
     /// A URL matching a **removed** repository's record reconnects that identity by
     /// default (`reconnectRemoved`); "add as new" mints a fresh UUID instead.
     @discardableResult
-    func addRepository(at url: URL, reconnectRemoved: Bool = true) async throws -> RepositoryRecord {
+    func addRepository(at url: URL,
+                       reconnectRemoved: Bool = true,
+                       repositoryID requestedID: UUID? = nil) async throws -> RepositoryRecord {
         if let existing = store.repository(at: url), existing.state == .active {
             throw ExtensionInstallError.repositoryAlreadyAdded(existing.id, url)
         }
@@ -262,7 +264,7 @@ final class ExtensionInstaller {
             ? store.repositories.first { $0.indexURL == url && $0.state == .removed }
             : nil
         // Provisional until the index is accepted; discarded on any rejection.
-        let repositoryID = removed?.id ?? UUID()
+        let repositoryID = removed?.id ?? requestedID ?? UUID()
 
         let index: RepositoryIndex
         switch try await transport.fetchIndex(at: url) {

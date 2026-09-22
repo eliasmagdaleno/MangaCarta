@@ -81,85 +81,10 @@ final class ExtensionSourceTests: XCTestCase {
                                                        qualifiedId: Self.qualifiedID)
         try lifecycle.register(declaration)
         return ExtensionSource(declaration: declaration,
-                               script: HTMLSelectorThemeEngine.bundleScript,
+                               script: PortFixtures.bundleScript,
                                isNSFW: false,
                                lifecycle: lifecycle,
                                host: host)
-    }
-
-    /// The compiled Source's answer, re-stamped with the qualified id: everything else
-    /// about a Listing must come out identical.
-    private func restamped(_ manga: Manga) -> Manga {
-        Manga(id: manga.id, sourceId: Self.qualifiedID, title: manga.title,
-              description: manga.description, status: manga.status, year: manga.year,
-              coverURL: manga.coverURL, malId: manga.malId, altTitles: manga.altTitles,
-              contentRating: manga.contentRating)
-    }
-
-    // MARK: Criterion 8, clause "serves search … through ExtensionRuntime"
-
-    func testSearchIsServedThroughTheRuntimeAndMatchesTheCompiledSource() async throws {
-        let source = try weebCentral()
-        let compiled = PortFixtures.compiledWeebCentral()
-
-        let expected = try await compiled.source.search(title: "berserk", limit: 8, offset: 0)
-        let actual = try await source.search(title: "berserk", limit: 8, offset: 0)
-
-        XCTAssertFalse(expected.isEmpty, "the search fixture produced nothing")
-        XCTAssertEqual(actual, expected.map(restamped))
-        XCTAssertEqual(host.invocations.map(\.0), [.search], "one runtime invocation, for search")
-        // Query order differs between the two builders (see `FixtureSite.route`); the
-        // canonical form is what the fixture answers to and what is compared here.
-        XCTAssertEqual(host.browser.requestedURLs.map { FixtureSite.canonical($0.absoluteString) },
-                       compiled.webView.requestedURLs.map { FixtureSite.canonical($0.absoluteString) },
-                       "the engine fetched the same page the compiled source did")
-    }
-
-    // MARK: Criterion 8, clause "serves … detail"
-
-    func testDetailIsServedThroughTheRuntimeAndMatchesTheCompiledSource() async throws {
-        let source = try weebCentral()
-        let compiled = PortFixtures.compiledWeebCentral()
-
-        let expected = try await compiled.source.mangaDetail(id: PortFixtures.weebSeriesID)
-        let actual = try await source.mangaDetail(id: PortFixtures.weebSeriesID)
-
-        XCTAssertEqual(actual.description, expected.description)
-        XCTAssertEqual(actual.authors, expected.authors)
-        XCTAssertEqual(actual.tags.map(\.name), expected.tags.map(\.name))
-        XCTAssertEqual(actual.contentRating, expected.contentRating)
-        XCTAssertEqual(host.invocations.map(\.0), [.detail])
-    }
-
-    // MARK: Criterion 8, clause "serves … chapters"
-
-    func testChaptersAreServedThroughTheRuntimeAndMatchTheCompiledSource() async throws {
-        let source = try weebCentral()
-        let compiled = PortFixtures.compiledWeebCentral()
-
-        let expected = try await compiled.source.chapters(mangaId: PortFixtures.weebSeriesID)
-        let actual = try await source.chapters(mangaId: PortFixtures.weebSeriesID)
-
-        XCTAssertFalse(expected.isEmpty)
-        XCTAssertEqual(actual.map(\.id), expected.map(\.id))
-        XCTAssertEqual(actual.map(\.number), expected.map(\.number))
-        XCTAssertEqual(host.invocations.map(\.0), [.chapters])
-    }
-
-    // MARK: Criterion 8, clause "serves … pages"
-
-    func testPagesAreServedThroughTheRuntimeAndMatchTheCompiledSource() async throws {
-        let source = try weebCentral()
-        let compiled = PortFixtures.compiledWeebCentral()
-
-        let expected = try await compiled.source.pageURLs(chapterId: PortFixtures.weebChapterID,
-                                                          preferDataSaver: false)
-        let actual = try await source.pageURLs(chapterId: PortFixtures.weebChapterID,
-                                               preferDataSaver: false)
-
-        XCTAssertFalse(expected.isEmpty)
-        XCTAssertEqual(actual, expected)
-        XCTAssertEqual(host.invocations.map(\.0), [.pages])
     }
 
     // MARK: Criterion 8, clause "with sourceId stamped"
@@ -390,7 +315,7 @@ final class InstalledSourceRegistrationTests: XCTestCase {
 
     private let indexURL = URL(string: "https://repo.example.test/index.json")!
     private let scriptURL = URL(string: "https://repo.example.test/engine.js")!
-    private var script: Data { Data(HTMLSelectorThemeEngine.bundleScript.utf8) }
+    private var script: Data { Data(PortFixtures.bundleScript.utf8) }
 
     override func setUp() async throws {
         savedActiveSourceID = UserDefaults.standard.object(forKey: "source.activeID")
@@ -427,9 +352,12 @@ final class InstalledSourceRegistrationTests: XCTestCase {
     // MARK: Fixtures
 
     private func serveWeebCentral(adult: String = "none") throws {
-        let json = PortFixtures.weebCentralJSON
-            .replacingOccurrences(of: "\"adult\": \"none\"", with: "\"adult\": \"\(adult)\"")
-        let raw = try JSONValue(parsing: Data(json.utf8))
+        // Mutate the parsed document, not its text: the fixture JSON is re-serialized from
+        // the bundled index and its whitespace is not something a test should depend on.
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(
+            with: Data(PortFixtures.weebCentralJSON.utf8)) as? [String: Any])
+        object["adult"] = adult
+        let raw = try JSONValue(parsing: JSONSerialization.data(withJSONObject: object))
         let digest = SHA256.hash(data: script).map { String(format: "%02x", $0) }.joined()
         let bundle = RepositoryBundle(id: "html-selector", version: 1,
                                       scriptURL: scriptURL, scriptSHA256: digest,
@@ -524,6 +452,8 @@ final class InstalledSourceRegistrationTests: XCTestCase {
     func testAMixedSourceIsGatedBehindTheAdultToggle() async throws {
         XCTAssertFalse(registry.hasAdultSource)
         let id = try await installWeebCentral(adult: "mixed")
+        registrar.sync(store.snapshot)
+        await Task.yield()
 
         XCTAssertTrue(registry.hasAdultSource, "the toggle has something to gate")
         XCTAssertFalse(registry.visibleSources(includeAdult: false).contains { $0.id == id.rawValue })
@@ -731,12 +661,10 @@ final class InstalledSourceRegistrationTests: XCTestCase {
             measurements[operation] = Date().timeIntervalSince(start) * 1_000
             return result
         }
-        let fixtureDirectory = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .appendingPathComponent("__Fixtures__/weebcentral", isDirectory: true)
+        let fixtureDirectory = PortFixtures.packageDirectory
         let indexURL = URL(string: "https://fixture.test/index.json")!
-        let indexBytes = try Data(contentsOf: fixtureDirectory.appendingPathComponent("repository-index.json"))
-        let scriptBytes = try Data(contentsOf: fixtureDirectory.appendingPathComponent("repository-engine.js"))
+        let indexBytes = try Data(contentsOf: fixtureDirectory.appendingPathComponent("index.json"))
+        let scriptBytes = try Data(contentsOf: fixtureDirectory.appendingPathComponent("engine.js"))
         let parsed: RepositoryIndex
         switch RepositoryIndexValidator.validate(json: indexBytes, indexURL: indexURL) {
         case .success(let value): parsed = value
@@ -754,41 +682,39 @@ final class InstalledSourceRegistrationTests: XCTestCase {
         let source = try XCTUnwrap(registry.source(id: installed.qualifiedId.rawValue) as? ExtensionSource)
         XCTAssertEqual(source.script, String(decoding: scriptBytes, as: UTF8.self),
                        "the installed package bytes must supply the engine")
-        XCTAssertNotEqual(source.script, HTMLSelectorThemeEngine.bundleScript,
-                          "the package marker distinguishes installed bytes from a Swift constant")
+        XCTAssertEqual(source.script, PortFixtures.bundleScript,
+                       "the installed package engine is the pinned repository script")
         XCTAssertEqual(source.declaration.name, "WeebCentral",
                        "the installed package declaration must supply its Source")
 
-        let compiled = PortFixtures.compiledWeebCentral().source
-        let expectedSearch = try await compiled.search(title: "berserk", limit: 8, offset: 0)
+        let expectedPort = try PortFixtures.weebCentral()
+        let expectedSearchPage = try await expectedPort.listings(.search,
+                                                                  request: ["query": "berserk", "limit": 8])
         let actualSearch = try await measured("search") {
             try await source.search(title: "berserk", limit: 8, offset: 0)
         }
-        let expectedInstalledSearch = expectedSearch.map {
-            Manga(id: $0.id, sourceId: source.id, title: $0.title,
-                  description: $0.description, status: $0.status, year: $0.year,
-                  coverURL: $0.coverURL, malId: $0.malId, altTitles: $0.altTitles,
-                  contentRating: $0.contentRating)
-        }
-        XCTAssertEqual(actualSearch, expectedInstalledSearch)
+        XCTAssertEqual(actualSearch.map(\.title), expectedSearchPage.items.map(\.title))
 
-        let expectedDetail = try await compiled.mangaDetail(id: PortFixtures.weebSeriesID)
+        let expectedDetailValue = try expectedPort.validator.validateDetail(
+            try await expectedPort.runtime.invoke(.detail, request: ["listingId": PortFixtures.weebSeriesID])).value.toMangaDetail()
         let actualDetail = try await measured("detail") {
             try await source.mangaDetail(id: PortFixtures.weebSeriesID)
         }
-        XCTAssertEqual(actualDetail.description, expectedDetail.description)
-        XCTAssertEqual(actualDetail.authors, expectedDetail.authors)
-        XCTAssertEqual(actualDetail.tags.map(\.name), expectedDetail.tags.map(\.name))
-        XCTAssertEqual(actualDetail.contentRating, expectedDetail.contentRating)
+        XCTAssertEqual(actualDetail.description, expectedDetailValue.description)
+        XCTAssertEqual(actualDetail.authors, expectedDetailValue.authors)
+        XCTAssertEqual(actualDetail.tags.map(\.name), expectedDetailValue.tags.map(\.name))
+        XCTAssertEqual(actualDetail.contentRating, expectedDetailValue.contentRating)
 
-        let expectedChapters = try await compiled.chapters(mangaId: PortFixtures.weebSeriesID)
+        let expectedChapters = try expectedPort.validator.validateChapters(
+            try await expectedPort.runtime.invoke(.chapters, request: ["listingId": PortFixtures.weebSeriesID])).value.map { $0.toChapter() }
         let actualChapters = try await measured("chapters") {
             try await source.chapters(mangaId: PortFixtures.weebSeriesID)
         }
         XCTAssertEqual(actualChapters, expectedChapters)
 
-        let expectedPages = try await compiled.pageURLs(chapterId: PortFixtures.weebChapterID,
-                                                        preferDataSaver: false)
+        let expectedPages = try expectedPort.validator.validatePages(
+            try await expectedPort.runtime.invoke(.pages, request: ["chapterId": PortFixtures.weebChapterID,
+                                                                      "quality": "original"])).value.map(\.url)
         let actualPages = try await measured("pages") {
             try await source.pageURLs(chapterId: PortFixtures.weebChapterID,
                                       preferDataSaver: false)

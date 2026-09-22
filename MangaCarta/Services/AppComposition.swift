@@ -78,6 +78,7 @@ struct AppComposition {
 
     /// The extension subsystem's four owners, built together because they share one
     /// `SourceLifecycleRegistry`: the installer drives it, the registrar mirrors it.
+    @MainActor
     struct ExtensionComposition {
         let repositories: RepositoryStore
         let installer: ExtensionInstaller
@@ -85,6 +86,47 @@ struct AppComposition {
         let registrar: ExtensionSourceRegistrar
         /// Where S5's acknowledgement sheet plugs in. Declines until then.
         let adultAcknowledgement: AdultInstallAcknowledgementHandle
+        let usesBundledTransport: Bool
+
+        /// First-launch install of the bundled WeebCentral package (ADR-0003 Amendment 5),
+        /// and on every later launch the refresh that surfaces an app-update's new bundle
+        /// `version`. Awaited by `MangaCartaApp` right after composition so the registry is
+        /// deterministic by the time any view reads it — an earlier draft fired this from
+        /// `init` as an unstructured `Task`, which left `registry.sources` racing.
+        ///
+        /// A record whose Source the reader *uninstalled* is left alone: the guard is on the
+        /// record's existence, not its state, so the app re-offers rather than reinstalls
+        /// (A5 part 4). The repository URL is the constant `bundled.invalid` URL; a record holding
+        /// any other URL (an earlier draft's `bundled://`) is repointed to it. Returns the installer's sentence when the package could
+        /// not be installed — a packaging defect, not a reader-facing state: MangaDex stays
+        /// usable and the repositories screen shows the Source as offered.
+        @discardableResult
+        func installBundledSources() async -> String? {
+            guard usesBundledTransport else { return nil }
+            let id = BundledRepositories.weebCentralRepositoryID
+            do {
+                let repository: RepositoryRecord
+                if let existing = repositories.repository(id) {
+                    repository = existing
+                    if existing.indexURL == BundledRepositories.weebCentralURL {
+                        _ = try await installer.refresh(id)
+                    } else {
+                        // A record from before the URL was the constant: refreshing its stored
+                        // URL would go to the network and fail on every launch. Repoint it; its
+                        // Sources, uninstalled ones included, are kept.
+                        _ = try await installer.changeRepositoryURL(id, to: BundledRepositories.weebCentralURL)
+                    }
+                } else {
+                    repository = try await installer.addRepository(at: BundledRepositories.weebCentralURL,
+                                                                   repositoryID: id)
+                }
+                guard repositories.sources(in: id).isEmpty else { return nil }
+                _ = try await installer.install(localId: "weebcentral", from: repository.id)
+                return nil
+            } catch {
+                return error.localizedDescription
+            }
+        }
     }
 
     /// The AniList pool's two caches (ADR-0011). Held here, not built inside `makeProvider`,
@@ -192,6 +234,7 @@ struct AppComposition {
          malResolver: MALEntityResolver? = nil,
          registry: SourceRegistry? = nil,
          repositoryTransport: (any RepositoryTransport)? = nil) {
+        WeebCentralIdentityMigration.run(directory: directory, defaults: defaults)
         // Built first: the three commitment paths below (read, save, feedback) all
         // mint into it, so they must share this one instance (ADR-0007).
         let wk = WorkStore(directory: directory)
@@ -380,9 +423,10 @@ struct AppComposition {
         self.registry = registry ?? .shared
         (self.listingCounts, self.sourcePreferences, self.fulfillment) =
             Self.makeFulfillment(works: wk, registry: self.registry, defaults: defaults)
-        self.extensions = Self.makeExtensions(directory: directory,
+        let extensions = Self.makeExtensions(directory: directory,
                                               transport: repositoryTransport,
                                               registry: self.registry)
+        self.extensions = extensions
     }
 
     /// The installed-Source subsystem (Phase 4). Restores every installed Source from
@@ -402,14 +446,15 @@ struct AppComposition {
         let installer = ExtensionInstaller(
             store: repositories,
             registry: lifecycle,
-            transport: transport ?? URLSessionRepositoryTransport(),
+            transport: transport ?? AppRepositoryTransport(),
             dataEraser: InstalledSourceDataEraser(storage: host.storageRepository),
             acknowledgeAdult: { await acknowledgement.acknowledge($0) })
         installer.restoreInstalledSources()
         let registrar = ExtensionSourceRegistrar(store: repositories, lifecycle: lifecycle,
                                                  host: host, registry: registry)
         return ExtensionComposition(repositories: repositories, installer: installer, host: host,
-                                    registrar: registrar, adultAcknowledgement: acknowledgement)
+                                    registrar: registrar, adultAcknowledgement: acknowledgement,
+                                    usesBundledTransport: transport == nil)
     }
 
     /// Fulfillment's three pieces (ADR-0004). Extracted from `init` only because it had

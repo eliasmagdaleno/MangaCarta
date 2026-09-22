@@ -30,13 +30,20 @@ final class SourceRegistry: ObservableObject {
 
     /// The source used for browsing feeds (Home rails, search). Persisted across launches.
     @Published var activeSourceID: String {
-        didSet { UserDefaults.standard.set(activeSourceID, forKey: Self.activeKey) }
+        didSet {
+            UserDefaults.standard.set(activeSourceID, forKey: Self.activeKey)
+            chosenSourceID = activeSourceID
+        }
     }
+
+    /// The reader's browse choice as persisted, kept while it cannot be honoured. `init` runs
+    /// before any installed Source registers, so a stored installed id is not there to restore
+    /// yet; `setInstalledSources` restores it when it arrives instead of keeping the fallback.
+    private var chosenSourceID: String?
 
     private static let activeKey = "source.activeID"
 
-    /// - Parameter sources: Sources to register, or `nil` for the app's built-in set
-    ///   (MangaDex + WeebCentral, sharing one WebView-backed `SourceContext`).
+    /// - Parameter sources: Sources to register, or `nil` for the built-in MangaDex source.
     ///   Injectable so tests can supply mock sources.
     init(sources: [MangaSource]? = nil) {
         let sources = sources ?? Self.builtInSources()
@@ -59,14 +66,12 @@ final class SourceRegistry: ObservableObject {
         stored = UserDefaults.standard.string(forKey: Self.activeKey)
 #endif
         self.activeSourceID = sources.contains(where: { $0.id == stored }) ? stored! : sources[0].id
+        self.chosenSourceID = stored
     }
 
-    /// The app's compiled-in sources. One `SourceContext` (backed by the shared
-    /// Cloudflare-clearing WebView) is built here and handed to every source that
-    /// needs it; MangaDex talks to its own API client and takes no context.
+    /// The app's compiled-in source. WeebCentral is restored through the bundled package.
     private static func builtInSources() -> [MangaSource] {
-        let context = SourceContext(webView: WebViewService.shared)
-        return [MangaDexSource(), WeebCentralSource(context: context)]
+        [MangaDexSource()]
     }
 
     /// Replaces the installed set (Phase 4). The built-ins stay exactly where they were;
@@ -76,7 +81,9 @@ final class SourceRegistry: ObservableObject {
     /// can show. The first source is a built-in, which ADR-0022 keeps non-adult.
     func setInstalledSources(_ installed: [MangaSource]) {
         sources = builtIn + installed
-        if source(id: activeSourceID) == nil {
+        if let chosen = chosenSourceID, chosen != activeSourceID, source(id: chosen) != nil {
+            activeSourceID = chosen
+        } else if source(id: activeSourceID) == nil {
             activeSourceID = sources[0].id
         }
     }

@@ -4,7 +4,7 @@
 //
 //  The offline site harness the S6 port tests run against.
 //
-//  Both sides of the equivalence proof — the compiled `WeebCentralSource` and the
+//  Both sides of the equivalence proof — the bundled Source and the
 //  configuration-backed Extension — load **the same captured HTML** into a real
 //  `WKWebView` and run their own extraction script over the resulting DOM. That is the
 //  only way the comparison means anything: a hand-written DOM stub would be testing the
@@ -216,7 +216,7 @@ final class FixtureBrowser: ExtensionBrowserExtracting {
     }
 }
 
-/// The compiled `WeebCentralSource`'s seam, over the very same fixtures. Its scripts do
+/// The bundled Source's seam, over the very same fixtures. Its scripts do
 /// end in `JSON.stringify(...)`, which is the convention the Host API deliberately drops.
 final class FixtureWebViewExtractor: WebViewExtracting {
     private let site: FixtureSite
@@ -258,9 +258,32 @@ struct PortedSource {
 
 enum PortFixtures {
 
+    static var packageDirectory: URL {
+        URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().appendingPathComponent("MangaCarta/Resources/BundledRepositories/weebcentral")
+    }
+
     static let weebSeriesID = "01KQJGKCAB7Q2GJ5T27N2WVNP6"
     static let weebChapterID = "01M28WY2S88MW6WRSNYC19R63V"
-    static let weebCentralJSON = HTMLSelectorThemeEngine.weebCentralJSON
+    static let engineName = "htmlSelectorTheme"
+    static let bundleScript: String = {
+        let url = packageDirectory.appendingPathComponent("engine.js")
+        guard let data = try? Data(contentsOf: url) else { preconditionFailure("missing \(url.path)") }
+        return String(decoding: data, as: UTF8.self)
+    }()
+    /// The WeebCentral declaration as the bundled index carries it, re-serialized. Its
+    /// whitespace is therefore `JSONSerialization`'s, not the file's — mutate it as JSON.
+    static let weebCentralJSON: String = {
+        let url = packageDirectory.appendingPathComponent("index.json")
+        guard let data = try? Data(contentsOf: url),
+              let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let bundle = (root["bundles"] as? [[String: Any]])?.first,
+              let source = (bundle["sources"] as? [[String: Any]])?.first,
+              let output = try? JSONSerialization.data(withJSONObject: source) else {
+            preconditionFailure("bundled index at \(url.path) is not the shape §2 describes")
+        }
+        return String(decoding: output, as: UTF8.self)
+    }()
 
     // MARK: Declarations
 
@@ -289,7 +312,7 @@ enum PortFixtures {
         let declaration = try declaration(json, qualifiedId: qualifiedId)
         let browser = FixtureBrowser(site: site)
         let runtime = ExtensionRuntime(
-            bundleScript: HTMLSelectorThemeEngine.bundleScript,
+            bundleScript: bundleScript,
             declaration: declaration,
             capabilities: [HostBrowserJSCapability(extractor: browser)]
         )
@@ -310,12 +333,6 @@ enum PortFixtures {
 
     static func slugComics() throws -> PortedSource {
         try source(slugComicsJSON, qualifiedId: "repo-test:slug-comics", site: slugComicsSite)
-    }
-
-    /// The compiled Source under test, reading the same fixtures through its own seam.
-    static func compiledWeebCentral() -> (source: WeebCentralSource, webView: FixtureWebViewExtractor) {
-        let extractor = FixtureWebViewExtractor(site: weebCentralSite)
-        return (WeebCentralSource(context: SourceContext(webView: extractor)), extractor)
     }
 
     // MARK: Sites
@@ -363,7 +380,7 @@ enum PortFixtures {
     {
       "localId": "paged-ink",
       "name": "Paged Ink",
-      "engine": "\(HTMLSelectorThemeEngine.engineName)",
+      "engine": "\(PortFixtures.engineName)",
       "adult": "none",
       "capabilities": {
         "search": true, "popular": true, "detail": true,
@@ -411,7 +428,7 @@ enum PortFixtures {
     {
       "localId": "slug-comics",
       "name": "Slug Comics",
-      "engine": "\(HTMLSelectorThemeEngine.engineName)",
+      "engine": "\(PortFixtures.engineName)",
       "adult": "mixed",
       "capabilities": {
         "search": true, "popular": true, "detail": true,

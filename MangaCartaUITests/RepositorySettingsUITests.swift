@@ -37,7 +37,25 @@ final class RepositorySettingsUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Uninstall"].waitForExistence(timeout: 5))
         let adultToggle = app.switches["Show adult sources"]
         XCTAssertTrue(adultToggle.waitForExistence(timeout: 5))
+        // Depending on the device, the navigation bar or the keyboard left up by the URL field
+        // covers the toggle after the scroll to Uninstall, and `isHittable` still reports true
+        // under either, so bring it into the uncovered band by its frame instead.
+        let top = app.navigationBars.firstMatch.frame.maxY
+        func bottom() -> CGFloat {
+            let keyboard = app.keyboards.firstMatch
+            return keyboard.exists ? keyboard.frame.minY : app.tabBars.firstMatch.frame.minY
+        }
+        for _ in 0..<5 {
+            if adultToggle.frame.minY < top {
+                app.swipeDown(velocity: .slow)
+            } else if adultToggle.frame.maxY > bottom() {
+                app.swipeUp(velocity: .slow)
+            } else {
+                break
+            }
+        }
         adultToggle.tap()
+        XCTAssertEqual(adultToggle.value as? String, "1")
         adultToggle.tap()
         XCTAssertTrue(adultToggle.waitForNonExistence(timeout: 5))
     }

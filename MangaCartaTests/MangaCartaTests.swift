@@ -1042,138 +1042,6 @@ final class MangaCartaTests: XCTestCase {
         XCTAssertEqual(box.seen, [0, 48])
     }
 
-    // MARK: - WeebCentralSource (Phase 2)
-
-    /// Canned-response fake for the WebView seam: returns fixture JSON per URL and
-    /// records what was requested, so tests cover URL building + DTO→domain mapping.
-    @MainActor
-    private final class MockWebView: WebViewExtracting {
-        var responses: [String: String] = [:]           // URL absoluteString → JSON
-        private(set) var requestedURLs: [URL] = []
-
-        func extract<T: Decodable>(from url: URL, script: String, as type: T.Type) async throws -> T {
-            requestedURLs.append(url)
-            guard let json = responses[url.absoluteString] else {
-                throw SourceError.extractionFailed("no canned response for \(url.absoluteString)")
-            }
-            return try JSONDecoder().decode(T.self, from: Data(json.utf8))
-        }
-    }
-
-    @MainActor
-    private func makeWeebCentral() -> (WeebCentralSource, MockWebView) {
-        let mock = MockWebView()
-        return (WeebCentralSource(context: SourceContext(webView: mock)), mock)
-    }
-
-    @MainActor func testWeebCentralIdentity() {
-        let (source, _) = makeWeebCentral()
-        XCTAssertEqual(source.id, "weebcentral")
-        XCTAssertEqual(source.name, "WeebCentral")
-        XCTAssertFalse(source.isNSFW)
-    }
-
-    @MainActor func testWeebCentralSearchBuildsURLAndMapsManga() async throws {
-        let (source, mock) = makeWeebCentral()
-        let expected = "https://weebcentral.com/search/data?sort=Best%20Match&display_mode=Full%20Display&limit=20&offset=0&text=Naruto"
-        mock.responses[expected] = #"""
-        [{"id": "01J76XYZ", "title": "Naruto", "cover": "https://temp.compsci88.com/cover/naruto.webp"},
-         {"id": "01J76ABC", "title": "Boruto", "cover": null}]
-        """#
-        let results = try await source.search(title: "Naruto", limit: 20, offset: 0)
-        XCTAssertEqual(mock.requestedURLs.first?.absoluteString, expected)
-        XCTAssertEqual(results.count, 2)
-        XCTAssertEqual(results[0].id, "01J76XYZ")
-        XCTAssertEqual(results[0].sourceId, "weebcentral")
-        XCTAssertEqual(results[0].title, "Naruto")
-        XCTAssertEqual(results[0].coverURL?.absoluteString, "https://temp.compsci88.com/cover/naruto.webp")
-        XCTAssertNil(results[1].coverURL)
-    }
-
-    @MainActor func testWeebCentralPopularAndNewTitlesUseSortFeeds() async throws {
-        let (source, mock) = makeWeebCentral()
-        let popularURL = "https://weebcentral.com/search/data?sort=Popularity&display_mode=Full%20Display&limit=10&offset=5"
-        let newURL = "https://weebcentral.com/search/data?sort=Recently%20Added&display_mode=Full%20Display&limit=10&offset=0"
-        mock.responses[popularURL] = #"[{"id": "p1", "title": "Popular One", "cover": null}]"#
-        mock.responses[newURL] = #"[{"id": "n1", "title": "New One", "cover": null}]"#
-        let popular = try await source.popular(limit: 10, offset: 5)
-        let new = try await source.newTitles(limit: 10, offset: 0)
-        XCTAssertEqual(popular.first?.id, "p1")
-        XCTAssertEqual(new.first?.id, "n1")
-        XCTAssertEqual(new.first?.sourceId, "weebcentral")
-    }
-
-    @MainActor func testWeebCentralMangaDetailMapping() async throws {
-        let (source, mock) = makeWeebCentral()
-        mock.responses["https://weebcentral.com/series/01J76XYZ"] = #"""
-        {"description": "A ninja story.", "authors": ["Masashi Kishimoto"],
-         "tags": ["Action", "Adventure"], "adult": false}
-        """#
-        let detail = try await source.mangaDetail(id: "01J76XYZ")
-        XCTAssertEqual(detail.description, "A ninja story.")
-        XCTAssertEqual(detail.authors, ["Masashi Kishimoto"])
-        XCTAssertEqual(detail.tags.map(\.name), ["Action", "Adventure"])
-        XCTAssertEqual(detail.contentRating, "safe")
-    }
-
-    @MainActor func testWeebCentralChaptersMapping() async throws {
-        let (source, mock) = makeWeebCentral()
-        mock.responses["https://weebcentral.com/series/01J76XYZ/full-chapter-list"] = #"""
-        [{"id": "chap3", "title": "Chapter 105"},
-         {"id": "chap2", "title": "Special 3.5"},
-         {"id": "chap1", "title": "Oneshot"}]
-        """#
-        let chapters = try await source.chapters(mangaId: "01J76XYZ")
-        XCTAssertEqual(chapters.map(\.id), ["chap3", "chap2", "chap1"])
-        XCTAssertEqual(chapters.map(\.number), ["105", "3.5", "?"])
-        XCTAssertEqual(chapters[0].title, "Chapter 105")
-    }
-
-    // MARK: - Chapter date-added (WeebCentral)
-
-    @MainActor func testWeebCentralChaptersCarryDate() async throws {
-        let (source, mock) = makeWeebCentral()
-        mock.responses["https://weebcentral.com/series/01J76XYZ/full-chapter-list"] = #"""
-        [{"id": "chap3", "title": "Chapter 105", "date": "2024-01-15T12:00:00Z"},
-         {"id": "chap2", "title": "Chapter 104", "date": null}]
-        """#
-        let chapters = try await source.chapters(mangaId: "01J76XYZ")
-        XCTAssertEqual(chapters[0].date, Chapter.parseISO8601("2024-01-15T12:00:00Z"))
-        XCTAssertNil(chapters[1].date)
-    }
-
-    @MainActor func testWeebCentralPageURLs() async throws {
-        let (source, mock) = makeWeebCentral()
-        mock.responses["https://weebcentral.com/chapters/chap3/images?reading_style=long_strip"] = #"""
-        ["https://official.lowee.us/manga/x/0001.png", "https://official.lowee.us/manga/x/0002.png"]
-        """#
-        let pages = try await source.pageURLs(chapterId: "chap3", preferDataSaver: true)
-        XCTAssertEqual(pages.map(\.absoluteString),
-                       ["https://official.lowee.us/manga/x/0001.png",
-                        "https://official.lowee.us/manga/x/0002.png"])
-    }
-
-    @MainActor func testWeebCentralLatestUpdates() async throws {
-        let (source, mock) = makeWeebCentral()
-        mock.responses["https://weebcentral.com/latest-updates/1"] = #"""
-        [{"mangaId": "01J76XYZ", "chapterId": "chapZ", "title": "Naruto",
-          "cover": "https://temp.compsci88.com/cover/naruto.webp"},
-         {"mangaId": "01J76ABC", "chapterId": "chapY", "title": "Boruto", "cover": null}]
-        """#
-        let updates = try await source.latestUpdates(limitTitles: 1, language: "en")
-        XCTAssertEqual(updates.count, 1)                 // truncated to limitTitles
-        XCTAssertEqual(updates[0].chapterId, "chapZ")
-        XCTAssertEqual(updates[0].manga.id, "01J76XYZ")
-        XCTAssertEqual(updates[0].manga.sourceId, "weebcentral")
-    }
-
-    func testWeebCentralChapterNumberHelper() {
-        XCTAssertEqual(WeebCentralSource.chapterNumber(fromTitle: "Chapter 105"), "105")
-        XCTAssertEqual(WeebCentralSource.chapterNumber(fromTitle: "Special 3.5"), "3.5")
-        XCTAssertEqual(WeebCentralSource.chapterNumber(fromTitle: "Season 2 Chapter 12"), "12")
-        XCTAssertEqual(WeebCentralSource.chapterNumber(fromTitle: "Oneshot"), "?")
-    }
-
     // MARK: - Tag decode widening (recommendation engine)
 
     func testMangaDetailDecodesTagIdNameAndGroup() throws {
@@ -1194,10 +1062,8 @@ final class MangaCartaTests: XCTestCase {
 
     @MainActor func testDefaultRegistryContainsAllBuiltInSources() {
         let registry = SourceRegistry()
-        XCTAssertEqual(registry.sources.map(\.id), ["mangadex", "weebcentral"])
-        XCTAssertNotNil(registry.source(id: "weebcentral"))
-        // WeebCentral is not adult content — visible without the adult toggle.
-        XCTAssertTrue(registry.visibleSources(includeAdult: false).contains { $0.id == "weebcentral" })
+        XCTAssertEqual(registry.sources.map(\.id), ["mangadex"])
+        XCTAssertNil(registry.source(id: "weebcentral"))
     }
 
     @MainActor func testDisablingAdultToggleReSourcesAwayFromActiveAdultSource() {
@@ -1334,13 +1200,6 @@ final class MangaCartaTests: XCTestCase {
         let url = try await MangaDexSource().webURL(forManga: "abc-123")
         XCTAssertEqual(url?.absoluteString,
                        "https://mangadex.org/title/abc-123")
-    }
-
-    @MainActor func testWeebCentralWebURL() async throws {
-        let (source, _) = makeWeebCentral()
-        let url = try await source.webURL(forManga: "01J76XYZ")
-        XCTAssertEqual(url?.absoluteString,
-                       "https://weebcentral.com/series/01J76XYZ")
     }
 
     func testWebURLDefaultsToNil() async throws {

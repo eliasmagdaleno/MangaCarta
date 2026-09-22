@@ -160,6 +160,7 @@ struct MangaCartaApp: App {
                 // own start. `start()` is idempotent, so the `.active` case below
                 // arriving first, later, or not at all is all the same.
                 .task {
+                    await extensions?.installBundledSources()
 #if DEBUG
                     if UpdatesUITestFixture.state == nil {
                         queue.start()
