@@ -369,16 +369,17 @@ struct HostStorageTests {
         defer { try? FileManager.default.removeItem(at: directory) }
         let original = Data("{ definitely not valid JSON".utf8)
         let storageFile = directory.appendingPathComponent("extension-storage.json")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try original.write(to: storageFile)
 
-        XCTAssertThrowsError(try HostStorageRepository(directory: directory))
+        #expect(throws: (any Error).self) { try HostStorageRepository(directory: directory) }
 
-        let quarantined = try FileManager.default.contentsOfDirectory(at: directory,
-                                                                        includingPropertiesForKeys: nil)
-            .first { $0.lastPathComponent.hasPrefix("extension-storage.json.corrupt-") }
-        XCTAssertEqual(try Data(contentsOf: try XCTUnwrap(quarantined)), original)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: storageFile.path),
-                       "the original corrupt path must not be replaced by an empty snapshot")
+        let quarantined = try #require(try FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: nil)
+            .first { $0.lastPathComponent.hasPrefix("extension-storage.json.corrupt-") })
+        #expect(try Data(contentsOf: quarantined) == original)
+        #expect(!FileManager.default.fileExists(atPath: storageFile.path),
+                "the corrupt file is moved aside, not left for the next write to replace")
     }
 
     @Test("Two configured Sources cannot read or enumerate each other's storage")
