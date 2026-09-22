@@ -102,7 +102,15 @@ struct ChapterFrontierTests {
     func codableAcceptsLegacyNumericOrdinal() throws {
         let decoded = try JSONDecoder().decode(ChapterOrdinal.self, from: Data("0.07000000000000001".utf8))
 
-        #expect(decoded == ordinal("0.07000000000000001"))
+        #expect(decoded == ordinal("0.07"))
+    }
+
+    @Test("Codable accepts the synthesized keyed legacy ordinal and canonicalizes it")
+    func codableAcceptsSynthesizedKeyedLegacyOrdinal() throws {
+        let decoded = try JSONDecoder().decode(ChapterOrdinal.self,
+                                                from: Data(#"{"value":0.07000000000000001}"#.utf8))
+
+        #expect(decoded == ordinal("0.07"))
     }
 
     private func ordinal(_ raw: String) -> ChapterOrdinal {
