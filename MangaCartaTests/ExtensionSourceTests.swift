@@ -503,6 +503,35 @@ final class InstalledSourceRegistrationTests: XCTestCase {
         XCTAssertFalse(chapters.isEmpty, "served from the script the store kept")
     }
 
+    func testUninstalledSourceRemainsUnavailableAfterRelaunch() async throws {
+        let id = try await installWeebCentral()
+        try installer.uninstall(id)
+
+        // A second launch has no in-memory lifecycle entries. The retained store record
+        // must still make this qualified id unavailable rather than falling back to the
+        // currently active Source.
+        let relaunchedStore = RepositoryStore(directory: directory)
+        let relaunchedLifecycle = SourceLifecycleRegistry()
+        let relaunchedInstaller = ExtensionInstaller(
+            store: relaunchedStore, registry: relaunchedLifecycle, transport: transport,
+            dataEraser: RecordingDataEraser(storage: storage), acknowledgeAdult: { _ in true })
+        let relaunchedRegistry = SourceRegistry(sources: [BuiltInStubSource(
+            id: MangaDexSource.sourceID, chapterNumbers: [])])
+        relaunchedInstaller.restoreInstalledSources()
+        _ = ExtensionSourceRegistrar(store: relaunchedStore, lifecycle: relaunchedLifecycle,
+                                     host: host, registry: relaunchedRegistry)
+
+        let uninstalledManga = Manga(id: "manga-from-uninstalled-source",
+                                     sourceId: id.rawValue, title: "Title", description: "",
+                                     status: "ongoing", year: nil, coverURL: nil, malId: nil)
+        XCTAssertNil(relaunchedRegistry.source(for: uninstalledManga))
+
+        let legacyManga = Manga(id: "legacy-manga", sourceId: MangaDexSource.sourceID,
+                                title: "Legacy", description: "", status: "ongoing", year: nil,
+                                coverURL: nil, malId: nil)
+        XCTAssertEqual(relaunchedRegistry.source(for: legacyManga)?.id, MangaDexSource.sourceID)
+    }
+
     func testASourceRefusedAtLaunchIsNotServed() async throws {
         let id = try await installWeebCentral()
 
