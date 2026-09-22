@@ -29,6 +29,7 @@ final class RepositorySettingsViewModel: ObservableObject {
             guard let self else { return false }
             let asksForAge = !self.defaults.bool(forKey: Self.declaredAgeKey)
             return await withCheckedContinuation { continuation in
+                self.ageAnswer?.resume(returning: false)
                 self.pendingAcknowledgement = PendingAcknowledgement(acknowledgement: acknowledgement,
                                                                      asksForAge: asksForAge)
                 self.ageAnswer = continuation
@@ -74,8 +75,13 @@ final class RepositorySettingsViewModel: ObservableObject {
     }
 
     func refreshStoreStatus() {
-        do { try composition.repositories.loadIfNeeded(); storeUnreadable = false }
-        catch { storeUnreadable = true; errorMessage = "Installed Sources could not be read. Nothing was removed." }
+        do {
+            try composition.repositories.loadIfNeeded()
+            storeUnreadable = false
+        } catch {
+            storeUnreadable = true
+            errorMessage = "Installed Sources could not be read. Nothing was removed."
+        }
     }
 
     func answerAgeGate(_ confirmed: Bool) {
@@ -89,8 +95,12 @@ final class RepositorySettingsViewModel: ObservableObject {
 
     func run(_ operation: @escaping () async throws -> Void) {
         Task {
-            do { try await operation(); errorMessage = nil }
-            catch { errorMessage = sentence(for: error) }
+            do {
+                try await operation()
+                errorMessage = nil
+            } catch {
+                errorMessage = sentence(for: error)
+            }
         }
     }
 
