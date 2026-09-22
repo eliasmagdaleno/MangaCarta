@@ -7,6 +7,30 @@ import Foundation
 struct ChapterOrdinal: Hashable, Comparable, Codable {
     let value: Decimal
 
+    init(value: Decimal) {
+        self.value = value
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let string = try? container.decode(String.self),
+           let value = Decimal(string: string, locale: Locale(identifier: "en_US_POSIX")) {
+            self.value = value
+            return
+        }
+        if let value = try? container.decode(Decimal.self) {
+            self.value = value
+            return
+        }
+        throw DecodingError.dataCorruptedError(in: container,
+                                                debugDescription: "Chapter ordinal must be a decimal string or number")
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(value.description)
+    }
+
     static func parse(_ raw: String) -> ChapterOrdinal? {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         var index = trimmed.startIndex

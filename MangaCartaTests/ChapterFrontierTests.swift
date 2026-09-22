@@ -91,6 +91,20 @@ struct ChapterFrontierTests {
         #expect(decoded.unnumbered == frontier.unnumbered)
     }
 
+    @Test("Codable stores an ordinal as its exact decimal string")
+    func codableStoresExactDecimalString() throws {
+        let ordinal = try #require(ChapterOrdinal.parse("0.07"))
+
+        #expect(String(data: try JSONEncoder().encode(ordinal), encoding: .utf8) == #""0.07""#)
+    }
+
+    @Test("Codable accepts legacy numeric ordinals")
+    func codableAcceptsLegacyNumericOrdinal() throws {
+        let decoded = try JSONDecoder().decode(ChapterOrdinal.self, from: Data("0.07000000000000001".utf8))
+
+        #expect(decoded == ordinal("0.07000000000000001"))
+    }
+
     private func ordinal(_ raw: String) -> ChapterOrdinal {
         guard let parsed = ChapterOrdinal.parse(raw) else {
             Issue.record("Expected \(raw) to parse as a chapter ordinal")
