@@ -37,7 +37,14 @@ final class RepositorySettingsUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Uninstall"].waitForExistence(timeout: 5))
         let adultToggle = app.switches["Show adult sources"]
         XCTAssertTrue(adultToggle.waitForExistence(timeout: 5))
+        // The navigation bar can cover the toggle after the scroll to Uninstall, and
+        // `isHittable` still reports true there, so move it clear by its frame instead.
+        let bar = app.navigationBars.firstMatch
+        for _ in 0..<5 where adultToggle.frame.minY < bar.frame.maxY {
+            app.swipeDown(velocity: .slow)
+        }
         adultToggle.tap()
+        XCTAssertEqual(adultToggle.value as? String, "1")
         adultToggle.tap()
         XCTAssertTrue(adultToggle.waitForNonExistence(timeout: 5))
     }
