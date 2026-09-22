@@ -292,6 +292,24 @@ final class WeebCentralIdentityMigrationTests: XCTestCase {
         XCTAssertEqual(rewritten, ["\(qualified):123": ["malId": 7], "mangadex:9": ["malId": 8]])
     }
 
+    // #203: the rewrite must not re-serialize numbers. `0.07000000000000001` came back from a
+    // JSONSerialization round trip as `0.070000000000000007`, a different Double, in a real
+    // updates.json frontier. Only the id's bytes may change.
+    func testTheRewriteChangesOnlyTheIdBytes() throws {
+        let original = #"{"z":{"known":[{"value":0.07000000000000001},{"value":84.3}]},"#
+            + #""a":{"sourceId":"weebcentral","weebcentral:12":1,"note":"weebcentral:x"}}"#
+        let url = directory.appendingPathComponent("updates.json")
+        try Data(original.utf8).write(to: url)
+
+        WeebCentralIdentityMigration.run(directory: directory, defaults: defaults)
+
+        let expected = original
+            .replacingOccurrences(of: #""sourceId":"weebcentral""#, with: #""sourceId":"\#(qualified)""#)
+            .replacingOccurrences(of: #""weebcentral:12""#, with: #""\#(qualified):12""#)
+        XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), expected,
+                       "numbers, key order and non-key strings stay byte-for-byte")
+    }
+
     func testASecondRunIsByteForByteInert() throws {
         let store = WorkStore(directory: directory)
         _ = store.mint(from: manga("abc", source: legacy))

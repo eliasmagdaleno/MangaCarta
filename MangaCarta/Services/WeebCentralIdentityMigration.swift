@@ -30,14 +30,9 @@ enum WeebCentralIdentityMigration {
     }
 
     private static func rewriteFile(_ url: URL) {
-        guard let data = try? Data(contentsOf: url) else { return }
-        guard let parsed = try? JSONSerialization.jsonObject(with: data) else { return }
-        let object: Any = parsed
-        guard containsLegacy(object) else { return }
-        let rewritten = replacingLegacy(in: object)
-        guard JSONSerialization.isValidJSONObject(rewritten),
-              let output = try? JSONSerialization.data(withJSONObject: rewritten, options: [.sortedKeys]) else { return }
-        try? output.write(to: url, options: .atomic)
+        guard let data = try? Data(contentsOf: url),
+              let rewritten = rewritingLegacy(in: data) else { return }
+        try? rewritten.write(to: url, options: .atomic)
     }
 
     private static func rewriteDefaults(_ key: String, defaults: UserDefaults) {
@@ -46,37 +41,46 @@ enum WeebCentralIdentityMigration {
             return
         }
         guard let data = defaults.data(forKey: key),
-              let parsed = try? JSONSerialization.jsonObject(with: data) else { return }
-        let object: Any = parsed
-        guard containsLegacy(object) else { return }
-        let rewritten = replacingLegacy(in: object)
-        guard let output = try? JSONSerialization.data(withJSONObject: rewritten, options: [.sortedKeys]) else { return }
-        defaults.set(output, forKey: key)
+              let rewritten = rewritingLegacy(in: data) else { return }
+        defaults.set(rewritten, forKey: key)
     }
 
-    private static func containsLegacy(_ value: Any) -> Bool {
-        if let string = value as? String { return string == legacyID }
-        if let array = value as? [Any] { return array.contains(where: containsLegacy) }
-        if let object = value as? [String: Any] {
-            return object.keys.contains { $0.hasPrefix(legacyKeyPrefix) }
-                || object.values.contains(where: containsLegacy)
-        }
-        return false
-    }
+    /// Rewrites the id inside JSON text without parsing it into objects, so every byte that is
+    /// not the id survives as it was — numbers included (#203: a `JSONSerialization` round trip
+    /// moved a stored chapter number by one ULP), and key order too. Walks the string tokens: a
+    /// value exactly `"weebcentral"` becomes the qualified id, and a *key* starting
+    /// `"weebcentral:"` gets the qualified prefix. Returns `nil` when nothing matched or the
+    /// data is not JSON, so a legacy-free payload is never written.
+    static func rewritingLegacy(in data: Data) -> Data? {
+        guard (try? JSONSerialization.jsonObject(with: data)) != nil else { return nil }
+        let bytes = [UInt8](data)
+        let quote = UInt8(ascii: "\""), backslash = UInt8(ascii: "\\"), colon = UInt8(ascii: ":")
+        let legacyValue = Array("\"\(legacyID)\"".utf8)
+        let legacyKeyStart = Array("\"\(legacyKeyPrefix)".utf8)
+        let qualifiedValue = Array("\"\(qualifiedID)\"".utf8)
+        let qualifiedKeyStart = Array("\"\(qualifiedID):".utf8)
 
-    private static func replacingLegacy(in value: Any) -> Any {
-        if let string = value as? String { return string == legacyID ? qualifiedID : string }
-        if let array = value as? [Any] { return array.map(replacingLegacy) }
-        if let object = value as? [String: Any] {
-            var rewritten: [String: Any] = [:]
-            for (key, inner) in object {
-                let newKey = key.hasPrefix(legacyKeyPrefix)
-                    ? qualifiedID + ":" + key.dropFirst(legacyKeyPrefix.count)
-                    : key
-                rewritten[newKey] = replacingLegacy(in: inner)
+        var output: [UInt8] = []
+        output.reserveCapacity(bytes.count)
+        var changed = false
+        var index = 0
+        while index < bytes.count {
+            guard bytes[index] == quote else { output.append(bytes[index]); index += 1; continue }
+            var end = index + 1
+            while end < bytes.count, bytes[end] != quote { end += bytes[end] == backslash ? 2 : 1 }
+            let token = Array(bytes[index...min(end, bytes.count - 1)])
+            var after = end + 1
+            while after < bytes.count, [0x20, 0x09, 0x0A, 0x0D].contains(bytes[after]) { after += 1 }
+            let isKey = after < bytes.count && bytes[after] == colon
+            if !isKey, token == legacyValue {
+                output += qualifiedValue; changed = true
+            } else if isKey, token.starts(with: legacyKeyStart) {
+                output += qualifiedKeyStart + token.dropFirst(legacyKeyStart.count); changed = true
+            } else {
+                output += token
             }
-            return rewritten
+            index = end + 1
         }
-        return value
+        return changed ? Data(output) : nil
     }
 }
