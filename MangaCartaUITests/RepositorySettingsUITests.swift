@@ -54,9 +54,14 @@ final class RepositorySettingsUITests: XCTestCase {
                 break
             }
         }
-        adultToggle.tap()
-        XCTAssertEqual(adultToggle.value as? String, "1")
-        adultToggle.tap()
+        let adultSwitch = adultToggle.switches.firstMatch
+        XCTAssertTrue(adultSwitch.waitForExistence(timeout: 2))
+        adultSwitch.tap()
+        let enabled = NSPredicate(format: "value == %@", "1")
+        expectation(for: enabled, evaluatedWith: adultSwitch)
+        waitForExpectations(timeout: 5)
+        XCTAssertEqual(adultSwitch.value as? String, "1")
+        adultSwitch.tap()
         XCTAssertTrue(adultToggle.waitForNonExistence(timeout: 5))
     }
 
