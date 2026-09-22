@@ -363,6 +363,24 @@ struct HostBrowserTests {
 @Suite("Host storage capability")
 struct HostStorageTests {
 
+    @Test("Unreadable storage is quarantined and remains unavailable")
+    func corruptStorageFileIsQuarantined() throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let original = Data("{ definitely not valid JSON".utf8)
+        let storageFile = directory.appendingPathComponent("extension-storage.json")
+        try original.write(to: storageFile)
+
+        XCTAssertThrowsError(try HostStorageRepository(directory: directory))
+
+        let quarantined = try FileManager.default.contentsOfDirectory(at: directory,
+                                                                        includingPropertiesForKeys: nil)
+            .first { $0.lastPathComponent.hasPrefix("extension-storage.json.corrupt-") }
+        XCTAssertEqual(try Data(contentsOf: try XCTUnwrap(quarantined)), original)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: storageFile.path),
+                       "the original corrupt path must not be replaced by an empty snapshot")
+    }
+
     @Test("Two configured Sources cannot read or enumerate each other's storage")
     func storageIsNamespacedByQualifiedSourceID() async throws {
         let directory = temporaryDirectory()
