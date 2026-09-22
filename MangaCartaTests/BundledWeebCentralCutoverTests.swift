@@ -78,7 +78,6 @@ final class BundledWeebCentralInstallTests: XCTestCase {
         XCTAssertEqual(second.extensions?.repositories.sources(in: repositoryID).count, 1)
     }
 
-    // A5 part 4: uninstall is respected across launches; the Source is re-offered, not reinstalled.
     // A record left by an earlier draft's `bundled://` URL, verbatim from a simulator that
     // ran it: the record exists, so the first-launch add is skipped, and a refresh of the
     // stale URL fails — WeebCentral was never installed on that device, silently.
@@ -100,6 +99,7 @@ final class BundledWeebCentralInstallTests: XCTestCase {
                        BundledRepositories.weebCentralURL)
     }
 
+    // A5 part 4: uninstall is respected across launches; the Source is re-offered, not reinstalled.
     func testAnUninstalledBundledSourceStaysUninstalledAtTheNextLaunchAndIsStillOffered() async throws {
         let (first, _) = compose()
         await first.extensions?.installBundledSources()
@@ -114,6 +114,27 @@ final class BundledWeebCentralInstallTests: XCTestCase {
         XCTAssertEqual(record.state, .uninstalled)
         let offered = second.extensions?.installer.listings[repositoryID]?.entries.compactMap(\.localId)
         XCTAssertEqual(offered, ["weebcentral"], "the repositories screen can still offer it")
+    }
+
+    // A5 part 3 through the launch path: an installed bundle older than the app's is offered at
+    // the next launch, never applied by it.
+    func testALaunchOffersANewerBundledVersionWithoutApplyingIt() async throws {
+        let (first, _) = compose()
+        await first.extensions?.installBundledSources()
+        let file = directory.appendingPathComponent("repositories.json")
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
+        json["bundles"] = (json["bundles"] as? [[String: Any]] ?? []).map { var b = $0; b["version"] = 0; return b }
+        try JSONSerialization.data(withJSONObject: json).write(to: file)
+
+        let (second, _) = compose()
+        let failure = await second.extensions?.installBundledSources()
+
+        XCTAssertNil(failure)
+        let bundleId = try XCTUnwrap(second.extensions?.repositories.sources(in: repositoryID).first?.bundleId)
+        XCTAssertEqual(second.extensions?.repositories.bundle(bundleId, in: repositoryID)?.version, 0,
+                       "a launch never applies an update")
+        XCTAssertEqual(second.extensions?.installer.listings[repositoryID]?.availableUpdates[bundleId], 1,
+                       "but it offers one")
     }
 
     // A5 part 3 + §12 "Operations": a new bundle version arrives with the app and is
@@ -227,6 +248,19 @@ final class WeebCentralIdentityMigrationTests: XCTestCase {
     private func manga(_ id: String, source: String) -> Manga {
         Manga(id: id, sourceId: source, title: "Berserk", description: "", status: "ongoing",
               year: nil, coverURL: nil, malId: nil, altTitles: [], contentRating: nil)
+    }
+
+    // Part 5's "before the Source registers": composing the app is what runs it.
+    func testComposingTheAppRunsTheMigration() {
+        let before = WorkStore(directory: directory)
+        let workID = before.mint(from: manga("abc", source: legacy))
+        before.flush()
+
+        _ = AppComposition(defaults: defaults, directory: directory,
+                           registry: SourceRegistry(sources: [MangaDexSource()]))
+
+        XCTAssertEqual(WorkStore(directory: directory).workId(for: ListingKey(sourceId: qualified, mangaId: "abc")),
+                       workID)
     }
 
     func testAWorkMintedFromTheCompiledListingKeepsItsIdAndFollowsTheNewSourceId() throws {
