@@ -268,15 +268,21 @@ enum PortFixtures {
     static let engineName = "htmlSelectorTheme"
     static let bundleScript: String = {
         let url = packageDirectory.appendingPathComponent("engine.js")
-        return String(decoding: try! Data(contentsOf: url), as: UTF8.self)
+        guard let data = try? Data(contentsOf: url) else { preconditionFailure("missing \(url.path)") }
+        return String(decoding: data, as: UTF8.self)
     }()
+    /// The WeebCentral declaration as the bundled index carries it, re-serialized. Its
+    /// whitespace is therefore `JSONSerialization`'s, not the file's — mutate it as JSON.
     static let weebCentralJSON: String = {
         let url = packageDirectory.appendingPathComponent("index.json")
-        let data = try! Data(contentsOf: url)
-        let root = try! JSONSerialization.jsonObject(with: data) as! [String: Any]
-        let bundle = (root["bundles"] as! [[String: Any]])[0]
-        let source = (bundle["sources"] as! [[String: Any]])[0]
-        return String(decoding: try! JSONSerialization.data(withJSONObject: source), as: UTF8.self)
+        guard let data = try? Data(contentsOf: url),
+              let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let bundle = (root["bundles"] as? [[String: Any]])?.first,
+              let source = (bundle["sources"] as? [[String: Any]])?.first,
+              let output = try? JSONSerialization.data(withJSONObject: source) else {
+            preconditionFailure("bundled index at \(url.path) is not the shape §2 describes")
+        }
+        return String(decoding: output, as: UTF8.self)
     }()
 
     // MARK: Declarations

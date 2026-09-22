@@ -110,9 +110,9 @@ final class BundledWeebCentralInstallTests: XCTestCase {
         let installed = try await installer.install(localId: "weebcentral", from: repository.id)
         XCTAssertEqual(store.bundle(installed.bundleId, in: repositoryID)?.version, 1)
 
-        try rewriteIndex(in: package) { index in index["bundles"] = (index["bundles"] as! [[String: Any]]).map {
-            var b = $0; b["version"] = 2; return b
-        } }
+        try rewriteIndex(in: package) { index in
+            index["bundles"] = (index["bundles"] as? [[String: Any]] ?? []).map { var b = $0; b["version"] = 2; return b }
+        }
         _ = try await installer.refresh(repositoryID)
 
         XCTAssertEqual(installer.listings[repositoryID]?.availableUpdates[installed.bundleId], 2, "offered")
@@ -125,11 +125,13 @@ final class BundledWeebCentralInstallTests: XCTestCase {
     // §12 "Adult Sources": a bundled index may declare only none-class Sources.
     func testABundledIndexDeclaringAnAdultSourceIsRefusedWithASentence() async throws {
         let package = try copiedPackage()
-        try rewriteIndex(in: package) { index in index["bundles"] = (index["bundles"] as! [[String: Any]]).map {
-            var b = $0
-            b["sources"] = (b["sources"] as! [[String: Any]]).map { var s = $0; s["adult"] = "mixed"; return s }
-            return b
-        } }
+        try rewriteIndex(in: package) { index in
+            index["bundles"] = (index["bundles"] as? [[String: Any]] ?? []).map { bundle in
+                var b = bundle
+                b["sources"] = (b["sources"] as? [[String: Any]] ?? []).map { var s = $0; s["adult"] = "mixed"; return s }
+                return b
+            }
+        }
         let transport = BundledRepositoryTransport(resourceDirectory: package)
 
         do {
