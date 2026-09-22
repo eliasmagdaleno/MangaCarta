@@ -480,21 +480,27 @@ and its reasons are ADR-0003 Amendment 5's, and this section is only the shape.
 - **Identity.** A fixed version-4 UUID compiled into the app, one per bundled repository, never
   minted (§5.1 does not apply). Qualified ids are `<that-uuid>:<localId>` as in §5.2. The
   WeebCentral package's UUID is declared once in code beside the installer and nowhere else.
-- **Index and scripts.** The index document is validated by §4 exactly as a fetched one; its
-  `script` references resolve against the index resource's URL inside the bundle, so they are
-  bundle-relative. `scriptSHA256` is still checked against the resource bytes — the digest is a
-  tamper and packaging check here, not a trust one.
-- **Transport.** A transport that reads the bundle. `fetchIndex` never returns
-  `.movedPermanently`; `fetchScript` reads the resource. The size bounds in §10 apply.
+- **Index and scripts.** The index document is validated by §4 exactly as a fetched one. Its URL
+  and its `script` references are absolute `https://` URLs on the host **`bundled.invalid`**
+  (RFC 2606: reserved, never resolvable), so they satisfy §4's absolute-HTTPS rule with no
+  bundled-only exception in the validator. *(Amended 2026-09-22: this bullet said bundle-relative;
+  a relative or custom-scheme URL fails §4, and an earlier draft that used one for the index only
+  let the script fetch escape to the network.)* `scriptSHA256` is still checked against the
+  resource bytes — the digest is a tamper and packaging check here, not a trust one.
+- **Transport.** The app's transport routes on the host: a `bundled.invalid` URL, index *or*
+  script, is read from the bundle and never reaches the network; any other host goes to the
+  network transport. `fetchIndex` never returns `.movedPermanently` for a bundled URL. The size
+  bounds in §10 apply.
 - **Operations.** §6.1 (add) runs once, at the first launch that finds no repository record for the
   fixed UUID, and never from a reader gesture. §6.2 (refresh) reads the bundle; it is what surfaces
   an update after an app update, by the ordinary `version` comparison, offered per §6.4. §6.3, §6.5,
   §6.8 and §6.9 apply to its Sources unchanged. **§6.6 (change URL) and §6.7 (remove) are not
   offered** for a bundled repository. An uninstalled Source of a bundled repository is re-offered
   on the repositories screen and is not reinstalled automatically.
-- **Records (§8).** The repository record's URL is the bundle resource URL; on every launch the
-  installer re-resolves it (bundle paths change between installs) rather than trusting the stored
-  one. Otherwise the three records are as §8.1.
+- **Records (§8).** The repository record's URL is the constant `bundled.invalid` index URL, which
+  does not change between installs, so there is nothing to re-resolve. The bundle's file path is
+  looked up by the transport at fetch time, never stored. *(Amended 2026-09-22, with the bullet
+  above.)* Otherwise the three records are as §8.1.
 - **Adult Sources (§7).** A bundled repository may declare only `none`-class Sources; a `mixed` or
   `adultOnly` declaration in a bundled index is refused at validation. This is ADR-0022
   Amendment 3's condition, enforced.
