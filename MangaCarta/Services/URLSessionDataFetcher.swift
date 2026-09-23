@@ -14,6 +14,28 @@ protocol URLSessionDataFetching: Sendable {
 /// adapter keeps the metrics attached to the exact task whose response it returns.
 final class URLSessionDataFetcher: NSObject, URLSessionDataFetching, URLSessionDataDelegate,
                                    @unchecked Sendable {
+    private final class CancellationState: @unchecked Sendable {
+        private let lock = NSLock()
+        private var task: URLSessionDataTask?
+        private var isCancelled = false
+
+        func setTask(_ task: URLSessionDataTask) {
+            lock.lock()
+            self.task = task
+            let shouldCancel = isCancelled
+            lock.unlock()
+            if shouldCancel { task.cancel() }
+        }
+
+        func cancel() {
+            lock.lock()
+            isCancelled = true
+            let task = self.task
+            lock.unlock()
+            task?.cancel()
+        }
+    }
+
     private struct Pending {
         var data = Data()
         var response: URLResponse?
@@ -22,10 +44,8 @@ final class URLSessionDataFetcher: NSObject, URLSessionDataFetching, URLSessionD
     }
 
     private let lock = NSLock()
-    private lazy var session: URLSession = URLSession(configuration: configuration,
-                                                       delegate: self,
-                                                       delegateQueue: nil)
     private let configuration: URLSessionConfiguration
+    private var session: URLSession?
     private var pending: [Int: Pending] = [:]
     private let redirectHandler: @Sendable (URLRequest) -> URLRequest?
 
@@ -36,13 +56,24 @@ final class URLSessionDataFetcher: NSObject, URLSessionDataFetching, URLSessionD
     }
 
     func fetch(_ request: URLRequest) async throws -> URLSessionFetchResult {
-        try await withCheckedThrowingContinuation { continuation in
-            let task = session.dataTask(with: request)
-            lock.lock()
-            pending[task.taskIdentifier] = Pending(continuation: continuation)
-            lock.unlock()
-            task.resume()
-        }
+        let cancellation = CancellationState()
+        return try await withTaskCancellationHandler(operation: {
+            try await withCheckedThrowingContinuation { continuation in
+                lock.lock()
+                if session == nil {
+                    session = URLSession(configuration: configuration,
+                                         delegate: self,
+                                         delegateQueue: nil)
+                }
+                let task = session!.dataTask(with: request)
+                pending[task.taskIdentifier] = Pending(continuation: continuation)
+                lock.unlock()
+                cancellation.setTask(task)
+                task.resume()
+            }
+        }, onCancel: {
+            cancellation.cancel()
+        })
     }
 
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask,
@@ -77,6 +108,7 @@ final class URLSessionDataFetcher: NSObject, URLSessionDataFetching, URLSessionD
             lock.unlock(); return
         }
         lock.unlock()
+        invalidateSessionIfIdle()
         if let error {
             state.continuation.resume(throwing: error)
         } else if let response = state.response {
@@ -85,5 +117,16 @@ final class URLSessionDataFetcher: NSObject, URLSessionDataFetching, URLSessionD
         } else {
             state.continuation.resume(throwing: URLError(.badServerResponse))
         }
+    }
+
+    private func invalidateSessionIfIdle() {
+        lock.lock()
+        guard pending.isEmpty, let session else {
+            lock.unlock()
+            return
+        }
+        self.session = nil
+        lock.unlock()
+        session.finishTasksAndInvalidate()
     }
 }

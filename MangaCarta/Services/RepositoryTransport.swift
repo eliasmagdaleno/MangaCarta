@@ -94,8 +94,8 @@ final class URLSessionRepositoryTransport: RepositoryTransport, @unchecked Senda
     }
 
     /// Every fetch passes the destination policy first — the index URL the reader typed or
-    /// confirmed, and every script URL an index names. Redirects are never followed (see
-    /// `RepositoryRedirectPolicy`), so the URL checked here is the only one requested; a
+    /// confirmed, and every script URL an index names. Redirects are never followed by the
+    /// transport, so the URL checked here is the only one requested; a
     /// permanent redirect's target is checked when the confirmed URL is fetched in turn.
     private func fetch(_ url: URL) async throws -> (Data, HTTPURLResponse) {
         do {

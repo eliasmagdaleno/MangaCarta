@@ -216,6 +216,10 @@ enum HostIPAddress {
         if bytes.prefix(10).allSatisfy({ $0 == 0 }), bytes[10] == 0xFF, bytes[11] == 0xFF {
             return isPublicIPv4(Array(bytes.suffix(4)))
         }
+        if bytes.prefix(12).elementsEqual([0x00, 0x64, 0xFF, 0x9B, 0x00, 0x00,
+                                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00]) {
+            return isPublicIPv4(Array(bytes.suffix(4)))
+        }
         if bytes[0] & 0xFE == 0xFC { return false }
         if bytes[0] == 0xFE, bytes[1] & 0xC0 == 0x80 { return false }
         if bytes[0] == 0xFF { return false }
