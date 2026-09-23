@@ -444,7 +444,7 @@ final class InstalledSourceRegistrationTests: XCTestCase {
         let manga = try XCTUnwrap(results.first)
 
         XCTAssertEqual(registry.source(for: manga)?.id, id.rawValue)
-        XCTAssertEqual(registry.sourceForRefresh(sourceId: manga.sourceId).id, id.rawValue)
+        XCTAssertEqual(registry.sourceForRefresh(sourceId: manga.sourceId)?.id, id.rawValue)
     }
 
     // MARK: Adult gating reaches installed Sources

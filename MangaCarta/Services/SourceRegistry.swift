@@ -94,7 +94,7 @@ final class SourceRegistry: ObservableObject {
 
     /// The currently-active browsing source, or nil when no source is installed.
     var active: MangaSource? {
-        source(id: activeSourceID)
+        source(id: activeSourceID) ?? sources.first
     }
 
     /// Look up a source by its stable id (e.g. a manga's `sourceId`). Nil if not registered.
