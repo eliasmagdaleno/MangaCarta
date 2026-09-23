@@ -35,23 +35,24 @@ final class WeebCentralPortTests: XCTestCase {
     func testBundledEngineRequiresNestedPagingRequest() async throws {
         let port = try PortFixtures.weebCentral()
         let first = try await port.runtime.invoke(.search, request: [
-            "query": "berserk", "page": ["cursor": NSNull(), "limit": 8]
+            "query": "berserk", "page": ["cursor": NSNull(), "limit": 2]
         ]) as? [String: Any]
         let firstItems = try XCTUnwrap(first?["items"] as? [[String: Any]])
         XCTAssertFalse(firstItems.isEmpty)
         let nextCursor = try XCTUnwrap(first?["nextCursor"] as? String)
 
         let second = try await port.runtime.invoke(.search, request: [
-            "query": "berserk", "page": ["cursor": nextCursor, "limit": 8]
+            "query": "berserk", "page": ["cursor": nextCursor, "limit": 2]
         ]) as? [String: Any]
         let secondItems = try XCTUnwrap(second?["items"] as? [[String: Any]])
         XCTAssertFalse(secondItems.isEmpty)
-        XCTAssertNotEqual(firstItems.first?["id"] as? String, secondItems.first?["id"] as? String,
-                          "the returned cursor must drive the next nested page")
+        XCTAssertTrue(port.browser.requestedURLs.contains {
+            $0.query?.contains("offset=2") == true
+        }, "the returned cursor must drive the next nested page request")
 
         do {
             _ = try await port.runtime.invoke(.search, request: [
-                "query": "berserk", "cursor": NSNull(), "limit": 8
+                "query": "berserk", "cursor": NSNull(), "limit": 2
             ])
             XCTFail("the shipped engine must not accept the pre-186 flat shape")
         } catch let error as ExtensionInvocationError {

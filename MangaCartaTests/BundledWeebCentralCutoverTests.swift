@@ -138,7 +138,7 @@ final class BundledWeebCentralInstallTests: XCTestCase {
         await first.extensions?.installBundledSources()
         let file = directory.appendingPathComponent("repositories.json")
         var json = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
-        json["bundles"] = (json["bundles"] as? [[String: Any]] ?? []).map { var b = $0; b["version"] = 0; return b }
+        json["bundles"] = (json["bundles"] as? [[String: Any]] ?? []).map { var b = $0; b["version"] = 1; return b }
         try JSONSerialization.data(withJSONObject: json).write(to: file)
 
         let (second, _) = compose()
@@ -146,9 +146,9 @@ final class BundledWeebCentralInstallTests: XCTestCase {
 
         XCTAssertNil(failure)
         let bundleId = try XCTUnwrap(second.extensions?.repositories.sources(in: repositoryID).first?.bundleId)
-        XCTAssertEqual(second.extensions?.repositories.bundle(bundleId, in: repositoryID)?.version, 0,
+        XCTAssertEqual(second.extensions?.repositories.bundle(bundleId, in: repositoryID)?.version, 1,
                        "a launch never applies an update")
-        XCTAssertEqual(second.extensions?.installer.listings[repositoryID]?.availableUpdates[bundleId], 1,
+        XCTAssertEqual(second.extensions?.installer.listings[repositoryID]?.availableUpdates[bundleId], 2,
                        "but it offers one")
     }
 
@@ -165,18 +165,18 @@ final class BundledWeebCentralInstallTests: XCTestCase {
         let repository = try await installer.addRepository(at: BundledRepositories.weebCentralURL,
                                                            repositoryID: repositoryID)
         let installed = try await installer.install(localId: "weebcentral", from: repository.id)
-        XCTAssertEqual(store.bundle(installed.bundleId, in: repositoryID)?.version, 1)
+        XCTAssertEqual(store.bundle(installed.bundleId, in: repositoryID)?.version, 2)
 
         try rewriteIndex(in: package) { index in
-            index["bundles"] = (index["bundles"] as? [[String: Any]] ?? []).map { var b = $0; b["version"] = 2; return b }
+            index["bundles"] = (index["bundles"] as? [[String: Any]] ?? []).map { var b = $0; b["version"] = 3; return b }
         }
         _ = try await installer.refresh(repositoryID)
 
-        XCTAssertEqual(installer.listings[repositoryID]?.availableUpdates[installed.bundleId], 2, "offered")
-        XCTAssertEqual(store.bundle(installed.bundleId, in: repositoryID)?.version, 1, "not applied by refresh")
+        XCTAssertEqual(installer.listings[repositoryID]?.availableUpdates[installed.bundleId], 3, "offered")
+        XCTAssertEqual(store.bundle(installed.bundleId, in: repositoryID)?.version, 2, "not applied by refresh")
 
         try await installer.updateBundle(installed.bundleId, in: repositoryID)
-        XCTAssertEqual(store.bundle(installed.bundleId, in: repositoryID)?.version, 2)
+        XCTAssertEqual(store.bundle(installed.bundleId, in: repositoryID)?.version, 3)
     }
 
     // §12 "Adult Sources": a bundled index may declare only none-class Sources.
