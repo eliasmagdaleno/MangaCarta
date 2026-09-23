@@ -6,6 +6,16 @@
 **Depends on:** slice 1, PR #217 (`ZipArchiveReader` + `PageSelector`, branch `eliasmagdaleno/local-import-zip-reader`) — **being reworked**. This plan is written against its public API as of 2026-09-22 (quoted in "Slice 1 contract" below). Re-check that section against the merged #217 before Task 4; only Task 4 touches it.
 **Evidence baseline:** `main` at `8e8f256`. Every `file:line` below was grepped at that commit.
 
+## Decisions (owner, 2026-09-22)
+
+Answers to the five questions this plan first raised on #222:
+
+1. **`itemId` = lowercase hex of the first 16 bytes of the file's SHA-256.** Re-import of the same bytes restores the same id, so history reattaches. This resolves the spec's §2 ("UUID minted at import") vs §5 ("same hash ⇒ same `itemId`") contradiction in favour of §5.
+2. **One top-level folder plus loose root images → two chapters:** the root images as the leading chapter, then the folder. A single folder with no root images stays one chapter.
+3. **"Original deleted after unpacking" means the app's staged copy only.** The user's file in Files is never modified or deleted.
+4. **`local` Works are kept out of the MAL update queue entirely** — no enqueued and no deferred outbox row (guard + test in Task 8).
+5. **Settings › About › Sources lists browsable Sources only**, so "Local" is hidden (Task 6).
+
 ## Scope
 
 In: `LocalLibraryStore` (import into `Application Support/LocalLibrary/`, staging-then-move, temp copy deleted, SHA-256 dedupe, delete), `LocalSource` (id `local`, compiled, always registered), two new `MangaSource` capabilities (`isBrowsable`, `participatesInUpdates`), registry/refresh/metadata-queue exclusions, `ImageCache` file-URL bypass, `WorkStore` listing removal.
@@ -34,12 +44,12 @@ Out (slice 3+): `fileImporter`, progress banner, the "Delete from Device" button
 | Update polling | `MangaCarta/Services/LibraryRefreshCoordinator.swift:103` → `eligibleListings(for:workId:)` at `:196-201`; fetch at `:166-168` | Filter out listings whose registered Source has `participatesInUpdates == false`. |
 | Legacy refresh path | `MangaCarta/Services/LibraryStore.swift:282-298` (used only when no coordinator is configured) | Same skip, so the fallback path cannot fetch `local` either. |
 | Metadata queue | `MangaCarta/Services/MetadataUpgradeQueue.swift:56-79` (init, **no registry**), `nextCandidate` at `:337-349` | Inject a `listingParticipates: (ListingKey) -> Bool` (default `{ _ in true }`); skip a Work none of whose listings participate. Wired at `MangaCarta/Services/AppComposition.swift:367`. |
-| MAL sync | `MangaCarta/Services/MALProgressCoordinator.swift:125-146` (`chapterCompleted`) | No code change: it needs `malId` or a later `workMetadataChanged`, and a local Work never gets either once the queue skips it. Task 8 pins this with a test. |
+| MAL sync | `MangaCarta/Services/MALProgressCoordinator.swift:125-146` (`chapterCompleted`) | Guard added: `local` completions are never enqueued or deferred (decision 4, Task 8). |
 | Image loading | `MangaCarta/Services/ImageCache.swift:136-137` (default fetcher), `:163-177` (`loadImage` stores to disk at `:175`) | `isFileURL` → read file, memory tier only, never `disk.store`. |
 | Composition | `AppComposition.swift:245` (`registry:` param), `:333-334` (refresh coordinator), `:367` (metadata queue), `:433` (`registry ?? .shared`) | Pass registry lookups into the queue. |
 | Work removal | `MangaCarta/Services/WorkStore.swift` — has `mint(from:)` `:111`, `workId(for:)` `:78`, `merge` `:268`, **no removal API** | Add `removeListing(_:)` (deletes the Work when it was the last Listing). |
 | Library removal | `LibraryStore.swift:139` (`toggle(_ manga:)`), `:106` (`contains`) | Store-level delete calls it; no new API. |
-| Source names | `Views/MangaDetailView.swift:56`, `Views/SettingsView.swift:192` (About row lists every `registry.sources` name) | `local`'s `name` is "Local". Settings About should list browse Sources only — use `visibleSources` or filter `isBrowsable` (Task 3). |
+| Source names | `Views/MangaDetailView.swift:56`, `Views/SettingsView.swift:192` (About row lists every `registry.sources` name) | `local`'s `name` is "Local". Settings About lists browsable Sources only (decision 5, Task 6). |
 
 ## Slice 1 contract (PR #217, subject to rework)
 
@@ -53,7 +63,7 @@ Out (slice 3+): `fileImporter`, progress banner, the "Delete from Device" button
 
 Two gaps between #217 and the spec that slice 2 closes locally (Task 4), so it does not block on the rework:
 
-1. **Chapter rule.** #217 makes every top-level folder its own group. The spec (§3) wants a *single* wrapper folder to be one chapter and "Root" only as a *leading* chapter beside two-or-more folders. `LocalChapterLayout.normalize(_:)` applies that: ≤ 1 folder group → merge everything into one chapter in natural path order. (See open question 2 for "one folder + loose root images".)
+1. **Chapter rule.** #217 makes every top-level folder its own group. The spec (§3) wants a *single* wrapper folder to be one chapter and "Root" only as a *leading* chapter beside two-or-more folders. `LocalChapterLayout.normalize(_:)` applies that plus decision 2: a single folder with no root images → one chapter; root images beside one or more folders → a leading root chapter, then one chapter per folder.
 2. **`heic`** is in the spec's extension list but not #217's. Not added here; flag to #217.
 
 If the reworked #217 already returns the spec's chapter shape, Task 4 shrinks to an assertion that it does.
@@ -70,7 +80,7 @@ Application Support/LocalLibrary/
     pages/2/0001.png …
 ```
 
-`itemId` = lowercase hex of the first 16 bytes of the file's SHA-256 (32 chars). Spec §5 requires "same hash ⇒ same `itemId` across delete/re-import" so History reattaches; §2's "UUID minted at import" cannot deliver that, so the id is derived from the hash (open question 1).
+`itemId` = lowercase hex of the first 16 bytes of the file's SHA-256 (32 chars). Spec §5 requires "same hash ⇒ same `itemId` across delete/re-import" so History reattaches; §2's "UUID minted at import" cannot deliver that, so the id is derived from the hash (decision 1).
 
 `LocalItemRecord: Codable` — `itemId`, `title` (filename, extension stripped, `_` → space), `sourceFilename`, `sha256` (full hex), `byteSize`, `importedAt`, `chapters: [{ number: Int, title: String, pageCount: Int, pageFiles: [String] }]`.
 
@@ -107,7 +117,7 @@ actor LocalLibraryStore {
 }
 ```
 
-Flow of `importArchive`: create `.staging/<uuid>/`; **copy** `source` to `.staging/<uuid>/archive` (the user's file in Files is never modified or deleted — the picker's URL may be the original, security-scoped); hash the copy (CryptoKit `SHA256`, streamed in 1 MB chunks); if `<root>/<itemId>/item.json` exists → delete staging, return `.duplicate`; else open `ZipArchiveReader(url:)` on the copy, write pages via `data(for:)` into `.staging/<uuid>/item/pages/<n>/NNNN.<ext>`, write `cover.jpg` and `item.json`, **delete the archive copy**, `moveItem` `.staging/<uuid>/item` → `<root>/<itemId>`, remove `.staging/<uuid>`. Any throw → remove `.staging/<uuid>` and rethrow. The UUID is only the staging name; the persistent id is the hash-derived `itemId`.
+Flow of `importArchive`: create `.staging/<uuid>/`; **copy** `source` to `.staging/<uuid>/archive` (decision 3: the user's file in Files is never modified or deleted — the picker's URL may be the original, security-scoped; only this staged copy is deleted); hash the copy (CryptoKit `SHA256`, streamed in 1 MB chunks); if `<root>/<itemId>/item.json` exists → delete staging, return `.duplicate`; else open `ZipArchiveReader(url:)` on the copy, write pages via `data(for:)` into `.staging/<uuid>/item/pages/<n>/NNNN.<ext>`, write `cover.jpg` and `item.json`, **delete the archive copy**, `moveItem` `.staging/<uuid>/item` → `<root>/<itemId>`, remove `.staging/<uuid>`. Any throw → remove `.staging/<uuid>` and rethrow. The UUID is only the staging name; the persistent id is the hash-derived `itemId`.
 
 Tests (each on a real temp root and a real `.cbz` written by `ZipFixtureWriter`):
 - `importWritesPagesCoverAndRecord` — 3-page flat CBZ → `<root>/<itemId>/pages/1/0001.png…0003.png` exist, `cover.jpg` decodes with `UIImage(contentsOfFile:)`, `item.json` decodes with `pageCount == 3` and `sha256` equal to an independently computed hash of the fixture.
@@ -131,11 +141,12 @@ Files: same as Task 2.
 
 Files: `MangaCarta/Models/LocalChapterLayout.swift` (new, synchronized); tests `MangaCartaTests/LocalChapterLayoutTests.swift` (**new, `xcp`**) plus cases in `LocalLibraryStoreTests`.
 
-`LocalChapterLayout.normalize(_ chapters: [ZipArchiveReader.Chapter]) -> [LocalChapter]` — pure. Rules from spec §3: two or more folder groups → one chapter each, natural order, titled by folder name, a `"Root"` group first if present; one folder group or none → a single chapter titled by the item title, pages in natural path order (deeper nesting already flattened by path sort).
+`LocalChapterLayout.normalize(_ chapters: [ZipArchiveReader.Chapter]) -> [LocalChapter]` — pure. Rules from spec §3: two or more folder groups → one chapter each, natural order, titled by folder name, a `"Root"` group first if present; root images beside a *single* folder → two chapters, root first then the folder (decision 2); one folder with no root images, or root images only → a single chapter titled by the item title, pages in natural path order (deeper nesting already flattened by path sort).
 
 Pure tests (entries built from `ZipArchiveReader(data:)` over `ZipFixtureWriter` bytes — `Entry`'s init is not public):
 - `twoTopLevelFoldersYieldTwoChapters` — `Ch 10/…`, `Ch 2/…` → `["Ch 2", "Ch 10"]`.
 - `singleWrapperFolderYieldsOneChapter` — `Title/001.png, Title/002.png` → one chapter, 2 pages.
+- `rootImagesBesideSingleFolderFormLeadingChapter` — `cover.png`, `Title/001.png`, `Title/002.png` → 2 chapters: root (1 page), then `Title` (2 pages) (decision 2).
 - `rootImagesBesideFoldersFormLeadingChapter` — `cover.png`, `A/…`, `B/…` → 3 chapters, first is root.
 - `deeperNestingIsFlattenedInPathOrder` — `A/x/1.png, A/y/1.png`, `B/1.png` → chapter A has 2 pages in `x` then `y` order.
 
@@ -161,7 +172,7 @@ Tests (store on a temp root, populated by a real `importArchive`):
 
 ### Task 6 — registry: always registered, never browsed
 
-Files: `MangaCarta/Services/SourceRegistry.swift`, `MangaCarta/Views/SettingsView.swift` (About row, `:192`); tests: add to `MangaCartaTests/RegistryInjectionTests.swift` (exists — no `xcp`) or a new `SourceRegistryTests.swift` (**`xcp`**; spec §7 names this suite).
+Files: `MangaCarta/Services/SourceRegistry.swift`, `MangaCarta/Views/SettingsView.swift` (About row, `:192` — change `registry.sources` to `registry.visibleSources(includeAdult: showAdultSources)` or a `isBrowsable` filter, so "Local" is hidden; decision 5); tests: add to `MangaCartaTests/RegistryInjectionTests.swift` (exists — no `xcp`) or a new `SourceRegistryTests.swift` (**`xcp`**; spec §7 names this suite).
 
 - `builtInSources()` (`:73`) → `[MangaDexSource(), LocalSource(store: .shared)]`.
 - Add `private var firstBrowsable: MangaSource?`; replace the three `sources[0]` fallbacks (`:68`, `:87`, `:93`) with it. `visibleSources` (`:115`) filters `$0.isBrowsable`. `enforceAdultGating` already goes through `visibleSources`.
@@ -169,6 +180,7 @@ Files: `MangaCarta/Services/SourceRegistry.swift`, `MangaCarta/Views/SettingsVie
   - `visibleSourcesNeverIncludesLocal` — registry of `[LocalSource, MockSource]` (local **first**, the worst case) → `visibleSources(includeAdult: true)` ids == `["mock"]`.
   - `activeFallbackSkipsNonBrowsable` — same registry, stored active id `"local"` (via `UserDefaults` suite or `-uitest-source` equivalent) → `active.id == "mock"`.
   - `localIsResolvableById` — `source(id: "local")` is the `LocalSource`; `source(for: manga)` with `sourceId "local"` returns it, not the active source.
+  - `aboutSourceNamesExcludeLocal` — the name list the About row renders (extract it to a small registry helper, e.g. `browsableSourceNames`, so it is testable without UI) omits "Local".
   - `productionBuiltInsContainLocal` — `SourceRegistry()` (no injection) contains `"local"`.
 
 **Conflict with zero-sources slice 1** (branch `eliasmagdaleno/zero-sources-slice-1`, not yet committed as of this plan): it makes `active` optional and removes MangaDex from `builtInSources()`. Both branches edit `:49-117`. Whichever lands second must (a) keep `LocalSource` in `builtInSources()` so the `precondition(!sources.isEmpty)` at `:50` still holds — or drop the precondition if zero-sources already did; (b) express `firstBrowsable` as the optional `active` — `local` must never become the non-nil answer; (c) make "is there a browse Source" mean `!visibleSources(includeAdult: true).isEmpty`, **never** `!sources.isEmpty`, since `local` is always there (spec §1: not "a Source installed"). Call-sites that read `registry.active` today: `Models/HomeViewModel.swift:36`, `Models/SearchViewModel.swift:67`, `SourceRegistry.swift:104`, `:110`. Recommend landing zero-sources first and rebasing this task onto it.
@@ -194,7 +206,8 @@ Files: `MangaCarta/Services/MetadataUpgradeQueue.swift` (`:56-79`, `:337-349`), 
   - `localOnlyWorkIsNeverEnqueued` — `WorkStore` on a temp directory with one local-only Work, stubbed AniList that records calls → `drainOnce` returns `.idle`-equivalent, zero AniList calls.
   - `mixedStoreStillUpgradesRemoteWork` — plus one remote Work → exactly the remote one is attempted.
   - `compositionWiresRegistryIntoQueue` (AppCompositionTests) — build the graph with a temp directory, mint a local Work, drain once; no AniList request.
-  - `localCompletionNeverReachesMALOutbox` (in the existing MAL coordinator tests file, `MALProgressCoordinatorTests.swift` if present — grep first) — signed-in stand-in account, `chapterCompleted` for a local Work (`malId` nil) → the outbox holds only a *deferred* item, and `workMetadataChanged` is never called for it because the queue never upgrades it. If the owner wants no deferred row at all, see open question 4.
+- **MAL guard (decision 4):** `local` Works are kept out of the MAL queue entirely. `MALProgressCoordinator.chapterCompleted` (`MALProgressCoordinator.swift:125`) gains an injected `listingParticipates`-style predicate (same composition closure, default `{ _ in true }`) and returns before `outbox.enqueue`/`outbox.defer` when the completion's listing (`ListingKey(completion.manga)`) does not participate. This supersedes the earlier "no code change" note in the integration table.
+  - `localCompletionNeverReachesMALOutbox` (in the existing MAL coordinator tests file — grep for it; else new, **`xcp`**) — signed-in stand-in account with a real `MALProgressOutbox` on a temp directory, `chapterCompleted` for a local Work (`malId` nil) → the outbox on disk holds **no** item, neither enqueued nor deferred; a remote completion in the same test still defers.
 
 ### Task 9 — `ImageCache` reads file URLs directly
 
