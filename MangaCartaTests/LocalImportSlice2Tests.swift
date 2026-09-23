@@ -3,7 +3,7 @@ import Testing
 import UIKit
 @testable import MangaCarta
 
-private enum LocalTestZip {
+enum LocalTestZip {
     static let png = Data(base64Encoded:
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")!
 
@@ -19,7 +19,7 @@ private enum LocalTestZip {
             central.append(u16(0)); central.append(u16(0)); central.append(u16(0)); central.append(u16(0))
             central.append(u32(crc)); central.append(u32(UInt32(data.count)))
             central.append(u32(UInt32(data.count))); central.append(u16(UInt16(n.count))); central.append(u16(0))
-            central.append(u16(0)); central.append(u16(0)); central.append(u16(0)); central.append(u16(0))
+            central.append(u16(0)); central.append(u16(0)); central.append(u16(0))
             central.append(u32(0)); central.append(u32(offset)); central.append(n)
             offset = UInt32(body.count)
         }
