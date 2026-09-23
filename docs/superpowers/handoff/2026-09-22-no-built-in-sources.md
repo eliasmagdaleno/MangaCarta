@@ -58,7 +58,7 @@ Closed: #168.
 | #218 | this handoff | docs | merge |
 | #215 | ADR-0003 A6 + ADR-0022 A4 + ADR-0016 amendment | docs, ready | **owner reads + merges — first** |
 | #216 | Local import spec + ADR-0025 | docs, ready (art still owner's) | owner reads + merges |
-| #211 | #189 uninstalled-source fallback | Claude re-review: **mergeable** — relaunch test really reads the store from disk. First CI run failed hermetic `RepositorySettingsUITests.testAddedRepositoryCanBeRemoved` although the branch already contains #209; branch updated from main, CI re-running | merge if green; **if that test fails again, treat as a real #211 regression**, not the old flake. Refresh-path gap split out as **#219** |
+| #211 | #189 uninstalled-source fallback | **merged 2026-09-22** after Claude re-review; second CI run fully green (first-run UI failure was a flake) | remove worktree `fix-189-registry-uninstalled-fallback`; follow-up is #219 |
 | #212 | #203 ChapterOrdinal precision | reworked, full suite passed | CI green → merge |
 | #213 | #186 nested paging | worker `ctx_994ffe91994d` had been **paused since the previous session** (the handoff wrongly said resumed); resumed 21:21, test-only scope | review its result → merge |
 | #214 | #210 DNS-rebinding peer check | Claude review: **do not merge as-is**. Check runs after the request is sent and fails open on nil peer (blocks exfiltration only, not blind SSRF); proxies break/bypass it; cancellation regressed; tests never exercise real `URLSessionDataFetcher`; session leak. Rework dispatched `ctx_e4ff1ffd33c8`: cancellation + test, loopback real-path test (mutation-checked), `isPublic` table test (scoped/mapped/NAT64), leak, stale comment, PR body → "Refs #210" + exfiltration-only scope | re-review → merge; **then file a new issue for connect-time IP pinning** and keep/rescope #210 |
@@ -145,7 +145,7 @@ warning. Later slices per the spec.
 - **App icon** — `docs/design/app-icon-brief.md` to a designer; placeholder ships until then.
 - **Device-in-hand** — MAL live-write verify (`scripts/mal_live_write.py`,
   `TEST_RUNNER_MAL_LIVE_WRITE=1`); VoiceOver pass #90.
-- Open issues: #186 (#213), #189 (#211), #203 (#212), #210 (#214), #219 (refresh misrouting), #150, #90.
+- Open issues: #186 (#213), #203 (#212), #210 (#214), #219 (refresh misrouting), #150, #90.
 
 ### Cleanup the owner runs (agent removal was refused by the permission classifier)
 ```sh
