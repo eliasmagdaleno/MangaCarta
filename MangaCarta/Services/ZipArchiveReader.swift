@@ -81,8 +81,10 @@ public struct ZipArchiveReader: Sendable {
         let nameLength = Int(try readUInt16(at: entry.localHeaderOffset + 26))
         let extraLength = Int(try readUInt16(at: entry.localHeaderOffset + 28))
         let start = entry.localHeaderOffset + 30 + UInt64(nameLength) + UInt64(extraLength)
+        guard start <= UInt64(bytes.count), entry.compressedSize <= UInt64(bytes.count) - start else {
+            throw ZipArchiveError.truncated
+        }
         let end = start + entry.compressedSize
-        guard end <= UInt64(bytes.count), start <= end else { throw ZipArchiveError.truncated }
         let compressed = bytes[Int(start)..<Int(end)]
         if entry.uncompressedSize == 0 {
             guard entry.crc32 == CRC32.checksum(Data()) else { throw ZipArchiveError.corrupt }
@@ -149,8 +151,10 @@ public struct ZipArchiveReader: Sendable {
         let nameLength = Int(try readUInt16(at: entry.localHeaderOffset + 26))
         let extraLength = Int(try readUInt16(at: entry.localHeaderOffset + 28))
         let start = entry.localHeaderOffset + 30 + UInt64(nameLength) + UInt64(extraLength)
+        guard start <= UInt64(bytes.count), entry.compressedSize <= UInt64(bytes.count) - start else {
+            throw ZipArchiveError.truncated
+        }
         let end = start + entry.compressedSize
-        guard end <= UInt64(bytes.count), start <= end else { throw ZipArchiveError.truncated }
         let source = bytes[Int(start)..<Int(end)]
         var output = Data(count: min(maxLength, Int(entry.uncompressedSize)))
         let outputLength = output.count
@@ -202,7 +206,7 @@ public struct ZipArchiveReader: Sendable {
         let count = Int(u16(e + 10)); let size = UInt64(u32(e + 12)); let offset = UInt64(u32(e + 16))
         guard count != 0xffff && size != 0xffff_ffff && offset != 0xffff_ffff else { throw ZipArchiveError.zip64 }
         guard count <= limits.maxEntryCount else { throw ZipArchiveError.sizeLimit("archive") }
-        guard offset + size <= UInt64(e) else { throw ZipArchiveError.truncated }
+        guard offset <= UInt64(e), size <= UInt64(e) - offset else { throw ZipArchiveError.truncated }
         var cursor = Int(offset); var result: [Entry] = []; var total: UInt64 = 0
         for _ in 0..<count {
             guard cursor + 46 <= data.count, u32(cursor) == 0x02014b50 else { throw ZipArchiveError.corrupt }
