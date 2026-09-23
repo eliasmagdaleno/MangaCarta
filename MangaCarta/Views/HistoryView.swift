@@ -74,7 +74,7 @@ struct HistoryView: View {
                            source: source,
                            initialPosition: entry.position)
             } else {
-                Text("Source unavailable")
+                UnavailableSourceView()
             }
         } label: {
             HStack(spacing: 12) {
@@ -156,7 +156,7 @@ extension ReadingEntry {
     var asManga: Manga {
         Manga(
             id: mangaId,
-            sourceId: sourceId ?? MangaDexSource.sourceID,
+            sourceId: sourceId ?? LegacySourceID.unattributed,
             title: mangaTitle,
             description: "",
             status: "unknown",

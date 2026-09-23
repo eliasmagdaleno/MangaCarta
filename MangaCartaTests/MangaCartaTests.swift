@@ -568,18 +568,18 @@ final class MangaCartaTests: XCTestCase {
         let b = MockSource(id: "b", name: "B")
         let registry = SourceRegistry(sources: [a, b])
 
-        XCTAssertEqual(registry.active.id, "a")               // first source is active by default
+        XCTAssertEqual(registry.active?.id, "a")               // first source is active by default
         XCTAssertEqual(registry.source(id: "b")?.id, "b")     // lookup by id
         XCTAssertNil(registry.source(id: "nope"))             // unknown id → nil
 
         registry.activeSourceID = "b"
-        XCTAssertEqual(registry.active.id, "b")               // switching active source works
+        XCTAssertEqual(registry.active?.id, "b")               // switching active source works
     }
 
     @MainActor func testRegistryActiveFallsBackWhenActiveIDMissing() {
         let registry = SourceRegistry(sources: [MockSource(id: "only", name: "Only")])
         registry.activeSourceID = "ghost"                     // point at a non-existent source
-        XCTAssertEqual(registry.active.id, "only")            // still resolves to the first source
+        XCTAssertEqual(registry.active?.id, "only")            // still resolves to the first source
     }
 
     @MainActor func testRegistrySourceForMangaUsesSourceId() {
@@ -1092,7 +1092,7 @@ final class MangaCartaTests: XCTestCase {
 
     @MainActor func testHomeViewModelInjectedSourceWins() {
         let vm = HomeViewModel(source: MockSource(id: "mock", name: "Mock"))
-        XCTAssertEqual(vm.source.id, "mock")
+        XCTAssertEqual(vm.source?.id, "mock")
     }
 
     @MainActor func testHomeSkipsUndeclaredFeeds() async throws {

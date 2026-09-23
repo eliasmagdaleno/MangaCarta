@@ -59,7 +59,7 @@ final class SearchViewModel: ObservableObject {
 
     /// The source these results come from — resolved at read time so a chip switch
     /// or a Settings source change is reflected on the next search.
-    var source: MangaSource {
+    var source: MangaSource? {
         switch binding {
         case .fixed(let source):
             return source
@@ -111,7 +111,7 @@ final class SearchViewModel: ObservableObject {
         // Capture the source as a value so the escaping fetch closure doesn't
         // reach back into main-actor state, and so a later source switch can't
         // change which source this in-flight page belongs to.
-        let source = self.source
+        guard let source = self.source else { return }
         loader.load { limit, offset in
             try await source.search(title: query, limit: limit, offset: offset)
         }
