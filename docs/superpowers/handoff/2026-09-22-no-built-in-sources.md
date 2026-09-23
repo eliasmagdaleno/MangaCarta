@@ -145,7 +145,7 @@ warning. Later slices per the spec.
 - **App icon** — `docs/design/app-icon-brief.md` to a designer; placeholder ships until then.
 - **Device-in-hand** — MAL live-write verify (`scripts/mal_live_write.py`,
   `TEST_RUNNER_MAL_LIVE_WRITE=1`); VoiceOver pass #90.
-- Open issues: #186 (being closed by #213), #189 (#211), #203 (#212), #210 (#214), #150, #90.
+- Open issues: #186 (#213), #189 (#211), #203 (#212), #210 (#214), #219 (refresh misrouting), #150, #90.
 
 ### Cleanup the owner runs (agent removal was refused by the permission classifier)
 ```sh
