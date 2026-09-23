@@ -57,16 +57,12 @@ Closed: #168.
 |---|---|---|---|
 | #215 | ADR-0003 A6 + ADR-0022 A4 + ADR-0016 amendment | docs, ready | **owner reads + merges** |
 | #216 | Local import spec + ADR-0025 | docs, ready (only open item: screenshot/sample art, owner's) | **owner reads + merges** |
-| #211 | #189 uninstalled-source fallback | reworked (`d8047bb`) to survive relaunch after review | full suite was running at handoff; review rework; merge |
+| #211 | #189 uninstalled-source fallback | reworked (`d8047bb`) to survive relaunch after review; **full suite 1072/1077 passed (5 skipped)** | Claude review of the rework; CI → merge |
 | #212 | #203 ChapterOrdinal precision | reworked (`fb39011`) after review found it would **wipe every `updates.json`**; full suite 1074/1079 passed; PR body restored by hand | CI green → merge |
 | #213 | #186 nested paging `{query, page:{cursor,limit}}` | worker `ctx_994ffe91994d` resumed, fixing only the cutover test | review worker's result; merge |
-| #214 | #210 DNS-rebinding peer check | worker tests interrupted by sim contention | full suite + Claude review |
-| #217 | Local import slice 1: ZIP reader | focused tests passed; no full suite, no swiftlint | full suite + swiftlint + Claude review |
+| #214 | #210 DNS-rebinding peer check | **full suite 1078/1083 passed (5 skipped)** at `cefd413` | Claude review; CI → merge |
+| #217 | Local import slice 1: ZIP reader | **full suite 1073/1078 passed (5 skipped)** at `6abd378`; swiftlint not yet run | swiftlint + Claude review; CI → merge |
 | #195 | stale draft of ADR-0003 A5 | superseded (A5 merged via #199, reversed by A6) | close it (owner OK pending) |
-
-A serial full-suite run over #211, #214, #217 was started in the background at 17:13; if its result
-is lost, re-run: `xcodebuild … -only-testing:MangaCartaTests` in each worktree under
-`~/orca/workspaces/Manga-Reader/`, **one at a time**.
 
 **Still running at handoff (Codex, Orca run `run_e5fecb527d0a`):**
 - `ctx_994ffe91994d` — #213 cutover test.
