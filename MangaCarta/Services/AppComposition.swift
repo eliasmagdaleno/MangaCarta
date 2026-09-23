@@ -23,10 +23,19 @@ private struct ExtensionCompositionEnvironmentKey: EnvironmentKey {
     static let defaultValue: AppComposition.ExtensionComposition? = nil
 }
 
+private struct ExtensionStorageErrorEnvironmentKey: EnvironmentKey {
+    static let defaultValue: String? = nil
+}
+
 extension EnvironmentValues {
     var extensionComposition: AppComposition.ExtensionComposition? {
         get { self[ExtensionCompositionEnvironmentKey.self] }
         set { self[ExtensionCompositionEnvironmentKey.self] = newValue }
+    }
+
+    var extensionStorageError: String? {
+        get { self[ExtensionStorageErrorEnvironmentKey.self] }
+        set { self[ExtensionStorageErrorEnvironmentKey.self] = newValue }
     }
 }
 
@@ -75,6 +84,7 @@ struct AppComposition {
     /// current. It is held here so the registrar, the installer and the store live for
     /// the app's lifetime and so a test can drive an install through the real graph.
     let extensions: ExtensionComposition?
+    let extensionStorageError: String?
 
     /// The extension subsystem's four owners, built together because they share one
     /// `SourceLifecycleRegistry`: the installer drives it, the registrar mirrors it.
@@ -423,10 +433,11 @@ struct AppComposition {
         self.registry = registry ?? .shared
         (self.listingCounts, self.sourcePreferences, self.fulfillment) =
             Self.makeFulfillment(works: wk, registry: self.registry, defaults: defaults)
-        let extensions = Self.makeExtensions(directory: directory,
-                                              transport: repositoryTransport,
-                                              registry: self.registry)
-        self.extensions = extensions
+        let extensionResult = Self.makeExtensions(directory: directory,
+                                                   transport: repositoryTransport,
+                                                   registry: self.registry)
+        self.extensions = extensionResult.composition
+        self.extensionStorageError = extensionResult.error
     }
 
     /// The installed-Source subsystem (Phase 4). Restores every installed Source from
@@ -438,8 +449,13 @@ struct AppComposition {
         directory: URL,
         transport: (any RepositoryTransport)?,
         registry: SourceRegistry
-    ) -> ExtensionComposition? {
-        guard let host = try? ExtensionHostCapabilityFactory(directory: directory) else { return nil }
+    ) -> (composition: ExtensionComposition?, error: String?) {
+        let host: ExtensionHostCapabilityFactory
+        do {
+            host = try ExtensionHostCapabilityFactory(directory: directory)
+        } catch {
+            return (nil, "Installed Sources could not be read. Nothing was removed.")
+        }
         let repositories = RepositoryStore(directory: directory)
         let lifecycle = SourceLifecycleRegistry()
         let acknowledgement = AdultInstallAcknowledgementHandle()
@@ -452,9 +468,9 @@ struct AppComposition {
         installer.restoreInstalledSources()
         let registrar = ExtensionSourceRegistrar(store: repositories, lifecycle: lifecycle,
                                                  host: host, registry: registry)
-        return ExtensionComposition(repositories: repositories, installer: installer, host: host,
-                                    registrar: registrar, adultAcknowledgement: acknowledgement,
-                                    usesBundledTransport: transport == nil)
+        return (ExtensionComposition(repositories: repositories, installer: installer, host: host,
+                                     registrar: registrar, adultAcknowledgement: acknowledgement,
+                                     usesBundledTransport: transport == nil), nil)
     }
 
     /// Fulfillment's three pieces (ADR-0004). Extracted from `init` only because it had

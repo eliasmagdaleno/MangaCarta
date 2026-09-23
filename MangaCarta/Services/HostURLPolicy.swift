@@ -9,17 +9,25 @@
 import Foundation
 import Darwin
 
-struct HostURLPolicy: Sendable {
-    private let origins: Set<String>
+/// Where the app will send a request at all, independent of whose request it is: an
+/// absolute HTTPS URL without credentials whose host resolves only to public addresses.
+/// `HostURLPolicy` adds a Source's declared origins on top; repository fetches, which have
+/// no declared origins, use this alone.
+struct HostDestinationPolicy: Sendable {
     private let resolver: any HostNameResolving
 
-    init(allowedOrigins: [String], resolver: any HostNameResolving = SystemHostResolver()) {
-        origins = Set(allowedOrigins)
+    init(resolver: any HostNameResolving = SystemHostResolver()) {
         self.resolver = resolver
     }
 
     @discardableResult
     func validate(_ url: URL) async throws -> URL {
+        try await validateResolution(of: Self.validatedHost(url))
+        return url
+    }
+
+    /// The URL-shape half: returns the lowercased host, touching no network.
+    static func validatedHost(_ url: URL) throws -> String {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
               components.scheme?.lowercased() == "https",
               components.user == nil,
@@ -27,12 +35,14 @@ struct HostURLPolicy: Sendable {
               let host = components.host?.lowercased(),
               !host.isEmpty,
               !url.isFileURL else {
-            throw denied("only absolute HTTPS URLs without credentials are allowed")
+            throw HostCapabilityError(code: .policyDenied,
+                                      message: "only absolute HTTPS URLs without credentials are allowed")
         }
-        guard let origin = Self.canonicalOrigin(from: components), origins.contains(origin) else {
-            throw denied("the destination is outside this Source's declared origins")
-        }
+        return host
+    }
 
+    /// The DNS half: every address the host resolves to must be public.
+    func validateResolution(of host: String) async throws {
         let addresses: [String]
         do {
             addresses = try await resolver.addresses(for: host)
@@ -47,8 +57,31 @@ struct HostURLPolicy: Sendable {
                                       message: "the destination name resolved to no addresses")
         }
         guard addresses.allSatisfy(HostIPAddress.isPublic) else {
-            throw denied("the destination resolved to a non-public address")
+            throw HostCapabilityError(code: .policyDenied,
+                                      message: "the destination resolved to a non-public address")
         }
+    }
+}
+
+struct HostURLPolicy: Sendable {
+    private let origins: Set<String>
+    private let destinations: HostDestinationPolicy
+
+    init(allowedOrigins: [String], resolver: any HostNameResolving = SystemHostResolver()) {
+        origins = Set(allowedOrigins)
+        destinations = HostDestinationPolicy(resolver: resolver)
+    }
+
+    /// Shape, then origin membership, then DNS — so a host outside the declared origins is
+    /// refused without ever being resolved.
+    @discardableResult
+    func validate(_ url: URL) async throws -> URL {
+        let host = try HostDestinationPolicy.validatedHost(url)
+        guard let origin = Self.canonicalOrigin(for: url), origins.contains(origin) else {
+            throw HostCapabilityError(code: .policyDenied,
+                                      message: "the destination is outside this Source's declared origins")
+        }
+        try await destinations.validateResolution(of: host)
         return url
     }
 
@@ -68,10 +101,6 @@ struct HostURLPolicy: Sendable {
             return "https://\(host):\(port)"
         }
         return "https://\(host)"
-    }
-
-    private func denied(_ message: String) -> HostCapabilityError {
-        HostCapabilityError(code: .policyDenied, message: message)
     }
 }
 
