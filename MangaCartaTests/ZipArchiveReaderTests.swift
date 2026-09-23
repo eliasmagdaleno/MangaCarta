@@ -27,8 +27,49 @@ final class ZipArchiveReaderTests: XCTestCase {
                 $0.localizedStandardCompare($1) == .orderedAscending
             }
             XCTAssertEqual(pages.map { URL(fileURLWithPath: $0.name).lastPathComponent }, expectedNames)
-            XCTAssertEqual(try reader.data(for: pages[0]).prefix(3), Data([0xff, 0xd8, 0xff]))
+            let firstPage = try XCTUnwrap(pages.first)
+            for page in [firstPage] + Array(pages.dropFirst()) {
+                let expectedPayload: Data
+                switch (name, URL(fileURLWithPath: page.name).lastPathComponent) {
+                case ("deflated.cbz", _), ("stored.zip", _):
+                    expectedPayload = Data([0xff, 0xd8, 0xff] + Array(repeating: 0, count: 64))
+                case ("archive-utility.cbz", "2.jpg"), ("zip-command.zip", "2.jpg"):
+                    expectedPayload = Data([0xff, 0xd8, 0xff, 1, 2, 3])
+                case ("archive-utility.cbz", "10.jpg"), ("zip-command.zip", "10.jpg"):
+                    expectedPayload = Data([0xff, 0xd8, 0xff, 4, 5, 6])
+                default:
+                    XCTFail("unexpected fixture page: \(name)/\(page.name)")
+                    continue
+                }
+                XCTAssertEqual(try reader.data(for: page), expectedPayload)
+            }
+            if name == "deflated.cbz" {
+                XCTAssertTrue(pages.allSatisfy { $0.compressionMethod == 8 })
+            } else if name == "stored.zip" {
+                XCTAssertTrue(pages.allSatisfy { $0.compressionMethod == 0 })
+            }
         }
+    }
+
+    func testExtractWritesExactBytesAndRejectsSymlinkEscape() throws {
+        let payload = Data([0xff, 0xd8, 0xff, 0x00, 0x7f])
+        let reader = try ZipArchiveReader(data: makeArchive(name: "pages/1.jpg", payload: payload, method: 0))
+        let entry = try XCTUnwrap(reader.listEntries().first)
+        let temporaryDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
+
+        try reader.extract([entry], to: temporaryDirectory)
+        XCTAssertEqual(try Data(contentsOf: temporaryDirectory.appendingPathComponent("pages/1.jpg")), payload)
+
+        let outsideDirectory = temporaryDirectory.deletingLastPathComponent().appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: outsideDirectory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: outsideDirectory) }
+        let symlinkDirectory = temporaryDirectory.appendingPathComponent("escape")
+        try FileManager.default.createSymbolicLink(at: symlinkDirectory, withDestinationURL: outsideDirectory)
+        let escapingReader = try ZipArchiveReader(data: makeArchive(name: "page.jpg", payload: payload, method: 0))
+        let escapingEntry = try XCTUnwrap(escapingReader.listEntries().first)
+
+        assertError({ try escapingReader.extract([escapingEntry], to: symlinkDirectory) }, equals: .pathTraversal("page.jpg"))
     }
 
     func testRequiredArchiveFailures() throws {

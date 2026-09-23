@@ -117,11 +117,16 @@ public struct ZipArchiveReader: Sendable {
     }
 
     public func extract(_ selected: [Entry], to directory: URL) throws {
+        let standardizedDirectory = directory.standardizedFileURL
+        let resolvedDirectory = standardizedDirectory.resolvingSymlinksInPath()
+        if standardizedDirectory != resolvedDirectory,
+           let firstFile = selected.first(where: { !$0.isDirectory }) {
+            throw ZipArchiveError.pathTraversal(firstFile.name)
+        }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         for entry in selected where !entry.isDirectory {
             try Self.validatePath(entry.name)
             let destination = directory.appendingPathComponent(entry.name)
-            let resolvedDirectory = directory.standardizedFileURL.resolvingSymlinksInPath()
             let resolvedDestination = destination.standardizedFileURL.resolvingSymlinksInPath()
             let directoryPrefix = resolvedDirectory.path.hasSuffix("/") ? resolvedDirectory.path : resolvedDirectory.path + "/"
             guard resolvedDestination.path.hasPrefix(directoryPrefix) else { throw ZipArchiveError.pathTraversal(entry.name) }
