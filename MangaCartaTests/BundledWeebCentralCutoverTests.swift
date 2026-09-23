@@ -376,7 +376,10 @@ final class BundledWeebCentralStructureTests: XCTestCase {
                 }
             }
         }
-        XCTAssertEqual(hits, ["MangaCarta/Resources/BundledRepositories/weebcentral/engine.js"])
+        // The one exception: a frozen copy of the v1 engine, kept so the host's paging
+        // compatibility shim (#186) is tested against a real legacy reader. It goes when the shim does.
+        XCTAssertEqual(hits.sorted(), ["MangaCarta/Resources/BundledRepositories/weebcentral/engine.js",
+                                       "MangaCartaTests/__Fixtures__/weebcentral/engine-v1.js"])
     }
 
     /// §12: no Remove and no Change URL for a bundled repository — the predicate the screen uses.
