@@ -1810,7 +1810,8 @@ final class MangaCartaTests: XCTestCase {
                                        provider: CandidateProvider,
                                        workStore: WorkStore? = nil,
                                        library: LibraryStore? = nil,
-                                       mangaDexSource: MangaSource = CannedTagSource(lists: [:], failTags: []),
+                                       source: MangaSource = CannedTagSource(lists: [:], failTags: []),
+                                       sourceProvider: (() -> MangaSource?)? = nil,
                                        now: Date = Date(), seed: UInt64 = 1,
                                        pushPriority: @escaping RecommendationEngine.PriorityPush = { _ in },
                                        tagBlocked: @escaping RecommendationEngine.TagBlocked = { _ in false })
@@ -1820,7 +1821,7 @@ final class MangaCartaTests: XCTestCase {
             .appendingPathComponent("EngineTests-\(UUID().uuidString)"))
         return RecommendationEngine(history: history, library: lib, profileStore: tasteStore,
                                     workStore: works,
-                                    mangaDexSource: mangaDexSource,
+                                    source: sourceProvider ?? { source },
                                     makeProvider: { _ in provider }, now: { now }, seed: seed,
                                     pushPriority: pushPriority, tagBlocked: tagBlocked)
     }
@@ -1831,6 +1832,51 @@ final class MangaCartaTests: XCTestCase {
         func candidates(for profile: TasteProfile, excluding: Set<String>, limit: Int) async throws -> [ScoredManga] {
             Array(pool.filter { !excluding.contains($0.manga.id) }.prefix(limit))
         }
+    }
+
+    @MainActor
+    private final class RecordingProvider: CandidateProvider {
+        var called = false
+        func candidates(for profile: TasteProfile, excluding: Set<String>, limit: Int) async throws -> [ScoredManga] {
+            called = true
+            return []
+        }
+    }
+
+    @MainActor
+    func testRecommendationEngineWithNilSourceDoesNotCallProvider() async {
+        let defaults = UserDefaults(suiteName: "test.engine.nil-source.\(UUID().uuidString)")!
+        let history = HistoryStore(defaults: defaults)
+        let works = WorkStore(directory: URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("EngineNil-\(UUID().uuidString)"))
+        let taste = TasteProfileStore(defaults: defaults)
+        for id in ["a", "b", "c"] { tagRead(works, history, id, [Tag(id: "t", name: "Action", group: "genre")]) }
+        let provider = RecordingProvider()
+        let engine = makeEngine(history: history, tasteStore: taste, provider: provider,
+                                workStore: works, sourceProvider: { nil })
+
+        await engine.refresh()
+
+        XCTAssertFalse(provider.called)
+        XCTAssertTrue(engine.recommendations.isEmpty)
+    }
+
+    @MainActor
+    func testRecommendationEnginePassesRegisteredSourceToProvider() async {
+        let defaults = UserDefaults(suiteName: "test.engine.source.\(UUID().uuidString)")!
+        let history = HistoryStore(defaults: defaults)
+        let works = WorkStore(directory: URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("EngineSource-\(UUID().uuidString)"))
+        let taste = TasteProfileStore(defaults: defaults)
+        for id in ["a", "b", "c"] { tagRead(works, history, id, [Tag(id: "t", name: "Action", group: "genre")]) }
+        let provider = RecordingProvider()
+        let source = CannedTagSource(lists: [:], failTags: [])
+        let engine = makeEngine(history: history, tasteStore: taste, provider: provider,
+                                workStore: works, sourceProvider: { source })
+
+        await engine.refresh()
+
+        XCTAssertTrue(provider.called)
     }
 
     private func scored(_ id: String) -> ScoredManga {

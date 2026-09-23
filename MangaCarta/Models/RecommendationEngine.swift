@@ -98,8 +98,7 @@ final class RecommendationEngine: ObservableObject {
          library: LibraryStore,
          profileStore: TasteProfileStore,
          workStore: WorkStore,
-         mangaDexSource: MangaSource? = nil,
-         source: (() -> MangaSource?)? = nil,
+         source: @escaping () -> MangaSource?,
          makeProvider: @escaping (MangaSource) -> CandidateProvider = { @MainActor source in
              CompositeCandidateProvider(
                  tag: TagCandidateProvider(source: source),
@@ -117,7 +116,7 @@ final class RecommendationEngine: ObservableObject {
         self.library = library
         self.profileStore = profileStore
         self.workStore = workStore
-        self.source = source ?? { mangaDexSource }
+        self.source = source
         self.makeProvider = makeProvider
         self.now = now
         self.pushPriority = pushPriority
