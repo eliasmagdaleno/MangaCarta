@@ -39,6 +39,30 @@ struct HostHTTPTests {
         }
     }
 
+    @Test("Host HTTP rejects a loopback peer on the real URLSession path")
+    func hostHTTPRealURLSessionRefusesLoopbackPeer() async throws {
+        let server = try LoopbackHTTPServer()
+        let port = try await server.start()
+        defer { server.stop() }
+        let fetcher = LoopbackRedirectingFetcher(
+            real: URLSessionDataFetcher(configuration: .ephemeral) { _ in nil },
+            port: port)
+        let transport = URLSessionHostHTTPTransport(fetcher: fetcher)
+        let client = HostHTTPClient(
+            sourceID: QualifiedSourceID(rawValue: "repo/source-a"),
+            allowedOrigins: ["https://allowed.example"],
+            transport: transport,
+            resolver: FixedHostResolver(addresses: ["93.184.216.34"]))
+
+        let error = await hostCapabilityError {
+            try await client.request(HostHTTPRequest(
+                url: try #require(URL(string: "https://allowed.example/start"))))
+        }
+
+        #expect(error?.code == .policyDenied)
+        #expect(error?.message == "the connected destination was non-public")
+    }
+
     @Test("Cancelling a fetch cancels the underlying URLSession task")
     func cancellingFetchCancelsURLSessionTask() async throws {
         let server = try LoopbackHTTPServer(respondsImmediately: false)
@@ -66,6 +90,7 @@ struct HostHTTPTests {
             ("::ffff:10.0.0.5", false),
             ("::ffff:127.0.0.1", false),
             ("64:ff9b::a00:5", false),
+            ("64:ff9b::808:808", true),
             ("::ffff:8.8.8.8", true),
             ("2001:4860:4860::8888", true),
             ("93.184.216.34", true),

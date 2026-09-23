@@ -45,6 +45,9 @@ final class URLSessionDataFetcher: NSObject, URLSessionDataFetching, URLSessionD
 
     private let lock = NSLock()
     private let configuration: URLSessionConfiguration
+    // Task identifiers restart from zero for each URLSession. This is safe because the
+    // session is invalidated as soon as it becomes idle; alternatively key by
+    // (ObjectIdentifier(session), taskIdentifier).
     private var session: URLSession?
     private var pending: [Int: Pending] = [:]
     private let redirectHandler: @Sendable (URLRequest) -> URLRequest?
