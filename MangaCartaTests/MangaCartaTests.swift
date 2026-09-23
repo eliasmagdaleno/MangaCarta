@@ -587,7 +587,7 @@ final class MangaCartaTests: XCTestCase {
         let b = MockSource(id: "b", name: "B")
         let registry = SourceRegistry(sources: [a, b])
         let manga = Manga(id: "x", sourceId: "b", title: "T", description: "", status: "ongoing", year: nil, coverURL: nil, malId: nil)
-        XCTAssertEqual(registry.source(for: manga).id, "b")   // resolves to the manga's own source
+    XCTAssertEqual(registry.source(for: manga)?.id, "b")   // resolves to the manga's own source
     }
 
     @MainActor func testDetailViewModelLoadsThroughInjectedSource() async {

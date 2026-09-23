@@ -69,9 +69,13 @@ struct HistoryView: View {
 
     private func row(_ entry: ReadingEntry) -> some View {
         NavigationLink {
-            ReaderView(manga: entry.asManga, chapter: entry.asChapter,
-                       source: registry.source(for: entry.asManga),
-                       initialPosition: entry.position)
+            if let source = registry.source(for: entry.asManga) {
+                ReaderView(manga: entry.asManga, chapter: entry.asChapter,
+                           source: source,
+                           initialPosition: entry.position)
+            } else {
+                Text("Source unavailable")
+            }
         } label: {
             HStack(spacing: 12) {
                 AsyncImage(url: entry.coverURL) { phase in

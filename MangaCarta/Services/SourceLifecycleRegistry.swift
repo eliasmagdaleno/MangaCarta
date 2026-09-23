@@ -161,6 +161,11 @@ final class SourceLifecycleRegistry {
         entries[id]?.declaration
     }
 
+    /// Every identity this lifecycle has seen, regardless of its current state.
+    var knownSourceIDs: Set<String> {
+        Set(entries.keys.map(\.rawValue))
+    }
+
     /// `nil` if this id has never been seen; otherwise its current lifecycle state.
     func state(for id: QualifiedSourceID) -> State? {
         entries[id]?.state

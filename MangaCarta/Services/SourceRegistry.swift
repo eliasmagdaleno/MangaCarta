@@ -28,6 +28,11 @@ final class SourceRegistry: ObservableObject {
     /// and never displace it.
     private let builtIn: [MangaSource]
 
+    /// Source ids known to the extension lifecycle, including disabled and uninstalled
+    /// entries. This lets legacy records retain the active-source fallback while an old
+    /// extension listing is treated as unavailable instead of being misrouted.
+    private var knownSourceIDs: Set<String> = []
+
     /// The source used for browsing feeds (Home rails, search). Persisted across launches.
     @Published var activeSourceID: String {
         didSet {
@@ -98,10 +103,18 @@ final class SourceRegistry: ObservableObject {
         sources.first { $0.id == id }
     }
 
-    /// The source a given manga came from, falling back to the active source if that
-    /// source isn't registered. Use this for a manga's detail / chapters / pages.
-    func source(for manga: Manga) -> MangaSource {
-        source(id: manga.sourceId) ?? active
+    /// The source a given manga came from. Legacy records with an unknown id retain the
+    /// active-source fallback; ids known to the extension lifecycle but no longer
+    /// registered return nil so callers cannot ask another Source for their listing.
+    func source(for manga: Manga) -> MangaSource? {
+        if let source = source(id: manga.sourceId) { return source }
+        return knownSourceIDs.contains(manga.sourceId) ? nil : active
+    }
+
+    /// Mirrors lifecycle identity knowledge into this registry. The lifecycle owns the
+    /// authoritative set; this is only a resolution seam for historical manga records.
+    func setKnownSourceIDs(_ ids: Set<String>) {
+        knownSourceIDs = ids
     }
 
     /// Update checks use MangaDex for legacy or unregistered source ids, falling back
