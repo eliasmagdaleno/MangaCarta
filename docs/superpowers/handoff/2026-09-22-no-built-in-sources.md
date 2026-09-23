@@ -1,8 +1,9 @@
 # Handoff — no built-in Sources: decision made, removal and local import started
 
-Date: 2026-09-22, 17:15 PDT (updated 2026-09-23 09:30 PDT)
+Date: 2026-09-22, 17:15 PDT (updated 2026-09-23 10:25 PDT)
 Repository: `/Users/eliasmagdaleno/Manga-Reader` (GitHub `eliasmagdaleno/MangaCarta`)
-`main` at **`04a033d`** (#211). Nothing merged overnight; every open PR below is CI-green as of 09:30.
+`main` at **`f957120`** (#217). Merged 2026-09-23: **#223** (zero-sources slice 1) and **#217** (ZIP reader).
+**Two Codex workers are live** — see "Live workers" below.
 
 **This is the live handoff, and it is the whole of what is outstanding.** Writing a new one means
 `git mv`-ing this into `archive/` first and carrying forward whatever below is still true
@@ -60,18 +61,31 @@ Closed: #168.
 | #216 | Local import spec + ADR-0025 | docs, ready (art still owner's) | owner reads + merges |
 | #211 | #189 uninstalled-source fallback | **merged 2026-09-22** after Claude re-review; second CI run fully green (first-run UI failure was a flake) | remove worktree `fix-189-registry-uninstalled-fallback`; follow-up is #219 |
 | #212 | #203 ChapterOrdinal precision | reworked, full suite passed | CI green → merge |
-| #213 | #186 nested paging + v1 compatibility shim | **Ready.** Shim `fa0a43e`: every request carries nested `page` *and* identical legacy top-level `cursor`/`limit`; removal is dated in code + spec (published engines nested, no later than slice 6). Claude review: correct; the `engine-v1.js` fixture is byte-identical to `main`'s engine. CI then failed one test — `testExactlyOneCopyOfTheEngineScriptExists` counted the fixture as a second engine copy; Claude allowlisted the fixture with a remove-with-the-shim comment (`b2b91c7`), 14/14 local, **CI all green** | **owner merges** |
+| #213 | #186 nested paging + v1 compatibility shim | **Ready.** Shim `fa0a43e`: every request carries nested `page` *and* identical legacy top-level `cursor`/`limit`; removal is dated in code + spec (published engines nested, no later than slice 6). Claude review: correct; the `engine-v1.js` fixture is byte-identical to `main`'s engine. CI then failed one test — `testExactlyOneCopyOfTheEngineScriptExists` counted the fixture as a second engine copy; Claude allowlisted the fixture with a remove-with-the-shim comment (`b2b91c7`), 14/14 local, **CI all green** | **Re-reviewed by Claude 2026-09-23**: fixture SHA-256 matches `main`'s pinned hash; the legacy test would fail without the shim; bundle v1→v2 never auto-applies, so installed v1 engines keep paging via the shim. Merges clean. When the shim goes, the fixture, `legacyWeebCentral()` and the one-copy allowlist go with it — add to removal slice 6's checklist | **owner merges** (`--auto`) |
 | #214 | #210 DNS-rebinding peer check | **Ready.** Two Claude reviews, rework + rebase (`c77f148`), coordinator full unit suite passed (936+150) and mutation checks on both `RepositoryTransport:115` and `HostHTTPClient:79` fail the real-path tests. **CI all green 22:45.** PR body says "Refs #210", exfiltration-only | **owner merges**; then file an issue for connect-time IP pinning (request can still reach a rebound host; proxies unhandled) |
-| #217 | Local import slice 1: ZIP reader | **Ready.** Last pass `f0b77a0` reviewed: `unzip -v` confirms `deflated.cbz` is Deflate and `stored.zip` is Stored; full-payload + compression-method asserts; `extract()` exact-bytes and symlink-escape test; no `pages[0]` crash. **CI all green** | **owner merges**. Caveat for slice 2: `extract()` now refuses any destination whose path contains a symlink — believed fine on device (`resolvingSymlinksInPath` strips `/private`), but verify one real-device import |
-| #223 | No-built-in slice 1: zero-source safety + `LegacySourceID` | Coordinator suite caught a real regression (stale active id returned nil despite a Source existing); fixed at `05955b1` with mutation check; 14 changed assertions audited and listed in the PR body; rebased onto main keeping #211 behaviour (`0dc8b15`). **CI all green 22:45** | short Claude review of the conflict resolution → owner merges. Slice 2 plan (#222) later needs "first *browsable* Source" instead of first Source |
+| #217 | Local import slice 1: ZIP reader | **merged 2026-09-23** (`f957120`) | remove worktree `local-import-zip-reader`. Slice 2 caveat: `extract()` refuses a destination path containing a symlink — verify one real-device import |
+| #223 | No-built-in slice 1: zero-source safety + `LegacySourceID` | **merged 2026-09-23** (`5b09c15`) after Claude review of the conflict resolution; comment fix `1dafdcb`. It also removed #219's cause: `sourceForRefresh` returns nil for an unregistered id and both refresh paths skip it (no fallback). #219 is closed | remove worktree `zero-sources-slice-1` |
 | #220 | App Store submission copy (`docs/app-store/submission-copy.md`) | **draft**, docs | owner decisions below |
 | #221 | MangaDex engine research (`docs/research/2026-09-22-mangadex-engine.md`) | docs | owner reads + merges |
 | #222 | Local import slice 2 plan (`docs/superpowers/plans/2026-09-22-local-import-slice-2.md`) | docs; owner's five answers recorded at `7ed53ab` | merge; implement after zero-sources slice 1 and #217 |
 | #195 | stale draft of ADR-0003 A5 | superseded | close it (owner OK pending) |
 
-New issue: **#219** — `SourceRegistry.sourceForRefresh` ignores `knownSourceIDs`, so refresh still sends an uninstalled Source's Listings to the fallback Source (`LibraryRefreshCoordinator:168`, `LibraryStore:298`). `ready-for-agent`.
+#219 (refresh sent an uninstalled Source's Listings to the fallback Source) is **closed** — resolved by #223.
 
-**No Codex workers live.** Both dispatches of run `run_e5fecb527d0a` (`ctx_ee4c7cf33ff0` #213, `ctx_3586b3d6910b` #217) were drained and released 2026-09-22 ~22:55. Removal slice 1 is PR **#223**.
+### Live workers (dispatched 2026-09-23 ~10:20, run `run_e5fecb527d0a`, Codex `gpt-5.6-luna` medium)
+
+| Dispatch | Work | Worktree (`~/orca/workspaces/Manga-Reader/`) | Branch / PR |
+|---|---|---|---|
+| `ctx_db771c360a5a` | **Removal slice 2** — route recommender, `MALEntityResolver` bridge and `MALReverseResolver` through the registry | `no-built-in-slice-2` | `eliasmagdaleno/no-built-in-slice-2` → PR pending |
+| `ctx_132baef04933` | **Local import slice 2** — the #222 plan, Tasks 1–11 | `local-import-slice-2` | `eliasmagdaleno/local-import-slice-2` → PR pending |
+
+Both based on `origin/main` after #223 and #217. Briefs were kept in the job scratch dir (not durable); their substance:
+- **Removal slice 2 design (decided by Claude, not yet an ADR):** `MangaSource.publishesExternalIds` as a *protocol requirement* (default false, MangaDex true); `SourceRegistry.externalIdSource` = active Source if it publishes ids, else first that does, else nil; each consumer resolves it **lazily per call** through the injected registry; fetch-by-ids over the `MangaSource` protocol, no MangaDex-specific protocol method; **nil Source ⇒ feature empty, never crash**. Existing assertions must not weaken; changed ones listed in the PR. If this design survives review, promote it to an ADR-0003 amendment or ADR-0016 note before the handoff is archived.
+- **Local import slice 2:** the plan as written, overridden by post-plan changes — `active` is optional, `sourceForRefresh` has no fallback, "is there a browse Source" means `!visibleSources(includeAdult: true).isEmpty`; re-check the plan's slice-1 contract against merged #217.
+- Both: own simulator (`Luna-removal2`, `Luna-local2`), focused suites only, mutation checks in the PR body, no merge.
+
+**Expected conflict:** both add requirements to `MangaSource` and edit `SourceRegistry`. Whichever merges second rebases.
+**On each PR:** Claude review (ask "does the test hit the real on-disk / relaunch path?"), then a coordinator full-suite run, serially. Then `worker-release --dispatch <id>`.
 
 **Merging is the owner's.** The auto-mode classifier refuses `gh pr merge` from the agent ("Merge Without Review"), even after a subagent review; the owner runs `! gh pr merge <n> --squash --delete-branch` (non-zero exit when the branch is in a worktree is harmless — check `gh pr view <n> --json state`).
 
@@ -83,8 +97,8 @@ Drain: `orca orchestration check --run run_e5fecb527d0a --terminal term_28f131d2
 ## What is owed — the plan
 
 ### No-built-in-Sources removal (slices; map in #215's context and the dependency inventory below)
-1. ✅ dispatched — zero-source safety + legacy nil id (slice 1 above).
-2. Route the recommender (`RecommendationEngine` injects `MangaDexSource()`), `MALReverseResolver`
+1. ✅ merged — #223.
+2. **In progress** (`ctx_db771c360a5a`). Route the recommender (`RecommendationEngine` injects `MangaDexSource()`), `MALReverseResolver`
    and the `MALEntityResolver` bridge (`MangaDexAPI.searchManga`) through the registry / "a Source
    that publishes external ids" instead of `MangaDexAPI`.
 3. Move the `Manga` model and `mangaCoverURL` out of `MangaDexAPI.swift`.
@@ -113,11 +127,10 @@ sources; nil-sourceId-means-MangaDex at `HistoryView:155`, `BookmarksView:265`, 
 `HistoryStore:25`, `LibraryRefreshCoordinator:230`, `LibraryUpdatesPresentation:58`,
 `TasteProfile:198`, `FulfillmentRouter:107` (slice 1 covers these). No deep-link handlers exist.
 
-**Sequencing caution:** slices 2 and 4 touch the same registry code as slice 1 — start them after
-slice 1 merges, or expect a rebase.
+**Sequencing caution:** slice 4 touches the same registry/`MangaSource` code as slice 2 and local-import slice 2 — start it after both merge.
 
 ### Local import (per #216 / ADR-0025; owner answers recorded there)
-Slice 1 = #217 (ZIP reader, in rework). Slice 2 is fully planned in **#222**, with five owner
+Slice 1 = #217 (**merged**). Slice 2 is fully planned in **#222** and **in progress** (`ctx_132baef04933`), with five owner
 decisions (2026-09-22): `itemId` = first 16 bytes of the file's SHA-256 (re-import restores
 history; settles spec §2/§5); one folder + loose root images → root images lead, then the folder;
 only the app's staged copy is deleted, never the user's file; `local` kept out of the MAL outbox
@@ -146,14 +159,15 @@ warning. Later slices per the spec.
 - **App icon** — `docs/design/app-icon-brief.md` to a designer; placeholder ships until then.
 - **Device-in-hand** — MAL live-write verify (`scripts/mal_live_write.py`,
   `TEST_RUNNER_MAL_LIVE_WRITE=1`); VoiceOver pass #90.
-- Open issues: #186 (#213), #203 (#212), #210 (#214), #219 (refresh misrouting), #150, #90.
+- Open issues: #186 (#213), #203 (#212), #210 (#214), #150, #90.
 
 ### Cleanup the owner runs (agent removal was refused by the permission classifier)
 ```sh
 for w in fix-188-home-rails-declared-feeds fix-190-extension-storage-unreadable fix-197-age-gate-overlap fix-repo-settings-uitest-toggle; do orca worktree rm --worktree path:$HOME/orca/workspaces/Manga-Reader/$w; done
 xcrun simctl delete Luna-190   # left behind by a worker
 ```
-Remaining worktrees belong to the open PRs above; remove each after its PR merges.
+Also now removable: `local-import-zip-reader` (#217) and `zero-sources-slice-1` (#223).
+Remaining worktrees belong to the open PRs and live workers above; remove each after its PR merges.
 
 ## Mechanics learned this pass
 
@@ -186,3 +200,5 @@ Remaining worktrees belong to the open PRs above; remove each after its PR merge
 - **Docs-only CI runs skip the real jobs**, so `main` can look green over a red UI test (that is how
   #201's regression hid). Check the last *code* run.
 - `timeout` does not exist on macOS.
+- **`orca worktree create --base-branch main` bases on the *local* `main`, which is stale** (it gave `8e8f256` while `origin/main` was two merges ahead). After creating: `git -C <wt> reset --hard origin/main` (after `git fetch`), confirm `git log -1`, then dispatch.
+- **`gh pr merge --auto` on an already-green PR merges immediately** — then the local-branch-delete error appears, as above.
