@@ -1,8 +1,8 @@
 # Handoff — no built-in Sources: decision made, removal and local import started
 
-Date: 2026-09-22, 17:15 PDT (updated 22:46 PDT)
+Date: 2026-09-22, 17:15 PDT (updated 2026-09-23 09:30 PDT)
 Repository: `/Users/eliasmagdaleno/Manga-Reader` (GitHub `eliasmagdaleno/MangaCarta`)
-`main` at **`8e8f256`**.
+`main` at **`04a033d`** (#211). Nothing merged overnight; every open PR below is CI-green as of 09:30.
 
 **This is the live handoff, and it is the whole of what is outstanding.** Writing a new one means
 `git mv`-ing this into `archive/` first and carrying forward whatever below is still true
@@ -51,7 +51,7 @@ repository destination policy), #208 (#190 extension-storage quarantine), #209 (
 `RepositorySettingsUITests` toggle — it was on `main` since #201; fixed by tapping the switch).
 Closed: #168.
 
-## Open PRs and their state (updated 22:46 PDT)
+## Open PRs and their state (updated 2026-09-23 09:30 PDT)
 
 | PR | What | State | Next |
 |---|---|---|---|
@@ -60,9 +60,9 @@ Closed: #168.
 | #216 | Local import spec + ADR-0025 | docs, ready (art still owner's) | owner reads + merges |
 | #211 | #189 uninstalled-source fallback | **merged 2026-09-22** after Claude re-review; second CI run fully green (first-run UI failure was a flake) | remove worktree `fix-189-registry-uninstalled-fallback`; follow-up is #219 |
 | #212 | #203 ChapterOrdinal precision | reworked, full suite passed | CI green → merge |
-| #213 | #186 nested paging | Review found the PR bumps bundled WeebCentral to v2 while the host sends only the nested shape, so an installed v1 silently repeats page 1. **Owner chose option (b):** host sends both nested `page:{cursor,limit}` and legacy top-level `cursor`/`limit` for a transition (remove once published engines are nested, no later than slice 6), with a real-v1-engine test + mutation check and a spec amendment. Worker `ctx_ee4c7cf33ff0` pushed `fa0a43e` at ~22:45; report not yet drained | drain report; Claude re-review of the shim; CI → owner merges |
+| #213 | #186 nested paging + v1 compatibility shim | **Ready.** Shim `fa0a43e`: every request carries nested `page` *and* identical legacy top-level `cursor`/`limit`; removal is dated in code + spec (published engines nested, no later than slice 6). Claude review: correct; the `engine-v1.js` fixture is byte-identical to `main`'s engine. CI then failed one test — `testExactlyOneCopyOfTheEngineScriptExists` counted the fixture as a second engine copy; Claude allowlisted the fixture with a remove-with-the-shim comment (`b2b91c7`), 14/14 local, **CI all green** | **owner merges** |
 | #214 | #210 DNS-rebinding peer check | **Ready.** Two Claude reviews, rework + rebase (`c77f148`), coordinator full unit suite passed (936+150) and mutation checks on both `RepositoryTransport:115` and `HostHTTPClient:79` fail the real-path tests. **CI all green 22:45.** PR body says "Refs #210", exfiltration-only | **owner merges**; then file an issue for connect-time IP pinning (request can still reach a rebound host; proxies unhandled) |
-| #217 | Local import slice 1: ZIP reader | Re-review: **mergeable**; all seven prior findings fixed, CI green at `18b84c3`. Owner asked for a last pass (swap mislabelled fixtures `deflated.cbz`/`stored.zip`, add `extract()` containment test, full-payload compares, no `pages[0]` crash). Worker `ctx_3586b3d6910b` pushed `f0b77a0` at ~22:45; report not yet drained | drain report; confirm fixture methods with `unzip -v`; CI → owner merges |
+| #217 | Local import slice 1: ZIP reader | **Ready.** Last pass `f0b77a0` reviewed: `unzip -v` confirms `deflated.cbz` is Deflate and `stored.zip` is Stored; full-payload + compression-method asserts; `extract()` exact-bytes and symlink-escape test; no `pages[0]` crash. **CI all green** | **owner merges**. Caveat for slice 2: `extract()` now refuses any destination whose path contains a symlink — believed fine on device (`resolvingSymlinksInPath` strips `/private`), but verify one real-device import |
 | #223 | No-built-in slice 1: zero-source safety + `LegacySourceID` | Coordinator suite caught a real regression (stale active id returned nil despite a Source existing); fixed at `05955b1` with mutation check; 14 changed assertions audited and listed in the PR body; rebased onto main keeping #211 behaviour (`0dc8b15`). **CI all green 22:45** | short Claude review of the conflict resolution → owner merges. Slice 2 plan (#222) later needs "first *browsable* Source" instead of first Source |
 | #220 | App Store submission copy (`docs/app-store/submission-copy.md`) | **draft**, docs | owner decisions below |
 | #221 | MangaDex engine research (`docs/research/2026-09-22-mangadex-engine.md`) | docs | owner reads + merges |
@@ -71,7 +71,7 @@ Closed: #168.
 
 New issue: **#219** — `SourceRegistry.sourceForRefresh` ignores `knownSourceIDs`, so refresh still sends an uninstalled Source's Listings to the fallback Source (`LibraryRefreshCoordinator:168`, `LibraryStore:298`). `ready-for-agent`.
 
-**Codex workers live at 22:46 (run `run_e5fecb527d0a`):** `ctx_ee4c7cf33ff0` (#213 shim) and `ctx_3586b3d6910b` (#217 last pass) — both have pushed; drain and release them. All other dispatches from this session are released. Removal slice 1 is PR **#223**.
+**No Codex workers live.** Both dispatches of run `run_e5fecb527d0a` (`ctx_ee4c7cf33ff0` #213, `ctx_3586b3d6910b` #217) were drained and released 2026-09-22 ~22:55. Removal slice 1 is PR **#223**.
 
 **Merging is the owner's.** The auto-mode classifier refuses `gh pr merge` from the agent ("Merge Without Review"), even after a subagent review; the owner runs `! gh pr merge <n> --squash --delete-branch` (non-zero exit when the branch is in a worktree is harmless — check `gh pr view <n> --json state`).
 
