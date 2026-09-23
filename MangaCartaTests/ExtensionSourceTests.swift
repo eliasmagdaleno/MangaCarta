@@ -87,6 +87,21 @@ final class ExtensionSourceTests: XCTestCase {
                                host: host)
     }
 
+    /// The v1 engine shipped from `origin/main` before #186. Keep it as a fixture so
+    /// the host's transition shim is exercised against the real legacy reader.
+    private func legacyWeebCentral() throws -> ExtensionSource {
+        let declaration = try PortFixtures.declaration(PortFixtures.weebCentralJSON,
+                                                       qualifiedId: Self.qualifiedID)
+        try lifecycle.register(declaration)
+        let fixtureURL = FixtureSite.root.appendingPathComponent("weebcentral/engine-v1.js")
+        let script = try String(contentsOf: fixtureURL, encoding: .utf8)
+        return ExtensionSource(declaration: declaration,
+                               script: script,
+                               isNSFW: false,
+                               lifecycle: lifecycle,
+                               host: host)
+    }
+
     // MARK: Criterion 8, clause "with sourceId stamped"
 
     /// Host API design, "Envelope and value rules": the host stamps the Listing, and an
@@ -117,6 +132,19 @@ final class ExtensionSourceTests: XCTestCase {
         XCTAssertEqual(first.map(\.id), ["cursor=null;limit=5"])
         XCTAssertEqual(second.map(\.id), ["cursor=5;limit=5"])
         XCTAssertEqual(third.map(\.id), ["cursor=10;limit=5"])
+    }
+
+    /// v1 engines read the legacy flat fields. The host must send those alongside the
+    /// nested page value until published engines have all migrated to the nested shape.
+    func testLegacyV1EngineContinuesToPageThroughTheHostShim() async throws {
+        let source = try legacyWeebCentral()
+
+        _ = try await source.search(title: "berserk", limit: 2, offset: 0)
+        _ = try await source.search(title: "berserk", limit: 2, offset: 2)
+
+        XCTAssertTrue(host.browser.requestedURLs.contains {
+            $0.query?.contains("offset=2") == true
+        }, "the v1 engine must receive the returned cursor through the legacy fields")
     }
 
     /// An offset the adapter has no cursor for is reached by walking from the last one it

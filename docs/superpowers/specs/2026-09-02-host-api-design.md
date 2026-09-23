@@ -713,6 +713,9 @@ across feeds and leaves room for other paging styles without colliding with quer
 host passes a returned cursor back unchanged; engines own the token's meaning.
 
 The shipped WeebCentral engine was migrated to read `request.page.cursor` and
-`request.page.limit` in the implementation accompanying this amendment. The former flat
-`request.cursor` / `request.limit` shape is not supported, and no compatibility shim is
-provided.
+`request.page.limit` in the implementation accompanying this amendment. During the
+transition, the host also sends the same values as legacy top-level `request.cursor` and
+`request.limit`, allowing v1 engines to continue paging while v2 engines read only the
+nested value and still reject requests without a `page` object. Remove this compatibility
+shim once all published engines use the nested shape, and no later than no-built-in-sources
+slice 6 removes the bundled package.
