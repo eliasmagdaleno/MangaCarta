@@ -1,6 +1,6 @@
 # Handoff — no built-in Sources: decision made, removal and local import started
 
-Date: 2026-09-22, 17:15 PDT
+Date: 2026-09-22, 17:15 PDT (updated 21:25 PDT)
 Repository: `/Users/eliasmagdaleno/Manga-Reader` (GitHub `eliasmagdaleno/MangaCarta`)
 `main` at **`8e8f256`**.
 
@@ -51,28 +51,33 @@ repository destination policy), #208 (#190 extension-storage quarantine), #209 (
 `RepositorySettingsUITests` toggle — it was on `main` since #201; fixed by tapping the switch).
 Closed: #168.
 
-## Open PRs and their state
+## Open PRs and their state (updated 21:25 PDT)
 
 | PR | What | State | Next |
 |---|---|---|---|
-| #215 | ADR-0003 A6 + ADR-0022 A4 + ADR-0016 amendment | docs, ready | **owner reads + merges** |
-| #216 | Local import spec + ADR-0025 | docs, ready (only open item: screenshot/sample art, owner's) | **owner reads + merges** |
-| #211 | #189 uninstalled-source fallback | reworked (`d8047bb`) to survive relaunch after review; **full suite 1072/1077 passed (5 skipped)** | Claude review of the rework; CI → merge |
-| #212 | #203 ChapterOrdinal precision | reworked (`fb39011`) after review found it would **wipe every `updates.json`**; full suite 1074/1079 passed; PR body restored by hand | CI green → merge |
-| #213 | #186 nested paging `{query, page:{cursor,limit}}` | worker `ctx_994ffe91994d` resumed, fixing only the cutover test | review worker's result; merge |
-| #214 | #210 DNS-rebinding peer check | **full suite 1078/1083 passed (5 skipped)** at `cefd413` | Claude review; CI → merge |
-| #217 | Local import slice 1: ZIP reader | **full suite 1073/1078 passed (5 skipped)** at `6abd378`; swiftlint not yet run | swiftlint + Claude review; CI → merge |
-| #195 | stale draft of ADR-0003 A5 | superseded (A5 merged via #199, reversed by A6) | close it (owner OK pending) |
+| #218 | this handoff | docs | merge |
+| #215 | ADR-0003 A6 + ADR-0022 A4 + ADR-0016 amendment | docs, ready | **owner reads + merges — first** |
+| #216 | Local import spec + ADR-0025 | docs, ready (art still owner's) | owner reads + merges |
+| #211 | #189 uninstalled-source fallback | Claude re-review: **mergeable** — relaunch test really reads the store from disk. First CI run failed hermetic `RepositorySettingsUITests.testAddedRepositoryCanBeRemoved` although the branch already contains #209; branch updated from main, CI re-running | merge if green; **if that test fails again, treat as a real #211 regression**, not the old flake. Refresh-path gap split out as **#219** |
+| #212 | #203 ChapterOrdinal precision | reworked, full suite passed | CI green → merge |
+| #213 | #186 nested paging | worker `ctx_994ffe91994d` had been **paused since the previous session** (the handoff wrongly said resumed); resumed 21:21, test-only scope | review its result → merge |
+| #214 | #210 DNS-rebinding peer check | Claude review: **do not merge as-is**. Check runs after the request is sent and fails open on nil peer (blocks exfiltration only, not blind SSRF); proxies break/bypass it; cancellation regressed; tests never exercise real `URLSessionDataFetcher`; session leak. Rework dispatched `ctx_e4ff1ffd33c8`: cancellation + test, loopback real-path test (mutation-checked), `isPublic` table test (scoped/mapped/NAT64), leak, stale comment, PR body → "Refs #210" + exfiltration-only scope | re-review → merge; **then file a new issue for connect-time IP pinning** and keep/rescope #210 |
+| #217 | Local import slice 1: ZIP reader | Claude review: **do not merge yet**. Crash on deflate entry with uncompressed size 0 (`baseAddress!`); fixtures `deflated.cbz`/`stored.zip` unused and not in the target, so deflate never ran; spec failure tests missing; whole-file non-mapped read + full decode to sniff; path check misses drive letters/NUL/containment; SwiftLint 3 errors; unrelated `BundledRepositories` pbxproj churn. Rework dispatched `ctx_2a0aed0aa4a9` covering all of it (+ Archive Utility and `zip` fixtures) | re-review → merge |
+| #220 | App Store submission copy (`docs/app-store/submission-copy.md`) | **draft**, docs | owner decisions below |
+| #221 | MangaDex engine research (`docs/research/2026-09-22-mangadex-engine.md`) | docs | owner reads + merges |
+| #222 | Local import slice 2 plan (`docs/superpowers/plans/2026-09-22-local-import-slice-2.md`) | docs; owner's five answers recorded at `7ed53ab` | merge; implement after zero-sources slice 1 and #217 |
+| #195 | stale draft of ADR-0003 A5 | superseded | close it (owner OK pending) |
 
-**Still running at handoff (Codex, Orca run `run_e5fecb527d0a`):**
-- `ctx_994ffe91994d` — #213 cutover test.
-- `ctx_9737c57855a8` — **no-built-in slice 1**: zero-source safety (registry `active` optional, Home/
-  Browse empty states with "MangaCarta does not provide or host content") + a `LegacySourceID`
-  constant replacing 8 places that treated a nil source id as MangaDex. MangaDex stays registered in
-  this slice. Worktree `zero-sources-slice-1`.
+New issue: **#219** — `SourceRegistry.sourceForRefresh` ignores `knownSourceIDs`, so refresh still sends an uninstalled Source's Listings to the fallback Source (`LibraryRefreshCoordinator:168`, `LibraryStore:298`). `ready-for-agent`.
 
-Drain their reports: `orca orchestration check --run run_e5fecb527d0a --terminal term_28f131d2-4563-47ea-b1bc-9df935d3b3d5 --json`
-(`--ack <deliveryId>` each batch), then `orca orchestration worker-release --dispatch <id> --json`.
+**Codex workers live at 21:25 (run `run_e5fecb527d0a`) — four simulator-bound, one over the ≤3 limit; pause #217 first if the M5 struggles:**
+- `ctx_9737c57855a8` — **no-built-in slice 1** (zero-source safety + `LegacySourceID`), worktree `zero-sources-slice-1`. It sat **4 hours doing nothing**: its brief was pasted into the Codex input but never submitted. Pressing Enter in its terminal started it.
+- `ctx_994ffe91994d` — #213; `ctx_e4ff1ffd33c8` — #214 rework; `ctx_2a0aed0aa4a9` — #217 rework.
+
+Drain: `orca orchestration check --run run_e5fecb527d0a --terminal term_28f131d2-4563-47ea-b1bc-9df935d3b3d5 --json` (`--ack <deliveryId>`), then `orca orchestration worker-release --dispatch <id> --json`. **An empty queue is not progress** — also run `orca orchestration worker-read --dispatch <id>` and `git -C <worktree> status` per worker.
+
+### Owner decisions pending from this session
+- **#220 App Store copy:** (1) add an ADR-0022 amendment pointing at the new file (recommended); (2) age tier ~13+ Mild (agent's pick) vs 16+/18+; (3) give App Review a test repository with only owner sample content, or drop that sentence (never `proxy-link/mangacarta-sources`); (4) who makes sample/screenshot art; (5) subtitle "Read your comics, your way" vs "CBZ, ZIP & PDF comic reader", and whether "no ads"/privacy lines match the privacy label and #149. Two claims ("Import from Files" first run, ComicInfo.xml) describe unshipped features — verify against the build before submitting.
 
 ## What is owed — the plan
 
@@ -83,10 +88,14 @@ Drain their reports: `orca orchestration check --run run_e5fecb527d0a --terminal
    that publishes external ids" instead of `MangaDexAPI`.
 3. Move the `Manga` model and `mangaCoverURL` out of `MangaDexAPI.swift`.
 4. Add external ids (`malId`, …) to the extension manga contract.
-5. MangaDex JSON-API engine. Host `http` suffices, but check: dynamic at-home image hosts vs.
-   declared origins (may need wildcard origins), and the `User-Agent` MangaDex requires
-   (`HostHTTPClient` forbids overriding it). MangaDex AUP: must credit MangaDex **and** scanlation
-   groups, honour removals, no ads/paid features.
+5. MangaDex JSON-API engine. Researched in **#221**; it needs three host changes first, each its
+   own issue: (a) a wildcard allowed in `assetOrigins` only (e.g. `https://*.mangadex.network`) —
+   at-home image hosts are per-location and valid ~15 min, so exact origins cannot work; refuse
+   shared-hosting suffixes and apply the public-address check to image loads; (b) a scanlation-group
+   field on `ExtensionChapter`/`Chapter` — MangaDex's AUP requires crediting groups and the compiled
+   source already violates this, so it is worth doing now; (c) a per-site rate limiter (~5 req/s, 40/min
+   on at-home). Soft gap: no at-home report endpoint. `User-Agent` needs no change. `malId` already
+   flows through listing `externalIds`; detail not checked.
 6. Remove the bundled WeebCentral package, `BundledRepositoryTransport`, `bundled.invalid` routing
    and `installBundledSources()`; handle devices that already installed it (Amendment 6 leaves this
    to the removal PR).
@@ -107,7 +116,16 @@ sources; nil-sourceId-means-MangaDex at `HistoryView:155`, `BookmarksView:265`, 
 slice 1 merges, or expect a rebase.
 
 ### Local import (per #216 / ADR-0025; owner answers recorded there)
-Slice 1 = #217 (ZIP reader). Slice 2 next: `LocalSource` (id `local`, compiled, always registered,
+Slice 1 = #217 (ZIP reader, in rework). Slice 2 is fully planned in **#222**, with five owner
+decisions (2026-09-22): `itemId` = first 16 bytes of the file's SHA-256 (re-import restores
+history; settles spec §2/§5); one folder + loose root images → root images lead, then the folder;
+only the app's staged copy is deleted, never the user's file; `local` kept out of the MAL outbox
+(`MALProgressCoordinator` guard); "Local" hidden from Settings > About > Sources. The plan also found:
+`sources[0]` fallbacks at `SourceRegistry:68,87,93` must become "first browsable"; `isBrowsable`/
+`participatesInUpdates` must be protocol requirements (`MangaSource.swift:58-60`); the older
+`LibraryStore:282-298` refresh path needs the same skip; `ImageCache` must not cache `file://`;
+`WorkStore` needs `removeListing`. Land zero-sources slice 1 first — both edit
+`SourceRegistry.swift:49-117`. Summary of scope: `LocalSource` (id `local`, compiled, always registered,
 **not browsable** → hidden from Home's picker, not counted as "a Source installed"), import flow via
 the document picker into `Application Support/LocalLibrary/`, staging-then-move, original deleted
 after unpacking, SHA-256 duplicate check, one chapter per top-level folder (wrapper folder = one
@@ -149,6 +167,12 @@ Remaining worktrees belong to the open PRs above; remove each after its PR merge
   (`xcrun simctl create "Luna-<n>" "iPhone 17 Pro"`). Run coordinator suites serially.
 - **New Orca worktrees lack `Secrets.xcconfig`** (gitignored) and fail to compile — copy it from the
   main checkout into each worktree root before dispatch.
+- **A dispatched worker can sit idle with its brief unsubmitted** (seen 2026-09-22: 4 hours).
+  `worker-read` shows `› [Pasted Content N chars]` at the prompt. Fix: `orca terminal send
+  --terminal <handle> --enter` (no `--text`; `--wait-submit` needs `--text`). Check every new
+  worker's first output after dispatch.
+- **"Paused" workers stay paused across sessions.** A worker told to wait does not resume because a
+  later handoff says so — verify with `worker-read`, then send it an explicit resume.
 - **This Orca build:** `worker-start --worktree new-top-level` is unsupported — create the worktree
   with `orca worktree create --name … --repo path:… --base-branch main --no-parent`, then
   `worker-start --worktree path:<path> --run <run> --from <coordinator handle>` (outside an Orca
