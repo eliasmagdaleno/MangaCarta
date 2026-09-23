@@ -84,18 +84,40 @@ final class MALReverseResolver {
 
     init(store: EntityResolutionStore = .shared,
          matcher: MALTitleMatcher = .init(),
-         search: @escaping Search = { try await MangaDexAPI.searchManga(title: $0) },
-         fetchByIds: @escaping FetchByIds = {
-             try await MangaDexAPI.fetchMangaByIdsWithCovers(ids: $0)
-         },
+         search: Search? = nil,
+         fetchByIds: FetchByIds? = nil,
          fetchTitles: @escaping FetchTitles = {
              try await MyAnimeListAPI.alternativeTitles(id: $0)
-         }) {
+         },
+         source: @escaping () -> MangaSource? = { nil }) {
         self.store = store
         self.matcher = matcher
-        self.search = search
-        self.fetchByIds = fetchByIds
+        self.search = search ?? { title in
+            guard let source = source() else { return [] }
+            return try await source.search(title: title, limit: 10, offset: 0)
+        }
+        self.fetchByIds = fetchByIds ?? { ids in
+            guard let source = source() else { return [] }
+            return await Self.fetch(ids: ids, from: source)
+        }
         self.fetchTitles = fetchTitles
+    }
+
+    private static func fetch(ids: [String], from source: MangaSource) async -> [Manga] {
+        await withTaskGroup(of: Manga?.self, returning: [Manga].self) { group in
+            var iterator = ids.makeIterator()
+            var output: [Manga] = []
+            func addNext() {
+                guard let id = iterator.next() else { return }
+                group.addTask { try? await source.manga(id: id) }
+            }
+            for _ in 0..<min(4, ids.count) { addNext() }
+            while let manga = await group.next() {
+                if let manga { output.append(manga) }
+                addNext()
+            }
+            return output
+        }
     }
 
     /// Reverse-resolve `targets` to openable MangaDex titles, keyed by `malId`. Never

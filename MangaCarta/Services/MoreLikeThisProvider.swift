@@ -20,9 +20,10 @@ final class MoreLikeThisProvider {
 
     init(store: EntityResolutionStore = .shared,
          resolver: MALEntityResolver? = nil,
-         reverse: MALReverseResolver? = nil) {
-        self.resolver = resolver ?? MALEntityResolver(store: store)
-        self.reverse = reverse ?? MALReverseResolver(store: store)
+         reverse: MALReverseResolver? = nil,
+         source: @escaping () -> MangaSource? = { nil }) {
+        self.resolver = resolver ?? MALEntityResolver(store: store, source: source)
+        self.reverse = reverse ?? MALReverseResolver(store: store, source: source)
     }
 
     /// The top `limit` recommendations by weight (descending). Pure — no network. Marked

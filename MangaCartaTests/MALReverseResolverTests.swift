@@ -19,6 +19,12 @@ import XCTest
 @MainActor
 final class MALReverseResolverTests: XCTestCase {
 
+    func testNoRegisteredExternalIdSourceDegradesToEmpty() async {
+        let resolver = MALReverseResolver(store: store(), source: { nil })
+        let out = await resolver.resolve([.init(malId: 55, title: "Unavailable")])
+        XCTAssertTrue(out.isEmpty)
+    }
+
     // MARK: - Fixtures
 
     private func store() -> EntityResolutionStore {

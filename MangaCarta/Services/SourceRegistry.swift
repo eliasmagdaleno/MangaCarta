@@ -97,6 +97,14 @@ final class SourceRegistry: ObservableObject {
         source(id: activeSourceID) ?? sources.first
     }
 
+    /// The registered source that can bridge external catalogue ids. Prefer the active
+    /// source, then preserve registration order; nil means cross-catalogue features are
+    /// unavailable and should degrade to empty results.
+    var externalIdSource: MangaSource? {
+        if let active, active.publishesExternalIds { return active }
+        return sources.first(where: \.publishesExternalIds)
+    }
+
     /// Look up a source by its stable id (e.g. a manga's `sourceId`). Nil if not registered.
     func source(id: String) -> MangaSource? {
         sources.first { $0.id == id }

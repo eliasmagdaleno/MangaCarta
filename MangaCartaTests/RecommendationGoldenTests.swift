@@ -126,7 +126,9 @@ final class RecommendationGoldenTests: XCTestCase {
         var supportsTagBrowse: Bool { true }
 
         func mangaByTag(tag: String, limit: Int, offset: Int) async throws -> [Manga] {
-            (RecommendationGoldenTests.tagFeeds[tag] ?? []).prefix(limit).map { manga($0) }
+            (RecommendationGoldenTests.tagFeeds[tag] ?? []).prefix(limit).map {
+                RecommendationGoldenTests.manga($0)
+            }
         }
         func search(title: String, limit: Int, offset: Int) async throws -> [Manga] { [] }
         func popular(limit: Int, offset: Int) async throws -> [Manga] { [] }

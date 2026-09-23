@@ -80,7 +80,7 @@ final class RecommendationEngine: ObservableObject {
     /// profile is now *built* through the Work store, so an engine without one would
     /// silently recommend nothing rather than degrade.
     private let workStore: WorkStore
-    private let mangaDexSource: MangaSource
+    private let source: () -> MangaSource?
     private let makeProvider: (MangaSource) -> CandidateProvider
     private let now: () -> Date
     private let pushPriority: PriorityPush
@@ -98,7 +98,8 @@ final class RecommendationEngine: ObservableObject {
          library: LibraryStore,
          profileStore: TasteProfileStore,
          workStore: WorkStore,
-         mangaDexSource: MangaSource = MangaDexSource(),
+         mangaDexSource: MangaSource? = nil,
+         source: (() -> MangaSource?)? = nil,
          makeProvider: @escaping (MangaSource) -> CandidateProvider = { @MainActor source in
              CompositeCandidateProvider(
                  tag: TagCandidateProvider(source: source),
@@ -116,7 +117,7 @@ final class RecommendationEngine: ObservableObject {
         self.library = library
         self.profileStore = profileStore
         self.workStore = workStore
-        self.mangaDexSource = mangaDexSource
+        self.source = source ?? { mangaDexSource }
         self.makeProvider = makeProvider
         self.now = now
         self.pushPriority = pushPriority
@@ -166,7 +167,11 @@ final class RecommendationEngine: ObservableObject {
             railState = state
             (profile, excluding) = (p, ex)
         }
-        let pool = (try? await makeProvider(mangaDexSource)
+        guard let source = source() else {
+            recommendations = []
+            return
+        }
+        let pool = (try? await makeProvider(source)
             .candidates(for: profile, excluding: excluding, limit: poolLimit)) ?? []
         guard !Task.isCancelled else { return }
         recommendations = compose(pool: pool)
@@ -179,7 +184,8 @@ final class RecommendationEngine: ObservableObject {
         // The grid ignores the refusal reason: it is only reachable from a rail that is
         // already rendering, so a refusal here means the profile changed underneath it.
         guard case .ready(let profile, let excluding, _) = profileAndExclusions() else { return [] }
-        let pool = (try? await makeProvider(mangaDexSource)
+        guard let source = source() else { return [] }
+        let pool = (try? await makeProvider(source)
             .candidates(for: profile, excluding: excluding, limit: limit)) ?? []
         return pool.map(\.manga)
     }

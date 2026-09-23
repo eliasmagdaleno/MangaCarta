@@ -536,6 +536,7 @@ final class MangaCartaTests: XCTestCase {
     private struct MockSource: MangaSource {
         let id: String
         let name: String
+        var publishesExternalIds = false
         var detail: MangaDetail = MangaDetail(description: "d", authors: ["A"], tags: [], contentRating: "safe")
         var stubChapters: [Chapter] = [Chapter(id: "c1", number: "1", title: nil)]
         var stubManga: [Manga] = []
@@ -580,6 +581,27 @@ final class MangaCartaTests: XCTestCase {
         let registry = SourceRegistry(sources: [MockSource(id: "only", name: "Only")])
         registry.activeSourceID = "ghost"                     // point at a non-existent source
         XCTAssertEqual(registry.active?.id, "only")            // still resolves to the first source
+    }
+
+    @MainActor func testExternalIdCapabilityDispatchesThroughExistential() {
+        let source: any MangaSource = MockSource(id: "bridge", name: "Bridge",
+                                                  publishesExternalIds: true)
+        XCTAssertTrue(source.publishesExternalIds)
+    }
+
+    @MainActor func testRegistryExternalIdSourcePrefersActiveThenRegisteredFallback() {
+        let ordinary = MockSource(id: "ordinary", name: "Ordinary")
+        let bridge = MockSource(id: "bridge", name: "Bridge", publishesExternalIds: true)
+        let anotherBridge = MockSource(id: "bridge-2", name: "Bridge 2", publishesExternalIds: true)
+        let registry = SourceRegistry(sources: [ordinary, bridge, anotherBridge])
+
+        XCTAssertEqual(registry.externalIdSource?.id, "bridge")
+        registry.activeSourceID = "bridge-2"
+        XCTAssertEqual(registry.externalIdSource?.id, "bridge-2")
+        registry.activeSourceID = "ordinary"
+        XCTAssertEqual(registry.externalIdSource?.id, "bridge")
+        let none = SourceRegistry(sources: [ordinary])
+        XCTAssertNil(none.externalIdSource)
     }
 
     @MainActor func testRegistrySourceForMangaUsesSourceId() {
