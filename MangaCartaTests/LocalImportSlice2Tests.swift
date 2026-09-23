@@ -4,21 +4,47 @@ import UIKit
 @testable import MangaCarta
 
 private enum LocalTestZip {
-    static let png = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")!
+    static let png = Data(base64Encoded:
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")!
 
     static func write(_ files: [(String, Data)], to url: URL) throws {
         var body = Data(); var central = Data(); var offset: UInt32 = 0
         for (name, data) in files {
             let n = Data(name.utf8), crc = checksum(data)
-            body.append(u32(0x04034b50)); body.append(u16(20)); body.append(u16(0)); body.append(u16(0)); body.append(u16(0)); body.append(u16(0)); body.append(u32(crc)); body.append(u32(UInt32(data.count))); body.append(u32(UInt32(data.count))); body.append(u16(UInt16(n.count))); body.append(u16(0)); body.append(n); body.append(data)
-            central.append(u32(0x02014b50)); central.append(u16(20)); central.append(u16(20)); central.append(u16(0)); central.append(u16(0)); central.append(u16(0)); central.append(u16(0)); central.append(u32(crc)); central.append(u32(UInt32(data.count))); central.append(u32(UInt32(data.count))); central.append(u16(UInt16(n.count))); central.append(u16(0)); central.append(u16(0)); central.append(u16(0)); central.append(u16(0)); central.append(u32(0)); central.append(u32(offset)); central.append(n)
+            body.append(u32(0x04034b50)); body.append(u16(20)); body.append(u16(0))
+            body.append(u16(0)); body.append(u16(0)); body.append(u16(0)); body.append(u32(crc))
+            body.append(u32(UInt32(data.count))); body.append(u32(UInt32(data.count)))
+            body.append(u16(UInt16(n.count))); body.append(u16(0)); body.append(n); body.append(data)
+            central.append(u32(0x02014b50)); central.append(u16(20)); central.append(u16(20))
+            central.append(u16(0)); central.append(u16(0)); central.append(u16(0)); central.append(u16(0))
+            central.append(u32(crc)); central.append(u32(UInt32(data.count)))
+            central.append(u32(UInt32(data.count))); central.append(u16(UInt16(n.count))); central.append(u16(0))
+            central.append(u16(0)); central.append(u16(0)); central.append(u16(0)); central.append(u16(0))
+            central.append(u32(0)); central.append(u32(offset)); central.append(n)
             offset = UInt32(body.count)
         }
-        let start = UInt32(body.count); body.append(central); body.append(u32(0x06054b50)); body.append(u16(0)); body.append(u16(0)); body.append(u16(UInt16(files.count))); body.append(u16(UInt16(files.count))); body.append(u32(UInt32(central.count))); body.append(u32(start)); body.append(u16(0)); try body.write(to: url)
+        let start = UInt32(body.count)
+        body.append(central); body.append(u32(0x06054b50)); body.append(u16(0)); body.append(u16(0))
+        body.append(u16(UInt16(files.count))); body.append(u16(UInt16(files.count)))
+        body.append(u32(UInt32(central.count))); body.append(u32(start)); body.append(u16(0))
+        try body.write(to: url)
     }
-    private static func u16(_ x: UInt16) -> Data { Data([UInt8(x & 255), UInt8(x >> 8)]) }
-    private static func u32(_ x: UInt32) -> Data { Data([UInt8(x & 255), UInt8((x >> 8) & 255), UInt8((x >> 16) & 255), UInt8(x >> 24)]) }
-    private static func checksum(_ data: Data) -> UInt32 { var c: UInt32 = 0xffff_ffff; for b in data { c ^= UInt32(b); for _ in 0..<8 { c = c & 1 == 1 ? (c >> 1) ^ 0xedb8_8320 : c >> 1 } }; return c ^ 0xffff_ffff }
+    private static func u16(_ x: UInt16) -> Data {
+        Data([UInt8(x & 255), UInt8(x >> 8)])
+    }
+
+    private static func u32(_ x: UInt32) -> Data {
+        Data([UInt8(x & 255), UInt8((x >> 8) & 255), UInt8((x >> 16) & 255), UInt8(x >> 24)])
+    }
+
+    private static func checksum(_ data: Data) -> UInt32 {
+        var c: UInt32 = 0xffff_ffff
+        for b in data {
+            c ^= UInt32(b)
+            for _ in 0..<8 { c = c & 1 == 1 ? (c >> 1) ^ 0xedb8_8320 : c >> 1 }
+        }
+        return c ^ 0xffff_ffff
+    }
 }
 
 private struct LocalFixture {

@@ -43,8 +43,11 @@ actor LocalLibraryStore {
                 return .duplicate(itemId: itemId)
             }
             let reader: ZipArchiveReader
-            do { reader = try ZipArchiveReader(url: archive) }
-            catch let error as ZipArchiveError { throw LocalImportError.unreadableArchive(error) }
+            do {
+                reader = try ZipArchiveReader(url: archive)
+            } catch let error as ZipArchiveError {
+                throw LocalImportError.unreadableArchive(error)
+            }
             let archiveChapters = try reader.chapters()
             guard !archiveChapters.isEmpty else { throw LocalImportError.noImages }
             let title = source.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " ")
@@ -53,9 +56,13 @@ actor LocalLibraryStore {
             let folders = sortedArchive.filter { $0.name != "Root" }
             let groups: [(String, [ZipArchiveReader.Entry])]
             if folders.count <= 1 {
-                if let folder = folders.first, let root { groups = [("Root", root.pages), (folder.name, folder.pages)] }
-                else if let folder = folders.first { groups = [(title, folder.pages)] }
-                else { groups = [(title, root?.pages ?? [])] }
+                if let folder = folders.first, let root {
+                    groups = [("Root", root.pages), (folder.name, folder.pages)]
+                } else if let folder = folders.first {
+                    groups = [(title, folder.pages)]
+                } else {
+                    groups = [(title, root?.pages ?? [])]
+                }
             } else {
                 groups = (root.map { [("Root", $0.pages)] } ?? []) + folders.map { ($0.name, $0.pages) }
             }
@@ -77,7 +84,10 @@ actor LocalLibraryStore {
             }
             guard let first = storedChapters.first, let firstFile = first.pageFiles.first else { throw LocalImportError.noImages }
             let firstURL = item.appendingPathComponent("pages/1").appendingPathComponent(firstFile)
-            guard let image = UIImage(contentsOfFile: firstURL.path), let data = image.jpegData(compressionQuality: 0.9) else { throw LocalImportError.noImages }
+            guard let image = UIImage(contentsOfFile: firstURL.path),
+                  let data = image.jpegData(compressionQuality: 0.9) else {
+                throw LocalImportError.noImages
+            }
             try data.write(to: item.appendingPathComponent("cover.jpg"), options: .atomic)
             let record = LocalItemRecord(itemId: itemId, title: title, sourceFilename: source.lastPathComponent,
                 sha256: hash, byteSize: bytes.count, importedAt: Date(), chapters: storedChapters)
@@ -101,11 +111,14 @@ actor LocalLibraryStore {
 
     func allRecords() -> [LocalItemRecord] {
         guard let urls = try? fm.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) else { return [] }
-        return urls.filter { $0.lastPathComponent != ".staging" }.compactMap { try? Data(contentsOf: $0.appendingPathComponent("item.json")) }.compactMap { try? JSONDecoder().decode(LocalItemRecord.self, from: $0) }
+        return urls.filter { $0.lastPathComponent != ".staging" }
+            .compactMap { try? Data(contentsOf: $0.appendingPathComponent("item.json")) }
+            .compactMap { try? JSONDecoder().decode(LocalItemRecord.self, from: $0) }
     }
 
     func pageURLs(itemId: String, chapter: Int) -> [URL] {
-        guard let record = record(itemId: itemId), let chapterRecord = record.chapters.first(where: { $0.number == chapter }) else { return [] }
+        guard let record = record(itemId: itemId),
+              let chapterRecord = record.chapters.first(where: { $0.number == chapter }) else { return [] }
         return chapterRecord.pageFiles.map { root.appendingPathComponent(itemId).appendingPathComponent("pages/\(chapter)/\($0)") }
     }
 

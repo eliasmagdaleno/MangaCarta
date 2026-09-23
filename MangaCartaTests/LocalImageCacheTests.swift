@@ -11,13 +11,20 @@ import UIKit
     let bytes = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")!
     try bytes.write(to: file)
     let cacheDir = root.appendingPathComponent("cache")
-    let cache = ImageCache(directory: cacheDir, fetcher: { _ in Issue.record("fetcher called"); return bytes })
+    let cache = ImageCache(directory: cacheDir, fetcher: { _ in
+        Issue.record("fetcher called")
+        return bytes
+    })
     #expect(await cache.loadImage(for: file) != nil)
     #expect((try? FileManager.default.contentsOfDirectory(at: cacheDir, includingPropertiesForKeys: nil).isEmpty) == true)
 }
 
 @Test func missingFileImageReturnsNil() async {
-    let cache = ImageCache(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString), fetcher: { _ in Issue.record("fetcher called"); return Data() })
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let cache = ImageCache(directory: directory, fetcher: { _ in
+        Issue.record("fetcher called")
+        return Data()
+    })
     #expect(await cache.loadImage(for: URL(fileURLWithPath: "/tmp/does-not-exist-local-page.png")) == nil)
 }
 
