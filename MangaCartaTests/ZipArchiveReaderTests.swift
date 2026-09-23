@@ -26,7 +26,7 @@ final class ZipArchiveReaderTests: XCTestCase {
             let expectedNames = ["2.jpg", "10.jpg"].sorted {
                 $0.localizedStandardCompare($1) == .orderedAscending
             }
-            XCTAssertEqual(pages.map(\.name), expectedNames)
+            XCTAssertEqual(pages.map { URL(fileURLWithPath: $0.name).lastPathComponent }, expectedNames)
             XCTAssertEqual(try reader.data(for: pages[0]).prefix(3), Data([0xff, 0xd8, 0xff]))
         }
     }
@@ -36,7 +36,7 @@ final class ZipArchiveReaderTests: XCTestCase {
         encrypted[6] = 1; encrypted[7] = 0; encrypted[encrypted.count - 22 - 46 - 8 + 8] = 1
         assertError({ try ZipArchiveReader(data: encrypted) }, equals: .encrypted("page.jpg"))
         var zip64 = makeArchive(name: "page.jpg", payload: Data([1]), method: 0)
-        zip64[zip64.count - 22 + 8] = 0xff; zip64[zip64.count - 22 + 9] = 0xff
+        zip64[zip64.count - 22 + 10] = 0xff; zip64[zip64.count - 22 + 11] = 0xff
         assertError({ try ZipArchiveReader(data: zip64) }, equals: .zip64)
         let archive = makeArchive(name: "page.jpg", payload: Data([1]), method: 0)
         assertError({ try ZipArchiveReader(data: Data(archive.dropLast())) }, equals: .truncated)
