@@ -168,32 +168,38 @@ private struct HomeScreen: View {
                     // don't provide them just show the plain serif title.
                     let eyebrows = source.homeRailEyebrows
 
-                    section(titles[0], eyebrow: eyebrows.count > 0 ? eyebrows[0] : nil,
-                            items: vm.popular,
-                            stamp: yearStamp,
-                            pagedFetch: { limit, offset in
-                                try await source.popular(limit: limit, offset: offset)
-                            })
+                    if source.homeFeedCapabilities.contains(.popular) {
+                        section(titles[0], eyebrow: eyebrows.count > 0 ? eyebrows[0] : nil,
+                                items: vm.popular,
+                                stamp: yearStamp,
+                                pagedFetch: { limit, offset in
+                                    try await source.popular(limit: limit, offset: offset)
+                                })
+                    }
 
-                    section(titles[1], eyebrow: eyebrows.count > 1 ? eyebrows[1] : nil,
-                            items: vm.latestUpdates.map { $0.manga },
-                            stamp: source.latestRailShowsNewBadge ? { _ in "NEW" } : yearStamp,
-                            tinted: source.latestRailShowsNewBadge,
-                            // Pages the underlying chapter feed, which dedupes down to far
-                            // fewer manga — so ask for a bigger page to still fill a screen.
-                            pageSize: 48,
-                            pagedFetch: { limit, offset in
-                                try await source
-                                    .latestUpdates(limitTitles: limit, language: "en", offset: offset)
-                                    .map { $0.manga }
-                            })
+                    if source.homeFeedCapabilities.contains(.latestUpdates) {
+                        section(titles[1], eyebrow: eyebrows.count > 1 ? eyebrows[1] : nil,
+                                items: vm.latestUpdates.map { $0.manga },
+                                stamp: source.latestRailShowsNewBadge ? { _ in "NEW" } : yearStamp,
+                                tinted: source.latestRailShowsNewBadge,
+                                // Pages the underlying chapter feed, which dedupes down to far
+                                // fewer manga — so ask for a bigger page to still fill a screen.
+                                pageSize: 48,
+                                pagedFetch: { limit, offset in
+                                    try await source
+                                        .latestUpdates(limitTitles: limit, language: "en", offset: offset)
+                                        .map { $0.manga }
+                                })
+                    }
 
-                    section(titles[2], eyebrow: eyebrows.count > 2 ? eyebrows[2] : nil,
-                            items: vm.newTitles,
-                            stamp: yearStamp,
-                            pagedFetch: { limit, offset in
-                                try await source.newTitles(limit: limit, offset: offset)
-                            })
+                    if source.homeFeedCapabilities.contains(.newTitles) {
+                        section(titles[2], eyebrow: eyebrows.count > 2 ? eyebrows[2] : nil,
+                                items: vm.newTitles,
+                                stamp: yearStamp,
+                                pagedFetch: { limit, offset in
+                                    try await source.newTitles(limit: limit, offset: offset)
+                                })
+                    }
                 }
                 .padding(.top, 4)
                 .padding(.bottom, 32)

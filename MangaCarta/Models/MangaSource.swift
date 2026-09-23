@@ -62,6 +62,10 @@ protocol MangaSource {
 
     /// Titles for the three Home browse rails: [popular, latest-updates, new-titles].
     var homeRailTitles: [String] { get }
+    /// The Home feeds this source declares. Undeclared feeds have no rail and are not
+    /// loaded. Built-in sources use the default, while extension sources derive this
+    /// from their declaration's capabilities.
+    var homeFeedCapabilities: Set<SourceOperation> { get }
     /// Eyebrow labels above the rail titles, describing how each feed is actually
     /// ordered (e.g. "Top rated"). Empty (the default) hides the eyebrows.
     var homeRailEyebrows: [String] { get }
@@ -127,6 +131,7 @@ extension MangaSource {
     func webURL(forManga id: String) async throws -> URL? { nil }
 
     var homeRailTitles: [String] { ["Popular", "Recently Updated", "Newly Added"] }
+    var homeFeedCapabilities: Set<SourceOperation> { Set(SourceOperation.discoveryFeeds) }
     var homeRailEyebrows: [String] { [] }
     /// Whether the middle (latest-updates) rail shows the tinted "NEW" badge.
     var latestRailShowsNewBadge: Bool { true }
