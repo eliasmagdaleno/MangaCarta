@@ -52,7 +52,6 @@ final class SourceRegistry: ObservableObject {
     ///   Injectable so tests can supply mock sources.
     init(sources: [MangaSource]? = nil) {
         let sources = sources ?? Self.builtInSources()
-        precondition(!sources.isEmpty, "SourceRegistry requires at least one source")
         self.builtIn = sources
         self.sources = sources
         // Restore the persisted active source if it still exists; otherwise fall back to the first.
@@ -70,7 +69,7 @@ final class SourceRegistry: ObservableObject {
 #else
         stored = UserDefaults.standard.string(forKey: Self.activeKey)
 #endif
-        self.activeSourceID = sources.contains(where: { $0.id == stored }) ? stored! : sources[0].id
+        self.activeSourceID = sources.contains(where: { $0.id == stored }) ? stored! : (sources.first?.id ?? stored ?? "")
         self.chosenSourceID = stored
     }
 
@@ -88,14 +87,14 @@ final class SourceRegistry: ObservableObject {
         sources = builtIn + installed
         if let chosen = chosenSourceID, chosen != activeSourceID, source(id: chosen) != nil {
             activeSourceID = chosen
-        } else if source(id: activeSourceID) == nil {
-            activeSourceID = sources[0].id
+        } else if source(id: activeSourceID) == nil, let first = sources.first {
+            activeSourceID = first.id
         }
     }
 
-    /// The currently-active browsing source (never nil — falls back to the first source).
-    var active: MangaSource {
-        source(id: activeSourceID) ?? sources[0]
+    /// The currently-active browsing source, or nil when no source is installed.
+    var active: MangaSource? {
+        source(id: activeSourceID) ?? sources.first
     }
 
     /// Look up a source by its stable id (e.g. a manga's `sourceId`). Nil if not registered.
@@ -117,11 +116,12 @@ final class SourceRegistry: ObservableObject {
         knownSourceIDs = ids
     }
 
-    /// Update checks use MangaDex for legacy or unregistered source ids, falling back
-    /// to the active source only when MangaDex itself is unavailable in this registry.
-    func sourceForRefresh(sourceId: String?) -> MangaSource {
-        let fallback = source(id: MangaDexSource.sourceID) ?? active
-        return sourceId.flatMap { source(id: $0) } ?? fallback
+    /// The source that refreshes a listing. A nil id predates multi-source and resolves to
+    /// the legacy MangaDex id; an id with no registered Source returns nil and the listing
+    /// is skipped, never sent to another Source (#219).
+    func sourceForRefresh(sourceId: String?) -> MangaSource? {
+        let resolvedID = sourceId ?? LegacySourceID.unattributed
+        return source(id: resolvedID)
     }
 
     /// Sources eligible to show in the picker: adult sources only when opted in.
@@ -141,7 +141,7 @@ final class SourceRegistry: ObservableObject {
     /// Enforce adult gating: if adult sources are now hidden but the active browse source is
     /// adult, fall back to the first non-adult source. Call when the "show adult" flag changes.
     func enforceAdultGating(includeAdult: Bool) {
-        guard !includeAdult, active.isNSFW,
+        guard !includeAdult, active?.isNSFW == true,
               let fallback = visibleSources(includeAdult: false).first else { return }
         activeSourceID = fallback.id
     }

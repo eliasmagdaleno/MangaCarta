@@ -83,6 +83,9 @@ struct MangaCartaApp: App {
                 ? SourceRegistry(sources: [UpdatesUITestSource(), UpdatesUITestAltSource()])
                 : SourceRegistry(sources: [UpdatesUITestSource()])
         }
+        if ProcessInfo.processInfo.arguments.contains("-uitest-zero-sources") {
+            updateRegistry = SourceRegistry(sources: [])
+        }
         if ProcessInfo.processInfo.arguments.contains("-uitest-repository-settings") {
             let suite = "repository-settings-ui-test"
             defaults = UserDefaults(suiteName: suite)!
@@ -163,7 +166,9 @@ struct MangaCartaApp: App {
                 // own start. `start()` is idempotent, so the `.active` case below
                 // arriving first, later, or not at all is all the same.
                 .task {
-                    await extensions?.installBundledSources()
+                    if !ProcessInfo.processInfo.arguments.contains("-uitest-zero-sources") {
+                        await extensions?.installBundledSources()
+                    }
 #if DEBUG
                     if UpdatesUITestFixture.state == nil {
                         queue.start()

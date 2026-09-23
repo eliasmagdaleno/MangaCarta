@@ -161,7 +161,7 @@ final class MALEntityResolver {
     /// source needs no registration to be bridgeable, and this composes with ADR-0018
     /// instead of duplicating what it knows.
     private static func isBridgeable(_ work: Work) -> Bool {
-        !work.listings.contains { $0.sourceId == MangaDexSource.sourceID }
+        !work.listings.contains { $0.sourceId == LegacySourceID.unattributed }
     }
 
     /// Resolves through MangaDex: search it by title, and take `links.mal` off the entry
@@ -297,7 +297,7 @@ final class MALEntityResolver {
             //    get bridged through MangaDex. Step 1 above already returned if it carried
             //    `links.mal`, so reaching here means MangaDex published none — searching it
             //    again asks a question it has already answered.
-            guard manga.sourceId != MangaDexSource.sourceID else {
+            guard manga.sourceId != LegacySourceID.unattributed else {
                 store.record(sourceId: manga.sourceId, mangaId: manga.id, .unresolved(checkedAt: Date()))
                 return nil
             }

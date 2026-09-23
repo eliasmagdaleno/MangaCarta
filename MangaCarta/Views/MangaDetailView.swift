@@ -332,7 +332,7 @@ struct MangaDetailView: View {
                            source: source,
                            initialPosition: action.startPosition, chapters: vm.chapters)
             } else {
-                Text("Source unavailable")
+                UnavailableSourceView()
             }
         } label: {
             ZStack {
@@ -548,7 +548,7 @@ struct MangaDetailView: View {
                                            initialPosition: history.entry(forChapter: chapter.id)?.position,
                                            chapters: vm.chapters)
                             } else {
-                                Text("Source unavailable")
+                                UnavailableSourceView()
                             }
                         } label: {
                             ChapterRow(chapter: chapter)

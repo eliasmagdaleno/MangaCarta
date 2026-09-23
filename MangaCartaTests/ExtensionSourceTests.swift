@@ -413,13 +413,13 @@ final class InstalledSourceRegistrationTests: XCTestCase {
         XCTAssertTrue(registry.visibleSources(includeAdult: false).contains { $0.id == id.rawValue },
                       "the picker offers it")
         registry.activeSourceID = id.rawValue
-        XCTAssertEqual(registry.active.id, id.rawValue)
+        XCTAssertEqual(registry.active?.id, id.rawValue)
 
         // Uninstalling the browse source moves browsing off it rather than leaving the
         // picker pointed at a Source that is no longer there.
         try installer.uninstall(id)
         XCTAssertEqual(registry.activeSourceID, MangaDexSource.sourceID)
-        XCTAssertEqual(registry.active.id, MangaDexSource.sourceID)
+        XCTAssertEqual(registry.active?.id, MangaDexSource.sourceID)
     }
 
     // MARK: Criterion 8, clause "serves … through ExtensionRuntime" — through the registry
@@ -444,7 +444,7 @@ final class InstalledSourceRegistrationTests: XCTestCase {
         let manga = try XCTUnwrap(results.first)
 
         XCTAssertEqual(registry.source(for: manga)?.id, id.rawValue)
-        XCTAssertEqual(registry.sourceForRefresh(sourceId: manga.sourceId).id, id.rawValue)
+        XCTAssertEqual(registry.sourceForRefresh(sourceId: manga.sourceId)?.id, id.rawValue)
     }
 
     // MARK: Adult gating reaches installed Sources

@@ -206,7 +206,7 @@ final class RecommendationEngine: ObservableObject {
         // LibraryItem carries no malId/description/status/year — synthesize a minimal
         // Manga per saved item so TasteProfile.build can materialize seeds for it.
         let libraryManga = library.items.map { item in
-            Manga(id: item.id, sourceId: item.sourceId ?? "mangadex", title: item.title,
+            Manga(id: item.id, sourceId: item.sourceId ?? LegacySourceID.unattributed, title: item.title,
                  description: "", status: "unknown", year: nil, coverURL: item.coverURL, malId: nil)
         }
         // Bound to a local rather than passed inline: the ceiling test below reuses it,
@@ -321,7 +321,7 @@ final class RecommendationEngine: ObservableObject {
         var order: [WorkID] = []                       // newest-read first, as history is
 
         for entry in history.entries {
-            let listing = Manga(id: entry.mangaId, sourceId: entry.sourceId ?? "mangadex",
+            let listing = Manga(id: entry.mangaId, sourceId: entry.sourceId ?? LegacySourceID.unattributed,
                                 title: entry.mangaTitle, description: "", status: "unknown",
                                 // Not `nil`: an id the source published is carried on the
                                 // entry, and `mint` absorbs it so the Work is never a
