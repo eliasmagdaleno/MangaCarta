@@ -1,6 +1,6 @@
 # Handoff — no built-in Sources: decision made, removal and local import started
 
-Date: 2026-09-22, 17:15 PDT (updated 21:25 PDT)
+Date: 2026-09-22, 17:15 PDT (updated 22:46 PDT)
 Repository: `/Users/eliasmagdaleno/Manga-Reader` (GitHub `eliasmagdaleno/MangaCarta`)
 `main` at **`8e8f256`**.
 
@@ -51,7 +51,7 @@ repository destination policy), #208 (#190 extension-storage quarantine), #209 (
 `RepositorySettingsUITests` toggle — it was on `main` since #201; fixed by tapping the switch).
 Closed: #168.
 
-## Open PRs and their state (updated 21:25 PDT)
+## Open PRs and their state (updated 22:46 PDT)
 
 | PR | What | State | Next |
 |---|---|---|---|
@@ -60,9 +60,10 @@ Closed: #168.
 | #216 | Local import spec + ADR-0025 | docs, ready (art still owner's) | owner reads + merges |
 | #211 | #189 uninstalled-source fallback | **merged 2026-09-22** after Claude re-review; second CI run fully green (first-run UI failure was a flake) | remove worktree `fix-189-registry-uninstalled-fallback`; follow-up is #219 |
 | #212 | #203 ChapterOrdinal precision | reworked, full suite passed | CI green → merge |
-| #213 | #186 nested paging | worker `ctx_994ffe91994d` had been **paused since the previous session** (the handoff wrongly said resumed); resumed 21:21, test-only scope | review its result → merge |
-| #214 | #210 DNS-rebinding peer check | Claude review: **do not merge as-is**. Check runs after the request is sent and fails open on nil peer (blocks exfiltration only, not blind SSRF); proxies break/bypass it; cancellation regressed; tests never exercise real `URLSessionDataFetcher`; session leak. Rework dispatched `ctx_e4ff1ffd33c8`: cancellation + test, loopback real-path test (mutation-checked), `isPublic` table test (scoped/mapped/NAT64), leak, stale comment, PR body → "Refs #210" + exfiltration-only scope | re-review → merge; **then file a new issue for connect-time IP pinning** and keep/rescope #210 |
-| #217 | Local import slice 1: ZIP reader | Claude review: **do not merge yet**. Crash on deflate entry with uncompressed size 0 (`baseAddress!`); fixtures `deflated.cbz`/`stored.zip` unused and not in the target, so deflate never ran; spec failure tests missing; whole-file non-mapped read + full decode to sniff; path check misses drive letters/NUL/containment; SwiftLint 3 errors; unrelated `BundledRepositories` pbxproj churn. Rework dispatched `ctx_2a0aed0aa4a9` covering all of it (+ Archive Utility and `zip` fixtures) | re-review → merge |
+| #213 | #186 nested paging | Review found the PR bumps bundled WeebCentral to v2 while the host sends only the nested shape, so an installed v1 silently repeats page 1. **Owner chose option (b):** host sends both nested `page:{cursor,limit}` and legacy top-level `cursor`/`limit` for a transition (remove once published engines are nested, no later than slice 6), with a real-v1-engine test + mutation check and a spec amendment. Worker `ctx_ee4c7cf33ff0` pushed `fa0a43e` at ~22:45; report not yet drained | drain report; Claude re-review of the shim; CI → owner merges |
+| #214 | #210 DNS-rebinding peer check | **Ready.** Two Claude reviews, rework + rebase (`c77f148`), coordinator full unit suite passed (936+150) and mutation checks on both `RepositoryTransport:115` and `HostHTTPClient:79` fail the real-path tests. **CI all green 22:45.** PR body says "Refs #210", exfiltration-only | **owner merges**; then file an issue for connect-time IP pinning (request can still reach a rebound host; proxies unhandled) |
+| #217 | Local import slice 1: ZIP reader | Re-review: **mergeable**; all seven prior findings fixed, CI green at `18b84c3`. Owner asked for a last pass (swap mislabelled fixtures `deflated.cbz`/`stored.zip`, add `extract()` containment test, full-payload compares, no `pages[0]` crash). Worker `ctx_3586b3d6910b` pushed `f0b77a0` at ~22:45; report not yet drained | drain report; confirm fixture methods with `unzip -v`; CI → owner merges |
+| #223 | No-built-in slice 1: zero-source safety + `LegacySourceID` | Coordinator suite caught a real regression (stale active id returned nil despite a Source existing); fixed at `05955b1` with mutation check; 14 changed assertions audited and listed in the PR body; rebased onto main keeping #211 behaviour (`0dc8b15`). **CI all green 22:45** | short Claude review of the conflict resolution → owner merges. Slice 2 plan (#222) later needs "first *browsable* Source" instead of first Source |
 | #220 | App Store submission copy (`docs/app-store/submission-copy.md`) | **draft**, docs | owner decisions below |
 | #221 | MangaDex engine research (`docs/research/2026-09-22-mangadex-engine.md`) | docs | owner reads + merges |
 | #222 | Local import slice 2 plan (`docs/superpowers/plans/2026-09-22-local-import-slice-2.md`) | docs; owner's five answers recorded at `7ed53ab` | merge; implement after zero-sources slice 1 and #217 |
@@ -70,9 +71,9 @@ Closed: #168.
 
 New issue: **#219** — `SourceRegistry.sourceForRefresh` ignores `knownSourceIDs`, so refresh still sends an uninstalled Source's Listings to the fallback Source (`LibraryRefreshCoordinator:168`, `LibraryStore:298`). `ready-for-agent`.
 
-**Codex workers live at 21:25 (run `run_e5fecb527d0a`) — four simulator-bound, one over the ≤3 limit; pause #217 first if the M5 struggles:**
-- `ctx_9737c57855a8` — **no-built-in slice 1** (zero-source safety + `LegacySourceID`), worktree `zero-sources-slice-1`. It sat **4 hours doing nothing**: its brief was pasted into the Codex input but never submitted. Pressing Enter in its terminal started it.
-- `ctx_994ffe91994d` — #213; `ctx_e4ff1ffd33c8` — #214 rework; `ctx_2a0aed0aa4a9` — #217 rework.
+**Codex workers live at 22:46 (run `run_e5fecb527d0a`):** `ctx_ee4c7cf33ff0` (#213 shim) and `ctx_3586b3d6910b` (#217 last pass) — both have pushed; drain and release them. All other dispatches from this session are released. Removal slice 1 is PR **#223**.
+
+**Merging is the owner's.** The auto-mode classifier refuses `gh pr merge` from the agent ("Merge Without Review"), even after a subagent review; the owner runs `! gh pr merge <n> --squash --delete-branch` (non-zero exit when the branch is in a worktree is harmless — check `gh pr view <n> --json state`).
 
 Drain: `orca orchestration check --run run_e5fecb527d0a --terminal term_28f131d2-4563-47ea-b1bc-9df935d3b3d5 --json` (`--ack <deliveryId>`), then `orca orchestration worker-release --dispatch <id> --json`. **An empty queue is not progress** — also run `orca orchestration worker-read --dispatch <id>` and `git -C <worktree> status` per worker.
 
@@ -173,6 +174,9 @@ Remaining worktrees belong to the open PRs above; remove each after its PR merge
   worker's first output after dispatch.
 - **"Paused" workers stay paused across sessions.** A worker told to wait does not resume because a
   later handoff says so — verify with `worker-read`, then send it an explicit resume.
+- **Worker-reported "full suite" is unreliable under load; run suites from the coordinator, one at a time.** With four workers building, load hit ~430 and every worker's full suite stalled; they pushed with focused tests only. Coordinator serial runs then found real failures in #213 and #223 that workers had not seen. Workers now get "run ONLY these classes" briefs; the coordinator or CI runs the full suite. CI's `Build & unit tests` is the full unit suite, so a green CI run is the full-suite evidence.
+- **Pre-boot the simulator and pass its UDID** (`-destination id=<udid>`). A name-only destination picked the wrong runtime, and a non-booted sim once failed right after "Testing started" with no tests run.
+- **`-only-testing` needs the Swift Testing *type* name, not the file name** — `HostCapabilityTests` selected only XCTest classes and silently skipped `struct HostHTTPTests`. Confirm "Test run with N tests" appears before trusting a mutation run.
 - **This Orca build:** `worker-start --worktree new-top-level` is unsupported — create the worktree
   with `orca worktree create --name … --repo path:… --base-branch main --no-parent`, then
   `worker-start --worktree path:<path> --run <run> --from <coordinator handle>` (outside an Orca
