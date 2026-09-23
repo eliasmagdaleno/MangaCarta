@@ -372,6 +372,8 @@ struct AppComposition {
                                             resolver: resolvedMALResolver, memory: memory,
                                             workMetadataChanged: { [weak malProgress] id in
                                                 malProgress?.workMetadataChanged(id)
+                                             }, listingParticipates: { [resolvedRegistry] key in
+                                                 resolvedRegistry.source(id: key.sourceId)?.participatesInUpdates ?? true
                                             })
 
         let vocab = TagVocabularyStore(fetch: { try await limiter.run { try await anilist.tagVocabulary() } })
