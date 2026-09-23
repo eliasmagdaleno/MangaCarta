@@ -143,6 +143,8 @@ resort; if you must, mirror an existing entry across all four sections.
 
 ## Current state
 
+- `LocalSource` and `LocalLibraryStore` provide the on-device CBZ/ZIP library; Local is always registered but excluded from browse and update surfaces.
+
 The app builds and the core reading loop is implemented.
 
 - **Reader:** R→L is implemented as **reversed page order — NOT a mirror transform.** A

@@ -80,6 +80,21 @@ final class WorkStore: ObservableObject {
         return listingIndex[listing]
     }
 
+    /// Removes one source Listing; a Work with no remaining Listings is deleted.
+    func removeListing(_ listing: ListingKey) {
+        loadIfNeeded()
+        guard let id = listingIndex[listing], let resolved = resolve(id), var work = works[resolved] else { return }
+        listingIndex[listing] = nil
+        work.listings.removeAll { $0 == listing }
+        if work.listings.isEmpty {
+            works[resolved] = nil
+            externalIdIndex = externalIdIndex.filter { $0.value != resolved }
+        } else {
+            works[resolved] = work
+        }
+        markDirty()
+    }
+
     func workId(externalId ids: ExternalIDs) -> WorkID? {
         loadIfNeeded()
         return Self.indexKeys(for: ids).lazy.compactMap { self.externalIdIndex[$0] }.first
