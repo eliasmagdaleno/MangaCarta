@@ -116,8 +116,9 @@ final class SourceRegistry: ObservableObject {
         knownSourceIDs = ids
     }
 
-    /// Update checks use MangaDex for legacy or unregistered source ids, falling back
-    /// to the active source only when MangaDex itself is unavailable in this registry.
+    /// The source that refreshes a listing. A nil id predates multi-source and resolves to
+    /// the legacy MangaDex id; an id with no registered Source returns nil and the listing
+    /// is skipped, never sent to another Source (#219).
     func sourceForRefresh(sourceId: String?) -> MangaSource? {
         let resolvedID = sourceId ?? LegacySourceID.unattributed
         return source(id: resolvedID)
