@@ -147,7 +147,7 @@ struct ExtensionChapter: Equatable {
     let groups: [String]?
 
     func toChapter() -> Chapter {
-        Chapter(id: id, number: number ?? "?", title: title, date: publishedAt)
+        Chapter(id: id, number: number ?? "?", title: title, date: publishedAt, groups: groups)
     }
 }
 

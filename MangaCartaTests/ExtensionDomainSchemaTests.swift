@@ -250,8 +250,15 @@ final class ExtensionDomainSchemaTests: XCTestCase {
         ]])
 
         XCTAssertEqual(result.value[0].groups, ["Alpha", "Beta"])
+        XCTAssertEqual(result.value[0].toChapter().groups, ["Alpha", "Beta"])
         XCTAssertNil(result.value[1].groups)
         XCTAssertTrue(result.warnings.isEmpty)
+    }
+
+    func testChapterDecodesCachedJSONWithoutGroups() throws {
+        let json = Data("{\"id\":\"chapter-1\",\"number\":\"1\",\"title\":null,\"date\":null}".utf8)
+        let chapter = try JSONDecoder().decode(Chapter.self, from: json)
+        XCTAssertNil(chapter.groups)
     }
 
     func testInvalidChapterGroupsAreDroppedWithWarnings() throws {
