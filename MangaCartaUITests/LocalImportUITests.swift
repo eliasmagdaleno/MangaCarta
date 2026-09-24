@@ -30,9 +30,8 @@ final class LocalImportUITests: XCTestCase {
         let start = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Start Reading'")).firstMatch
         XCTAssertTrue(start.waitForExistence(timeout: 15))
         start.tap()
-        XCTAssertTrue(app.navigationBars.firstMatch.waitForExistence(timeout: 10))
-        app.navigationBars.firstMatch.buttons.firstMatch.tap()
-        app.navigationBars.buttons["Library"].tap()
+        XCTAssertTrue(app.buttons["Close reader"].waitForExistence(timeout: 10))
+        app.buttons["Close reader"].tap()
         app.buttons["libraryCoverCard"].tap()
 
         let delete = app.buttons["Delete from Device"]
