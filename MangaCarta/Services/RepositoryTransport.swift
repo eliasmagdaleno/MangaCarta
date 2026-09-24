@@ -67,7 +67,9 @@ final class URLSessionRepositoryTransport: RepositoryTransport, @unchecked Senda
          fetcher: (any URLSessionDataFetching)? = nil) {
         self.destinations = HostDestinationPolicy(resolver: resolver)
         let base = configuration ?? Self.sessionConfiguration()
-        let sessionConfiguration = base.copy() as! URLSessionConfiguration
+        guard let sessionConfiguration = base.copy() as? URLSessionConfiguration else {
+            preconditionFailure("URLSessionConfiguration must be copyable")
+        }
         sessionConfiguration.connectionProxyDictionary = [:]
         sessionConfiguration.urlCache = nil
         sessionConfiguration.requestCachePolicy = .reloadIgnoringLocalCacheData
