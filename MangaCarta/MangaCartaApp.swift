@@ -68,10 +68,12 @@ struct MangaCartaApp: App {
 #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("-uitest-local-import") {
             let storageID = ProcessInfo.processInfo.environment["MANGACARTA_UI_TEST_STORAGE_ID"] ?? UUID().uuidString
-            let suite = "local-import-ui-test-(storageID)"
+            let suite = "local-import-ui-test-\(storageID)"
             defaults = UserDefaults(suiteName: suite)!
+            defaults.removePersistentDomain(forName: suite)
             directory = FileManager.default.temporaryDirectory
-                .appendingPathComponent("MangaCarta-LocalImportUITest-(storageID)", isDirectory: true)
+                .appendingPathComponent("MangaCarta-LocalImportUITest-\(storageID)", isDirectory: true)
+            try? FileManager.default.removeItem(at: directory)
             let local = LocalLibraryStore(root: directory.appendingPathComponent("LocalLibrary"))
             updateRegistry = SourceRegistry(sources: [MangaDexSource(), LocalSource(store: local)])
         } else if ProcessInfo.processInfo.arguments.contains("-uitest-mal-signed-out") {
