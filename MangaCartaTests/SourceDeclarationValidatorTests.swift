@@ -116,7 +116,7 @@ final class SourceDeclarationValidatorTests: XCTestCase {
         XCTAssertEqual(declaration.presentation.feeds[.popular]?.title, "Popular")
         XCTAssertEqual(declaration.presentation.feeds[.latestUpdates]?.badge, .new)
         XCTAssertEqual(declaration.presentation.imagePrefetchConcurrencyHint, 4)
-        XCTAssertEqual(declaration.selectedHostAPIVersion, HostAPIVersion(major: 1, minor: 1))
+        XCTAssertEqual(declaration.selectedHostAPIVersion, HostAPIVersion(major: 1, minor: 2))
         XCTAssertEqual(declaration.configuration,
                        .object(["baseURL": .string("https://example.test")]))
         XCTAssertEqual(declaration.externalIds, [])
@@ -166,7 +166,7 @@ final class SourceDeclarationValidatorTests: XCTestCase {
         currentCapabilities["listing"] = true
         current["capabilities"] = currentCapabilities
         let acceptedCurrent = try accepted(current)
-        XCTAssertEqual(acceptedCurrent.selectedHostAPIVersion, HostAPIVersion(major: 1, minor: 1))
+        XCTAssertEqual(acceptedCurrent.selectedHostAPIVersion, HostAPIVersion(major: 1, minor: 2))
 
         var legacyNoFeature = legacy
         legacyNoFeature.removeValue(forKey: "externalIds")
@@ -692,7 +692,48 @@ final class SourceDeclarationValidatorTests: XCTestCase {
         XCTAssertEqual(declared.minimum, HostAPIVersion(major: 2, minor: 0))
         XCTAssertEqual(declared.maximumExclusive, HostAPIVersion(major: 3, minor: 0))
         XCTAssertEqual(supported, [HostAPIVersion(major: 1, minor: 0),
-                                   HostAPIVersion(major: 1, minor: 1)])
+                                   HostAPIVersion(major: 1, minor: 1),
+                                   HostAPIVersion(major: 1, minor: 2)])
+    }
+
+    func testWildcardAssetOriginIsScopedAndShapeChecked() throws {
+        var acceptedJSON = baseDeclaration()
+        var network = try XCTUnwrap(acceptedJSON["network"] as? [String: Any])
+        network["assetOrigins"] = ["https://*.mangadex.network"]
+        acceptedJSON["network"] = network
+        XCTAssertEqual(try accepted(acceptedJSON).network.assetOrigins,
+                       ["https://*.mangadex.network"])
+
+        for key in ["httpOrigins", "browserOrigins"] {
+            var rejectedJSON = baseDeclaration()
+            var mutated = try XCTUnwrap(rejectedJSON["network"] as? [String: Any])
+            mutated[key] = ["https://*.mangadex.network"]
+            rejectedJSON["network"] = mutated
+            guard case .invalidOrigin = try rejected(rejectedJSON) else {
+                return XCTFail("wildcard unexpectedly accepted in \(key)")
+            }
+        }
+
+        for value in ["https://m*ngadex.network", "https://*.*.mangadex.network",
+                      "https://*.network", "https://*.com", "http://*.mangadex.network"] {
+            var rejectedJSON = baseDeclaration()
+            var mutated = try XCTUnwrap(rejectedJSON["network"] as? [String: Any])
+            mutated["assetOrigins"] = [value]
+            rejectedJSON["network"] = mutated
+            guard case .invalidOrigin = try rejected(rejectedJSON) else {
+                return XCTFail("wildcard unexpectedly accepted: \(value)")
+            }
+        }
+
+        var legacy = baseDeclaration()
+        legacy["hostAPI"] = ["minimum": "1.0", "maximumExclusive": "1.2"]
+        var legacyNetwork = try XCTUnwrap(legacy["network"] as? [String: Any])
+        legacyNetwork["assetOrigins"] = ["https://*.mangadex.network"]
+        legacy["network"] = legacyNetwork
+        XCTAssertEqual(try rejected(legacy),
+                       .featureRequiresHostAPIVersion(feature: "network.assetOrigins wildcard",
+                                                      minimum: HostAPIVersion(major: 1, minor: 2),
+                                                      selected: HostAPIVersion(major: 1, minor: 1)))
     }
 
     /// Criterion 9's "actionable": the message must name the declared range and what the

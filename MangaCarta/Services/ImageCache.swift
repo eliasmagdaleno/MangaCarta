@@ -134,6 +134,7 @@ final class ImageCache: @unchecked Sendable {
         self.retryBaseDelay = retryBaseDelay
         self.maxImageRetries = maxImageRetries
         self.fetch = fetcher ?? { url in
+            try await HostDestinationPolicy().validate(url)
             let (data, response) = try await URLSession.shared.data(from: url)
             if let http = response as? HTTPURLResponse, http.statusCode == 429 || http.statusCode == 503 {
                 throw ImageFetchError.rateLimited

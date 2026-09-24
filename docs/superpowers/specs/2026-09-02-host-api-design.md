@@ -454,6 +454,9 @@ The optional `listing` operation and `externalIds` declaration key are additive 
 introduced by Host API 1.1; declarations selecting 1.0 must not use them. (added 2026-09-24,
 removal slice 4)
 
+Leftmost-label wildcards in `network.assetOrigins` are an additive opt-in feature introduced by
+Host API 1.2; declarations selecting an older version must not use them. (added 2026-09-24, #230)
+
 A Source using `listing` or `externalIds` should declare `hostAPI.minimum` as `1.1`, so a host
 older than 1.1 reports a version error rather than an unknown key. (added 2026-09-24, removal
 slice 4)
@@ -506,6 +509,15 @@ declared browser origin and is revalidated immediately before opening. Malformed
 URLs drop that field with a warning; policy-invalid URLs and all invalid page or browser URLs reject
 the operation. This distinction keeps cosmetic damage recoverable without silently weakening the
 reader or navigation boundary.
+
+An asset origin may use exactly one wildcard in the leftmost label, for example
+`https://*.mangadex.network`. It matches exactly one additional host label (`a.mangadex.network`),
+never the apex or a deeper name. Wildcards are HTTPS-only, are rejected in `httpOrigins` and
+`browserOrigins`, and must contain at least two labels after `*.`. The host rejects known public
+and shared-hosting suffixes (including `com`, `net`, `org`, `co.uk`, `github.io`, and
+`cloudfront.net`); this is an explicit safety deny-list because the platform has no public suffix
+list API. Wildcard-matched assets undergo the same DNS resolution and public-address check as all
+other image loads. (added 2026-09-24, #230)
 
 > **Amendment 4 (2026-09-04, contract gap 4).** The sentence above is superseded for the optional
 > cover field alone. A **policy-invalid optional cover URL now also drops the field with a

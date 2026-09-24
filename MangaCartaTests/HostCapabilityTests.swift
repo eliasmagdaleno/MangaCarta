@@ -16,6 +16,20 @@ import XCTest
 @Suite("Host HTTP capability")
 struct HostHTTPTests {
 
+    @Test("Wildcard asset origins match one label and still reject private DNS")
+    func wildcardAssetOriginUsesPublicDestinationPolicy() async throws {
+        let url = try #require(URL(string: "https://a.mangadex.network/page.jpg"))
+        let policy = HostURLPolicy(allowedOrigins: ["https://*.mangadex.network"],
+                                   resolver: FixedHostResolver(addresses: ["10.0.0.5"]))
+        let error = await hostCapabilityError { try await policy.validate(url) }
+        #expect(error?.code == .policyDenied)
+        #expect(error?.message == "the destination resolved to a non-public address")
+
+        let apex = try #require(URL(string: "https://mangadex.network/page.jpg"))
+        let apexError = await hostCapabilityError { try await policy.validate(apex) }
+        #expect(apexError?.code == .policyDenied)
+    }
+
     @Test("Connected loopback peers are refused on the real URLSession path")
     func realURLSessionRefusesLoopbackPeer() async throws {
         let server = try LoopbackHTTPServer()

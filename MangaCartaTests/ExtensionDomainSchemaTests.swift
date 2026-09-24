@@ -134,6 +134,19 @@ final class ExtensionDomainSchemaTests: XCTestCase {
         XCTAssertEqual(malformed.warnings.map(\.code), [.malformedURL])
     }
 
+    func testWildcardAssetOriginMatchesExactlyOneLabel() throws {
+        let wildcard = ExtensionDomainValidator(assetOrigins: ["https://*.mangadex.network"])
+        let accepted = try wildcard.validateListing(["id": "manga-1", "title": "Title",
+                                                     "coverURL": "https://a.mangadex.network/cover.jpg"])
+        XCTAssertNotNil(accepted.value.coverURL)
+        for host in ["mangadex.network", "a.b.mangadex.network", "evilmangadex.network"] {
+            let result = try wildcard.validateListing(["id": "manga-1", "title": "Title",
+                                                       "coverURL": "https://\(host)/cover.jpg"])
+            XCTAssertNil(result.value.coverURL, host)
+            XCTAssertEqual(result.warnings.map(\.code), [.policyInvalidURL], host)
+        }
+    }
+
     /// ADR-0024: a cover is cosmetic on both readings, so a policy-invalid cover drops the
     /// field rather than erasing the feed it arrived in. The rejected URL is never loaded
     /// either way, so no boundary weakens.
