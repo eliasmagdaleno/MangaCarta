@@ -144,6 +144,7 @@ final class MALProgressCoordinatorTests: XCTestCase {
         coordinator.chapterCompleted(completion(progress: 12, sourceId: "local"))
         let reloaded = MALProgressOutbox(directory: directory)
         XCTAssertNil(reloaded.nextEligible(userID: 7, at: now))
+        XCTAssertEqual(reloaded.summary(userID: 7).deferred, 0)
     }
 
     // MARK: Completion sink

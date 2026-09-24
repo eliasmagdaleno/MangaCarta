@@ -107,8 +107,8 @@ final class MALProgressCoordinator {
         sleep: @escaping (TimeInterval) async throws -> Void = {
             try await Task.sleep(nanoseconds: UInt64($0 * 1_000_000_000))
         },
-        jitter: @escaping (TimeInterval) -> TimeInterval = { $0 * Double.random(in: 0.8...1.0) }
-        , listingParticipates: @escaping (ListingKey) -> Bool = { _ in true }
+        jitter: @escaping (TimeInterval) -> TimeInterval = { $0 * Double.random(in: 0.8...1.0) },
+        listingParticipates: @escaping (ListingKey) -> Bool = { _ in true }
     ) {
         self.outbox = outbox
         self.client = client

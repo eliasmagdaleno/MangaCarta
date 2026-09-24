@@ -36,7 +36,10 @@ struct LocalLibraryStoreTests {
         let store = LocalLibraryStore(root: library)
         await #expect(throws: Error.self) { try await store.importArchive(at: corrupt) }
         #expect(itemDirectories(at: library).isEmpty)
-        #expect((try? FileManager.default.contentsOfDirectory(at: library.appendingPathComponent(".staging"), includingPropertiesForKeys: nil).isEmpty) == true)
+        let staging = library.appendingPathComponent(".staging")
+        let stagingIsEmpty = try? FileManager.default
+            .contentsOfDirectory(at: staging, includingPropertiesForKeys: nil).isEmpty
+        #expect(stagingIsEmpty == true)
 
         let zero = try archive(root: root, files: [("ComicInfo.xml", Data("<ComicInfo/>".utf8)), (".DS_Store", Data([1]))])
         await #expect(throws: LocalImportError.noImages) { try await store.importArchive(at: zero) }

@@ -82,6 +82,7 @@ protocol MangaSource {
     var isBrowsable: Bool { get }
     /// Whether refresh, metadata upgrades, and external progress sync may query it.
     var participatesInUpdates: Bool { get }
+
 }
 
 /// Errors common to the source layer (distinct from a source's own transport errors).
