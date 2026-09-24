@@ -125,7 +125,7 @@ final class SourceDeclarationValidatorTests: XCTestCase {
     func testExternalIDsAreOptionalAndValidated() throws {
         var acceptedJSON = baseDeclaration()
         acceptedJSON["externalIds"] = ["mal"]
-        var acceptedCapabilities = acceptedJSON["capabilities"] as! [String: Any]
+        var acceptedCapabilities = try XCTUnwrap(acceptedJSON["capabilities"] as? [String: Any])
         acceptedCapabilities["listing"] = true
         acceptedJSON["capabilities"] = acceptedCapabilities
         XCTAssertEqual(try accepted(acceptedJSON).externalIds, ["mal"])
@@ -151,7 +151,7 @@ final class SourceDeclarationValidatorTests: XCTestCase {
 
         var legacyListing = baseDeclaration()
         legacyListing["hostAPI"] = ["minimum": "1.0", "maximumExclusive": "1.1"]
-        var capabilities = legacyListing["capabilities"] as! [String: Any]
+        var capabilities = try XCTUnwrap(legacyListing["capabilities"] as? [String: Any])
         capabilities["listing"] = true
         legacyListing["capabilities"] = capabilities
         XCTAssertEqual(try rejected(legacyListing),
@@ -162,7 +162,7 @@ final class SourceDeclarationValidatorTests: XCTestCase {
         var current = baseDeclaration()
         current["hostAPI"] = ["minimum": "1.1", "maximumExclusive": "2.0"]
         current["externalIds"] = ["mal"]
-        var currentCapabilities = current["capabilities"] as! [String: Any]
+        var currentCapabilities = try XCTUnwrap(current["capabilities"] as? [String: Any])
         currentCapabilities["listing"] = true
         current["capabilities"] = currentCapabilities
         let acceptedCurrent = try accepted(current)
