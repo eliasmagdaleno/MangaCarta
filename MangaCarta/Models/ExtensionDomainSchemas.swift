@@ -308,7 +308,14 @@ struct ExtensionDomainValidator {
                 let number = try optionalString(object, key: "number", path: path)
                 let title = try optionalString(object, key: "title", path: path)
                 let language = try optionalString(object, key: "language", path: path)
-                let groups = try chapterGroups(object, path: path)
+                let groups: [String]?
+                do {
+                    groups = try chapterGroups(object, path: path)
+                } catch let error as ExtensionSchemaError {
+                    if error.code == .invalidResult { throw error }
+                    groups = nil
+                    warnings.append(warning(.invalidField, index, error.fieldPath))
+                }
 
                 var publishedAt: Date?
                 if let rawDate = object["publishedAt"] {

@@ -266,7 +266,7 @@ final class ExtensionDomainSchemaTests: XCTestCase {
         XCTAssertNil(chapter.groups)
     }
 
-    func testInvalidChapterGroupsAreDroppedWithWarnings() throws {
+    func testInvalidChapterGroupsAreIgnoredWithWarnings() throws {
         let invalidValues: [Any] = [
             "not-an-array",
             ["valid", 7],
@@ -279,8 +279,10 @@ final class ExtensionDomainSchemaTests: XCTestCase {
             let result = try validator.validateChapters(["items": [[
                 "id": "chapter", "groups": value
             ]]])
+            XCTAssertEqual(result.value.map(\.id), ["chapter"], "chapter should survive \(value)")
             XCTAssertNil(result.value.first?.groups, "unexpectedly accepted \(value)")
-            XCTAssertEqual(result.warnings.map(\.fieldPath), ["items[0]"])
+            XCTAssertEqual(result.warnings.count, 1)
+            XCTAssertTrue(result.warnings[0].fieldPath.hasPrefix("items[0].groups"))
         }
     }
 
