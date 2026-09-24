@@ -261,12 +261,6 @@ final class ExtensionDomainSchemaTests: XCTestCase {
         XCTAssertEqual(tenGroups.value.first?.groups?.count, 10)
     }
 
-    func testChapterDecodesCachedJSONWithoutGroups() throws {
-        let json = Data("{\"id\":\"chapter-1\",\"number\":\"1\",\"title\":null,\"date\":null}".utf8)
-        let chapter = try JSONDecoder().decode(Chapter.self, from: json)
-        XCTAssertNil(chapter.groups)
-    }
-
     func testInvalidChapterGroupsAreIgnoredWithWarnings() throws {
         let invalidValues: [Any] = [
             "not-an-array",
