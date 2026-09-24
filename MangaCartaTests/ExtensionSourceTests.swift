@@ -145,6 +145,16 @@ final class ExtensionSourceTests: XCTestCase {
         }
     }
 
+    func testListingLookupRejectsNonObjectNonNullResult() async throws {
+        let source = try echoSource(declareListing: true, declaresMAL: true, listingNonObject: true)
+        do {
+            _ = try await source.manga(id: "lookup-1")
+            XCTFail("expected invalid response")
+        } catch let error as ExtensionSourceError {
+            XCTAssertEqual(error, .invocation(.invalidResponse))
+        }
+    }
+
     func testRegistryChoosesInstalledExternalIdSource() throws {
         let source = try echoSource(declareListing: true, declaresMAL: true)
         let registry = SourceRegistry(sources: [source])
@@ -306,9 +316,13 @@ final class ExtensionSourceTests: XCTestCase {
                             declareListing: Bool = false,
                             declaresMAL: Bool = false,
                             listingID: String? = nil,
+                            listingNonObject: Bool = false,
                             failWith code: String? = nil,
                             message: String = "") throws -> ExtensionSource {
         let returnedListingID = listingID.map { "\"\($0)\"" } ?? "request.listingId"
+        let returnedListing = listingNonObject
+            ? "[]"
+            : "{ id: \(returnedListingID), title: \"Lookup\", externalIds: { mal: \"123\" } }"
         let script = """
         registerEngine("echo", {
           invoke: function (operation, request, context) {
@@ -317,7 +331,7 @@ final class ExtensionSourceTests: XCTestCase {
             if (operation === "listing") {
               return request.listingId === "missing"
                 ? { ok: true, value: null }
-              : { ok: true, value: { id: \(returnedListingID), title: "Lookup", externalIds: { mal: "123" } } };
+              : { ok: true, value: \(returnedListing) };
             }
             var id = "cursor=" + cursor + ";limit=" + request.limit;
             if (request.query !== undefined) { id += ";query=" + request.query; }

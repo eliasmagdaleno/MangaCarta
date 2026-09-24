@@ -32,6 +32,21 @@ final class ExtensionDomainSchemaTests: XCTestCase {
         XCTAssertEqual(result.warnings.map(\.itemIndex), [nil])
     }
 
+    func testMALIdsMustBePositiveDecimalIntegers() throws {
+        let invalidValues: [Any] = [0, "-1", "12a", " 12", String(repeating: "9", count: 100)]
+        for value in invalidValues {
+            let result = try validator.validateListing(["id": "manga-1", "title": "A Title",
+                                                         "externalIds": ["mal": value]])
+            XCTAssertNil(result.value.externalIds["mal"], "unexpectedly kept \(value)")
+            XCTAssertEqual(result.warnings.map(\.fieldPath), ["listing.externalIds.mal"])
+        }
+
+        let valid = try validator.validateListing(["id": "manga-1", "title": "A Title",
+                                                    "externalIds": ["mal": "123"]])
+        XCTAssertEqual(valid.value.externalIds["mal"], "123")
+        XCTAssertTrue(valid.warnings.isEmpty)
+    }
+
     func testSparseListingPreservesWireMetadataAndAdapterUsesInvokedSource() throws {
         let result = try validator.validateListingPage(exhaustedPage(items: [[
             "id": "  manga-1  ",
