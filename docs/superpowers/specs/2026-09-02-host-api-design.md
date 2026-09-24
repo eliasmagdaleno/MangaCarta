@@ -216,15 +216,19 @@ as for Listings. A non-object detail result rejects the operation.
   "number": "12.5",
   "title": "Optional title",
   "publishedAt": "2026-09-01T12:34:56Z",
-  "language": "en"
+  "language": "en",
+  "groups": ["Example Scanlation"]
 }
 ```
 
 Required: nonempty `id`. `number`, `title`, `publishedAt`, and `language` are optional. Missing
 `number` becomes `?` in the Swift adapter. Dates must be RFC 3339 instants; invalid dates become
 absent with a warning rather than losing the chapter. Invalid chapter items are dropped with
-warnings. Ordering and duplicate policy belong to the operation result; the host does not reorder
-or merge chapters because source-specific chapter identity and split releases make that unsafe.
+warnings. `groups` is an optional Host API 1.2 field: when present it is an array of at most ten
+nonempty strings, each at most 200 Unicode scalars; names are trimmed and invalid values reject
+the result as `invalid_result`. An absent field means the group is unknown. Ordering and duplicate
+policy belong to the operation result; the host does not reorder or merge chapters because
+source-specific chapter identity and split releases make that unsafe.
 
 ### 2.5 Page
 
@@ -749,3 +753,15 @@ transition, the host also sends the same values as legacy top-level `request.cur
 only the nested value and still reject requests without a `page` object. Remove this compatibility
 shim once all published engines use the nested shape, and no later than no-built-in-sources
 slice 6 removes the bundled package.
+
+## Amendment 6 — chapter scanlation-group credits (2026-09-24)
+
+**Decision:** Chapter results may carry an optional `groups` array beginning with Host API 1.2.
+The host trims each name, limits the array to ten names and each name to 200 Unicode scalars,
+and rejects a non-array, non-string element, empty name, or over-limit value as `invalid_result`.
+Missing `groups` remains unknown rather than an empty claim. The app preserves the names in
+chapter persistence and shows them joined by `, ` in the chapter list, including the credit in
+the row's accessibility label.
+
+This makes the scanlation-group credit required by MangaDex's acceptable-use policy available to
+configuration-backed Sources without inventing source-specific selection or deduplication policy.
