@@ -397,6 +397,7 @@ Stable error codes are:
 | `cancelled` | caller or host cancelled | no automatic retry |
 | `invalid_request` | host/runtime contract bug before invocation | never |
 | `invalid_response` | Extension output violates schema | after Extension fix |
+| `invalid_result` | host detected a well-formed result with an invalid meaning (for example, a Listing id that does not match the requested id); engines must not send this code | after Source fix |
 | `unsupported` | declared/implemented contract mismatch | after Extension fix |
 | `unsupported_language` | requested declared language is currently unavailable | after selection changes |
 | `network` | transport failed | caller policy |
@@ -452,6 +453,10 @@ feature negotiation, not inferred from an export.
 The optional `listing` operation and `externalIds` declaration key are additive opt-in features
 introduced by Host API 1.1; declarations selecting 1.0 must not use them. (added 2026-09-24,
 removal slice 4)
+
+A Source using `listing` or `externalIds` should declare `hostAPI.minimum` as `1.1`, so a host
+older than 1.1 reports a version error rather than an unknown key. (added 2026-09-24, removal
+slice 4)
 
 ## 8. Language contract
 
