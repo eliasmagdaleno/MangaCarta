@@ -19,7 +19,7 @@ final class LocalImportUITests: XCTestCase {
         empty.terminate()
 
         let app = XCUIApplication()
-        app.launchArguments += ["-uitest-import-fixture", "archive-utility"]
+        app.launchArguments += ["-uitest-import-fixture", "deflated"]
         app.launch()
         app.tabBars.buttons["Library"].tap()
         let card = app.buttons["libraryCoverCard"]
