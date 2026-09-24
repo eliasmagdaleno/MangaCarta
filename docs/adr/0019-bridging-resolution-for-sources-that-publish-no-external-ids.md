@@ -251,7 +251,7 @@ Source comes from changes.
    `MoreLikeThisProvider` and `RecommendationEngine` take a `source: () -> MangaSource?` closure that
    reads the registry each time — never a Source captured at construction. Installing a Source
    takes effect on the next resolution, without a relaunch. Production code has no `{ nil }`
-   defaults, and every caller passes the graph's registry (ADR: "injected, not reached for").
+   defaults, and every caller passes the graph's registry, never `SourceRegistry.shared` (`CLAUDE.md` → Architecture).
 4. **A missing Source throws `SourceError.unavailable` and records nothing.** The reader sees an
    empty result, but neither the bridge nor the reverse resolver persists `.unmatched`,
    `.unresolved` or a reverse miss. **Why:** a "no Source" answer is about the reader's setup, not
