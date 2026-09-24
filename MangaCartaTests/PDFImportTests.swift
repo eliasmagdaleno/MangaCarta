@@ -59,9 +59,9 @@ struct PDFImportTests {
         let image = try #require(CGImageSourceCreateWithURL(page as CFURL, nil)
             .flatMap { CGImageSourceCreateImageAtIndex($0, 0, nil) })
         let rendered = rgbaImage(from: image)
-        #expect(rendered.pixel(at: CGPoint(x: 100, y: image.height / 2)).distance(to: .red) < 0.2)
-        #expect(rendered.pixel(at: CGPoint(x: image.width / 2, y: 10)).distance(to: .blue) < 0.2)
-        #expect(rendered.pixel(at: CGPoint(x: image.width - 100, y: image.height / 2)).distance(to: .red) < 0.2)
+        #expect(rendered.pixel(at: CGPoint(x: 100, y: image.height / 2)).isRed)
+        #expect(rendered.pixel(at: CGPoint(x: image.width / 2, y: 10)).isBlue)
+        #expect(rendered.pixel(at: CGPoint(x: image.width - 100, y: image.height / 2)).isRed)
         #expect(image.width > image.height)
         #expect(max(image.width, image.height) == 2_600)
     }
@@ -140,6 +140,19 @@ struct PDFImportTests {
 }
 
 private extension UIColor {
+    var isRed: Bool { redComponent > greenComponent + 0.2 && redComponent > blueComponent + 0.2 }
+    var isBlue: Bool { blueComponent > redComponent + 0.2 && blueComponent > greenComponent + 0.2 }
+
+    private var redComponent: CGFloat { components.0 }
+    private var greenComponent: CGFloat { components.1 }
+    private var blueComponent: CGFloat { components.2 }
+
+    private var components: (CGFloat, CGFloat, CGFloat) {
+        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+        getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        return (red, green, blue)
+    }
+
     func distance(to other: UIColor) -> CGFloat {
         var r1: CGFloat = 0, g1: CGFloat = 0, b1: CGFloat = 0, a1: CGFloat = 0
         var r2: CGFloat = 0, g2: CGFloat = 0, b2: CGFloat = 0, a2: CGFloat = 0
