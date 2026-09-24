@@ -10,6 +10,7 @@ enum LocalImportResult: Equatable {
 enum LocalImportError: Error, Equatable {
     case noImages
     case unreadableArchive(ZipArchiveError)
+    case unreadablePDF
     case insufficientSpace
 }
 
@@ -26,7 +27,7 @@ actor LocalLibraryStore {
         try? fm.createDirectory(at: staging, withIntermediateDirectories: true)
     }
 
-    func importArchive(at source: URL) throws -> LocalImportResult {
+    func importArchive(at source: URL) async throws -> LocalImportResult {
         let staging = root.appendingPathComponent(".staging").appendingPathComponent(UUID().uuidString)
         let archive = staging.appendingPathComponent("archive")
         let item = staging.appendingPathComponent("item")
@@ -42,6 +43,28 @@ actor LocalLibraryStore {
                 try? fm.removeItem(at: staging)
                 return .duplicate(itemId: itemId)
             }
+            let title = source.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " ")
+            if source.pathExtension.caseInsensitiveCompare("pdf") == .orderedSame {
+                do {
+                    let pageDir = item.appendingPathComponent("pages/1")
+                    let files = try await PDFPageRasterizer().rasterize(source: archive, to: pageDir)
+                    guard let firstFile = files.first else { throw LocalImportError.noImages }
+                    try fm.createDirectory(at: item, withIntermediateDirectories: true)
+                    try fm.copyItem(at: pageDir.appendingPathComponent(firstFile),
+                                    to: item.appendingPathComponent("cover.jpg"))
+                    let chapter = LocalChapter(number: 1, title: title, pageCount: files.count, pageFiles: files)
+                    let record = LocalItemRecord(itemId: itemId, title: title, sourceFilename: source.lastPathComponent,
+                        sha256: hash, byteSize: bytes.count, importedAt: Date(), chapters: [chapter])
+                    let encoded = try JSONEncoder().encode(record)
+                    try encoded.write(to: item.appendingPathComponent("item.json"), options: .atomic)
+                    try? fm.removeItem(at: archive)
+                    try fm.moveItem(at: item, to: destination)
+                    try? fm.removeItem(at: staging)
+                    return .imported(record)
+                } catch is PDFRasterizationError {
+                    throw LocalImportError.unreadablePDF
+                }
+            }
             let reader: ZipArchiveReader
             do {
                 reader = try ZipArchiveReader(url: archive)
@@ -50,7 +73,6 @@ actor LocalLibraryStore {
             }
             let archiveChapters = try reader.chapters()
             guard !archiveChapters.isEmpty else { throw LocalImportError.noImages }
-            let title = source.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " ")
             let sortedArchive = archiveChapters.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
             let root = sortedArchive.first(where: { $0.name == "Root" })
             let folders = sortedArchive.filter { $0.name != "Root" }
