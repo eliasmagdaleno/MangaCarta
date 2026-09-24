@@ -61,7 +61,7 @@ struct PDFImportTests {
         let corrupt = root.appendingPathComponent("broken.pdf")
         try Data("not a PDF".utf8).write(to: corrupt)
         let empty = root.appendingPathComponent("empty.pdf")
-        try makePDF(at: empty, pageCount: 0)
+        try makeZeroPagePDF(at: empty)
         await #expect(throws: LocalImportError.unreadablePDF) { try await store.importArchive(at: corrupt) }
         await #expect(throws: Error.self) { try await store.importArchive(at: empty) }
         #expect(await store.allRecords().isEmpty)
@@ -104,6 +104,11 @@ struct PDFImportTests {
             return
         }
         page.rotation = 90
+        #expect(document.write(to: url))
+    }
+
+    private func makeZeroPagePDF(at url: URL) throws {
+        let document = PDFDocument()
         #expect(document.write(to: url))
     }
 
