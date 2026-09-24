@@ -116,9 +116,61 @@ final class SourceDeclarationValidatorTests: XCTestCase {
         XCTAssertEqual(declaration.presentation.feeds[.popular]?.title, "Popular")
         XCTAssertEqual(declaration.presentation.feeds[.latestUpdates]?.badge, .new)
         XCTAssertEqual(declaration.presentation.imagePrefetchConcurrencyHint, 4)
-        XCTAssertEqual(declaration.selectedHostAPIVersion, HostAPIVersion(major: 1, minor: 0))
+        XCTAssertEqual(declaration.selectedHostAPIVersion, HostAPIVersion(major: 1, minor: 1))
         XCTAssertEqual(declaration.configuration,
                        .object(["baseURL": .string("https://example.test")]))
+        XCTAssertEqual(declaration.externalIds, [])
+    }
+
+    func testExternalIDsAreOptionalAndValidated() throws {
+        var acceptedJSON = baseDeclaration()
+        acceptedJSON["externalIds"] = ["mal"]
+        var acceptedCapabilities = try XCTUnwrap(acceptedJSON["capabilities"] as? [String: Any])
+        acceptedCapabilities["listing"] = true
+        acceptedJSON["capabilities"] = acceptedCapabilities
+        XCTAssertEqual(try accepted(acceptedJSON).externalIds, ["mal"])
+
+        XCTAssertEqual(try rejected(declaration(setting: "externalIds", to: ["mal", "mal"])),
+                       .duplicateExternalIDNamespace("mal"))
+        XCTAssertEqual(try rejected(declaration(setting: "externalIds", to: ["anilist"])),
+                       .unknownExternalIDNamespace("anilist"))
+
+        var withoutListing = baseDeclaration()
+        withoutListing["externalIds"] = ["mal"]
+        XCTAssertEqual(try rejected(withoutListing), .externalIDsRequireListing)
+    }
+
+    func testExternalIDFeaturesRequireHostAPI11() throws {
+        var legacy = baseDeclaration()
+        legacy["hostAPI"] = ["minimum": "1.0", "maximumExclusive": "1.1"]
+        legacy["externalIds"] = ["mal"]
+        XCTAssertEqual(try rejected(legacy),
+                       .featureRequiresHostAPIVersion(feature: "externalIds",
+                                                      minimum: HostAPIVersion(major: 1, minor: 1),
+                                                      selected: HostAPIVersion(major: 1, minor: 0)))
+
+        var legacyListing = baseDeclaration()
+        legacyListing["hostAPI"] = ["minimum": "1.0", "maximumExclusive": "1.1"]
+        var capabilities = try XCTUnwrap(legacyListing["capabilities"] as? [String: Any])
+        capabilities["listing"] = true
+        legacyListing["capabilities"] = capabilities
+        XCTAssertEqual(try rejected(legacyListing),
+                       .featureRequiresHostAPIVersion(feature: "capabilities.listing",
+                                                      minimum: HostAPIVersion(major: 1, minor: 1),
+                                                      selected: HostAPIVersion(major: 1, minor: 0)))
+
+        var current = baseDeclaration()
+        current["hostAPI"] = ["minimum": "1.1", "maximumExclusive": "2.0"]
+        current["externalIds"] = ["mal"]
+        var currentCapabilities = try XCTUnwrap(current["capabilities"] as? [String: Any])
+        currentCapabilities["listing"] = true
+        current["capabilities"] = currentCapabilities
+        let acceptedCurrent = try accepted(current)
+        XCTAssertEqual(acceptedCurrent.selectedHostAPIVersion, HostAPIVersion(major: 1, minor: 1))
+
+        var legacyNoFeature = legacy
+        legacyNoFeature.removeValue(forKey: "externalIds")
+        XCTAssertNoThrow(try accepted(legacyNoFeature))
     }
 
     /// The id is supplied by the installer and copied through untouched. Nothing in the
@@ -639,7 +691,8 @@ final class SourceDeclarationValidatorTests: XCTestCase {
         }
         XCTAssertEqual(declared.minimum, HostAPIVersion(major: 2, minor: 0))
         XCTAssertEqual(declared.maximumExclusive, HostAPIVersion(major: 3, minor: 0))
-        XCTAssertEqual(supported, [HostAPIVersion(major: 1, minor: 0)])
+        XCTAssertEqual(supported, [HostAPIVersion(major: 1, minor: 0),
+                                   HostAPIVersion(major: 1, minor: 1)])
     }
 
     /// Criterion 9's "actionable": the message must name the declared range and what the

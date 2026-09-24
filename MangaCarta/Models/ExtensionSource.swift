@@ -71,7 +71,7 @@ enum ExtensionSourceError: LocalizedError, Equatable {
             return "The request was cancelled."
         case .invalidRequest, .unsupported, .incompatibleVersion:
             return "This source can't handle that request. An update to the source may fix it."
-        case .invalidResponse:
+        case .invalidResponse, .invalidResult:
             return "The source returned something the app couldn't read."
         case .unsupportedLanguage:
             return "This source doesn't serve that language."
@@ -139,6 +139,8 @@ final class ExtensionSource: MangaSource {
     var name: String { declaration.name }
 
     var supportsTagBrowse: Bool { declaration.capabilities.supports(.tagBrowse) }
+
+    var publishesExternalIds: Bool { declaration.externalIds.contains("mal") }
 
     var homeFeedCapabilities: Set<SourceOperation> {
         Set(SourceOperation.discoveryFeeds.filter { declaration.capabilities.supports($0) })
@@ -243,6 +245,17 @@ final class ExtensionSource: MangaSource {
     func mangaDetail(id: String) async throws -> MangaDetail {
         let value = try await invoke(.detail, request: ["listingId": id])
         return try validated { try validator.validateDetail(value).value.toMangaDetail() }
+    }
+
+    func manga(id: String) async throws -> Manga? {
+        guard declaration.capabilities.supports(.listing) else { return nil }
+        let value = try await invoke(.listing, request: ["listingId": id])
+        if value is NSNull { return nil }
+        let listing = try validated { try validator.validateListing(value).value }
+        guard listing.id == id else {
+            throw ExtensionSourceError.invocation(.invalidResult)
+        }
+        return listing.toManga(sourceID: self.id)
     }
 
     func chapters(mangaId: String) async throws -> [Chapter] {

@@ -56,6 +56,7 @@ logical record:
   "engine": "madara",
   "configuration": {},
   "adult": "none",
+  "externalIds": ["mal"],
   "capabilities": {
     "search": true,
     "popular": true,
@@ -91,6 +92,13 @@ logical record:
 Unknown keys are ignored only inside `configuration`, which belongs to the engine. Unknown keys in
 the Host API-owned declaration fail installation so a misspelling cannot silently disable policy.
 The host validates declarations without evaluating Extension code.
+
+`externalIds` is an optional array of unique namespaces the Source publishes; `mal` is the only
+known namespace. Unknown namespaces and duplicates reject installation. (added 2026-09-24,
+removal slice 4)
+
+A non-empty `externalIds` declaration must also declare the optional `capabilities.listing`
+operation so the host can resolve a published id. (added 2026-09-24, removal slice 4)
 
 `localId` is lowercase ASCII letters, digits, `-`, and `.`, 1–64 characters, and cannot change in
 an update. The installed Source id is an opaque repository-qualified id derived by the installer;
@@ -165,6 +173,10 @@ external-id namespaces are preserved in the wire value but ignored by a host tha
 them. Empty alternate titles are dropped and duplicates are removed with exact matching.
 `contentRating` is `safe`, `suggestive`, `erotica`, or `pornographic`; missing means unknown, not
 safe. The host may elevate but never reduce the Source-level adult classification.
+
+When present, `externalIds.mal` must be a positive decimal integer string. An invalid value is
+dropped and recorded as a validation warning; the Listing remains usable. (added 2026-09-24,
+removal slice 4)
 
 In Listing arrays, an item missing `id` or `title` is dropped and recorded as a validation warning;
 an item with a structurally wrong top-level type rejects the operation. This narrow partial-success
@@ -241,11 +253,16 @@ The operation names and request/result values are:
 | `chapters` | `{listingId, language?}` | `{items: [Chapter]}` |
 | `pages` | `{chapterId, quality}` | `{items: [Page]}` |
 | `webURL` | `{listingId}` | `{url}` |
+| `listing` | `{listingId}` | `Listing` or `null` when not found |
 
 `quality` is `dataSaver` or `original`. The runtime calls only declared capabilities. `search`,
 `detail`, `chapters`, and `pages` are required for a browsable/readable Source; at least one of
 `popular`, `newTitles`, or `latestUpdates` is required for Home discovery. A configuration that
 does not meet these invariants is not registered.
+
+`listing` is optional and is not part of the reading or discovery requirements. Its declaration
+is opt-in; the host sends one `listingId` and validates one Listing, with JSON `null` meaning not
+found. (added 2026-09-24, removal slice 4)
 
 ### 3.1 Pagination
 
@@ -380,6 +397,7 @@ Stable error codes are:
 | `cancelled` | caller or host cancelled | no automatic retry |
 | `invalid_request` | host/runtime contract bug before invocation | never |
 | `invalid_response` | Extension output violates schema | after Extension fix |
+| `invalid_result` | host detected a well-formed result with an invalid meaning (for example, a Listing id that does not match the requested id); engines must not send this code | after Source fix |
 | `unsupported` | declared/implemented contract mismatch | after Extension fix |
 | `unsupported_language` | requested declared language is currently unavailable | after selection changes |
 | `network` | transport failed | caller policy |
@@ -431,6 +449,14 @@ use its declared fallback. The host never invokes an older Extension under guess
 Operation result readers ignore unknown fields, while required fields and enum cases retain the
 rules of the selected version. A new operation or capability is opt-in through declaration and
 feature negotiation, not inferred from an export.
+
+The optional `listing` operation and `externalIds` declaration key are additive opt-in features
+introduced by Host API 1.1; declarations selecting 1.0 must not use them. (added 2026-09-24,
+removal slice 4)
+
+A Source using `listing` or `externalIds` should declare `hostAPI.minimum` as `1.1`, so a host
+older than 1.1 reports a version error rather than an unknown key. (added 2026-09-24, removal
+slice 4)
 
 ## 8. Language contract
 
