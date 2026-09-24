@@ -1094,7 +1094,8 @@ final class MangaCartaTests: XCTestCase {
 
     @MainActor func testDefaultRegistryContainsAllBuiltInSources() {
         let registry = SourceRegistry()
-        XCTAssertEqual(registry.sources.map(\.id), ["mangadex"])
+        XCTAssertEqual(registry.sources.map(\.id), ["mangadex", "local"])
+        XCTAssertEqual(registry.visibleSources(includeAdult: true).map(\.id), ["mangadex"])
         XCTAssertNil(registry.source(id: "weebcentral"))
     }
 
