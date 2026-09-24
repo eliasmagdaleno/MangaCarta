@@ -1026,6 +1026,28 @@ struct HostRateLimiterTests {
         #expect(dates.count == 5)
         #expect(dates.contains { $0.timeIntervalSinceReferenceDate == 2 })
     }
+
+    @Test("HostHTTP clients for one Source share the registry budget")
+    func clientsShareSourceBudget() async throws {
+        let sleeper = RecordingRateLimiterSleeper()
+        let registry = HostRateLimiterRegistry(defaultInterval: 1, rules: [],
+                                                clock: FixedRateLimiterClock(), sleeper: sleeper)
+        let transport = ScriptedHostHTTPTransport { request, _ in
+            HostHTTPTransportResponse(statusCode: 200, url: request.url!,
+                                      headers: [:], body: Data("ok".utf8))
+        }
+        let source = QualifiedSourceID(rawValue: "repo/source")
+        let clientA = HostHTTPClient(sourceID: source, allowedOrigins: ["https://example.com"],
+                                     transport: transport, resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
+                                     rateLimiters: registry)
+        let clientB = HostHTTPClient(sourceID: source, allowedOrigins: ["https://example.com"],
+                                     transport: transport, resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
+                                     rateLimiters: registry)
+        async let one = clientA.request(HostHTTPRequest(url: URL(string: "https://example.com/a")!))
+        async let two = clientB.request(HostHTTPRequest(url: URL(string: "https://example.com/b")!))
+        _ = try await (one, two)
+        #expect((await sleeper.dates()).count == 2)
+    }
 }
 
 private struct FixedRateLimiterClock: RateLimiterClock {
