@@ -135,6 +135,10 @@ final class URLSessionRepositoryTransport: RepositoryTransport, @unchecked Senda
             guard let response = response as? HTTPURLResponse else {
                 throw RepositoryTransportError.invalidResponse
             }
+            if result.resourceFetchType == .localCache {
+                throw RepositoryTransportError.destinationRefused(
+                    "the response was served from the local cache")
+            }
             guard let peer = result.connectedPeerAddress, HostIPAddress.isPublic(peer) else {
                 throw RepositoryTransportError.destinationRefused(
                     "the connected destination was non-public")

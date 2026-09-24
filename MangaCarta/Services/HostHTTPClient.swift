@@ -323,6 +323,10 @@ final class URLSessionHostHTTPTransport: NSObject, HostHTTPTransport,
                                       message: "only HTTPS requests are allowed")
         }
         let result = try await fetcher.fetch(request)
+        if result.resourceFetchType == .localCache {
+            throw HostCapabilityError(code: .policyDenied,
+                                      message: "the response was served from the local cache")
+        }
         let data = result.data
         let response = result.response
         guard let http = response as? HTTPURLResponse,

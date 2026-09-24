@@ -177,6 +177,26 @@ final class URLSessionRepositoryTransportTests: XCTestCase {
         }
     }
 
+    func testIndexServedFromLocalCacheIsRefused() async throws {
+        let fetcher = FixedMetricsFetcher(result: URLSessionFetchResult(
+            data: Data(),
+            response: HTTPURLResponse(url: indexURL, statusCode: 200,
+                                      httpVersion: nil, headerFields: nil)!,
+            connectedPeerAddress: nil,
+            resourceFetchType: .localCache))
+        let transport = URLSessionRepositoryTransport(
+            resolver: RepositoryFixedResolver(addresses: ["93.184.216.34"]),
+            fetcher: fetcher)
+
+        do {
+            _ = try await transport.fetchIndex(at: indexURL)
+            XCTFail("local cache response must be refused")
+        } catch let error as RepositoryTransportError {
+            XCTAssertEqual(error,
+                           .destinationRefused("the response was served from the local cache"))
+        }
+    }
+
     func testIndexHostWithAnyNonPublicAddressAmongPublicOnesIsRefused() async {
         StubRepositoryURLProtocol.responses[indexURL.absoluteString] = (200, Data(), [:])
         let transport = makeTransport(resolvingTo: ["93.184.216.34", "127.0.0.1"])

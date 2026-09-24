@@ -1,9 +1,25 @@
 import Foundation
 
+enum URLSessionResourceFetchType: Sendable, Equatable {
+    case networkLoad
+    case localCache
+    case serverPush
+    case unknown
+}
+
 struct URLSessionFetchResult: Sendable {
     let data: Data
     let response: URLResponse
     let connectedPeerAddress: String?
+    let resourceFetchType: URLSessionResourceFetchType?
+
+    init(data: Data, response: URLResponse, connectedPeerAddress: String?,
+         resourceFetchType: URLSessionResourceFetchType? = nil) {
+        self.data = data
+        self.response = response
+        self.connectedPeerAddress = connectedPeerAddress
+        self.resourceFetchType = resourceFetchType
+    }
 }
 
 protocol URLSessionDataFetching: Sendable {
@@ -46,6 +62,7 @@ final class URLSessionDataFetcher: NSObject, URLSessionDataFetching, URLSessionD
         var data = Data()
         var response: URLResponse?
         var peerAddress: String?
+        var resourceFetchType: URLSessionResourceFetchType?
         var continuation: CheckedContinuation<URLSessionFetchResult, Error>
     }
 
@@ -107,7 +124,17 @@ final class URLSessionDataFetcher: NSObject, URLSessionDataFetching, URLSessionD
     func urlSession(_ session: URLSession, task: URLSessionTask,
                     didFinishCollecting metrics: URLSessionTaskMetrics) {
         let peer = metrics.transactionMetrics.last?.remoteAddress
-        lock.lock(); pending[task.taskIdentifier]?.peerAddress = peer; lock.unlock()
+        let resourceFetchType: URLSessionResourceFetchType? = switch metrics.transactionMetrics.last?.resourceFetchType {
+        case .networkLoad: .networkLoad
+        case .localCache: .localCache
+        case .serverPush: .serverPush
+        case nil: nil
+        @unknown default: .unknown
+        }
+        lock.lock()
+        pending[task.taskIdentifier]?.peerAddress = peer
+        pending[task.taskIdentifier]?.resourceFetchType = resourceFetchType
+        lock.unlock()
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask,
@@ -122,7 +149,10 @@ final class URLSessionDataFetcher: NSObject, URLSessionDataFetching, URLSessionD
             state.continuation.resume(throwing: error)
         } else if let response = state.response {
             state.continuation.resume(returning: URLSessionFetchResult(
-                data: state.data, response: response, connectedPeerAddress: state.peerAddress))
+                data: state.data,
+                response: response,
+                connectedPeerAddress: state.peerAddress,
+                resourceFetchType: state.resourceFetchType))
         } else {
             state.continuation.resume(throwing: URLError(.badServerResponse))
         }
