@@ -108,7 +108,8 @@ final class MetadataUpgradeQueueTests: XCTestCase {
                            memory: UpgradeAttemptMemory? = nil,
                            idleInterval: TimeInterval = 60,
                            sleep: @escaping MetadataUpgradeQueue.Sleep = { _ in },
-                           workMetadataChanged: @escaping (WorkID) -> Void = { _ in })
+                           workMetadataChanged: @escaping (WorkID) -> Void = { _ in },
+                           listingParticipates: @escaping (ListingKey) -> Bool = { _ in true })
         -> MetadataUpgradeQueue {
         MetadataUpgradeQueue(
             works: works,
@@ -121,10 +122,19 @@ final class MetadataUpgradeQueueTests: XCTestCase {
             idleInterval: idleInterval,
             now: { self.noon },
             sleep: sleep,
-            workMetadataChanged: workMetadataChanged)
+            workMetadataChanged: workMetadataChanged,
+            listingParticipates: listingParticipates)
     }
 
     // MARK: - The upgrade path
+
+    @MainActor func testLocalOnlyWorkIsNeverEnqueued() async {
+        let works = makeStore()
+        _ = works.mint(from: listing("local-item", source: "local"))
+        let queue = makeQueue(works: works, listingParticipates: { $0.sourceId != "local" })
+        let step = await queue.drainOnce(now: noon)
+        XCTAssertEqual(step, .idle)
+    }
 
     /// The whole happy path in one: an unresolved Work with no snapshot is resolved
     /// against MAL, fetched from AniList, and left carrying a provider snapshot and

@@ -17,6 +17,7 @@ struct MangaDexSource: MangaSource {
 
     let id = MangaDexSource.sourceID
     let name = "MangaDex"
+    var publishesExternalIds: Bool { true }
 
     /// True orderings of the three browse feeds (order[rating] / order[readableAt] /
     /// order[createdAt] in MangaDexAPI).
@@ -45,6 +46,10 @@ struct MangaDexSource: MangaSource {
 
     func mangaDetail(id: String) async throws -> MangaDetail {
         try await MangaDexAPI.fetchMangaDetails(id: id)
+    }
+
+    func manga(id: String) async throws -> Manga? {
+        try await MangaDexAPI.fetchMangaByIdsWithCovers(ids: [id]).first
     }
 
     func chapters(mangaId: String) async throws -> [Chapter] {

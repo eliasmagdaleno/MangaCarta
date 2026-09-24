@@ -108,7 +108,8 @@ final class MALProgressCoordinatorTests: XCTestCase {
     }
 
     private func makeCoordinator(
-        malIDs: [WorkID: Int] = [:]
+        malIDs: [WorkID: Int] = [:],
+        listingParticipates: @escaping (ListingKey) -> Bool = { _ in true }
     ) -> MALProgressCoordinator {
         MALProgressCoordinator(
             outbox: outbox,
@@ -122,19 +123,28 @@ final class MALProgressCoordinatorTests: XCTestCase {
                 self.slept.append(seconds)
                 self.now = self.now.addingTimeInterval(seconds)
             },
-            jitter: { $0 }
+            jitter: { $0 }, listingParticipates: listingParticipates
         )
     }
 
     private func completion(workID: WorkID = WorkID(),
                             malID: Int? = nil,
                             progress: Int,
-                            at date: Date? = nil) -> ChapterCompletion {
-        let manga = Manga(id: "m", sourceId: "mangadex", title: "T", description: "",
+                            at date: Date? = nil,
+                            sourceId: String = "mangadex") -> ChapterCompletion {
+        let manga = Manga(id: "m", sourceId: sourceId, title: "T", description: "",
                           status: "ongoing", year: nil, coverURL: nil, malId: malID)
         let chapter = Chapter(id: "c", number: String(progress), title: nil)
         return ChapterCompletion(manga: manga, chapter: chapter, workID: workID,
                                  progress: progress, completedAt: date ?? now)
+    }
+
+    func testLocalCompletionNeverReachesMALOutbox() {
+        let coordinator = makeCoordinator(listingParticipates: { key in key.sourceId != "local" })
+        coordinator.chapterCompleted(completion(progress: 12, sourceId: "local"))
+        let reloaded = MALProgressOutbox(directory: directory)
+        XCTAssertNil(reloaded.nextEligible(userID: 7, at: now))
+        XCTAssertEqual(reloaded.summary(userID: 7).deferred, 0)
     }
 
     // MARK: Completion sink

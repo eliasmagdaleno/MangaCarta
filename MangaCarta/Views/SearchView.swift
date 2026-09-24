@@ -25,11 +25,13 @@ private struct SearchScreen: View {
     }
 
     @AppStorage("settings.showAdultSources") private var showAdultSources = false
+    @Environment(\.selectAppTab) private var selectAppTab
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var query = ""
 
     var body: some View {
         NavigationStack {
+            if let source = vm.source {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: Gutter.section) {
                     // Search source picker — same chip bar as Home, but it only
@@ -54,7 +56,7 @@ private struct SearchScreen: View {
                     SearchResults(
                         loader: vm.loader,
                         hasSearched: vm.hasSearched,
-                        sourceName: vm.source.name,
+                        sourceName: source.name,
                         onRetry: { vm.retry() }
                     )
                 }
@@ -75,6 +77,15 @@ private struct SearchScreen: View {
                 if !visible.contains(where: { $0.id == current }) {
                     vm.selectSource(id: registry.activeSourceID)
                 }
+            }
+            } else {
+                InkEmptyState(
+                    symbol: "books.vertical",
+                    title: "No sources installed",
+                    message: "Add a repository you trust in Settings to install Sources. MangaCarta does not provide or host content.",
+                    actionTitle: "Open Settings",
+                    action: { selectAppTab(.settings) }
+                )
             }
         }
     }

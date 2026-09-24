@@ -22,13 +22,14 @@ struct MangaDetailView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .title) private var coverWidth: CGFloat = 132
     @ScaledMetric(relativeTo: .title) private var coverHeight: CGFloat = 188
-    @StateObject private var moreLikeThis = MoreLikeThisViewModel()
+    @StateObject private var moreLikeThis: MoreLikeThisViewModel
     @State private var synopsisExpanded = false
     @State private var showingWebPage = false
 
-    init(manga: Manga) {
+    init(manga: Manga, registry: SourceRegistry) {
         self.manga = manga
         _vm = StateObject(wrappedValue: MangaDetailViewModel(manga: manga))
+        _moreLikeThis = StateObject(wrappedValue: MoreLikeThisViewModel(registry: registry))
     }
 
     /// The registered source this manga came from (nil if its source was unregistered).
@@ -332,7 +333,7 @@ struct MangaDetailView: View {
                            source: source,
                            initialPosition: action.startPosition, chapters: vm.chapters)
             } else {
-                Text("Source unavailable")
+                UnavailableSourceView()
             }
         } label: {
             ZStack {
@@ -548,7 +549,7 @@ struct MangaDetailView: View {
                                            initialPosition: history.entry(forChapter: chapter.id)?.position,
                                            chapters: vm.chapters)
                             } else {
-                                Text("Source unavailable")
+                                UnavailableSourceView()
                             }
                         } label: {
                             ChapterRow(chapter: chapter)

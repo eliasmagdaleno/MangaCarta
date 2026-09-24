@@ -9,6 +9,7 @@
 import SwiftUI
 
 struct MangaRail: View {
+    @EnvironmentObject private var registry: SourceRegistry
     let items: [Manga]
     /// Optional per-item stamp text, e.g. chapter labels keyed by manga id.
     var stampFor: ((Manga) -> String?)? = nil
@@ -18,7 +19,7 @@ struct MangaRail: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(alignment: .top, spacing: Gutter.rail) {
                 ForEach(items, id: \.id) { manga in
-                    NavigationLink(destination: MangaDetailView(manga: manga)) {
+                    NavigationLink(destination: MangaDetailView(manga: manga, registry: registry)) {
                         MangaCoverCard(
                             title: manga.title,
                             coverURL: manga.coverURL,

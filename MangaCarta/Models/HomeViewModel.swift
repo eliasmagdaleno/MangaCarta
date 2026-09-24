@@ -30,7 +30,7 @@ final class HomeViewModel: ObservableObject {
 
     /// The source these browse feeds come from — resolved at read time so a Settings
     /// switch re-sources Home without an app relaunch.
-    var source: MangaSource {
+    var source: MangaSource? {
         switch binding {
         case .fixed(let source): return source
         case .registry(let registry): return registry.active
@@ -64,6 +64,7 @@ final class HomeViewModel: ObservableObject {
     func loadHome() {
         // Clear stale feeds when the active source changed since the last load, so the
         // previous source's rails don't linger while the new one fetches.
+        guard let source else { return }
         let activeID = source.id
         if let loaded = loadedSourceID, loaded != activeID {
             popular = []; latestUpdates = []; newTitles = []
@@ -82,6 +83,7 @@ final class HomeViewModel: ObservableObject {
 
     private func loadHomeAsync() async {
         guard !Task.isCancelled else { return }
+        guard let source else { isLoading = false; return }
         isLoading = true
         errorMessage = nil
         do {
@@ -111,45 +113,48 @@ final class HomeViewModel: ObservableObject {
     }
 
     func reloadPopular(limit: Int = 20, offset: Int = 0) {
+        guard let source else { return }
         let expectedID = source.id
         Task {
             do {
                 let items = try await source.popular(limit: limit, offset: offset)
-                guard self.source.id == expectedID else { return }
+                guard self.source?.id == expectedID else { return }
                 self.popular = items
             } catch is CancellationError {
             } catch {
-                guard self.source.id == expectedID else { return }
+                guard self.source?.id == expectedID else { return }
                 self.errorMessage = error.localizedDescription
             }
         }
     }
 
     func reloadLatestUpdates(limit: Int = 20, lang: String = "en") {
+        guard let source else { return }
         let expectedID = source.id
         Task {
             do {
                 let items = try await source.latestUpdates(limitTitles: limit, language: lang)
-                guard self.source.id == expectedID else { return }
+                guard self.source?.id == expectedID else { return }
                 self.latestUpdates = items
             } catch is CancellationError {
             } catch {
-                guard self.source.id == expectedID else { return }
+                guard self.source?.id == expectedID else { return }
                 self.errorMessage = error.localizedDescription
             }
         }
     }
 
     func reloadNewTitles(limit: Int = 20, offset: Int = 0) {
+        guard let source else { return }
         let expectedID = source.id
         Task {
             do {
                 let items = try await source.newTitles(limit: limit, offset: offset)
-                guard self.source.id == expectedID else { return }
+                guard self.source?.id == expectedID else { return }
                 self.newTitles = items
             } catch is CancellationError {
             } catch {
-                guard self.source.id == expectedID else { return }
+                guard self.source?.id == expectedID else { return }
                 self.errorMessage = error.localizedDescription
             }
         }

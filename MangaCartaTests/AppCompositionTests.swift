@@ -58,6 +58,13 @@ final class AppCompositionTests: XCTestCase {
         XCTAssertTrue(composition.scheduler === composition.scheduler)
     }
 
+    func testGraphRegistryContainsLocalSource() {
+        let composition = makeComposition()
+        XCTAssertNotNil(composition.registry.source(id: LocalSource.sourceID))
+        XCTAssertFalse(composition.registry.visibleSources(includeAdult: true)
+            .contains { $0.id == LocalSource.sourceID })
+    }
+
     func testUnreadableExtensionStorageIsQuarantinedAndSurfaced() throws {
         let original = Data("{ definitely not valid JSON".utf8)
         try original.write(to: directory.appendingPathComponent("extension-storage.json"))

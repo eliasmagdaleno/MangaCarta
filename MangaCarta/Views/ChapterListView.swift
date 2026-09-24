@@ -45,7 +45,7 @@ struct ChapterListView: View {
                                            initialPosition: history.entry(forChapter: chapter.id)?.position,
                                            chapters: chapters)
                             } else {
-                                Text("Source unavailable")
+                                UnavailableSourceView()
                             }
                         } label: {
                             ChapterRow(chapter: chapter)
