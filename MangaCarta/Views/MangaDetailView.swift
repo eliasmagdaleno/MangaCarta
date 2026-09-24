@@ -316,10 +316,10 @@ struct MangaDetailView: View {
                                 withAnimation(.snappy(duration: 0.2)) { library.toggle(manga) }
                             }
                         } label: {
-                                Label(
-                                    isLocalManga ? "Delete from Device" : (inLibrary ? "Remove from Library" : "Quick Add to Library"),
-                                    systemImage: isLocalManga || inLibrary ? "trash" : "bookmark"
-                                )
+                            Label(
+                                isLocalManga ? "Delete from Device" : (inLibrary ? "Remove from Library" : "Quick Add to Library"),
+                                systemImage: isLocalManga || inLibrary ? "trash" : "bookmark"
+                            )
                         }
                     }
                     Section("Collections") {
@@ -423,10 +423,10 @@ struct MangaDetailView: View {
                         withAnimation(.snappy(duration: 0.2)) { library.toggle(manga) }
                     }
                 } label: {
-                        Label(
-                            isLocalManga ? "Delete from Device" : (inLibrary ? "Remove from Library" : "Quick Add to Library"),
-                            systemImage: isLocalManga || inLibrary ? "trash" : "bookmark"
-                        )
+                    Label(
+                        isLocalManga ? "Delete from Device" : (inLibrary ? "Remove from Library" : "Quick Add to Library"),
+                        systemImage: isLocalManga || inLibrary ? "trash" : "bookmark"
+                    )
                 }
             }
             Section("Collections") {
