@@ -694,7 +694,7 @@ enum DeclaredOrigin {
             guard host == "*.\(suffix)", !suffix.contains("*"), labels.count >= 2 else {
                 return .rejected("wildcards must be one leftmost label over at least two host labels")
             }
-            guard !PublicSuffixList.suffixes.contains(suffix) else {
+            guard !PublicSuffixList.isPublicSuffix(suffix) else {
                 return .rejected("wildcards may not cover a public or shared-hosting suffix")
             }
         } else if host.contains("*") {

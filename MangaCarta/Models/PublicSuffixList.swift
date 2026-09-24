@@ -1,9 +1,10 @@
 
 // Embedded from https://publicsuffix.org/list/public_suffix_list.dat.
 // Snapshot: 2026-09-23_15-28-19_UTC (ICANN and PRIVATE sections).
+// Rules retain wildcards and exceptions; the validator applies the standard PSL precedence.
 // The platform has no public-suffix-list API, so this checked-in snapshot is used for declaration validation.
 enum PublicSuffixList {
-    static let suffixes: Set<String> = Set("""
+    static let rules: Set<String> = Set("""
     ac
     com.ac
     edu.ac
@@ -518,7 +519,7 @@ enum PublicSuffixList {
     natal.br
     net.br
     niteroi.br
-    nom.br
+    *.nom.br
     not.br
     ntr.br
     odo.br
@@ -638,7 +639,7 @@ enum PublicSuffixList {
     net.ci
     or.ci
     org.ci
-    ck
+    *.ck
     !www.ck
     cl
     co.cl
@@ -863,7 +864,7 @@ enum PublicSuffixList {
     sci.eg
     sport.eg
     tv.eg
-    er
+    *.er
     es
     com.es
     edu.es
@@ -895,7 +896,7 @@ enum PublicSuffixList {
     net.fj
     org.fj
     pro.fj
-    fk
+    *.fk
     fm
     com.fm
     edu.fm
@@ -1622,7 +1623,7 @@ enum PublicSuffixList {
     co.je
     net.je
     org.je
-    jm
+    *.jm
     jo
     agri.jo
     ai.jo
@@ -1743,19 +1744,19 @@ enum PublicSuffixList {
     高知.jp
     鳥取.jp
     鹿児島.jp
-    kawasaki.jp
+    *.kawasaki.jp
     !city.kawasaki.jp
-    kitakyushu.jp
+    *.kitakyushu.jp
     !city.kitakyushu.jp
-    kobe.jp
+    *.kobe.jp
     !city.kobe.jp
-    nagoya.jp
+    *.nagoya.jp
     !city.nagoya.jp
-    sapporo.jp
+    *.sapporo.jp
     !city.sapporo.jp
-    sendai.jp
+    *.sendai.jp
     !city.sendai.jp
-    yokohama.jp
+    *.yokohama.jp
     !city.yokohama.jp
     aisai.aichi.jp
     ama.aichi.jp
@@ -3676,7 +3677,7 @@ enum PublicSuffixList {
     org.ml
     pr.ml
     presse.ml
-    mm
+    *.mm
     mn
     edu.mn
     gov.mn
@@ -4571,7 +4572,7 @@ enum PublicSuffixList {
     voagat.no
     volda.no
     voss.no
-    np
+    *.np
     nr
     biz.nr
     com.nr
@@ -4634,7 +4635,7 @@ enum PublicSuffixList {
     com.pf
     edu.pf
     org.pf
-    pg
+    *.pg
     ph
     com.ph
     edu.ph
@@ -5346,7 +5347,7 @@ enum PublicSuffixList {
     org.uk
     plc.uk
     police.uk
-    sch.uk
+    *.sch.uk
     us
     dni.us
     isa.us
@@ -6974,7 +6975,7 @@ enum PublicSuffixList {
     dyn.addr.tools
     myaddr.tools
     adobeaemcloud.com
-    dev.adobeaemcloud.com
+    *.dev.adobeaemcloud.com
     aem.live
     hlx.live
     adobeaemcloud.net
@@ -6985,10 +6986,10 @@ enum PublicSuffixList {
     adobeio-static.net
     adobeioruntime.net
     africa.com
-    auiusercontent.com
+    *.auiusercontent.com
     beep.pl
     aiven.app
-    aivencloud.com
+    *.aivencloud.com
     akadns.net
     akamai.net
     akamai-staging.net
@@ -7005,8 +7006,8 @@ enum PublicSuffixList {
     edgesuite.net
     edgesuite-staging.net
     barsy.ca
-    compute.estate
-    alces.network
+    *.compute.estate
+    *.alces.network
     alibabacloudcs.com
     ms.fun
     ms.show
@@ -7088,9 +7089,9 @@ enum PublicSuffixList {
     auth.us-west-2.amazoncognito.com
     auth-fips.us-west-2.amazoncognito.com
     auth.cognito-idp.eusc-de-east-1.on.amazonwebservices.eu
-    compute.amazonaws.com.cn
-    compute.amazonaws.com
-    compute-1.amazonaws.com
+    *.compute.amazonaws.com.cn
+    *.compute.amazonaws.com
+    *.compute-1.amazonaws.com
     us-east-1.amazonaws.com
     emrappui-prod.cn-north-1.amazonaws.com.cn
     emrnotebooks-prod.cn-north-1.amazonaws.com.cn
@@ -7191,107 +7192,107 @@ enum PublicSuffixList {
     emrappui-prod.us-west-2.amazonaws.com
     emrnotebooks-prod.us-west-2.amazonaws.com
     emrstudio-prod.us-west-2.amazonaws.com
-    airflow.af-south-1.on.aws
-    airflow.ap-east-1.on.aws
-    airflow.ap-northeast-1.on.aws
-    airflow.ap-northeast-2.on.aws
-    airflow.ap-northeast-3.on.aws
-    airflow.ap-south-1.on.aws
-    airflow.ap-south-2.on.aws
-    airflow.ap-southeast-1.on.aws
-    airflow.ap-southeast-2.on.aws
-    airflow.ap-southeast-3.on.aws
-    airflow.ap-southeast-4.on.aws
-    airflow.ap-southeast-5.on.aws
-    airflow.ca-central-1.on.aws
-    airflow.ca-west-1.on.aws
-    airflow.eu-central-1.on.aws
-    airflow.eu-central-2.on.aws
-    airflow.eu-north-1.on.aws
-    airflow.eu-south-1.on.aws
-    airflow.eu-south-2.on.aws
-    airflow.eu-west-1.on.aws
-    airflow.eu-west-2.on.aws
-    airflow.eu-west-3.on.aws
-    airflow.il-central-1.on.aws
-    airflow.me-central-1.on.aws
-    airflow.me-south-1.on.aws
-    airflow.sa-east-1.on.aws
-    airflow.us-east-1.on.aws
-    airflow.us-east-2.on.aws
-    airflow.us-west-1.on.aws
-    airflow.us-west-2.on.aws
-    cn-north-1.airflow.amazonaws.com.cn
-    cn-northwest-1.airflow.amazonaws.com.cn
-    airflow.cn-north-1.on.amazonwebservices.com.cn
-    airflow.cn-northwest-1.on.amazonwebservices.com.cn
-    af-south-1.airflow.amazonaws.com
-    ap-east-1.airflow.amazonaws.com
-    ap-northeast-1.airflow.amazonaws.com
-    ap-northeast-2.airflow.amazonaws.com
-    ap-northeast-3.airflow.amazonaws.com
-    ap-south-1.airflow.amazonaws.com
-    ap-south-2.airflow.amazonaws.com
-    ap-southeast-1.airflow.amazonaws.com
-    ap-southeast-2.airflow.amazonaws.com
-    ap-southeast-3.airflow.amazonaws.com
-    ap-southeast-4.airflow.amazonaws.com
-    ap-southeast-5.airflow.amazonaws.com
-    ap-southeast-7.airflow.amazonaws.com
-    ca-central-1.airflow.amazonaws.com
-    ca-west-1.airflow.amazonaws.com
-    eu-central-1.airflow.amazonaws.com
-    eu-central-2.airflow.amazonaws.com
-    eu-north-1.airflow.amazonaws.com
-    eu-south-1.airflow.amazonaws.com
-    eu-south-2.airflow.amazonaws.com
-    eu-west-1.airflow.amazonaws.com
-    eu-west-2.airflow.amazonaws.com
-    eu-west-3.airflow.amazonaws.com
-    il-central-1.airflow.amazonaws.com
-    me-central-1.airflow.amazonaws.com
-    me-south-1.airflow.amazonaws.com
-    sa-east-1.airflow.amazonaws.com
-    us-east-1.airflow.amazonaws.com
-    us-east-2.airflow.amazonaws.com
-    us-west-1.airflow.amazonaws.com
-    us-west-2.airflow.amazonaws.com
-    rds.cn-north-1.amazonaws.com.cn
-    rds.cn-northwest-1.amazonaws.com.cn
-    af-south-1.rds.amazonaws.com
-    ap-east-1.rds.amazonaws.com
-    ap-east-2.rds.amazonaws.com
-    ap-northeast-1.rds.amazonaws.com
-    ap-northeast-2.rds.amazonaws.com
-    ap-northeast-3.rds.amazonaws.com
-    ap-south-1.rds.amazonaws.com
-    ap-south-2.rds.amazonaws.com
-    ap-southeast-1.rds.amazonaws.com
-    ap-southeast-2.rds.amazonaws.com
-    ap-southeast-3.rds.amazonaws.com
-    ap-southeast-4.rds.amazonaws.com
-    ap-southeast-5.rds.amazonaws.com
-    ap-southeast-6.rds.amazonaws.com
-    ap-southeast-7.rds.amazonaws.com
-    ca-central-1.rds.amazonaws.com
-    ca-west-1.rds.amazonaws.com
-    eu-central-1.rds.amazonaws.com
-    eu-central-2.rds.amazonaws.com
-    eu-west-1.rds.amazonaws.com
-    eu-west-2.rds.amazonaws.com
-    eu-west-3.rds.amazonaws.com
-    il-central-1.rds.amazonaws.com
-    me-central-1.rds.amazonaws.com
-    me-south-1.rds.amazonaws.com
-    mx-central-1.rds.amazonaws.com
-    sa-east-1.rds.amazonaws.com
-    us-east-1.rds.amazonaws.com
-    us-east-2.rds.amazonaws.com
-    us-gov-east-1.rds.amazonaws.com
-    us-gov-west-1.rds.amazonaws.com
-    us-northeast-1.rds.amazonaws.com
-    us-west-1.rds.amazonaws.com
-    us-west-2.rds.amazonaws.com
+    *.airflow.af-south-1.on.aws
+    *.airflow.ap-east-1.on.aws
+    *.airflow.ap-northeast-1.on.aws
+    *.airflow.ap-northeast-2.on.aws
+    *.airflow.ap-northeast-3.on.aws
+    *.airflow.ap-south-1.on.aws
+    *.airflow.ap-south-2.on.aws
+    *.airflow.ap-southeast-1.on.aws
+    *.airflow.ap-southeast-2.on.aws
+    *.airflow.ap-southeast-3.on.aws
+    *.airflow.ap-southeast-4.on.aws
+    *.airflow.ap-southeast-5.on.aws
+    *.airflow.ca-central-1.on.aws
+    *.airflow.ca-west-1.on.aws
+    *.airflow.eu-central-1.on.aws
+    *.airflow.eu-central-2.on.aws
+    *.airflow.eu-north-1.on.aws
+    *.airflow.eu-south-1.on.aws
+    *.airflow.eu-south-2.on.aws
+    *.airflow.eu-west-1.on.aws
+    *.airflow.eu-west-2.on.aws
+    *.airflow.eu-west-3.on.aws
+    *.airflow.il-central-1.on.aws
+    *.airflow.me-central-1.on.aws
+    *.airflow.me-south-1.on.aws
+    *.airflow.sa-east-1.on.aws
+    *.airflow.us-east-1.on.aws
+    *.airflow.us-east-2.on.aws
+    *.airflow.us-west-1.on.aws
+    *.airflow.us-west-2.on.aws
+    *.cn-north-1.airflow.amazonaws.com.cn
+    *.cn-northwest-1.airflow.amazonaws.com.cn
+    *.airflow.cn-north-1.on.amazonwebservices.com.cn
+    *.airflow.cn-northwest-1.on.amazonwebservices.com.cn
+    *.af-south-1.airflow.amazonaws.com
+    *.ap-east-1.airflow.amazonaws.com
+    *.ap-northeast-1.airflow.amazonaws.com
+    *.ap-northeast-2.airflow.amazonaws.com
+    *.ap-northeast-3.airflow.amazonaws.com
+    *.ap-south-1.airflow.amazonaws.com
+    *.ap-south-2.airflow.amazonaws.com
+    *.ap-southeast-1.airflow.amazonaws.com
+    *.ap-southeast-2.airflow.amazonaws.com
+    *.ap-southeast-3.airflow.amazonaws.com
+    *.ap-southeast-4.airflow.amazonaws.com
+    *.ap-southeast-5.airflow.amazonaws.com
+    *.ap-southeast-7.airflow.amazonaws.com
+    *.ca-central-1.airflow.amazonaws.com
+    *.ca-west-1.airflow.amazonaws.com
+    *.eu-central-1.airflow.amazonaws.com
+    *.eu-central-2.airflow.amazonaws.com
+    *.eu-north-1.airflow.amazonaws.com
+    *.eu-south-1.airflow.amazonaws.com
+    *.eu-south-2.airflow.amazonaws.com
+    *.eu-west-1.airflow.amazonaws.com
+    *.eu-west-2.airflow.amazonaws.com
+    *.eu-west-3.airflow.amazonaws.com
+    *.il-central-1.airflow.amazonaws.com
+    *.me-central-1.airflow.amazonaws.com
+    *.me-south-1.airflow.amazonaws.com
+    *.sa-east-1.airflow.amazonaws.com
+    *.us-east-1.airflow.amazonaws.com
+    *.us-east-2.airflow.amazonaws.com
+    *.us-west-1.airflow.amazonaws.com
+    *.us-west-2.airflow.amazonaws.com
+    *.rds.cn-north-1.amazonaws.com.cn
+    *.rds.cn-northwest-1.amazonaws.com.cn
+    *.af-south-1.rds.amazonaws.com
+    *.ap-east-1.rds.amazonaws.com
+    *.ap-east-2.rds.amazonaws.com
+    *.ap-northeast-1.rds.amazonaws.com
+    *.ap-northeast-2.rds.amazonaws.com
+    *.ap-northeast-3.rds.amazonaws.com
+    *.ap-south-1.rds.amazonaws.com
+    *.ap-south-2.rds.amazonaws.com
+    *.ap-southeast-1.rds.amazonaws.com
+    *.ap-southeast-2.rds.amazonaws.com
+    *.ap-southeast-3.rds.amazonaws.com
+    *.ap-southeast-4.rds.amazonaws.com
+    *.ap-southeast-5.rds.amazonaws.com
+    *.ap-southeast-6.rds.amazonaws.com
+    *.ap-southeast-7.rds.amazonaws.com
+    *.ca-central-1.rds.amazonaws.com
+    *.ca-west-1.rds.amazonaws.com
+    *.eu-central-1.rds.amazonaws.com
+    *.eu-central-2.rds.amazonaws.com
+    *.eu-west-1.rds.amazonaws.com
+    *.eu-west-2.rds.amazonaws.com
+    *.eu-west-3.rds.amazonaws.com
+    *.il-central-1.rds.amazonaws.com
+    *.me-central-1.rds.amazonaws.com
+    *.me-south-1.rds.amazonaws.com
+    *.mx-central-1.rds.amazonaws.com
+    *.sa-east-1.rds.amazonaws.com
+    *.us-east-1.rds.amazonaws.com
+    *.us-east-2.rds.amazonaws.com
+    *.us-gov-east-1.rds.amazonaws.com
+    *.us-gov-west-1.rds.amazonaws.com
+    *.us-northeast-1.rds.amazonaws.com
+    *.us-west-1.rds.amazonaws.com
+    *.us-west-2.rds.amazonaws.com
     s3.dualstack.cn-north-1.amazonaws.com.cn
     s3-accesspoint.dualstack.cn-north-1.amazonaws.com.cn
     s3-website.dualstack.cn-north-1.amazonaws.com.cn
@@ -7683,7 +7684,7 @@ enum PublicSuffixList {
     studio.us-west-2.sagemaker.aws
     studio.cn-north-1.sagemaker.com.cn
     studio.cn-northwest-1.sagemaker.com.cn
-    experiments.sagemaker.aws
+    *.experiments.sagemaker.aws
     analytics-gateway.ap-northeast-1.amazonaws.com
     analytics-gateway.ap-northeast-2.amazonaws.com
     analytics-gateway.ap-south-1.amazonaws.com
@@ -7695,7 +7696,7 @@ enum PublicSuffixList {
     analytics-gateway.us-east-2.amazonaws.com
     analytics-gateway.us-west-2.amazonaws.com
     amplifyapp.com
-    awsapprunner.com
+    *.awsapprunner.com
     webview-assets.aws-cloud9.af-south-1.amazonaws.com
     vfs.cloud9.af-south-1.amazonaws.com
     webview-assets.cloud9.af-south-1.amazonaws.com
@@ -7794,8 +7795,8 @@ enum PublicSuffixList {
     us-gov-west-1.elasticbeanstalk.com
     us-west-1.elasticbeanstalk.com
     us-west-2.elasticbeanstalk.com
-    elb.amazonaws.com.cn
-    elb.amazonaws.com
+    *.elb.amazonaws.com.cn
+    *.elb.amazonaws.com
     awsglobalaccelerator.com
     lambda-url.af-south-1.on.aws
     lambda-url.ap-east-1.on.aws
@@ -7819,7 +7820,7 @@ enum PublicSuffixList {
     lambda-url.us-east-2.on.aws
     lambda-url.us-west-1.on.aws
     lambda-url.us-west-2.on.aws
-    private.repost.aws
+    *.private.repost.aws
     transfer-webapp.af-south-1.on.aws
     transfer-webapp.ap-east-1.on.aws
     transfer-webapp.ap-northeast-1.on.aws
@@ -7865,31 +7866,31 @@ enum PublicSuffixList {
     claude.app
     claudeusercontent.com
     frame.claudeusercontent.com
-    cursorusercontent.com
+    *.cursorusercontent.com
     apigee.io
     panel.dev
     siiites.com
     int.apple
-    cloud.int.apple
-    r.cloud.int.apple
-    ap-north-1.r.cloud.int.apple
-    ap-south-1.r.cloud.int.apple
-    ap-south-2.r.cloud.int.apple
-    eu-central-1.r.cloud.int.apple
-    eu-north-1.r.cloud.int.apple
-    us-central-1.r.cloud.int.apple
-    us-central-2.r.cloud.int.apple
-    us-east-1.r.cloud.int.apple
-    us-east-2.r.cloud.int.apple
-    us-west-1.r.cloud.int.apple
-    us-west-2.r.cloud.int.apple
-    us-west-3.r.cloud.int.apple
+    *.cloud.int.apple
+    *.r.cloud.int.apple
+    *.ap-north-1.r.cloud.int.apple
+    *.ap-south-1.r.cloud.int.apple
+    *.ap-south-2.r.cloud.int.apple
+    *.eu-central-1.r.cloud.int.apple
+    *.eu-north-1.r.cloud.int.apple
+    *.us-central-1.r.cloud.int.apple
+    *.us-central-2.r.cloud.int.apple
+    *.us-east-1.r.cloud.int.apple
+    *.us-east-2.r.cloud.int.apple
+    *.us-west-1.r.cloud.int.apple
+    *.us-west-2.r.cloud.int.apple
+    *.us-west-3.r.cloud.int.apple
     appspacehosted.com
     appspaceusercontent.com
     appudo.net
     appwrite.global
     appwrite.network
-    appwrite.run
+    *.appwrite.run
     on-aptible.com
     f5.si
     arvanedge.ir
@@ -7902,14 +7903,14 @@ enum PublicSuffixList {
     potager.org
     sweetpepper.org
     myasustor.com
-    atlassian-3p.com
-    atlassian-3p-us-gov-mod.com
-    atlassian-isolated-3p.com
+    *.atlassian-3p.com
+    *.atlassian-3p-us-gov-mod.com
+    *.atlassian-isolated-3p.com
     cdn.prod.atlassian-dev.net
     myfritz.link
     myfritz.net
-    awdev.ca
-    advisor.ws
+    *.awdev.ca
+    *.advisor.ws
     ecommerce-shop.pl
     b-data.io
     balena-devices.com
@@ -7925,8 +7926,8 @@ enum PublicSuffixList {
     base.shop
     beagleboard.io
     bearblog.dev
-    beget.app
-    begetcdn.cloud
+    *.beget.app
+    *.begetcdn.cloud
     pages.gay
     bnr.la
     bitbucket.io
@@ -7944,11 +7945,11 @@ enum PublicSuffixList {
     bplaced.net
     square7.net
     brave.app
-    s.brave.app
+    *.s.brave.app
     brave.dev
-    s.brave.dev
+    *.s.brave.dev
     brave.io
-    s.brave.io
+    *.s.brave.io
     shop.brendly.ba
     shop.brendly.hr
     shop.brendly.rs
@@ -7957,7 +7958,7 @@ enum PublicSuffixList {
     radio.fm
     cdn.bubble.io
     bubbleapps.io
-    bwcloud-os-instance.de
+    *.bwcloud-os-instance.de
     cafjs.com
     canva-apps.cn
     canva-code.cn
@@ -8009,12 +8010,12 @@ enum PublicSuffixList {
     discourse.team
     clerk.app
     clerkstage.app
-    lcl.dev
-    lclstage.dev
-    stg.dev
-    stgstage.dev
+    *.lcl.dev
+    *.lclstage.dev
+    *.stg.dev
+    *.stgstage.dev
     cleverapps.cc
-    services.clever-cloud.com
+    *.services.clever-cloud.com
     cleverapps.io
     cleverapps.tech
     clickrising.net
@@ -8052,7 +8053,7 @@ enum PublicSuffixList {
     freesite.host
     cloudaccess.net
     cloudbeesusercontent.io
-    cloudera.site
+    *.cloudera.site
     cloudflare.app
     cf-ipfs.com
     cloudflare-ipfs.com
@@ -8072,7 +8073,7 @@ enum PublicSuffixList {
     rma.objectstorage.ch
     wnext.app
     cnpy.gdn
-    otap.co
+    *.otap.co
     co.ca
     co.com
     sch.ac
@@ -8085,7 +8086,7 @@ enum PublicSuffixList {
     preview.csb.app
     co.nl
     co.no
-    devinapps.com
+    *.devinapps.com
     webhosting.be
     site.webhosting.be
     prvw.eu
@@ -8128,7 +8129,7 @@ enum PublicSuffixList {
     builtwithdark.com
     darklang.io
     aws.databricksapps.com
-    azure.databricksapps.com
+    *.azure.databricksapps.com
     gcp.databricksapps.com
     aws-gov.databricksapps.us
     demo.datadetect.com
@@ -8162,18 +8163,18 @@ enum PublicSuffixList {
     dedyn.io
     deuxfleurs.eu
     deuxfleurs.page
-    at.ply.gg
+    *.at.ply.gg
     d6.ply.gg
     joinmc.link
     playit.plus
-    at.playit.plus
+    *.at.playit.plus
     with.playit.plus
     icp0.io
-    raw.icp0.io
+    *.raw.icp0.io
     icp1.io
-    raw.icp1.io
+    *.raw.icp1.io
     opencloud.me
-    icp.net
+    *.icp.net
     caffeine.site
     caffeine.xyz
     mybox.company
@@ -8184,7 +8185,7 @@ enum PublicSuffixList {
     dkonto.pl
     you2.pl
     ondigitalocean.app
-    digitaloceanspaces.com
+    *.digitaloceanspaces.com
     qzz.io
     us.kg
     xx.kg
@@ -8533,7 +8534,7 @@ enum PublicSuffixList {
     e4.cz
     easypanel.app
     easypanel.host
-    ewp.live
+    *.ewp.live
     twmail.cc
     twmail.net
     twmail.org
@@ -8711,7 +8712,7 @@ enum PublicSuffixList {
     global.ssl.fastly.net
     fastlylb.net
     map.fastlylb.net
-    user.fm
+    *.user.fm
     fastvps-server.com
     fastvps.host
     myfast.host
@@ -8747,7 +8748,7 @@ enum PublicSuffixList {
     framer.photos
     framer.website
     framer.wiki
-    0e.vc
+    *.0e.vc
     freebox-os.com
     freeboxos.com
     fbx-os.fr
@@ -8756,7 +8757,7 @@ enum PublicSuffixList {
     freeboxos.fr
     freedesktop.org
     freemyip.com
-    frusky.de
+    *.frusky.de
     wien.funkfeuer.at
     daemon.asia
     dix.asia
@@ -8773,14 +8774,14 @@ enum PublicSuffixList {
     server-on.net
     mydns.tw
     mydns.vc
-    futurecms.at
-    ex.futurecms.at
-    in.futurecms.at
+    *.futurecms.at
+    *.ex.futurecms.at
+    *.in.futurecms.at
     futurehosting.at
     futuremailing.at
-    ex.ortsinfo.at
-    kunden.ortsinfo.at
-    statics.cloud
+    *.ex.ortsinfo.at
+    *.kunden.ortsinfo.at
+    *.statics.cloud
     gadget.app
     gadget.host
     aliases121.com
@@ -8920,13 +8921,13 @@ enum PublicSuffixList {
     vibehost.space
     graphic.design
     goip.de
-    hosted.app
-    run.app
-    mtls.run.app
+    *.hosted.app
+    *.run.app
+    *.mtls.run.app
     web.app
-    0emm.com
+    *.0emm.com
     appspot.com
-    r.appspot.com
+    *.r.appspot.com
     blogspot.com
     codespot.com
     googleapis.com
@@ -8934,10 +8935,10 @@ enum PublicSuffixList {
     pagespeedmobilizer.com
     withgoogle.com
     withyoutube.com
-    gateway.dev
+    *.gateway.dev
     cloud.goog
     translate.goog
-    usercontent.goog
+    *.usercontent.goog
     cloudfunctions.net
     cloud.run
     ai.studio
@@ -8972,7 +8973,7 @@ enum PublicSuffixList {
     hercules-dev.com
     here.now
     herokuapp.com
-    compute.herokuapp.com
+    *.compute.herokuapp.com
     heyflow.page
     heyflow.site
     ravendb.cloud
@@ -8982,9 +8983,9 @@ enum PublicSuffixList {
     hidns.co
     hidns.vip
     homesklep.pl
-    kin.one
-    id.pub
-    kin.pub
+    *.kin.one
+    *.id.pub
+    *.kin.pub
     seprox.hooc.me
     hoplix.shop
     orx.biz
@@ -9007,7 +9008,7 @@ enum PublicSuffixList {
     hypernode.io
     iobb.net
     co.cz
-    moonscale.io
+    *.moonscale.io
     moonscale.net
     gr.com
     iki.fi
@@ -9075,9 +9076,9 @@ enum PublicSuffixList {
     websitebuilder.online
     app-ionos.space
     iopsys.se
-    inbrowser.dev
-    dweb.link
-    inbrowser.link
+    *.inbrowser.dev
+    *.dweb.link
+    *.inbrowser.link
     ipifony.net
     home64.de
     ipv64.de
@@ -9163,10 +9164,10 @@ enum PublicSuffixList {
     phx.enscaled.us
     mircloud.us
     myjino.ru
-    hosting.myjino.ru
-    landing.myjino.ru
-    spectrum.myjino.ru
-    vps.myjino.ru
+    *.hosting.myjino.ru
+    *.landing.myjino.ru
+    *.spectrum.myjino.ru
+    *.vps.myjino.ru
     jote.cloud
     jotelulu.cloud
     eu1-plenit.com
@@ -9211,8 +9212,8 @@ enum PublicSuffixList {
     laravel.cloud
     on-forge.com
     on-vapor.com
-    eth.limo
-    eth.link
+    *.eth.limo
+    *.eth.link
     git-repos.de
     lcube-server.de
     svn-repos.de
@@ -9236,15 +9237,15 @@ enum PublicSuffixList {
     linkyard-cloud.ch
     linkyard.cloud
     members.linode.com
-    nodebalancer.linode.com
-    linodeobjects.com
+    *.nodebalancer.linode.com
+    *.linodeobjects.com
     ip.linodeusercontent.com
     we.bs
     filegear-sg.me
     ggff.net
-    user.localcert.dev
+    *.user.localcert.dev
     localtonet.com
-    localto.net
+    *.localto.net
     lodz.pl
     pabianice.pl
     plock.pl
@@ -9300,10 +9301,10 @@ enum PublicSuffixList {
     barsy.uk
     barsy.co.uk
     barsyonline.co.uk
-    lutrausercontent.com
+    *.lutrausercontent.com
     luyani.app
     luyani.net
-    magentosite.cloud
+    *.magentosite.cloud
     magicpatterns.app
     magicpatternsapp.com
     hb.cldmail.ru
@@ -9325,15 +9326,15 @@ enum PublicSuffixList {
     messerli.app
     atmeta.com
     apps.fbsbx.com
-    metaaiusercontent.com
-    cloud.metacentrum.cz
+    *.metaaiusercontent.com
+    *.cloud.metacentrum.cz
     custom.metacentrum.cz
     flt.cloud.muni.cz
     usr.cloud.muni.cz
     meteorapp.com
     eu.meteorapp.com
     co.pl
-    azurecontainer.io
+    *.azurecontainer.io
     azure-api.net
     azure-mobile.net
     azureedge.net
@@ -9397,7 +9398,7 @@ enum PublicSuffixList {
     northeurope-01.azurewebsites.net
     norwayeast-01.azurewebsites.net
     norwaywest-01.azurewebsites.net
-    p.azurewebsites.net
+    *.p.azurewebsites.net
     polandcentral-01.azurewebsites.net
     qatarcentral-01.azurewebsites.net
     southafricanorth-01.azurewebsites.net
@@ -9590,13 +9591,13 @@ enum PublicSuffixList {
     noip.us
     pointto.us
     stage.nodeart.io
-    developer.app
+    *.developer.app
     noop.app
-    northflank.app
-    build.run
-    code.run
-    database.run
-    migration.run
+    *.northflank.app
+    *.build.run
+    *.code.run
+    *.database.run
+    *.migration.run
     aberdeen.wa.us
     bainbridge-isl.wa.us
     bellevue.wa.us
@@ -9675,7 +9676,7 @@ enum PublicSuffixList {
     localplayer.dev
     is-local.org
     opensocial.site
-    oaiusercontent.com
+    *.oaiusercontent.com
     chatgpt.site
     opencraft.hosting
     16-b.it
@@ -9683,30 +9684,30 @@ enum PublicSuffixList {
     64-b.it
     orsites.com
     operaunite.com
-    customer-oci.com
-    oci.customer-oci.com
-    ocp.customer-oci.com
-    ocs.customer-oci.com
-    oraclecloudapps.com
-    oraclegovcloudapps.com
-    oraclegovcloudapps.uk
+    *.customer-oci.com
+    *.oci.customer-oci.com
+    *.ocp.customer-oci.com
+    *.ocs.customer-oci.com
+    *.oraclecloudapps.com
+    *.oraclegovcloudapps.com
+    *.oraclegovcloudapps.uk
     tech.orange
     can.re
     authgear-staging.com
     authgearapps.com
     outsystemscloud.com
-    hosting.ovh.net
-    webpaas.ovh.net
+    *.hosting.ovh.net
+    *.webpaas.ovh.net
     ownprovider.com
     own.pm
-    owo.codes
+    *.owo.codes
     ox.rs
     oy.lc
     pgfog.com
     gotpantheon.com
     pantheonsite.io
-    paywhirl.com
-    xmit.co
+    *.paywhirl.com
+    *.xmit.co
     xmit.dev
     madethis.site
     srv.us
@@ -9719,13 +9720,13 @@ enum PublicSuffixList {
     id.forgerock.io
     support.site
     on-web.fr
-    upsun.app
+    *.upsun.app
     upsunapp.com
     ent.platform.sh
     eu.platform.sh
     us.platform.sh
-    platformsh.site
-    tst.site
+    *.platformsh.site
+    *.tst.site
     playcode.site
     pley.games
     onporter.run
@@ -9749,7 +9750,7 @@ enum PublicSuffixList {
     chirurgiens-dentistes-en-france.fr
     byen.site
     nyc.mn
-    cn.st
+    *.cn.st
     pubtls.org
     puter.app
     puter.site
@@ -9758,7 +9759,7 @@ enum PublicSuffixList {
     eu.pythonanywhere.com
     qa2.com
     qcx.io
-    sys.qcx.io
+    *.sys.qcx.io
     myqnapcloud.cn
     mycloudnas.com
     mynascloud.com
@@ -9766,10 +9767,10 @@ enum PublicSuffixList {
     qoto.io
     qualifioapp.com
     ladesk.com
-    qualyhqpartner.com
-    qualyhqportal.com
+    *.qualyhqpartner.com
+    *.qualyhqportal.com
     qbuser.com
-    quipelements.com
+    *.quipelements.com
     vapor.cloud
     vaporcloud.io
     rackmaze.com
@@ -9782,16 +9783,16 @@ enum PublicSuffixList {
     myrdbx.io
     site.rb-hosting.io
     up.railway.app
-    on-rancher.cloud
-    on-k3s.io
-    on-rio.io
+    *.on-rancher.cloud
+    *.on-k3s.io
+    *.on-rio.io
     ravpage.co.il
     readthedocs-hosted.com
     readthedocs.io
     rhcloud.com
     instances.spawn.cc
-    clusters.rdpa.co
-    srvrless.rdpa.co
+    *.clusters.rdpa.co
+    *.srvrless.rdpa.co
     onrender.com
     app.render.com
     replit.app
@@ -9838,7 +9839,7 @@ enum PublicSuffixList {
     subsc-pay.net
     git-pages.rit.edu
     rocketpreview.app
-    builtwithrocket.new
+    *.builtwithrocket.new
     rocky.page
     rub.de
     ruhr-uni-bochum.de
@@ -9902,31 +9903,31 @@ enum PublicSuffixList {
     x0.to
     from.tv
     sakura.tv
-    builder.code.com
-    dev-builder.code.com
-    stg-builder.code.com
-    001.test.code-builder-stg.platform.salesforce.com
-    aa.crm.dev
-    ab.crm.dev
-    ac.crm.dev
-    ad.crm.dev
-    ae.crm.dev
-    af.crm.dev
-    ci.crm.dev
-    d.crm.dev
-    pa.crm.dev
-    pb.crm.dev
-    pc.crm.dev
-    pd.crm.dev
-    pe.crm.dev
-    pf.crm.dev
-    w.crm.dev
-    wa.crm.dev
-    wb.crm.dev
-    wc.crm.dev
-    wd.crm.dev
-    we.crm.dev
-    wf.crm.dev
+    *.builder.code.com
+    *.dev-builder.code.com
+    *.stg-builder.code.com
+    *.001.test.code-builder-stg.platform.salesforce.com
+    *.aa.crm.dev
+    *.ab.crm.dev
+    *.ac.crm.dev
+    *.ad.crm.dev
+    *.ae.crm.dev
+    *.af.crm.dev
+    *.ci.crm.dev
+    *.d.crm.dev
+    *.pa.crm.dev
+    *.pb.crm.dev
+    *.pc.crm.dev
+    *.pd.crm.dev
+    *.pe.crm.dev
+    *.pf.crm.dev
+    *.w.crm.dev
+    *.wa.crm.dev
+    *.wb.crm.dev
+    *.wc.crm.dev
+    *.wd.crm.dev
+    *.we.crm.dev
+    *.wf.crm.dev
     sandcats.io
     sav.case
     logoip.com
@@ -10036,8 +10037,8 @@ enum PublicSuffixList {
     port.fr
     veterinaire.fr
     vp4.me
-    snowflake.app
-    privatelink.snowflake.app
+    *.snowflake.app
+    *.privatelink.snowflake.app
     streamlit.app
     streamlitapp.com
     try-snowplow.com
@@ -10046,11 +10047,11 @@ enum PublicSuffixList {
     playstation-cloud.com
     srht.site
     apps.lair.io
-    stolos.io
+    *.stolos.io
     4.at
     my.at
     my.de
-    nxa.eu
+    *.nxa.eu
     nx.gw
     spawnbase.app
     customer.speedpartner.de
@@ -10144,7 +10145,7 @@ enum PublicSuffixList {
     erp.dev
     web.erp.dev
     ts.net
-    c.ts.net
+    *.c.ts.net
     gda.pl
     gdansk.pl
     gdynia.pl
@@ -10165,10 +10166,10 @@ enum PublicSuffixList {
     s3.teckids.org
     telebit.app
     telebit.io
-    telebit.xyz
+    *.telebit.xyz
     teleport.sh
-    firenet.ch
-    svc.firenet.ch
+    *.firenet.ch
+    *.svc.firenet.ch
     reservd.com
     thingdustdata.com
     cust.dev.thingdust.io
@@ -10206,11 +10207,11 @@ enum PublicSuffixList {
     lima-city.rocks
     webspace.rocks
     lima.zone
-    transurl.be
-    transurl.eu
+    *.transurl.be
+    *.transurl.eu
     site.transip.me
-    transurl.nl
-    triton.zone
+    *.transurl.nl
+    *.triton.zone
     tunnelmole.net
     tuxfamily.org
     typedream.app
@@ -10253,13 +10254,13 @@ enum PublicSuffixList {
     vivenushop.com
     vivenushop.dev
     voorloper.cloud
-    vultrobjects.com
+    *.vultrobjects.com
     wafflecell.com
     wal.app
     wasmer.app
     webflow.io
     webflowtest.io
-    webhare.dev
+    *.webhare.dev
     hotelwithflight.com
     reserve-online.net
     book.online
@@ -10270,7 +10271,7 @@ enum PublicSuffixList {
     plesk.page
     cpanel.site
     wpsquared.site
-    wadl.top
+    *.wadl.top
     remotewd.com
     box.ca
     pages.wiardweb.com
@@ -10308,7 +10309,7 @@ enum PublicSuffixList {
     wpenginepowered.com
     js.wpenginepowered.com
     grok.me
-    xenonconnect.de
+    *.xenonconnect.de
     half.host
     cistron.nl
     demon.nl
@@ -10327,9 +10328,9 @@ enum PublicSuffixList {
     za.org
     zap.cloud
     zeabur.app
-    zerops.app
+    *.zerops.app
     prg1-zerops.zone
-    zerops.zone
+    *.zerops.zone
     bss.design
     basicserver.io
     virtualserver.io
@@ -10338,4 +10339,17 @@ enum PublicSuffixList {
     nett.to
     zabc.net
     """.split(whereSeparator: { $0.isWhitespace }).map(String.init))
+
+    /// Returns whether `suffix` is itself a public suffix under the PSL rule set.
+    /// Exception rules have precedence over exact and wildcard rules.
+    static func isPublicSuffix(_ suffix: String) -> Bool {
+        let normalized = suffix.lowercased()
+        guard !normalized.isEmpty else { return false }
+        if rules.contains("!\(normalized)") { return false }
+        if rules.contains(normalized) { return true }
+        let labels = normalized.split(separator: ".")
+        guard labels.count >= 2 else { return false }
+        let wildcardBase = labels.dropFirst().joined(separator: ".")
+        return rules.contains("*.\(wildcardBase)")
+    }
 }
