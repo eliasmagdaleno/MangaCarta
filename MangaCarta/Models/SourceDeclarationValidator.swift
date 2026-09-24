@@ -43,6 +43,8 @@ enum SourceDeclarationError: Error, Equatable, Sendable {
     case invalidName(reason: TextRejectionReason)
     case invalidEngine(String)
     case invalidAdultClassification(String)
+    case featureRequiresHostAPIVersion(feature: String, minimum: HostAPIVersion,
+                                       selected: HostAPIVersion)
     case unknownExternalIDNamespace(String)
     case duplicateExternalIDNamespace(String)
     case missingRequiredCapabilities([String])
@@ -109,6 +111,9 @@ extension SourceDeclarationError {
         case .invalidAdultClassification(let value):
             return "adult classification '\(value)' is not one of none, mixed, adultOnly. "
                 + "The classification is required and is never assumed."
+        case .featureRequiresHostAPIVersion(let feature, let minimum, let selected):
+            return "\(feature) requires Host API \(minimum) or newer, but this declaration "
+                + "selects Host API \(selected)."
         case .unknownExternalIDNamespace(let value):
             return "externalIds namespace '\(value)' is not supported."
         case .duplicateExternalIDNamespace(let value):
@@ -245,18 +250,27 @@ enum SourceDeclarationValidator {
         let engineName = try engine(from: root)
         let engineConfiguration = try configuration(from: root)
         let classification = try adult(from: root)
-        let externalIds = try externalIDs(from: root)
-        let declared = try capabilities(from: root)
-        let languagePolicy = try languages(from: root)
-        let networkPolicy = try network(from: root)
-        let presentationRecord = try presentation(from: root, capabilities: declared)
         let range = try hostAPIRange(from: root)
-
-        try checkRegistrationInvariants(declared)
         guard let selected = hostAPI.highestVersion(in: range) else {
             throw SourceDeclarationError.incompatibleHostAPI(declared: range,
                                                              hostSupported: hostAPI.installedVersions)
         }
+        let externalIds = try externalIDs(from: root)
+        let declared = try capabilities(from: root)
+        if selected < HostAPIVersion(major: 1, minor: 1) {
+            if !externalIds.isEmpty {
+                throw SourceDeclarationError.featureRequiresHostAPIVersion(
+                    feature: "externalIds", minimum: HostAPIVersion(major: 1, minor: 1), selected: selected)
+            }
+            if root["capabilities"].flatMap(\.objectValue)?[SourceOperation.listing.rawValue] != nil {
+                throw SourceDeclarationError.featureRequiresHostAPIVersion(
+                    feature: "capabilities.listing", minimum: HostAPIVersion(major: 1, minor: 1), selected: selected)
+            }
+        }
+        let languagePolicy = try languages(from: root)
+        let networkPolicy = try network(from: root)
+        let presentationRecord = try presentation(from: root, capabilities: declared)
+        try checkRegistrationInvariants(declared)
 
         return SourceDeclaration(qualifiedId: qualifiedId,
                                  localId: identifier,

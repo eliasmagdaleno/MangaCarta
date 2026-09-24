@@ -133,6 +133,39 @@ final class SourceDeclarationValidatorTests: XCTestCase {
                        .unknownExternalIDNamespace("anilist"))
     }
 
+    func testExternalIDFeaturesRequireHostAPI11() throws {
+        var legacy = baseDeclaration()
+        legacy["hostAPI"] = ["minimum": "1.0", "maximumExclusive": "1.1"]
+        legacy["externalIds"] = ["mal"]
+        XCTAssertEqual(try rejected(legacy),
+                       .featureRequiresHostAPIVersion(feature: "externalIds",
+                                                      minimum: HostAPIVersion(major: 1, minor: 1),
+                                                      selected: HostAPIVersion(major: 1, minor: 0)))
+
+        var legacyListing = baseDeclaration()
+        legacyListing["hostAPI"] = ["minimum": "1.0", "maximumExclusive": "1.1"]
+        var capabilities = legacyListing["capabilities"] as! [String: Any]
+        capabilities["listing"] = true
+        legacyListing["capabilities"] = capabilities
+        XCTAssertEqual(try rejected(legacyListing),
+                       .featureRequiresHostAPIVersion(feature: "capabilities.listing",
+                                                      minimum: HostAPIVersion(major: 1, minor: 1),
+                                                      selected: HostAPIVersion(major: 1, minor: 0)))
+
+        var current = baseDeclaration()
+        current["hostAPI"] = ["minimum": "1.1", "maximumExclusive": "2.0"]
+        current["externalIds"] = ["mal"]
+        var currentCapabilities = current["capabilities"] as! [String: Any]
+        currentCapabilities["listing"] = true
+        current["capabilities"] = currentCapabilities
+        let acceptedCurrent = try accepted(current)
+        XCTAssertEqual(acceptedCurrent.selectedHostAPIVersion, HostAPIVersion(major: 1, minor: 1))
+
+        var legacyNoFeature = legacy
+        legacyNoFeature.removeValue(forKey: "externalIds")
+        XCTAssertNoThrow(try accepted(legacyNoFeature))
+    }
+
     /// The id is supplied by the installer and copied through untouched. Nothing in the
     /// declaration — least of all the display `name` — participates in identity.
     func testQualifiedIdIsTakenFromTheInstallerAndNameIsNotIdentity() throws {
@@ -651,7 +684,8 @@ final class SourceDeclarationValidatorTests: XCTestCase {
         }
         XCTAssertEqual(declared.minimum, HostAPIVersion(major: 2, minor: 0))
         XCTAssertEqual(declared.maximumExclusive, HostAPIVersion(major: 3, minor: 0))
-        XCTAssertEqual(supported, [HostAPIVersion(major: 1, minor: 0)])
+        XCTAssertEqual(supported, [HostAPIVersion(major: 1, minor: 0),
+                                   HostAPIVersion(major: 1, minor: 1)])
     }
 
     /// Criterion 9's "actionable": the message must name the declared range and what the

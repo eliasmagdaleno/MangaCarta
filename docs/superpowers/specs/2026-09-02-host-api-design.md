@@ -447,7 +447,8 @@ rules of the selected version. A new operation or capability is opt-in through d
 feature negotiation, not inferred from an export.
 
 The optional `listing` operation and `externalIds` declaration key are additive opt-in features
-under Host API v1; no version bump is required. (added 2026-09-24, removal slice 4)
+introduced by Host API 1.1; declarations selecting 1.0 must not use them. (added 2026-09-24,
+removal slice 4)
 
 ## 8. Language contract
 
