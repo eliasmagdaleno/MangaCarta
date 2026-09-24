@@ -934,7 +934,8 @@ private actor BridgeHTTPTransport: HostHTTPTransport {
         return HostHTTPTransportResponse(statusCode: 200,
                                          url: request.url!,
                                          headers: [:],
-                                         body: Data("ok".utf8))
+                                         body: Data("ok".utf8),
+                                         connectedPeerAddress: "93.184.216.34")
     }
 
     func lastRequest() -> URLRequest? { request }
