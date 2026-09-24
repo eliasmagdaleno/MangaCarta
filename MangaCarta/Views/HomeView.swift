@@ -225,7 +225,7 @@ private struct HomeScreen: View {
             .navigationTitle("Read")
             .navigationBarTitleDisplayMode(.large)
             .fileImporter(isPresented: $showingImporter,
-                          allowedContentTypes: [UTType.pdf, UTType.zip, UTType.mangaCartaCBZ],
+                          allowedContentTypes: [UTType.zip, UTType.mangaCartaCBZ],
                           allowsMultipleSelection: true) { result in
                 if case .success(let urls) = result { importer.importFiles(urls) }
             }
@@ -237,7 +237,7 @@ private struct HomeScreen: View {
                     .navigationTitle("Read")
                     .navigationBarTitleDisplayMode(.large)
                     .fileImporter(isPresented: $showingImporter,
-                          allowedContentTypes: [UTType.pdf, UTType.zip, UTType.mangaCartaCBZ],
+                          allowedContentTypes: [UTType.zip, UTType.mangaCartaCBZ],
                           allowsMultipleSelection: true) { result in
                 if case .success(let urls) = result { importer.importFiles(urls) }
             }
@@ -253,7 +253,7 @@ private struct HomeScreen: View {
         InkEmptyState(
             symbol: "books.vertical",
             title: "No sources installed",
-            message: "Import CBZ, ZIP or PDF files from Files. MangaCarta does not provide or host content.",
+            message: "Import CBZ or ZIP files from Files. MangaCarta does not provide or host content.",
             actionTitle: "Import from Files",
             action: { importer.configure(registry: registry, library: library, works: works); showingImporter = true }
         )

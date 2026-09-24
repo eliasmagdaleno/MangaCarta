@@ -230,7 +230,7 @@ struct SettingsView: View {
                 CollectionManagementView()
             }
             .fileImporter(isPresented: $showingLocalImporter,
-                          allowedContentTypes: [UTType.pdf, UTType.zip, UTType.mangaCartaCBZ],
+                          allowedContentTypes: [UTType.zip, UTType.mangaCartaCBZ],
                           allowsMultipleSelection: true) { result in
                 if case .success(let urls) = result { localImporter.importFiles(urls) }
             }
