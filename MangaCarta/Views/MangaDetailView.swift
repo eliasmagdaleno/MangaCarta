@@ -15,6 +15,7 @@ struct MangaDetailView: View {
     @EnvironmentObject private var engine: RecommendationEngine
     @EnvironmentObject private var fulfillment: FulfillmentCoordinator
     @EnvironmentObject private var sourcePreferences: SourcePreferenceStore
+    @Environment(\.dismiss) private var dismiss
     /// The graph's registry, not the singleton. They are the same object in production and
     /// different ones under a UI-test fixture, and reading the wrong one made every source
     /// lookup on this page miss.
@@ -26,6 +27,8 @@ struct MangaDetailView: View {
     @State private var synopsisExpanded = false
     @State private var showingWebPage = false
     @State private var showingLocalDeleteConfirmation = false
+    @State private var localSizeText = "calculating size…"
+    @State private var deletionError: String?
 
     init(manga: Manga, registry: SourceRegistry) {
         self.manga = manga
@@ -163,6 +166,7 @@ struct MangaDetailView: View {
             vm.load()
         }
         .task { await reconcileListingCounts() }
+        .task { await loadLocalSize() }
         .task { mangaWebURL = try? await mangaSource?.webURL(forManga: manga.id) }
         .task { await moreLikeThis.load(for: manga) }
         .task { clearNewlyDiscovered() }
@@ -191,13 +195,25 @@ struct MangaDetailView: View {
             Button("Delete from Device", role: .destructive) {
                 guard let local = mangaSource as? LocalSource else { return }
                 Task {
-                    try? await LocalLibraryDeletion(local: local.store, library: library, works: works)
-                        .delete(itemId: manga.id)
+                    do {
+                        try await LocalLibraryDeletion(local: local.store, library: library, works: works)
+                            .delete(itemId: manga.id)
+                        dismiss()
+                    } catch {
+                        deletionError = error.localizedDescription
+                    }
                 }
             }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("The imported file (\(formattedLocalSize)) is removed from MangaCarta and can't be recovered. Reading history is kept.")
+        }
+        .alert("Couldn't delete from device", isPresented: Binding(
+            get: { deletionError != nil }, set: { if !$0 { deletionError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(deletionError ?? "The imported file could not be removed.")
         }
     }
 
@@ -444,7 +460,14 @@ struct MangaDetailView: View {
     }
 
     private var formattedLocalSize: String {
-        return "the imported file"
+        localSizeText
+    }
+
+    private func loadLocalSize() async {
+        guard isLocalManga, let source = mangaSource as? LocalSource,
+              let record = await source.store.record(itemId: manga.id) else { return }
+        let megabytes = Double(record.byteSize) / 1_048_576
+        localSizeText = String(format: "%.1f MB", megabytes)
     }
 
     // MARK: Tags
