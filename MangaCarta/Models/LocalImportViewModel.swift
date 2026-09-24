@@ -71,6 +71,15 @@ final class LocalImportViewModel: ObservableObject {
         }
     }
 
+    /// Synchronous facade for deterministic launch fixtures; it still executes the exact
+    /// asynchronous importer used by the Files picker and waits for every result.
+    func importFilesAndWait(_ urls: [URL]) async {
+        importFiles(urls)
+        while isImporting {
+            await Task.yield()
+        }
+    }
+
     func cancel() { task?.cancel() }
 
     private static func message(for error: Error) -> String {
