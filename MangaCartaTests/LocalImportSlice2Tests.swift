@@ -115,7 +115,10 @@ private struct LocalFixture {
     await importer.importFilesAndWait([fixture.archive])
 
     let item = try #require(library.items.first)
-    #expect(works.workId(for: ListingKey(sourceId: LocalSource.sourceID, mangaId: item.id)) != nil)
+    #expect(item.sourceId == LocalSource.sourceID)
+    #expect(item.chapterNumbers == ["1"])
+    let listing = ListingKey(sourceId: LocalSource.sourceID, mangaId: item.id)
+    #expect(works.workId(for: listing) != nil)
 }
 
 @MainActor @Test func registryAlwaysRegistersLocalButNeverBrowsesIt() {

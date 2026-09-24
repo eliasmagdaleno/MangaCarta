@@ -53,10 +53,6 @@ final class LocalImportViewModel: ObservableObject {
                                               year: nil, coverURL: cover, malId: nil)
                             library.toggle(manga)
                             library.setChapterNumbers(record.chapters.map { "\($0.number)" }, for: record.itemId)
-                            if let works = self.works,
-                               works.workId(for: ListingKey(manga)) == nil {
-                                _ = works.mint(from: manga)
-                            }
                         }
                     } else if case .duplicate = result {
                         await MainActor.run { self?.errors.append("\(url.lastPathComponent): Already in your library") }
