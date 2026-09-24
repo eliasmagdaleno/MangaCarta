@@ -47,6 +47,7 @@ actor LocalLibraryStore {
             }
             let title = source.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " ")
             let isPDF = bytes.starts(with: Data("%PDF-".utf8))
+                || source.pathExtension.caseInsensitiveCompare("pdf") == .orderedSame
             if isPDF {
                 do {
                     let pageDir = item.appendingPathComponent("pages/1")
