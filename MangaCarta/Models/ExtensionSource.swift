@@ -23,9 +23,10 @@
 //    scroll `PagedMangaLoader` performs lands on consecutive pages without this adapter
 //    ever guessing a cursor's shape.
 //
-//  The request shape sent to the engine is the one the shipped `bundled theme engine`
-//  reads — `cursor` and `limit` beside the operation's own fields — which is the only
-//  engine contract that exists on `main` today.
+//  Paged requests carry the nested `page` value and, during the transition from v1,
+//  duplicate its cursor and limit at the top level for engines that still read the old
+//  shape. Remove the duplicate once all published engines use nesting, and no later than
+//  the no-built-in-sources slice 6 removes the bundled package (Host API design Amendment 3).
 //
 
 import Foundation
@@ -320,8 +321,13 @@ final class ExtensionSource: MangaSource {
                 return []
             case .page(let at, let cursor):
                 var request = fields
+                // Paging is a nested Host API value. The initial cursor is explicitly null;
+                // subsequent cursors are replayed byte-for-byte from the previous response.
+                let pageCursor: Any = cursor.map { $0 as Any } ?? (NSNull() as Any)
+                request["page"] = ["cursor": pageCursor, "limit": limit]
+                // Compatibility shim for v1 engines; keep these values identical to page.
+                request["cursor"] = pageCursor
                 request["limit"] = limit
-                if let cursor { request["cursor"] = cursor }
                 let value = try await invoke(operation, request: request)
                 let (items, next, exhausted) = try validated { try parse(value) }
                 cursors.record(key: key, after: at, limit: limit, next: next, exhausted: exhausted)

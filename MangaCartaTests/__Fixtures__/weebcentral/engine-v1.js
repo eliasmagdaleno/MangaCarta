@@ -215,13 +215,10 @@
   // ------------------------------------------------------------ operations
 
   async function listingPage(operation, request, context, cfg, vars) {
-    if (!request.page || typeof request.page !== "object") {
-      return fail("invalid_request", "paged operations require a page object");
-    }
-    var limit = positiveInt(request.page.limit, 20);
+    var limit = positiveInt(request.limit, 20);
     var style = (cfg.pagination || {}).listings === "page" ? "page" : "offset";
     var first = positiveInt((cfg.pagination || {}).firstPage, 1);
-    var cursor = request.page.cursor;
+    var cursor = request.cursor;
     var marker = cursor === null || cursor === undefined || cursor === ""
       ? (style === "page" ? first : 0)
       : positiveInt(cursor, style === "page" ? first : 1);
@@ -243,13 +240,10 @@
   }
 
   async function updatePage(request, context, cfg) {
-    if (!request.page || typeof request.page !== "object") {
-      return fail("invalid_request", "paged operations require a page object");
-    }
-    var limit = positiveInt(request.page.limit, 20);
+    var limit = positiveInt(request.limit, 20);
     var style = (cfg.pagination || {}).latestUpdates === "offset" ? "offset" : "page";
     var first = positiveInt((cfg.pagination || {}).firstPage, 1);
-    var cursor = request.page.cursor;
+    var cursor = request.cursor;
     var empty = cursor === null || cursor === undefined || cursor === "";
     var marker = empty ? (style === "page" ? first : 0) : positiveInt(cursor, first);
     if (style === "offset" && empty) { marker = 0; }
