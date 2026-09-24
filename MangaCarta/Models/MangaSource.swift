@@ -22,6 +22,9 @@ protocol MangaSource {
     var name: String { get }
     /// Whether this source serves adult content. Gated behind a Settings toggle.
     var isNSFW: Bool { get }
+    /// Whether this source publishes external ids (for example MAL ids) that can be
+    /// used by cross-catalogue resolution.
+    var publishesExternalIds: Bool { get }
 
     /// Search the source by title. Results carry `coverURL` and `sourceId`.
     func search(title: String, limit: Int, offset: Int) async throws -> [Manga]
@@ -45,6 +48,8 @@ protocol MangaSource {
     func latestUpdates(limitTitles: Int, language: String, offset: Int) async throws -> [MangaUpdate]
     /// Enriched metadata for a single manga.
     func mangaDetail(id: String) async throws -> MangaDetail
+    /// Fetch a listing by source id when the source supports id-based lookup.
+    func manga(id: String) async throws -> Manga?
     /// The readable chapter list for a manga.
     func chapters(mangaId: String) async throws -> [Chapter]
     /// The per-page image URLs for a chapter.
@@ -75,6 +80,8 @@ protocol MangaSource {
 
 /// Errors common to the source layer (distinct from a source's own transport errors).
 enum SourceError: LocalizedError {
+    /// No registered source can provide the requested capability yet.
+    case unavailable(String)
     /// The source does not implement an optional capability (carries the capability name).
     case unsupported(String)
     /// A Cloudflare interactive challenge was shown but never completed (dismissed/timed out).
@@ -86,6 +93,8 @@ enum SourceError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
+        case .unavailable(let capability):
+            return "No source is available for \(capability)."
         case .unsupported(let capability):
             return "This source doesn't support \(capability)."
         case .cloudflareUnsolved:
@@ -105,6 +114,9 @@ enum SourceError: LocalizedError {
 /// a clear `SourceError.unsupported` instead of a crash. MangaDex overrides all of them.
 extension MangaSource {
     var isNSFW: Bool { false }
+    var publishesExternalIds: Bool { false }
+
+    func manga(id: String) async throws -> Manga? { nil }
 
     var supportsTagBrowse: Bool { false }
 

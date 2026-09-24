@@ -368,5 +368,6 @@ struct InkNotice: View {
         .environmentObject(works)
         .environmentObject(UpdateStateStore(works: works))
         .environmentObject(RecommendationEngine(history: history, library: library,
-                                                profileStore: taste, workStore: works))
+                                                profileStore: taste, workStore: works,
+                                                source: { SourceRegistry.shared.externalIdSource }))
 }

@@ -56,9 +56,7 @@ final class MetadataUpgradeQueue: ObservableObject {
     init(works: WorkStore,
          anilist: AniListAPI = AniListAPI(),
          rateLimiter: AniListRateLimiter = AniListRateLimiter(),
-         // Nil-defaulted rather than defaulted to the real thing: both are `@MainActor`,
-         // and a default argument is evaluated in a nonisolated context.
-         resolver: MALEntityResolver? = nil,
+         resolver: MALEntityResolver,
          memory: UpgradeAttemptMemory? = nil,
          idleInterval: TimeInterval = 60,
          now: @escaping () -> Date = Date.init,
@@ -67,10 +65,7 @@ final class MetadataUpgradeQueue: ObservableObject {
         self.works = works
         self.anilist = anilist
         self.rateLimiter = rateLimiter
-        // `.shared` is deliberate and load-bearing: `EntityResolutionStore` reads
-        // UserDefaults once in `init` and never reloads, so any other instance is frozen
-        // at launch and the resolver's free cache fast path silently dies (ADR-0010).
-        self.resolver = resolver ?? MALEntityResolver(store: .shared)
+        self.resolver = resolver
         self.memory = memory ?? UpgradeAttemptMemory()
         self.idleInterval = idleInterval
         self.now = now
