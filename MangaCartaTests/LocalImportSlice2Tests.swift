@@ -7,9 +7,10 @@ enum LocalTestZip {
     static let png = Data(base64Encoded:
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")!
 
-    static func write(_ files: [(String, Data)], to url: URL) throws {
+    static func write(_ files: [(String, Data)], to url: URL, corruptLastCRC: Bool = false) throws {
         var body = Data(); var central = Data(); var offset: UInt32 = 0
-        for (name, data) in files {
+        for (index, pair) in files.enumerated() {
+            let (name, data) = pair
             let n = Data(name.utf8), crc = checksum(data)
             body.append(u32(0x04034b50)); body.append(u16(20)); body.append(u16(0))
             body.append(u16(0)); body.append(u16(0)); body.append(u16(0)); body.append(u32(crc))
@@ -17,7 +18,8 @@ enum LocalTestZip {
             body.append(u16(UInt16(n.count))); body.append(u16(0)); body.append(n); body.append(data)
             central.append(u32(0x02014b50)); central.append(u16(20)); central.append(u16(20))
             central.append(u16(0)); central.append(u16(0)); central.append(u16(0)); central.append(u16(0))
-            central.append(u32(crc)); central.append(u32(UInt32(data.count)))
+            central.append(u32(corruptLastCRC && index == files.count - 1 ? crc ^ 1 : crc))
+            central.append(u32(UInt32(data.count)))
             central.append(u32(UInt32(data.count))); central.append(u16(UInt16(n.count))); central.append(u16(0))
             central.append(u16(0)); central.append(u16(0)); central.append(u16(0))
             central.append(u32(0)); central.append(u32(offset)); central.append(n)
