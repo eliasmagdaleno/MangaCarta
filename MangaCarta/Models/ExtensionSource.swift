@@ -70,7 +70,7 @@ enum ExtensionSourceError: LocalizedError, Equatable {
             return "The request was cancelled."
         case .invalidRequest, .unsupported, .incompatibleVersion:
             return "This source can't handle that request. An update to the source may fix it."
-        case .invalidResponse:
+        case .invalidResponse, .invalidResult:
             return "The source returned something the app couldn't read."
         case .unsupportedLanguage:
             return "This source doesn't serve that language."
@@ -250,7 +250,11 @@ final class ExtensionSource: MangaSource {
         guard declaration.capabilities.supports(.listing) else { return nil }
         let value = try await invoke(.listing, request: ["listingId": id])
         if value is NSNull { return nil }
-        return try validated { try validator.validateListing(value).value.toManga(sourceID: self.id) }
+        let listing = try validated { try validator.validateListing(value).value }
+        guard listing.id == id else {
+            throw ExtensionSourceError.invocation(.invalidResult)
+        }
+        return listing.toManga(sourceID: self.id)
     }
 
     func chapters(mangaId: String) async throws -> [Chapter] {

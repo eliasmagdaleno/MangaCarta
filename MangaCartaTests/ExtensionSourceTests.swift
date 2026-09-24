@@ -135,6 +135,16 @@ final class ExtensionSourceTests: XCTestCase {
         }
     }
 
+    func testListingLookupRejectsMismatchedReturnedID() async throws {
+        let source = try echoSource(declareListing: true, declaresMAL: true, listingID: "other")
+        do {
+            _ = try await source.manga(id: "lookup-1")
+            XCTFail("expected invalid result")
+        } catch let error as ExtensionSourceError {
+            XCTAssertEqual(error, .invocation(.invalidResult))
+        }
+    }
+
     func testRegistryChoosesInstalledExternalIdSource() throws {
         let source = try echoSource(declareListing: true, declaresMAL: true)
         let registry = SourceRegistry(sources: [source])
@@ -295,8 +305,10 @@ final class ExtensionSourceTests: XCTestCase {
     private func echoSource(exhaustAt: Int? = nil,
                             declareListing: Bool = false,
                             declaresMAL: Bool = false,
+                            listingID: String? = nil,
                             failWith code: String? = nil,
                             message: String = "") throws -> ExtensionSource {
+        let returnedListingID = listingID.map { "\"\($0)\"" } ?? "request.listingId"
         let script = """
         registerEngine("echo", {
           invoke: function (operation, request, context) {
@@ -305,7 +317,7 @@ final class ExtensionSourceTests: XCTestCase {
             if (operation === "listing") {
               return request.listingId === "missing"
                 ? { ok: true, value: null }
-                : { ok: true, value: { id: request.listingId, title: "Lookup", externalIds: { mal: "123" } } };
+              : { ok: true, value: { id: \(returnedListingID), title: "Lookup", externalIds: { mal: "123" } } };
             }
             var id = "cursor=" + cursor + ";limit=" + request.limit;
             if (request.query !== undefined) { id += ";query=" + request.query; }

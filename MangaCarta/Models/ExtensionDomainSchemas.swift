@@ -15,6 +15,7 @@ enum ExtensionHostErrorCode: String, Codable, Equatable {
     case cancelled
     case invalidRequest = "invalid_request"
     case invalidResponse = "invalid_response"
+    case invalidResult = "invalid_result"
     case unsupported
     case unsupportedLanguage = "unsupported_language"
     case network
