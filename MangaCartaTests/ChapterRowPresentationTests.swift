@@ -53,6 +53,22 @@ final class ChapterRowPresentationTests: XCTestCase {
         XCTAssertTrue(p.accessibilityLabel.hasPrefix("Chapter 12, Blood and Ink"), p.accessibilityLabel)
     }
 
+    func testGroupCreditJoinsNamesAndIsIncludedInAccessibilityLabel() {
+        let chapter = Chapter(id: "c-groups", number: "13", title: nil, groups: ["Alpha", "Beta"])
+        let p = ChapterRowPresentation(chapter: chapter, progress: nil, isRead: false)
+        XCTAssertEqual(p.groupCredit, "Alpha, Beta")
+        XCTAssertTrue(p.accessibilityLabel.contains("Scanlation group: Alpha, Beta"), p.accessibilityLabel)
+    }
+
+    func testMissingOrEmptyGroupCreditIsNotShown() {
+        for groups in [nil, [], [""]] as [[String]?] {
+            let chapter = Chapter(id: "c-groups", number: "13", title: nil, groups: groups)
+            let p = ChapterRowPresentation(chapter: chapter, progress: nil, isRead: false)
+            XCTAssertNil(p.groupCredit, "unexpected credit for \(String(describing: groups))")
+            XCTAssertFalse(p.accessibilityLabel.contains("Scanlation group"), p.accessibilityLabel)
+        }
+    }
+
     /// The stamp reads "CH·12" on screen; the middle dot must not reach VoiceOver.
     func testLabelNeverContainsTheTypographicStamp() {
         let p = ChapterRowPresentation(chapter: chapter, progress: nil, isRead: false)
