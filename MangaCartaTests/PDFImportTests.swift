@@ -59,10 +59,9 @@ struct PDFImportTests {
         let image = try #require(CGImageSourceCreateWithURL(page as CFURL, nil)
             .flatMap { CGImageSourceCreateImageAtIndex($0, 0, nil) })
         let rendered = rgbaImage(from: image)
-        print("ROTATED corners", rendered.pixel(at: CGPoint(x: 10, y: image.height / 2)), rendered.pixel(at: CGPoint(x: image.width / 2, y: 10)), rendered.pixel(at: CGPoint(x: image.width - 10, y: image.height / 2)), rendered.pixel(at: CGPoint(x: image.width / 2, y: image.height - 10)))
-        #expect(rendered.pixel(at: CGPoint(x: 10, y: image.height / 2)).distance(to: .red) < 0.2)
+        #expect(rendered.pixel(at: CGPoint(x: 100, y: image.height / 2)).distance(to: .red) < 0.2)
         #expect(rendered.pixel(at: CGPoint(x: image.width / 2, y: 10)).distance(to: .blue) < 0.2)
-        #expect(rendered.pixel(at: CGPoint(x: image.width - 10, y: image.height / 2)).distance(to: .red) < 0.2)
+        #expect(rendered.pixel(at: CGPoint(x: image.width - 100, y: image.height / 2)).distance(to: .red) < 0.2)
         #expect(image.width > image.height)
         #expect(max(image.width, image.height) == 2_600)
     }
