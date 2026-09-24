@@ -59,7 +59,10 @@ struct PDFImportTests {
         let image = try #require(CGImageSourceCreateWithURL(page as CFURL, nil)
             .flatMap { CGImageSourceCreateImageAtIndex($0, 0, nil) })
         let rendered = rgbaImage(from: image)
-        #expect(rendered.pixel(at: CGPoint(x: 100, y: image.height / 2)).isRed)
+        let pageColor = UIColor(hue: 0, saturation: 0.35, brightness: 1, alpha: 1)
+        let leftEdge = rendered.pixel(at: CGPoint(x: 100, y: image.height / 2))
+        #expect(leftEdge.distance(to: pageColor) < 0.2)
+        #expect(!leftEdge.isRed)
         #expect(rendered.pixel(at: CGPoint(x: image.width / 2, y: 10)).isBlue)
         #expect(rendered.pixel(at: CGPoint(x: image.width - 100, y: image.height / 2)).isRed)
         #expect(image.width > image.height)
@@ -140,7 +143,7 @@ struct PDFImportTests {
 }
 
 private extension UIColor {
-    var isRed: Bool { redComponent > greenComponent + 0.2 && redComponent > blueComponent + 0.2 }
+    var isRed: Bool { redComponent > greenComponent + 0.3 && redComponent > blueComponent + 0.3 }
     var isBlue: Bool { blueComponent > redComponent + 0.2 && blueComponent > greenComponent + 0.2 }
 
     private var redComponent: CGFloat { components.0 }
