@@ -228,7 +228,8 @@ jobs:
             test \
             -only-testing:MangaCartaUITests/UpdatesUITests \
             -only-testing:MangaCartaUITests/SourcePreferenceUITests \
-            -only-testing:MangaCartaUITests/RepositorySettingsUITests
+            -only-testing:MangaCartaUITests/RepositorySettingsUITests \
+            -only-testing:MangaCartaUITests/LocalImportUITests
 
       - name: Documentation only — nothing to test
         if: needs.changes.outputs.code != 'true'
