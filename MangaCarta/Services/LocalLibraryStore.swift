@@ -58,6 +58,10 @@ actor LocalLibraryStore {
                     let encoded = try JSONEncoder().encode(record)
                     try encoded.write(to: item.appendingPathComponent("item.json"), options: .atomic)
                     try? fm.removeItem(at: archive)
+                    if fm.fileExists(atPath: destination.appendingPathComponent("item.json").path) {
+                        try? fm.removeItem(at: staging)
+                        return .duplicate(itemId: itemId)
+                    }
                     try fm.moveItem(at: item, to: destination)
                     try? fm.removeItem(at: staging)
                     return .imported(record)
