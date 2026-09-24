@@ -125,12 +125,19 @@ final class SourceDeclarationValidatorTests: XCTestCase {
     func testExternalIDsAreOptionalAndValidated() throws {
         var acceptedJSON = baseDeclaration()
         acceptedJSON["externalIds"] = ["mal"]
+        var acceptedCapabilities = acceptedJSON["capabilities"] as! [String: Any]
+        acceptedCapabilities["listing"] = true
+        acceptedJSON["capabilities"] = acceptedCapabilities
         XCTAssertEqual(try accepted(acceptedJSON).externalIds, ["mal"])
 
         XCTAssertEqual(try rejected(declaration(setting: "externalIds", to: ["mal", "mal"])),
                        .duplicateExternalIDNamespace("mal"))
         XCTAssertEqual(try rejected(declaration(setting: "externalIds", to: ["anilist"])),
                        .unknownExternalIDNamespace("anilist"))
+
+        var withoutListing = baseDeclaration()
+        withoutListing["externalIds"] = ["mal"]
+        XCTAssertEqual(try rejected(withoutListing), .externalIDsRequireListing)
     }
 
     func testExternalIDFeaturesRequireHostAPI11() throws {

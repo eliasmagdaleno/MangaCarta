@@ -45,6 +45,7 @@ enum SourceDeclarationError: Error, Equatable, Sendable {
     case invalidAdultClassification(String)
     case featureRequiresHostAPIVersion(feature: String, minimum: HostAPIVersion,
                                        selected: HostAPIVersion)
+    case externalIDsRequireListing
     case unknownExternalIDNamespace(String)
     case duplicateExternalIDNamespace(String)
     case missingRequiredCapabilities([String])
@@ -114,6 +115,8 @@ extension SourceDeclarationError {
         case .featureRequiresHostAPIVersion(let feature, let minimum, let selected):
             return "\(feature) requires Host API \(minimum) or newer, but this declaration "
                 + "selects Host API \(selected)."
+        case .externalIDsRequireListing:
+            return "A Source that publishes externalIds must declare capabilities.listing."
         case .unknownExternalIDNamespace(let value):
             return "externalIds namespace '\(value)' is not supported."
         case .duplicateExternalIDNamespace(let value):
@@ -266,6 +269,9 @@ enum SourceDeclarationValidator {
                 throw SourceDeclarationError.featureRequiresHostAPIVersion(
                     feature: "capabilities.listing", minimum: HostAPIVersion(major: 1, minor: 1), selected: selected)
             }
+        }
+        if !externalIds.isEmpty && !declared.supports(.listing) {
+            throw SourceDeclarationError.externalIDsRequireListing
         }
         let languagePolicy = try languages(from: root)
         let networkPolicy = try network(from: root)

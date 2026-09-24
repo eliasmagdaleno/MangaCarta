@@ -97,6 +97,9 @@ The host validates declarations without evaluating Extension code.
 known namespace. Unknown namespaces and duplicates reject installation. (added 2026-09-24,
 removal slice 4)
 
+A non-empty `externalIds` declaration must also declare the optional `capabilities.listing`
+operation so the host can resolve a published id. (added 2026-09-24, removal slice 4)
+
 `localId` is lowercase ASCII letters, digits, `-`, and `.`, 1–64 characters, and cannot change in
 an update. The installed Source id is an opaque repository-qualified id derived by the installer;
 Extension code receives it but never constructs it. `name` is nonempty, trimmed, at most 80 Unicode
