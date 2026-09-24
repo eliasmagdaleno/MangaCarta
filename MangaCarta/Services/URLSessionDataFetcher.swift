@@ -30,12 +30,8 @@ protocol URLSessionDataFetching: Sendable {
 /// adapter keeps the metrics attached to the exact task whose response it returns.
 final class URLSessionDataFetcher: NSObject, URLSessionDataFetching, URLSessionDataDelegate,
                                    @unchecked Sendable {
-    /// These transports never follow redirects themselves. Keep the delegate hook explicit so
-    /// a future caller cannot accidentally hand URLSession a non-HTTPS redirect request.
-    static let httpsOnlyRedirectHandler: @Sendable (URLRequest) -> URLRequest? = { request in
-        guard request.url?.scheme?.lowercased() == "https" else { return nil }
-        return nil
-    }
+    /// Redirects are refused; the policy layer already requires HTTPS for every hop.
+    static let httpsOnlyRedirectHandler: @Sendable (URLRequest) -> URLRequest? = { _ in nil }
     private final class CancellationState: @unchecked Sendable {
         private let lock = NSLock()
         private var task: URLSessionDataTask?

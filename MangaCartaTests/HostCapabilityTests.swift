@@ -178,8 +178,8 @@ struct HostHTTPTests {
         #expect(error?.code == .policyDenied)
     }
 
-    @Test("Public then private resolution cannot return a private response body")
-    func reboundPrivatePeerReturnsNoBody() async throws {
+    @Test("A private connected peer is refused and no response body is returned")
+    func privateConnectedPeerIsRefusedAfterRebinding() async throws {
         let url = try #require(URL(string: "https://allowed.example/start"))
         let resolver = SequencedHostResolver(answers: [["93.184.216.34"], ["10.0.0.5"]])
         let fetcher = FixedHTTPMetricsFetcher(result: URLSessionFetchResult(
