@@ -74,8 +74,8 @@ struct PDFImportTests {
         let pdf = root.appendingPathComponent("locked.pdf")
         try makePDF(at: pdf, pageCount: 1)
         let document = try #require(PDFDocument(url: pdf))
-        #expect(document.write(to: pdf, withOptions: [PDFDocumentOwnerPasswordOption: "owner",
-                                                       PDFDocumentUserPasswordOption: "user"]))
+        #expect(document.write(to: pdf, withOptions: [PDFDocumentWriteOption.ownerPasswordOption: "owner",
+                                                       PDFDocumentWriteOption.userPasswordOption: "user"]))
         let library = root.appendingPathComponent("library")
         let store = LocalLibraryStore(root: library)
         await #expect(throws: LocalImportError.unreadablePDF) { try await store.importArchive(at: pdf) }
