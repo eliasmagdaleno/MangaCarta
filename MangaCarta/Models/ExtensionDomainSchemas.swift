@@ -512,7 +512,7 @@ struct ExtensionDomainValidator {
         guard components.user == nil,
               components.password == nil,
               let origin = Self.normalizedOrigin(raw),
-              assetOrigins.contains(origin) else {
+              assetOrigins.contains(where: { Self.originMatches(origin, pattern: $0) }) else {
             return .policyInvalid
         }
         return .valid(url)
@@ -522,7 +522,7 @@ struct ExtensionDomainValidator {
         guard let components = URLComponents(string: raw),
               components.scheme?.lowercased() == "https",
               let host = components.host?.lowercased(),
-              !host.isEmpty,
+              !host.isEmpty, !host.hasSuffix("."), !host.contains(".."),
               components.user == nil,
               components.password == nil else {
             return nil
@@ -531,6 +531,18 @@ struct ExtensionDomainValidator {
             return "https://\(host):\(port)"
         }
         return "https://\(host)"
+    }
+
+    private static func originMatches(_ origin: String, pattern: String) -> Bool {
+        guard let actual = URL(string: origin), let allowed = URL(string: pattern),
+              actual.scheme == allowed.scheme,
+              (actual.port ?? 443) == (allowed.port ?? 443),
+              let actualHost = actual.host?.lowercased(), let allowedHost = allowed.host?.lowercased()
+        else { return false }
+        guard allowedHost.hasPrefix("*.") else { return actualHost == allowedHost }
+        let suffix = String(allowedHost.dropFirst(2))
+        return actualHost.hasSuffix(".\(suffix)")
+            && actualHost.split(separator: ".").count == suffix.split(separator: ".").count + 1
     }
 
     // MARK: - JSON and scalar validation

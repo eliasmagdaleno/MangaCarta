@@ -21,7 +21,7 @@ struct MangaCoverCard: View {
             // Framed cover plate.
             coverBox
                 .overlay(
-                    AsyncImage(url: coverURL) { phase in
+                    CachedAsyncImage(url: coverURL) { phase in
                         switch phase {
                         case .success(let image):
                             image

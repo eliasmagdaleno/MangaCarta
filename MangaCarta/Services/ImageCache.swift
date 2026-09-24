@@ -18,6 +18,7 @@
 import Foundation
 import UIKit
 import CryptoKit
+import os
 
 /// Signals the image fetcher hit a rate-limit response worth backing off on.
 enum ImageFetchError: Error { case rateLimited }
@@ -105,9 +106,11 @@ actor ImageDiskCache {
 /// so it is safe to treat as `@unchecked Sendable`.
 final class ImageCache: @unchecked Sendable {
     static let shared = ImageCache()
+    private static let log = Logger(subsystem: "Elias-Magdaleno.Manga-Reader", category: "ImageCache")
 
     private let memory = NSCache<NSURL, UIImage>()
     private let disk: ImageDiskCache
+    private let destinationPolicy: HostDestinationPolicy
     private let fetch: @Sendable (URL) async throws -> Data
     private let maxConcurrentPrefetch = 5
     private let retryBaseDelay: TimeInterval
@@ -125,11 +128,13 @@ final class ImageCache: @unchecked Sendable {
          diskLimitBytes: Int = 500 * 1024 * 1024,
          retryBaseDelay: TimeInterval = 0.5,
          maxImageRetries: Int = 2,
+         resolver: any HostNameResolving = SystemHostResolver(),
          fetcher: (@Sendable (URL) async throws -> Data)? = nil) {
         let dir = directory ?? FileManager.default
             .urls(for: .cachesDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("PageImageCache")
         self.disk = ImageDiskCache(directory: dir, maxBytes: diskLimitBytes)
+        self.destinationPolicy = HostDestinationPolicy(resolver: resolver)
         self.memory.totalCostLimit = memoryLimitBytes
         self.retryBaseDelay = retryBaseDelay
         self.maxImageRetries = maxImageRetries
@@ -171,6 +176,12 @@ final class ImageCache: @unchecked Sendable {
         if let data = await disk.data(for: key), let img = UIImage(data: data) {
             memory.setObject(img, forKey: url as NSURL, cost: data.count)
             return img
+        }
+        guard (try? await destinationPolicy.validate(url)) != nil else {
+#if DEBUG
+            Self.log.debug("Image load refused by destination policy: \(url.absoluteString, privacy: .public)")
+#endif
+            return nil
         }
         var attempt = 0
         while true {

@@ -68,7 +68,9 @@ struct HostURLPolicy: Sendable {
     private let destinations: HostDestinationPolicy
 
     init(allowedOrigins: [String], resolver: any HostNameResolving = SystemHostResolver()) {
-        origins = Set(allowedOrigins)
+        // Wildcards are an asset-only declaration feature. HTTP and browser policies
+        // intentionally retain exact-origin semantics.
+        origins = Set(allowedOrigins.filter { !$0.contains("*") })
         destinations = HostDestinationPolicy(resolver: resolver)
     }
 
@@ -102,6 +104,7 @@ struct HostURLPolicy: Sendable {
         }
         return "https://\(host)"
     }
+
 }
 
 struct HostBrowserNavigationGuard: Sendable {
