@@ -196,6 +196,7 @@ final class LibraryRefreshCoordinator {
 
     private func eligibleListings(for work: Work, workId: WorkID) -> [ListingKey] {
         work.listings.filter { listing in
+            guard registry.source(id: listing.sourceId)?.participatesInUpdates ?? true else { return false }
             guard let blocked = updates.state(for: workId)?.listings[listing]?.blockedUntil else { return true }
             return blocked <= now()
         }

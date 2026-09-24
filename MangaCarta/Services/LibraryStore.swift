@@ -296,6 +296,7 @@ final class LibraryStore: ObservableObject {
         let registry = self.registry
         let current: [(item: LibraryItem, source: MangaSource)] = items.compactMap { item in
             guard let source = registry.sourceForRefresh(sourceId: item.sourceId) else { return nil }
+            guard source.participatesInUpdates else { return nil }
             return (item, source)
         }
         let maxConcurrent = 4

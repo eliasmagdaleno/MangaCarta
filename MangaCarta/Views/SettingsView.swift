@@ -189,7 +189,7 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 14) {
                         InkSectionHeader("About", eyebrow: "Info")
                         VStack(spacing: 0) {
-                            aboutRow("Sources", registry.sources.map(\.name).joined(separator: " · "))
+                            aboutRow("Sources", registry.browsableSourceNames.joined(separator: " · "))
                             Divider().overlay(Ink.hairline).padding(.leading, Gutter.page)
                             aboutRow("Version", "0.1 · WIP")
                         }

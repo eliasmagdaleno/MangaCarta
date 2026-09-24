@@ -76,6 +76,13 @@ protocol MangaSource {
     var homeRailEyebrows: [String] { get }
     /// Whether the middle (latest-updates) rail shows the tinted "NEW" badge.
     var latestRailShowsNewBadge: Bool { get }
+
+    /// Whether this source participates in browse/search surfaces. This must be a
+    /// protocol requirement so overrides dispatch through `any MangaSource`.
+    var isBrowsable: Bool { get }
+    /// Whether refresh, metadata upgrades, and external progress sync may query it.
+    var participatesInUpdates: Bool { get }
+
 }
 
 /// Errors common to the source layer (distinct from a source's own transport errors).
@@ -113,6 +120,8 @@ enum SourceError: LocalizedError {
 /// a "new titles" or "latest updates" feed simply doesn't implement these and callers get
 /// a clear `SourceError.unsupported` instead of a crash. MangaDex overrides all of them.
 extension MangaSource {
+    var isBrowsable: Bool { true }
+    var participatesInUpdates: Bool { true }
     var isNSFW: Bool { false }
     var publishesExternalIds: Bool { false }
 

@@ -80,6 +80,7 @@ final class MALProgressCoordinator {
     private let now: () -> Date
     private let sleep: (TimeInterval) async throws -> Void
     private let jitter: (TimeInterval) -> TimeInterval
+    private let listingParticipates: (ListingKey) -> Bool
 
     /// Non-nil exactly while a drain pass is running, so concurrent callers join the pass
     /// already in flight instead of starting a second one.
@@ -106,7 +107,8 @@ final class MALProgressCoordinator {
         sleep: @escaping (TimeInterval) async throws -> Void = {
             try await Task.sleep(nanoseconds: UInt64($0 * 1_000_000_000))
         },
-        jitter: @escaping (TimeInterval) -> TimeInterval = { $0 * Double.random(in: 0.8...1.0) }
+        jitter: @escaping (TimeInterval) -> TimeInterval = { $0 * Double.random(in: 0.8...1.0) },
+        listingParticipates: @escaping (ListingKey) -> Bool = { _ in true }
     ) {
         self.outbox = outbox
         self.client = client
@@ -115,6 +117,7 @@ final class MALProgressCoordinator {
         self.now = now
         self.sleep = sleep
         self.jitter = jitter
+        self.listingParticipates = listingParticipates
     }
 
     // MARK: Completion sink
@@ -123,6 +126,7 @@ final class MALProgressCoordinator {
     /// Signed out or sync off, this does nothing at all: a completion recorded now must not
     /// become some future account's update, and disabling sync means disabling the queue.
     func chapterCompleted(_ completion: ChapterCompletion) {
+        guard listingParticipates(ListingKey(completion.manga)) else { return }
         guard account.syncEnabled, let userID = account.syncUserID else { return }
 
         do {
