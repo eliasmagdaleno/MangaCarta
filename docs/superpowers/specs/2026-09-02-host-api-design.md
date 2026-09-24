@@ -520,12 +520,13 @@ because the platform has no public suffix list API, and rejects a wildcard whose
 children are public suffixes. Wildcard-matched assets use the host image loader, which resolves
 the hostname and rejects private addresses before fetching, just like other remotely loaded
 covers and pages. This is a resolve-then-fetch check; DNS can rebind between those operations.
-The image-load hardening note added for #237 points to the transport decision below. (added
-2026-09-24, #230, #237)
+The image-load hardening note added for #237 is separate from the transport decision below.
+(added 2026-09-24, #230, #237)
 
 ### 10.1 Network transport hardening (#233)
 
-The host keeps `URLSession` (option 2 from #233). TLS validates the original hostname, so a
+This section covers the guarded host HTTP and repository transports only. They keep `URLSession`
+(option 2 from #233). TLS validates the original hostname, so a
 rebound private host cannot complete the handshake with a valid certificate. The guarded
 sessions bypass system proxies (`connectionProxyDictionary = [:]`), because a proxy's connected
 peer is not the requested destination. Missing connect-time peer metrics fail closed with the
@@ -535,6 +536,10 @@ all request and redirect URLs are HTTPS-only.
 This closes response-body exfiltration but does not make URLSession connect to a pinned IP: a
 rebound host may receive a TLS ClientHello, but no plaintext request body. A future transport may
 add IP pinning if that remaining exposure needs to be eliminated.
+
+Image loads are not covered by this hardening: `ImageCache` still uses `URLSession.shared`, so it
+still uses the system proxy and shared cache and performs no connected-peer check. `WKWebView`
+traffic is likewise outside this decision and cannot bypass system proxies.
 
 > **Amendment 4 (2026-09-04, contract gap 4).** The sentence above is superseded for the optional
 > cover field alone. A **policy-invalid optional cover URL now also drops the field with a
