@@ -22,13 +22,14 @@ struct MangaDetailView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .title) private var coverWidth: CGFloat = 132
     @ScaledMetric(relativeTo: .title) private var coverHeight: CGFloat = 188
-    @StateObject private var moreLikeThis = MoreLikeThisViewModel()
+    @StateObject private var moreLikeThis: MoreLikeThisViewModel
     @State private var synopsisExpanded = false
     @State private var showingWebPage = false
 
-    init(manga: Manga) {
+    init(manga: Manga, registry: SourceRegistry) {
         self.manga = manga
         _vm = StateObject(wrappedValue: MangaDetailViewModel(manga: manga))
+        _moreLikeThis = StateObject(wrappedValue: MoreLikeThisViewModel(registry: registry))
     }
 
     /// The registered source this manga came from (nil if its source was unregistered).
@@ -327,9 +328,13 @@ struct MangaDetailView: View {
 
     private func continueLink(_ action: ResumeAction, progress: Double?) -> some View {
         NavigationLink {
-            ReaderView(manga: manga, chapter: action.chapter,
-                       source: registry.source(for: manga),
-                       initialPosition: action.startPosition, chapters: vm.chapters)
+            if let source = registry.source(for: manga) {
+                ReaderView(manga: manga, chapter: action.chapter,
+                           source: source,
+                           initialPosition: action.startPosition, chapters: vm.chapters)
+            } else {
+                UnavailableSourceView()
+            }
         } label: {
             ZStack {
                 RoundedRectangle(cornerRadius: 12).fill(Ink.seal)
@@ -538,10 +543,14 @@ struct MangaDetailView: View {
                         NavigationLink {
                             // The row advertises a saved position (ChapterRow's resume marker),
                             // so tapping it has to honour one — ADR-0014 decision 11.
-                            ReaderView(manga: manga, chapter: chapter,
-                                       source: registry.source(for: manga),
-                                       initialPosition: history.entry(forChapter: chapter.id)?.position,
-                                       chapters: vm.chapters)
+                            if let source = registry.source(for: manga) {
+                                ReaderView(manga: manga, chapter: chapter,
+                                           source: source,
+                                           initialPosition: history.entry(forChapter: chapter.id)?.position,
+                                           chapters: vm.chapters)
+                            } else {
+                                UnavailableSourceView()
+                            }
                         } label: {
                             ChapterRow(chapter: chapter)
                         }

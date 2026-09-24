@@ -195,7 +195,7 @@ struct TasteProfile {
                 }
                 guard let e = entries.max(by: { $0.updatedAt < $1.updatedAt })
                         ?? entries.first else { return nil }
-                let manga = Manga(id: e.mangaId, sourceId: e.sourceId ?? "mangadex",
+                let manga = Manga(id: e.mangaId, sourceId: e.sourceId ?? LegacySourceID.unattributed,
                                   title: e.mangaTitle, description: "", status: "unknown",
                                   year: nil, coverURL: e.coverURL, malId: malId)
                 return SeedManga(manga: manga, weight: item.weight)

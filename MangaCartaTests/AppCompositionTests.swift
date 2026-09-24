@@ -58,6 +58,28 @@ final class AppCompositionTests: XCTestCase {
         XCTAssertTrue(composition.scheduler === composition.scheduler)
     }
 
+    func testGraphRegistryContainsLocalSource() {
+        let composition = makeComposition()
+        XCTAssertNotNil(composition.registry.source(id: LocalSource.sourceID))
+        XCTAssertFalse(composition.registry.visibleSources(includeAdult: true)
+            .contains { $0.id == LocalSource.sourceID })
+    }
+
+    func testUnreadableExtensionStorageIsQuarantinedAndSurfaced() throws {
+        let original = Data("{ definitely not valid JSON".utf8)
+        try original.write(to: directory.appendingPathComponent("extension-storage.json"))
+
+        let composition = makeComposition()
+
+        XCTAssertNil(composition.extensions)
+        XCTAssertEqual(composition.extensionStorageError,
+                       "Installed Sources could not be read. Nothing was removed.")
+        let quarantined = try FileManager.default.contentsOfDirectory(at: directory,
+                                                                        includingPropertiesForKeys: nil)
+            .first { $0.lastPathComponent.hasPrefix("extension-storage.json.corrupt-") }
+        XCTAssertEqual(try Data(contentsOf: try XCTUnwrap(quarantined)), original)
+    }
+
     /// Reads a manga from a scraping source under an opaque id, so nothing can tag it —
     /// the untaggable case, minted through the app's own commitment path rather than
     /// inserted into `WorkStore` directly.

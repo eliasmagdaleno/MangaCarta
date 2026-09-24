@@ -1,11 +1,12 @@
 import SwiftUI
 
 struct WorkUpdateRow: View {
+    @EnvironmentObject private var registry: SourceRegistry
     let summary: WorkUpdateSummary
 
     var body: some View {
         NavigationLink {
-            MangaDetailView(manga: summary.displayManga)
+            MangaDetailView(manga: summary.displayManga, registry: registry)
         } label: {
             HStack(spacing: Gutter.rail) {
                 AsyncImage(url: summary.displayManga.coverURL) { phase in

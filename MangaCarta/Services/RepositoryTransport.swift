@@ -26,6 +26,9 @@ enum RepositoryTransportError: LocalizedError, Equatable {
     case httpStatus(Int)
     case scriptTooLarge(actualBytes: Int, maximumBytes: Int)
     case network(String)
+    /// The URL is not one the app will fetch from: not HTTPS, carries credentials, or its
+    /// host resolves to a loopback, private, link-local or otherwise non-public address.
+    case destinationRefused(String)
 
     var errorDescription: String? {
         switch self {
@@ -37,6 +40,8 @@ enum RepositoryTransportError: LocalizedError, Equatable {
             return "Bundle script at 'script' is \(actual) bytes; the maximum is \(maximum) bytes."
         case .network:
             return "Couldn't reach the repository. Check the URL and your connection, then try again."
+        case .destinationRefused(let reason):
+            return "This repository address can't be used: \(reason)."
         }
     }
 }
@@ -65,8 +70,11 @@ protocol RepositoryTransport: Sendable {
 /// installer never receives an unchecked index; bundle hashes remain the installer's job.
 final class URLSessionRepositoryTransport: RepositoryTransport, @unchecked Sendable {
     private let session: URLSession
+    private let destinations: HostDestinationPolicy
 
-    init(configuration: URLSessionConfiguration = .default) {
+    init(configuration: URLSessionConfiguration = .default,
+         resolver: any HostNameResolving = SystemHostResolver()) {
+        self.destinations = HostDestinationPolicy(resolver: resolver)
         self.session = URLSession(configuration: configuration,
                                   delegate: RepositoryRedirectPolicy(),
                                   delegateQueue: nil)
@@ -97,7 +105,18 @@ final class URLSessionRepositoryTransport: RepositoryTransport, @unchecked Senda
         return data
     }
 
+    /// Every fetch passes the destination policy first — the index URL the reader typed or
+    /// confirmed, and every script URL an index names. Redirects are never followed (see
+    /// `RepositoryRedirectPolicy`), so the URL checked here is the only one requested; a
+    /// permanent redirect's target is checked when the confirmed URL is fetched in turn.
     private func fetch(_ url: URL) async throws -> (Data, HTTPURLResponse) {
+        do {
+            try await destinations.validate(url)
+        } catch let error as HostCapabilityError where error.code == .policyDenied {
+            throw RepositoryTransportError.destinationRefused(error.message)
+        } catch {
+            throw RepositoryTransportError.network(error.localizedDescription)
+        }
         do {
             let (data, response) = try await session.data(from: url)
             guard let response = response as? HTTPURLResponse else {

@@ -10,6 +10,7 @@
 import SwiftUI
 
 struct CategoryGridView: View {
+    @EnvironmentObject private var registry: SourceRegistry
     let title: String
     /// Shown only until page one arrives, so pushing in from a rail doesn't flash an
     /// empty grid. Deliberately NOT seeded into the loader: that would populate its
@@ -83,7 +84,7 @@ struct CategoryGridView: View {
     private var placeholderGrid: some View {
         LazyVGrid(columns: columns, alignment: .leading, spacing: Gutter.section) {
             ForEach(initialItems) { manga in
-                NavigationLink(destination: MangaDetailView(manga: manga)) {
+                NavigationLink(destination: MangaDetailView(manga: manga, registry: registry)) {
                     MangaCoverCard(
                         title: manga.title,
                         coverURL: manga.coverURL,

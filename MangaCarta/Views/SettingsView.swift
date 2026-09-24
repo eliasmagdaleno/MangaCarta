@@ -19,6 +19,7 @@ struct SettingsView: View {
     @EnvironmentObject private var works: WorkStore
     @EnvironmentObject private var updates: UpdateStateStore
     @Environment(\.extensionComposition) private var extensionComposition
+    @Environment(\.extensionStorageError) private var extensionStorageError
     @Environment(\.openURL) private var openURL
     @State private var showingCollectionsSheet = false
     @State private var notificationSummary = NotificationAuthorizationSummary.notRequested
@@ -175,6 +176,12 @@ struct SettingsView: View {
 
                     if let extensionComposition {
                         RepositorySettingsSection(composition: extensionComposition)
+                    } else if let extensionStorageError {
+                        Text(extensionStorageError)
+                            .font(.footnote)
+                            .foregroundStyle(Ink.secondary)
+                            .padding(.horizontal, Gutter.page)
+                            .accessibilityIdentifier("repositorySettings.storeUnreadable")
                     }
 
                     MALAccountSettingsView()
@@ -182,7 +189,7 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 14) {
                         InkSectionHeader("About", eyebrow: "Info")
                         VStack(spacing: 0) {
-                            aboutRow("Sources", registry.sources.map(\.name).joined(separator: " · "))
+                            aboutRow("Sources", registry.browsableSourceNames.joined(separator: " · "))
                             Divider().overlay(Ink.hairline).padding(.leading, Gutter.page)
                             aboutRow("Version", "0.1 · WIP")
                         }

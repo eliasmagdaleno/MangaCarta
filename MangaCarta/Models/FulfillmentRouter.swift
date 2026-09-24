@@ -104,7 +104,7 @@ enum FulfillmentRouter {
     /// said something more specific than the app's built-in guess.
     private static func preferenceRank(_ candidate: ListingCandidate,
                                        _ preferredSourceId: String?) -> (Int, Int) {
-        let preferred = preferredSourceId ?? MangaDexSource.sourceID
+        let preferred = preferredSourceId ?? LegacySourceID.unattributed
         return (candidate.key.sourceId == preferred ? 0 : 1,
                 candidate.registrationIndex)
     }

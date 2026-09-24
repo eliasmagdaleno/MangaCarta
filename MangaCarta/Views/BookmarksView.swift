@@ -15,6 +15,7 @@ struct BookmarksView: View {
     @EnvironmentObject private var history: HistoryStore
     @EnvironmentObject private var works: WorkStore
     @EnvironmentObject private var updates: UpdateStateStore
+    @EnvironmentObject private var registry: SourceRegistry
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.selectAppTab) private var selectAppTab
 
@@ -62,7 +63,7 @@ struct BookmarksView: View {
                             LazyVGrid(columns: columns, alignment: .leading, spacing: Gutter.section) {
                                 ForEach(displayedItems) { item in
                                     let unread = item.unreadCount(readNumbers: history.readChapterNumbers(forManga: item.id))
-                                    NavigationLink(destination: MangaDetailView(manga: item.asManga)) {
+                                    NavigationLink(destination: MangaDetailView(manga: item.asManga, registry: registry)) {
                                         MangaCoverCard(
                                             title: item.title,
                                             coverURL: item.coverURL,
@@ -262,7 +263,7 @@ private extension LibraryItem {
         // `nil` because `LibraryItem` has no id to carry, not because one is being dropped —
         // ADR-0018's Scope excludes it deliberately (saved-but-unread items never reach the
         // taste profile). Contrast `ReadingEntry.asManga`, which does carry it.
-        Manga(id: id, sourceId: sourceId ?? MangaDexSource.sourceID, title: title,
+        Manga(id: id, sourceId: sourceId ?? LegacySourceID.unattributed, title: title,
               description: "", status: "unknown", year: nil, coverURL: coverURL, malId: nil)
     }
 }

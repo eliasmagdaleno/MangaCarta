@@ -5,6 +5,24 @@ import Testing
 @Suite("Library refresh coordinator")
 struct LibraryRefreshCoordinatorTests {
     @MainActor
+    @Test("Mixed remote and local refresh only fetches participating remote")
+    func mixedRemoteAndLocalRefreshOnlyFetchesParticipatingRemote() async {
+        let remote = StubSource(id: "remote", chapters: ["remote": ["1"]])
+        let local = StubSource(id: "local", chapters: ["local": ["1"]], participatesInUpdates: false)
+        let other = StubSource(id: "not-local", chapters: ["other": ["1"]], participatesInUpdates: false)
+        let fixture = Fixture(sources: [remote, local, other])
+        _ = fixture.mint("remote", source: "remote")
+        _ = fixture.mint("local", source: "local")
+        _ = fixture.mint("other", source: "not-local")
+
+        await fixture.coordinator.refreshLibrary()
+
+        #expect(await remote.askedIds() == ["remote"])
+        #expect(await local.askedIds().isEmpty)
+        #expect(await other.askedIds().isEmpty)
+    }
+
+    @MainActor
     @Test("One failing listing does not hide another listing's release")
     func partialFailureStillAdvances() async throws {
         let good = StubSource(id: "good", chapters: ["shared": ["1", "2"]])
@@ -223,10 +241,12 @@ private struct StubSource: MangaSource, @unchecked Sendable {
     let id: String
     var name: String { id }
     let state: StubSourceState
+    let participatesInUpdates: Bool
 
-    init(id: String, chapters: [String: [String]] = [:], failures: Set<String> = []) {
+    init(id: String, chapters: [String: [String]] = [:], failures: Set<String> = [], participatesInUpdates: Bool = true) {
         self.id = id
         state = StubSourceState(chapters: chapters, failures: failures)
+        self.participatesInUpdates = participatesInUpdates
     }
 
     func askedIds() async -> [String] { await state.asked }
