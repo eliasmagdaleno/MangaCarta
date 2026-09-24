@@ -125,6 +125,7 @@ final class ImageCache: @unchecked Sendable {
          diskLimitBytes: Int = 500 * 1024 * 1024,
          retryBaseDelay: TimeInterval = 0.5,
          maxImageRetries: Int = 2,
+         resolver: any HostNameResolving = SystemHostResolver(),
          fetcher: (@Sendable (URL) async throws -> Data)? = nil) {
         let dir = directory ?? FileManager.default
             .urls(for: .cachesDirectory, in: .userDomainMask)[0]
@@ -134,7 +135,7 @@ final class ImageCache: @unchecked Sendable {
         self.retryBaseDelay = retryBaseDelay
         self.maxImageRetries = maxImageRetries
         self.fetch = fetcher ?? { url in
-            try await HostDestinationPolicy().validate(url)
+            try await HostDestinationPolicy(resolver: resolver).validate(url)
             let (data, response) = try await URLSession.shared.data(from: url)
             if let http = response as? HTTPURLResponse, http.statusCode == 429 || http.statusCode == 503 {
                 throw ImageFetchError.rateLimited

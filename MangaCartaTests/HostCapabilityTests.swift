@@ -30,6 +30,15 @@ struct HostHTTPTests {
         #expect(apexError?.code == .policyDenied)
     }
 
+    @Test("ImageCache refuses a wildcard-matched URL resolving privately")
+    func imageCacheRejectsPrivateWildcardAsset() async throws {
+        let cache = ImageCache(directory: FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString),
+            resolver: FixedHostResolver(addresses: ["10.0.0.5"]))
+        let url = try #require(URL(string: "https://a.mangadex.network/page.jpg"))
+        #expect(await cache.loadImage(for: url) == nil)
+    }
+
     @Test("Connected loopback peers are refused on the real URLSession path")
     func realURLSessionRefusesLoopbackPeer() async throws {
         let server = try LoopbackHTTPServer()
