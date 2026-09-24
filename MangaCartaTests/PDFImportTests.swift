@@ -108,8 +108,10 @@ struct PDFImportTests {
     }
 
     private func makeZeroPagePDF(at url: URL) throws {
-        let document = PDFDocument()
-        #expect(document.write(to: url))
+        let bytes = "%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n"
+            + "2 0 obj\n<< /Type /Pages /Kids [] /Count 0 >>\nendobj\ntrailer\n"
+            + "<< /Root 1 0 R >>\n%%EOF\n"
+        try Data(bytes.utf8).write(to: url)
     }
 
     private func assertLibraryIsEmpty(_ library: URL) throws {
