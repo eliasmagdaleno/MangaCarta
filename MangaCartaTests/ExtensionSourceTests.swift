@@ -193,7 +193,7 @@ final class ExtensionSourceTests: XCTestCase {
         XCTAssertEqual(third.map(\.id), ["cursor=10;limit=5"])
     }
 
-    /// v1 engines read the legacy flat fields. The host must send those alongside the
+    /// Pre-#186 flat-shape engines read the legacy flat fields. The host must send those alongside the
     /// nested page value until published engines have all migrated to the nested shape.
     func testLegacyV1EngineContinuesToPageThroughTheHostShim() async throws {
         let source = try legacyWeebCentral()
