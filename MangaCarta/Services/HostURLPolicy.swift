@@ -68,7 +68,9 @@ struct HostURLPolicy: Sendable {
     private let destinations: HostDestinationPolicy
 
     init(allowedOrigins: [String], resolver: any HostNameResolving = SystemHostResolver()) {
-        origins = Set(allowedOrigins)
+        // Wildcards are an asset-only declaration feature. HTTP and browser policies
+        // intentionally retain exact-origin semantics.
+        origins = Set(allowedOrigins.filter { !$0.contains("*") })
         destinations = HostDestinationPolicy(resolver: resolver)
     }
 
@@ -77,8 +79,7 @@ struct HostURLPolicy: Sendable {
     @discardableResult
     func validate(_ url: URL) async throws -> URL {
         let host = try HostDestinationPolicy.validatedHost(url)
-        guard let origin = Self.canonicalOrigin(for: url),
-              origins.contains(where: { Self.originMatches(origin, pattern: $0) }) else {
+        guard let origin = Self.canonicalOrigin(for: url), origins.contains(origin) else {
             throw HostCapabilityError(code: .policyDenied,
                                       message: "the destination is outside this Source's declared origins")
         }
@@ -104,18 +105,6 @@ struct HostURLPolicy: Sendable {
         return "https://\(host)"
     }
 
-    private static func originMatches(_ origin: String, pattern: String) -> Bool {
-        guard let actual = URL(string: origin), let allowed = URL(string: pattern),
-              actual.host?.lowercased() != nil, allowed.host?.lowercased() != nil,
-              actual.scheme == allowed.scheme,
-              (actual.port ?? 443) == (allowed.port ?? 443) else { return false }
-        let actualHost = actual.host!.lowercased()
-        let allowedHost = allowed.host!.lowercased()
-        guard allowedHost.hasPrefix("*.") else { return actualHost == allowedHost }
-        let suffix = String(allowedHost.dropFirst(2))
-        return actualHost.hasSuffix(".\(suffix)")
-            && actualHost.split(separator: ".").count == suffix.split(separator: ".").count + 1
-    }
 }
 
 struct HostBrowserNavigationGuard: Sendable {

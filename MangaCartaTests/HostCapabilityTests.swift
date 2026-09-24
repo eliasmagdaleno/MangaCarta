@@ -28,6 +28,13 @@ struct HostHTTPTests {
         let apex = try #require(URL(string: "https://mangadex.network/page.jpg"))
         let apexError = await hostCapabilityError { try await policy.validate(apex) }
         #expect(apexError?.code == .policyDenied)
+
+        let bareWildcard = HostURLPolicy(allowedOrigins: ["*"],
+                                         resolver: FixedHostResolver(addresses: ["93.184.216.34"]))
+        let bareError = await hostCapabilityError {
+            try await bareWildcard.validate(try #require(URL(string: "https://example.com/image.jpg")))
+        }
+        #expect(bareError?.code == .policyDenied)
     }
 
     @Test("ImageCache refuses a wildcard-matched URL resolving privately")

@@ -522,7 +522,7 @@ struct ExtensionDomainValidator {
         guard let components = URLComponents(string: raw),
               components.scheme?.lowercased() == "https",
               let host = components.host?.lowercased(),
-              !host.isEmpty,
+              !host.isEmpty, !host.hasSuffix("."), !host.contains(".."),
               components.user == nil,
               components.password == nil else {
             return nil
