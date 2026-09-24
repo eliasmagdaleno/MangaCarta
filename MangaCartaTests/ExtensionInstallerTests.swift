@@ -285,6 +285,8 @@ private struct FixedMetricsFetcher: URLSessionDataFetching {
 }
 
 private struct PublicPeerFetcher: URLSessionDataFetching {
+    // URLProtocol-backed stubs do not expose URLSessionTaskMetrics.remoteAddress;
+    // successful repository tests inject the public peer the real socket would report.
     let wrapped: any URLSessionDataFetching
 
     init(wrapping wrapped: any URLSessionDataFetching) {

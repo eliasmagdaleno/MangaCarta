@@ -125,6 +125,19 @@ struct HostHTTPTests {
         }
     }
 
+    @Test("URLSession delegate reports the connected peer before completion")
+    func realURLSessionReportsPeerMetrics() async throws {
+        let server = try LoopbackHTTPServer()
+        let port = try await server.start()
+        defer { server.stop() }
+        let fetcher = URLSessionDataFetcher(configuration: .ephemeral) { _ in nil }
+        let result = try await fetcher.fetch(URLRequest(
+            url: try #require(URL(string: "http://127.0.0.1:\(port)/"))))
+
+        #expect(result.connectedPeerAddress != nil)
+        #expect(result.resourceFetchType == .networkLoad)
+    }
+
     @Test("HostIPAddress handles mapped, scoped, NAT64, and public addresses")
     func hostIPAddressForms() {
         let cases: [(String, Bool)] = [
