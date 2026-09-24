@@ -470,26 +470,31 @@ final class ExtensionHostCapabilityFactory {
 
     private let transport: any HostHTTPTransport
     private let resolver: any HostNameResolving
+    private let rateLimiters: HostRateLimiterRegistry
     private var cookieJars: [QualifiedSourceID: HostHTTPCookieJar] = [:]
 
-    convenience init(directory: URL) throws {
+    convenience init(directory: URL,
+                     rateLimiters: HostRateLimiterRegistry = HostRateLimiterRegistry()) throws {
         try self.init(directory: directory,
                       transport: URLSessionHostHTTPTransport(),
                       resolver: SystemHostResolver(),
                       browserManager: .shared,
-                      diagnosticBuffer: HostDiagnosticBuffer())
+                      diagnosticBuffer: HostDiagnosticBuffer(),
+                      rateLimiters: rateLimiters)
     }
 
     init(directory: URL,
          transport: any HostHTTPTransport,
          resolver: any HostNameResolving,
          browserManager: ExtensionBrowserManager,
-         diagnosticBuffer: HostDiagnosticBuffer) throws {
+         diagnosticBuffer: HostDiagnosticBuffer,
+         rateLimiters: HostRateLimiterRegistry = HostRateLimiterRegistry()) throws {
         storageRepository = try HostStorageRepository(directory: directory)
         self.transport = transport
         self.resolver = resolver
         self.browserManager = browserManager
         self.diagnosticBuffer = diagnosticBuffer
+        self.rateLimiters = rateLimiters
     }
 
     func capabilities(for declaration: SourceDeclaration,
@@ -505,7 +510,8 @@ final class ExtensionHostCapabilityFactory {
                                  allowedOrigins: declaration.network.httpOrigins,
                                  transport: transport,
                                  resolver: resolver,
-                                 cookies: jar),
+                                 cookies: jar,
+                                 rateLimiters: rateLimiters),
             browser: HostBrowserCapability(sourceID: declaration.qualifiedId,
                                            sourceName: declaration.name,
                                            allowedOrigins: declaration.network.browserOrigins,
