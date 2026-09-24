@@ -87,6 +87,21 @@ final class ExtensionSourceTests: XCTestCase {
                                host: host)
     }
 
+    /// The v1 engine shipped from `origin/main` before #186. Keep it as a fixture so
+    /// the host's transition shim is exercised against the real legacy reader.
+    private func legacyWeebCentral() throws -> ExtensionSource {
+        let declaration = try PortFixtures.declaration(PortFixtures.weebCentralJSON,
+                                                       qualifiedId: Self.qualifiedID)
+        try lifecycle.register(declaration)
+        let fixtureURL = FixtureSite.root.appendingPathComponent("weebcentral/engine-v1.js")
+        let script = try String(contentsOf: fixtureURL, encoding: .utf8)
+        return ExtensionSource(declaration: declaration,
+                               script: script,
+                               isNSFW: false,
+                               lifecycle: lifecycle,
+                               host: host)
+    }
+
     // MARK: Criterion 8, clause "with sourceId stamped"
 
     /// Host API design, "Envelope and value rules": the host stamps the Listing, and an
@@ -176,6 +191,19 @@ final class ExtensionSourceTests: XCTestCase {
         XCTAssertEqual(first.map(\.id), ["cursor=null;limit=5"])
         XCTAssertEqual(second.map(\.id), ["cursor=5;limit=5"])
         XCTAssertEqual(third.map(\.id), ["cursor=10;limit=5"])
+    }
+
+    /// v1 engines read the legacy flat fields. The host must send those alongside the
+    /// nested page value until published engines have all migrated to the nested shape.
+    func testLegacyV1EngineContinuesToPageThroughTheHostShim() async throws {
+        let source = try legacyWeebCentral()
+
+        _ = try await source.search(title: "berserk", limit: 2, offset: 0)
+        _ = try await source.search(title: "berserk", limit: 2, offset: 2)
+
+        XCTAssertTrue(host.browser.requestedURLs.contains {
+            $0.query?.contains("offset=2") == true
+        }, "the v1 engine must receive the returned cursor through the legacy fields")
     }
 
     /// An offset the adapter has no cursor for is reached by walking from the last one it
@@ -327,20 +355,23 @@ final class ExtensionSourceTests: XCTestCase {
         registerEngine("echo", {
           invoke: function (operation, request, context) {
             \(code.map { "return { ok: false, error: { code: \"\($0)\", message: \"\(message)\" } };" } ?? "")
-            var cursor = request.cursor === null || request.cursor === undefined ? "null" : request.cursor;
             if (operation === "listing") {
               return request.listingId === "missing"
                 ? { ok: true, value: null }
               : { ok: true, value: \(returnedListing) };
             }
-            var id = "cursor=" + cursor + ";limit=" + request.limit;
+            if (!request.page || typeof request.page !== "object") {
+              return { ok: false, error: { code: "invalid_request", message: "nested page required" } };
+            }
+            var cursor = request.page.cursor === null || request.page.cursor === undefined ? "null" : request.page.cursor;
+            var id = "cursor=" + cursor + ";limit=" + request.page.limit;
             if (request.query !== undefined) { id += ";query=" + request.query; }
             var offset = cursor === "null" ? 0 : parseInt(cursor, 10);
             var exhausted = \(exhaustAt.map(String.init) ?? "null");
             var done = exhausted !== null && offset >= exhausted;
             return { ok: true, value: {
               items: [{ id: id, title: "Echo", sourceId: "evil" }],
-              nextCursor: done ? null : String(offset + request.limit),
+              nextCursor: done ? null : String(offset + request.page.limit),
               exhausted: done
             } };
           }
@@ -790,7 +821,8 @@ final class InstalledSourceRegistrationTests: XCTestCase {
 
         let expectedPort = try PortFixtures.weebCentral()
         let expectedSearchPage = try await expectedPort.listings(.search,
-                                                                  request: ["query": "berserk", "limit": 8])
+                                                                  request: ["query": "berserk",
+                                                                           "page": ["cursor": NSNull(), "limit": 8]])
         let actualSearch = try await measured("search") {
             try await source.search(title: "berserk", limit: 8, offset: 0)
         }

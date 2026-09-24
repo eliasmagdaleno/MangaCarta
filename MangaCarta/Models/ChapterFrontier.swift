@@ -7,6 +7,41 @@ import Foundation
 struct ChapterOrdinal: Hashable, Comparable, Codable {
     let value: Decimal
 
+    init(value: Decimal) {
+        self.value = value
+    }
+
+    init(from decoder: Decoder) throws {
+        if let container = try? decoder.container(keyedBy: LegacyCodingKeys.self),
+           let value = try? container.decode(Decimal.self, forKey: .value) {
+            self.value = Self.canonicalizeLegacy(value)
+            return
+        }
+
+        let container = try decoder.singleValueContainer()
+        if let string = try? container.decode(String.self),
+           let value = Decimal(string: string, locale: Locale(identifier: "en_US_POSIX")) {
+            self.value = value
+            return
+        }
+        if let value = try? container.decode(Decimal.self) {
+            self.value = Self.canonicalizeLegacy(value)
+            return
+        }
+        throw DecodingError.dataCorruptedError(in: container,
+                                                debugDescription: "Chapter ordinal must be a decimal string or number")
+    }
+
+    private static func canonicalizeLegacy(_ value: Decimal) -> Decimal {
+        Decimal(string: String(describing: Double(value.description) ?? 0),
+                locale: Locale(identifier: "en_US_POSIX")) ?? value
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(value.description)
+    }
+
     static func parse(_ raw: String) -> ChapterOrdinal? {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         var index = trimmed.startIndex
@@ -40,6 +75,12 @@ struct ChapterOrdinal: Hashable, Comparable, Codable {
 
     static func < (lhs: ChapterOrdinal, rhs: ChapterOrdinal) -> Bool {
         lhs.value < rhs.value
+    }
+}
+
+private extension ChapterOrdinal {
+    enum LegacyCodingKeys: String, CodingKey {
+        case value
     }
 }
 
