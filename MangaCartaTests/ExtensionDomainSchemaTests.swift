@@ -33,7 +33,7 @@ final class ExtensionDomainSchemaTests: XCTestCase {
     }
 
     func testMALIdsMustBePositiveDecimalIntegers() throws {
-        let invalidValues: [Any] = [0, "-1", "12a", " 12", String(repeating: "9", count: 100)]
+        let invalidValues: [String] = ["0", "-1", "12a", " 12", String(repeating: "9", count: 100)]
         for value in invalidValues {
             let result = try validator.validateListing(["id": "manga-1", "title": "A Title",
                                                          "externalIds": ["mal": value]])

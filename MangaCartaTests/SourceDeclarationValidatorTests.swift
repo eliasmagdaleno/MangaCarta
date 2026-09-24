@@ -116,7 +116,7 @@ final class SourceDeclarationValidatorTests: XCTestCase {
         XCTAssertEqual(declaration.presentation.feeds[.popular]?.title, "Popular")
         XCTAssertEqual(declaration.presentation.feeds[.latestUpdates]?.badge, .new)
         XCTAssertEqual(declaration.presentation.imagePrefetchConcurrencyHint, 4)
-        XCTAssertEqual(declaration.selectedHostAPIVersion, HostAPIVersion(major: 1, minor: 0))
+        XCTAssertEqual(declaration.selectedHostAPIVersion, HostAPIVersion(major: 1, minor: 1))
         XCTAssertEqual(declaration.configuration,
                        .object(["baseURL": .string("https://example.test")]))
         XCTAssertEqual(declaration.externalIds, [])
