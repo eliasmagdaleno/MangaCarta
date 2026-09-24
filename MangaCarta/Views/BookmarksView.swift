@@ -49,7 +49,7 @@ struct BookmarksView: View {
                         InkEmptyState(
                             symbol: "books.vertical",
                             title: "Your library is empty",
-                            message: "Import CBZ or ZIP files from Files. MangaCarta does not provide or host content.",
+                            message: "Import CBZ, ZIP or PDF files from Files. MangaCarta does not provide or host content.",
                             actionTitle: "Import from Files",
                             action: { showingImporter = true }
                         )
@@ -155,7 +155,7 @@ struct BookmarksView: View {
                 CollectionManagementView()
             }
             .fileImporter(isPresented: $showingImporter,
-                          allowedContentTypes: [UTType.zip, UTType.mangaCartaCBZ],
+                          allowedContentTypes: [UTType.zip, UTType.mangaCartaCBZ, UTType.pdf],
                           allowsMultipleSelection: true) { result in
                 if case .success(let urls) = result { importer.importFiles(urls) }
             }
