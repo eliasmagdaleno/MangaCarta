@@ -116,6 +116,28 @@ final class URLSessionRepositoryTransportTests: XCTestCase {
         await assertRefusedBeforeAnyRequest { _ = try await transport.fetchIndex(at: indexURL) }
     }
 
+    func testIndexWithPrivateConnectedPeerIsRefusedAfterPublicDNS() async throws {
+        let bytes = try Data(contentsOf: PortFixtures.packageDirectory.appendingPathComponent("index.json"))
+        let fetcher = FixedMetricsFetcher(result: URLSessionFetchResult(
+            data: bytes,
+            response: HTTPURLResponse(url: indexURL, statusCode: 200,
+                                      httpVersion: nil, headerFields: nil)!,
+            connectedPeerAddress: "10.0.0.5"))
+        let transport = URLSessionRepositoryTransport(
+            resolver: RepositoryFixedResolver(addresses: ["93.184.216.34"]),
+            fetcher: fetcher)
+
+        do {
+            _ = try await transport.fetchIndex(at: indexURL)
+            XCTFail("private connected peer must be refused")
+        } catch let error as RepositoryTransportError {
+            guard case .destinationRefused = error else {
+                XCTFail("expected destinationRefused, got \(error)")
+                return
+            }
+        }
+    }
+
     func testIndexHostWithAnyNonPublicAddressAmongPublicOnesIsRefused() async {
         StubRepositoryURLProtocol.responses[indexURL.absoluteString] = (200, Data(), [:])
         let transport = makeTransport(resolvingTo: ["93.184.216.34", "127.0.0.1"])
@@ -195,6 +217,12 @@ final class URLSessionRepositoryTransportTests: XCTestCase {
                            "Couldn't reach the repository. Check the URL and your connection, then try again.")
         }
     }
+}
+
+private struct FixedMetricsFetcher: URLSessionDataFetching {
+    let result: URLSessionFetchResult
+
+    func fetch(_ request: URLRequest) async throws -> URLSessionFetchResult { result }
 }
 
 private struct RepositoryFixedResolver: HostNameResolving {
