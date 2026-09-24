@@ -72,6 +72,10 @@ final class URLSessionRepositoryTransportTests: XCTestCase {
     private let indexURL = URL(string: "https://repo.test/index.json")!
     private let scriptURL = URL(string: "https://repo.test/engine.js")!
 
+    func testRepositorySessionsBypassConfiguredSystemProxies() {
+        XCTAssertTrue(URLSessionRepositoryTransport.sessionConfiguration().connectionProxyDictionary?.isEmpty == true)
+    }
+
     /// Every host resolves to a public address unless a test says otherwise.
     private func makeTransport(resolvingTo addresses: [String] = ["93.184.216.34"])
         -> URLSessionRepositoryTransport {

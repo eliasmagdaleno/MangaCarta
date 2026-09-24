@@ -16,6 +16,11 @@ import XCTest
 @Suite("Host HTTP capability")
 struct HostHTTPTests {
 
+    @Test("Host HTTP sessions bypass configured system proxies")
+    func hostHTTPSessionBypassesSystemProxies() {
+        #expect(URLSessionHostHTTPTransport.sessionConfiguration().connectionProxyDictionary?.isEmpty == true)
+    }
+
     @Test("HTTP policies reject wildcard origin patterns")
     func wildcardAssetOriginIsRejectedByHTTPPolicy() async throws {
         let url = try #require(URL(string: "https://a.mangadex.network/page.jpg"))

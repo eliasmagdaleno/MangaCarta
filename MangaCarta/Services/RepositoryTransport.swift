@@ -65,7 +65,14 @@ final class URLSessionRepositoryTransport: RepositoryTransport, @unchecked Senda
          resolver: any HostNameResolving = SystemHostResolver(),
          fetcher: (any URLSessionDataFetching)? = nil) {
         self.destinations = HostDestinationPolicy(resolver: resolver)
+        configuration.connectionProxyDictionary = [:]
         self.fetcher = fetcher ?? URLSessionDataFetcher(configuration: configuration) { _ in nil }
+    }
+
+    static func sessionConfiguration() -> URLSessionConfiguration {
+        let configuration = URLSessionConfiguration.default
+        configuration.connectionProxyDictionary = [:]
+        return configuration
     }
 
     func fetchIndex(at url: URL) async throws -> RepositoryIndexFetchOutcome {

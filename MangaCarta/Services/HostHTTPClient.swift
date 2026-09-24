@@ -295,13 +295,19 @@ final class URLSessionHostHTTPTransport: NSObject, HostHTTPTransport,
     private let fetcher: any URLSessionDataFetching
 
     override init() {
+        let configuration = Self.sessionConfiguration()
+        fetcher = URLSessionDataFetcher(configuration: configuration) { _ in nil }
+        super.init()
+    }
+
+    static func sessionConfiguration() -> URLSessionConfiguration {
         let configuration = URLSessionConfiguration.default
+        configuration.connectionProxyDictionary = [:]
         configuration.httpShouldSetCookies = false
         configuration.httpCookieAcceptPolicy = .never
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         configuration.urlCache = nil
-        fetcher = URLSessionDataFetcher(configuration: configuration) { _ in nil }
-        super.init()
+        return configuration
     }
 
     init(fetcher: any URLSessionDataFetching) {
