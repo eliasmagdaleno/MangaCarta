@@ -694,7 +694,10 @@ enum DeclaredOrigin {
             guard host == "*.\(suffix)", !suffix.contains("*"), labels.count >= 2 else {
                 return .rejected("wildcards must be one leftmost label over at least two host labels")
             }
-            guard !PublicSuffixList.isPublicSuffix(suffix) else {
+            // The two-label minimum also models the implicit TLD rule: *.ck is rejected
+            // before PSL lookup because a one-label suffix is never an acceptable boundary.
+            guard !PublicSuffixList.isPublicSuffix(suffix),
+                  !PublicSuffixList.isPublicSuffix("x.\(suffix)") else {
                 return .rejected("wildcards may not cover a public or shared-hosting suffix")
             }
         } else if host.contains("*") {

@@ -723,9 +723,10 @@ final class SourceDeclarationValidatorTests: XCTestCase {
         }
 
         for value in ["https://m*ngadex.network", "https://*.*.mangadex.network",
-                      "https://*.network", "https://*.com", "https://*.github.io",
+                      "https://*.ck", "https://*.network", "https://*.com", "https://*.github.io",
                       "https://*.cloudfront.net", "https://*.co.jp", "https://*.herokuapp.com",
                       "https://*.pages.dev", "https://*.foo.ck", "https://*.x.kawasaki.jp",
+                      "https://*.sch.uk", "https://*.compute.amazonaws.com", "https://*.kawasaki.jp",
                       "https://*.github.io.",
                       "https://a..b", "http://*.mangadex.network"] {
             var rejectedJSON = baseDeclaration()

@@ -18,6 +18,7 @@
 import Foundation
 import UIKit
 import CryptoKit
+import os
 
 /// Signals the image fetcher hit a rate-limit response worth backing off on.
 enum ImageFetchError: Error { case rateLimited }
@@ -105,6 +106,7 @@ actor ImageDiskCache {
 /// so it is safe to treat as `@unchecked Sendable`.
 final class ImageCache: @unchecked Sendable {
     static let shared = ImageCache()
+    private static let log = Logger(subsystem: "Elias-Magdaleno.Manga-Reader", category: "ImageCache")
 
     private let memory = NSCache<NSURL, UIImage>()
     private let disk: ImageDiskCache
@@ -175,7 +177,12 @@ final class ImageCache: @unchecked Sendable {
             memory.setObject(img, forKey: url as NSURL, cost: data.count)
             return img
         }
-        guard (try? await destinationPolicy.validate(url)) != nil else { return nil }
+        guard (try? await destinationPolicy.validate(url)) != nil else {
+#if DEBUG
+            Self.log.debug("Image load refused by destination policy: \(url.absoluteString, privacy: .public)")
+#endif
+            return nil
+        }
         var attempt = 0
         while true {
             do {

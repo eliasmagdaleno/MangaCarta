@@ -516,7 +516,8 @@ never the apex or a deeper name. Wildcards are HTTPS-only, are rejected in `http
 `browserOrigins`, and must contain at least two labels after `*.`. The host rejects suffixes in
 an embedded ICANN and PRIVATE Public Suffix List snapshot using the standard rule precedence:
 wildcard rules match one label and exception rules override wildcard rules. This is required
-because the platform has no public suffix list API. Wildcard-matched assets use the host image loader, which resolves
+because the platform has no public suffix list API, and rejects a wildcard whose one-label
+children are public suffixes. Wildcard-matched assets use the host image loader, which resolves
 the hostname and rejects private addresses before fetching, just like other remotely loaded
 covers and pages. This is a resolve-then-fetch check; DNS can rebind between those operations,
 so connect-time IP pinning remains an open hardening item tracked by #233. (added 2026-09-24, #230)
