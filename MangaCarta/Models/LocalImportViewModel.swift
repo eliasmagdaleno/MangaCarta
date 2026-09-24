@@ -3,7 +3,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 extension UTType {
-    static let mangaCartaCBZ = UTType(exportedAs: "com.mangacarta.cbz", conformingTo: .zip)
+    static let mangaCartaCBZ = UTType(importedAs: "com.mangacarta.cbz", conformingTo: .zip)
 }
 
 @MainActor
