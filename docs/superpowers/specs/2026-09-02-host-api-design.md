@@ -513,11 +513,12 @@ reader or navigation boundary.
 An asset origin may use exactly one wildcard in the leftmost label, for example
 `https://*.mangadex.network`. It matches exactly one additional host label (`a.mangadex.network`),
 never the apex or a deeper name. Wildcards are HTTPS-only, are rejected in `httpOrigins` and
-`browserOrigins`, and must contain at least two labels after `*.`. The host rejects known public
-and shared-hosting suffixes (including `com`, `net`, `org`, `co.uk`, `github.io`, and
-`cloudfront.net`); this is an explicit safety deny-list because the platform has no public suffix
-list API. Wildcard-matched assets undergo the same DNS resolution and public-address check as all
-other image loads. (added 2026-09-24, #230)
+`browserOrigins`, and must contain at least two labels after `*.`. The host rejects suffixes in
+an embedded ICANN and PRIVATE Public Suffix List snapshot; this is required because the platform
+has no public suffix list API. Wildcard-matched assets use the host image loader, which resolves
+the hostname and rejects private addresses before fetching, just like other remotely loaded
+covers and pages. This is a resolve-then-fetch check; DNS can rebind between those operations,
+so connect-time IP pinning remains an open hardening item tracked by #233. (added 2026-09-24, #230)
 
 > **Amendment 4 (2026-09-04, contract gap 4).** The sentence above is superseded for the optional
 > cover field alone. A **policy-invalid optional cover URL now also drops the field with a
