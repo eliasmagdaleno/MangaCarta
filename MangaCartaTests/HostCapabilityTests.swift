@@ -34,11 +34,23 @@ struct HostHTTPTests {
 
     @Test("ImageCache refuses a wildcard-matched URL resolving privately")
     func imageCacheRejectsPrivateWildcardAsset() async throws {
+        let probe = FetchProbe()
         let cache = ImageCache(directory: FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString),
-            resolver: FixedHostResolver(addresses: ["10.0.0.5"]))
+            resolver: FixedHostResolver(addresses: ["10.0.0.5"]),
+            fetcher: { _ in await probe.bump(); return Data("not an image".utf8) })
         let url = try #require(URL(string: "https://a.mangadex.network/page.jpg"))
         #expect(await cache.loadImage(for: url) == nil)
+        #expect(await probe.count == 0)
+
+        let publicProbe = FetchProbe()
+        let publicCache = ImageCache(directory: FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString),
+            resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
+            fetcher: { _ in await publicProbe.bump(); return Data("not an image".utf8) })
+        let publicURL = try #require(URL(string: "https://a.mangadex.network/page.jpg"))
+        #expect(await publicCache.loadImage(for: publicURL) == nil)
+        #expect(await publicProbe.count == 1)
     }
 
     @Test("Connected loopback peers are refused on the real URLSession path")
@@ -419,6 +431,12 @@ struct HostHTTPTests {
         #expect(response.body == .text("try later"))
         #expect(await transport.requestedURLs().count == 1)
     }
+}
+
+private actor FetchProbe {
+    private(set) var count = 0
+
+    func bump() { count += 1 }
 }
 
 @Suite("Host browser capability")

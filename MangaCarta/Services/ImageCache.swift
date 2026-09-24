@@ -108,6 +108,7 @@ final class ImageCache: @unchecked Sendable {
 
     private let memory = NSCache<NSURL, UIImage>()
     private let disk: ImageDiskCache
+    private let destinationPolicy: HostDestinationPolicy
     private let fetch: @Sendable (URL) async throws -> Data
     private let maxConcurrentPrefetch = 5
     private let retryBaseDelay: TimeInterval
@@ -131,11 +132,11 @@ final class ImageCache: @unchecked Sendable {
             .urls(for: .cachesDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("PageImageCache")
         self.disk = ImageDiskCache(directory: dir, maxBytes: diskLimitBytes)
+        self.destinationPolicy = HostDestinationPolicy(resolver: resolver)
         self.memory.totalCostLimit = memoryLimitBytes
         self.retryBaseDelay = retryBaseDelay
         self.maxImageRetries = maxImageRetries
         self.fetch = fetcher ?? { url in
-            try await HostDestinationPolicy(resolver: resolver).validate(url)
             let (data, response) = try await URLSession.shared.data(from: url)
             if let http = response as? HTTPURLResponse, http.statusCode == 429 || http.statusCode == 503 {
                 throw ImageFetchError.rateLimited
@@ -174,6 +175,7 @@ final class ImageCache: @unchecked Sendable {
             memory.setObject(img, forKey: url as NSURL, cost: data.count)
             return img
         }
+        guard (try? await destinationPolicy.validate(url)) != nil else { return nil }
         var attempt = 0
         while true {
             do {
