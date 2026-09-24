@@ -47,7 +47,10 @@ struct ChapterRowPresentation: Equatable {
         let inProgress = progress.map { $0.pageCount > 0 && !$0.isComplete } ?? false
         self.isInProgress = inProgress
         self.isDimmed = isRead && !inProgress
-        let nonemptyGroups = chapter.groups?.filter { !$0.isEmpty } ?? []
+        let nonemptyGroups = chapter.groups?.compactMap { group -> String? in
+            let trimmed = group.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : trimmed
+        } ?? []
         self.groupCredit = nonemptyGroups.isEmpty ? nil : nonemptyGroups.joined(separator: ", ")
 
         var parts = ["Chapter \(chapter.number)"]
