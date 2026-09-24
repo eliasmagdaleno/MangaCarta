@@ -388,7 +388,7 @@ final class ExtensionSourceTests: XCTestCase {
             var exhausted = \(exhaustAt.map(String.init) ?? "null");
             var done = exhausted !== null && offset >= exhausted;
             return { ok: true, value: {
-              items: [{ id: id, title: "Echo", sourceId: "evil"(returnsGroups ? ", groups: [\\"Alpha\\"]" : "") }],
+              items: [{ id: id, title: "Echo", sourceId: "evil"\(returnsGroups ? ", groups: ['Alpha']" : "") }],
               nextCursor: done ? null : String(offset + request.page.limit),
               exhausted: done
             } };
