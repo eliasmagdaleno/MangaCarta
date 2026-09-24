@@ -61,21 +61,7 @@ actor LocalLibraryStore {
             let archiveChapters = try reader.chapters()
             guard !archiveChapters.isEmpty else { throw LocalImportError.noImages }
             let title = source.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " ")
-            let sortedArchive = archiveChapters.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-            let root = sortedArchive.first(where: { $0.name == "Root" })
-            let folders = sortedArchive.filter { $0.name != "Root" }
-            let groups: [(String, [ZipArchiveReader.Entry])]
-            if folders.count <= 1 {
-                if let folder = folders.first, let root {
-                    groups = [("Root", root.pages), (folder.name, folder.pages)]
-                } else if let folder = folders.first {
-                    groups = [(title, folder.pages)]
-                } else {
-                    groups = [(title, root?.pages ?? [])]
-                }
-            } else {
-                groups = (root.map { [("Root", $0.pages)] } ?? []) + folders.map { ($0.name, $0.pages) }
-            }
+            let groups = chapterGroups(from: archiveChapters, title: title)
             try fm.createDirectory(at: item, withIntermediateDirectories: true)
             var storedChapters: [LocalChapter] = []
             for (chapterIndex, group) in groups.enumerated() {
@@ -142,5 +128,16 @@ actor LocalLibraryStore {
 
     func delete(itemId: String) throws {
         try fm.removeItem(at: root.appendingPathComponent(itemId))
+    }
+
+    private func chapterGroups(from chapters: [ZipArchiveReader.Chapter], title: String) -> [(String, [ZipArchiveReader.Entry])] {
+        let sorted = chapters.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        let root = sorted.first(where: { $0.name == "Root" })
+        let folders = sorted.filter { $0.name != "Root" }
+        guard folders.count > 1 else {
+            guard let folder = folders.first else { return [(title, root?.pages ?? [])] }
+            return root.map { [("Root", $0.pages), (folder.name, folder.pages)] } ?? [(title, folder.pages)]
+        }
+        return (root.map { [("Root", $0.pages)] } ?? []) + folders.map { ($0.name, $0.pages) }
     }
 }
