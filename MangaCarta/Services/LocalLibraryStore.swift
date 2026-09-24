@@ -7,6 +7,12 @@ enum LocalImportResult: Equatable {
     case duplicate(itemId: String)
 }
 
+struct LocalImportProgress: Sendable, Equatable {
+    let fileName: String
+    let completed: Int
+    let total: Int
+}
+
 enum LocalImportError: Error, Equatable {
     case noImages
     case unreadableArchive(ZipArchiveError)
@@ -27,6 +33,10 @@ actor LocalLibraryStore {
     }
 
     func importArchive(at source: URL) throws -> LocalImportResult {
+        try importArchive(at: source, progress: nil)
+    }
+
+    func importArchive(at source: URL, progress: (@Sendable (LocalImportProgress) -> Void)?) throws -> LocalImportResult {
         let staging = root.appendingPathComponent(".staging").appendingPathComponent(UUID().uuidString)
         let archive = staging.appendingPathComponent("archive")
         let item = staging.appendingPathComponent("item")
@@ -51,21 +61,7 @@ actor LocalLibraryStore {
             let archiveChapters = try reader.chapters()
             guard !archiveChapters.isEmpty else { throw LocalImportError.noImages }
             let title = source.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " ")
-            let sortedArchive = archiveChapters.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-            let root = sortedArchive.first(where: { $0.name == "Root" })
-            let folders = sortedArchive.filter { $0.name != "Root" }
-            let groups: [(String, [ZipArchiveReader.Entry])]
-            if folders.count <= 1 {
-                if let folder = folders.first, let root {
-                    groups = [("Root", root.pages), (folder.name, folder.pages)]
-                } else if let folder = folders.first {
-                    groups = [(title, folder.pages)]
-                } else {
-                    groups = [(title, root?.pages ?? [])]
-                }
-            } else {
-                groups = (root.map { [("Root", $0.pages)] } ?? []) + folders.map { ($0.name, $0.pages) }
-            }
+            let groups = chapterGroups(from: archiveChapters, title: title)
             try fm.createDirectory(at: item, withIntermediateDirectories: true)
             var storedChapters: [LocalChapter] = []
             for (chapterIndex, group) in groups.enumerated() {
@@ -77,18 +73,24 @@ actor LocalLibraryStore {
                     let file = String(format: "%04d.%@", pageIndex + 1, ext)
                     try reader.data(for: entry).write(to: pageDir.appendingPathComponent(file), options: .atomic)
                     files.append(file)
+                    progress?(LocalImportProgress(fileName: source.lastPathComponent,
+                                                  completed: pageIndex + 1,
+                                                  total: group.1.count))
                 }
                 storedChapters.append(LocalChapter(number: chapterIndex + 1,
                     title: group.0 == "Root" ? title : group.0,
                     pageCount: files.count, pageFiles: files))
             }
-            guard let first = storedChapters.first, let firstFile = first.pageFiles.first else { throw LocalImportError.noImages }
-            let firstURL = item.appendingPathComponent("pages/1").appendingPathComponent(firstFile)
-            guard let image = UIImage(contentsOfFile: firstURL.path),
-                  let data = image.jpegData(compressionQuality: 0.9) else {
-                throw LocalImportError.noImages
+            for chapter in storedChapters {
+                for pageFile in chapter.pageFiles {
+                    let pageURL = item.appendingPathComponent("pages/\(chapter.number)").appendingPathComponent(pageFile)
+                    guard let image = UIImage(contentsOfFile: pageURL.path),
+                          let data = image.jpegData(compressionQuality: 0.9) else { continue }
+                    try data.write(to: item.appendingPathComponent("cover.jpg"), options: .atomic)
+                    break
+                }
+                if fm.fileExists(atPath: item.appendingPathComponent("cover.jpg").path) { break }
             }
-            try data.write(to: item.appendingPathComponent("cover.jpg"), options: .atomic)
             let record = LocalItemRecord(itemId: itemId, title: title, sourceFilename: source.lastPathComponent,
                 sha256: hash, byteSize: bytes.count, importedAt: Date(), chapters: storedChapters)
             let encoded = try JSONEncoder().encode(record)
@@ -127,7 +129,26 @@ actor LocalLibraryStore {
         return fm.fileExists(atPath: url.path) ? url : nil
     }
 
+    func itemSize(itemId: String) -> Int {
+        let item = root.appendingPathComponent(itemId)
+        return (fm.enumerator(at: item, includingPropertiesForKeys: [.fileSizeKey])?.compactMap { value in
+            guard let url = value as? URL else { return nil }
+            return try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize
+        }.reduce(0, +)) ?? 0
+    }
+
     func delete(itemId: String) throws {
         try fm.removeItem(at: root.appendingPathComponent(itemId))
+    }
+
+    private func chapterGroups(from chapters: [ZipArchiveReader.Chapter], title: String) -> [(String, [ZipArchiveReader.Entry])] {
+        let sorted = chapters.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        let root = sorted.first(where: { $0.name == "Root" })
+        let folders = sorted.filter { $0.name != "Root" }
+        guard folders.count > 1 else {
+            guard let folder = folders.first else { return [(title, root?.pages ?? [])] }
+            return root.map { [("Root", $0.pages), (folder.name, folder.pages)] } ?? [(title, folder.pages)]
+        }
+        return (root.map { [("Root", $0.pages)] } ?? []) + folders.map { ($0.name, $0.pages) }
     }
 }

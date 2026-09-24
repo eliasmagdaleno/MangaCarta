@@ -47,4 +47,30 @@ struct LocalLibraryDeletionTests {
         #expect(reimported.itemId == record.itemId)
         #expect(history.entry(forChapter: "\(reimported.itemId)/1") != nil)
     }
+
+    @Test @MainActor func missingStagedDirectoryStillRemovesCatalogAndWork() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let archive = root.appendingPathComponent("book.cbz")
+        try LocalTestZip.write([("001.png", LocalTestZip.png)], to: archive)
+        let localStore = LocalLibraryStore(root: root.appendingPathComponent("library"))
+        guard case .imported(let record) = try await localStore.importArchive(at: archive) else {
+            Issue.record("import failed")
+            return
+        }
+        let defaults = UserDefaults(suiteName: "LocalLibraryDeletionTests-\(UUID().uuidString)")!
+        let works = WorkStore(directory: root.appendingPathComponent("works"))
+        let library = LibraryStore(defaults: defaults, works: works)
+        let manga = Manga(id: record.itemId, sourceId: "local", title: record.title, description: "",
+                          status: "completed", year: nil, coverURL: nil, malId: nil)
+        library.toggle(manga)
+        try FileManager.default.removeItem(at: root.appendingPathComponent("library").appendingPathComponent(record.itemId))
+
+        try await LocalLibraryDeletion(local: localStore, library: library, works: works)
+            .delete(itemId: record.itemId)
+
+        #expect(!library.contains(record.itemId))
+        #expect(works.workId(for: ListingKey(manga)) == nil)
+    }
 }
