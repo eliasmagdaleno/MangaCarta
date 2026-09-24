@@ -14,7 +14,7 @@
 import SwiftUI
 
 struct CachedAsyncImage<Content: View>: View {
-    let url: URL
+    let url: URL?
     @ViewBuilder let content: (AsyncImagePhase) -> Content
 
     @State private var phase: AsyncImagePhase = .empty
@@ -25,6 +25,7 @@ struct CachedAsyncImage<Content: View>: View {
     }
 
     private func load() async {
+        guard let url else { return }
         if let image = await ImageCache.shared.loadImage(for: url) {
             phase = .success(Image(uiImage: image))
         } else {

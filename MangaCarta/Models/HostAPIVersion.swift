@@ -85,7 +85,7 @@ struct HostAPISupport: Equatable, Sendable {
         self.installedVersions = installedVersions.sorted()
     }
 
-    /// Host API v1, including additive minor versions 1 and 2 capabilities.
+    /// Host API v1, including additive minor versions 1 and 2.
     static let v1 = HostAPISupport(installedVersions: [HostAPIVersion(major: 1, minor: 0),
                                                        HostAPIVersion(major: 1, minor: 1),
                                                        HostAPIVersion(major: 1, minor: 2)])

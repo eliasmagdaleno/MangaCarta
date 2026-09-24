@@ -9,7 +9,7 @@ struct WorkUpdateRow: View {
             MangaDetailView(manga: summary.displayManga, registry: registry)
         } label: {
             HStack(spacing: Gutter.rail) {
-                AsyncImage(url: summary.displayManga.coverURL) { phase in
+                CachedAsyncImage(url: summary.displayManga.coverURL) { phase in
                     if let image = phase.image {
                         image.resizable().scaledToFill()
                     } else {

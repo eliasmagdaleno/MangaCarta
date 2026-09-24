@@ -696,6 +696,59 @@ final class SourceDeclarationValidatorTests: XCTestCase {
                                    HostAPIVersion(major: 1, minor: 2)])
     }
 
+    func testWildcardAssetOriginIsScopedAndShapeChecked() throws {
+        var acceptedJSON = baseDeclaration()
+        var network = try XCTUnwrap(acceptedJSON["network"] as? [String: Any])
+        network["assetOrigins"] = ["https://*.mangadex.network"]
+        acceptedJSON["network"] = network
+        XCTAssertEqual(try accepted(acceptedJSON).network.assetOrigins,
+                       ["https://*.mangadex.network"])
+
+        for value in ["https://*.www.ck"] {
+            var exception = baseDeclaration()
+            var exceptionNetwork = try XCTUnwrap(exception["network"] as? [String: Any])
+            exceptionNetwork["assetOrigins"] = [value]
+            exception["network"] = exceptionNetwork
+            XCTAssertNoThrow(try accepted(exception), value)
+        }
+
+        for key in ["httpOrigins", "browserOrigins"] {
+            var rejectedJSON = baseDeclaration()
+            var mutated = try XCTUnwrap(rejectedJSON["network"] as? [String: Any])
+            mutated[key] = ["https://*.mangadex.network"]
+            rejectedJSON["network"] = mutated
+            guard case .invalidOrigin = try rejected(rejectedJSON) else {
+                return XCTFail("wildcard unexpectedly accepted in \(key)")
+            }
+        }
+
+        for value in ["https://m*ngadex.network", "https://*.*.mangadex.network",
+                      "https://*.ck", "https://*.network", "https://*.com", "https://*.github.io",
+                      "https://*.cloudfront.net", "https://*.co.jp", "https://*.herokuapp.com",
+                      "https://*.pages.dev", "https://*.foo.ck", "https://*.x.kawasaki.jp",
+                      "https://*.sch.uk", "https://*.compute.amazonaws.com", "https://*.kawasaki.jp",
+                      "https://*.github.io.",
+                      "https://a..b", "http://*.mangadex.network"] {
+            var rejectedJSON = baseDeclaration()
+            var mutated = try XCTUnwrap(rejectedJSON["network"] as? [String: Any])
+            mutated["assetOrigins"] = [value]
+            rejectedJSON["network"] = mutated
+            guard case .invalidOrigin = try rejected(rejectedJSON) else {
+                return XCTFail("wildcard unexpectedly accepted: \(value)")
+            }
+        }
+
+        var legacy = baseDeclaration()
+        legacy["hostAPI"] = ["minimum": "1.0", "maximumExclusive": "1.2"]
+        var legacyNetwork = try XCTUnwrap(legacy["network"] as? [String: Any])
+        legacyNetwork["assetOrigins"] = ["https://*.mangadex.network"]
+        legacy["network"] = legacyNetwork
+        XCTAssertEqual(try rejected(legacy),
+                       .featureRequiresHostAPIVersion(feature: "network.assetOrigins wildcard",
+                                                      minimum: HostAPIVersion(major: 1, minor: 2),
+                                                      selected: HostAPIVersion(major: 1, minor: 1)))
+    }
+
     /// Criterion 9's "actionable": the message must name the declared range and what the
     /// host actually supports, so a reader can tell which side needs updating.
     func testIncompatibleHostAPIErrorNamesEveryVersionInvolved() throws {

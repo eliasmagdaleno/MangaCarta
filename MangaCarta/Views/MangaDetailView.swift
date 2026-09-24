@@ -226,7 +226,7 @@ struct MangaDetailView: View {
 
         return layout {
             // Cover plate.
-            AsyncImage(url: manga.coverURL) { phase in
+            CachedAsyncImage(url: manga.coverURL) { phase in
                 switch phase {
                 case .success(let img): img.resizable().scaledToFill()
                 case .empty: CoverPlaceholder(showsSpinner: true)

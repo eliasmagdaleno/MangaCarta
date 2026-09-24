@@ -459,6 +459,14 @@ The optional `listing` operation and `externalIds` declaration key are additive 
 introduced by Host API 1.1; declarations selecting 1.0 must not use them. (added 2026-09-24,
 removal slice 4)
 
+Leftmost-label wildcards in `network.assetOrigins` are an additive opt-in feature introduced by
+Host API 1.2; declarations selecting an older version must not use them. (added 2026-09-24, #230)
+
+Host API 1.2 is the additive release that introduces both leftmost-label asset-origin wildcards
+and the chapter `groups` result field. A Source using either feature should declare
+`hostAPI.minimum` as `1.2`; a host selecting an older version rejects the wildcard declaration or
+returns `invalid_result` when groups appears in an operation result.
+
 A Source using `listing` or `externalIds` should declare `hostAPI.minimum` as `1.1`, so a host
 older than 1.1 reports a version error rather than an unknown key. (added 2026-09-24, removal
 slice 4)
@@ -511,6 +519,18 @@ declared browser origin and is revalidated immediately before opening. Malformed
 URLs drop that field with a warning; policy-invalid URLs and all invalid page or browser URLs reject
 the operation. This distinction keeps cosmetic damage recoverable without silently weakening the
 reader or navigation boundary.
+
+An asset origin may use exactly one wildcard in the leftmost label, for example
+`https://*.mangadex.network`. It matches exactly one additional host label (`a.mangadex.network`),
+never the apex or a deeper name. Wildcards are HTTPS-only, are rejected in `httpOrigins` and
+`browserOrigins`, and must contain at least two labels after `*.`. The host rejects suffixes in
+an embedded ICANN and PRIVATE Public Suffix List snapshot using the standard rule precedence:
+wildcard rules match one label and exception rules override wildcard rules. This is required
+because the platform has no public suffix list API, and rejects a wildcard whose one-label
+children are public suffixes. Wildcard-matched assets use the host image loader, which resolves
+the hostname and rejects private addresses before fetching, just like other remotely loaded
+covers and pages. This is a resolve-then-fetch check; DNS can rebind between those operations,
+so connect-time IP pinning remains an open hardening item tracked by #233. (added 2026-09-24, #230)
 
 > **Amendment 4 (2026-09-04, contract gap 4).** The sentence above is superseded for the optional
 > cover field alone. A **policy-invalid optional cover URL now also drops the field with a
@@ -757,7 +777,8 @@ slice 6 removes the bundled package.
 
 ## Amendment 6 — chapter scanlation-group credits (2026-09-24)
 
-**Decision:** Chapter results may carry an optional `groups` array beginning with Host API 1.2.
+**Decision:** Host API 1.2's additive features are leftmost-label `network.assetOrigins` wildcards
+and an optional `groups` array on chapter results.
 The host trims each name, limits the array to ten names and each name to 200 Unicode scalars.
 A non-array, non-string element, empty name, or over-limit value drops only `groups`, records a
 warning, and keeps the chapter with groups unknown. Missing `groups` likewise remains unknown
