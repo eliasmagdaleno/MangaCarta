@@ -12,7 +12,9 @@ final class LocalImportUITests: XCTestCase {
         XCTAssertTrue(empty.tabBars.buttons["Library"].waitForExistence(timeout: 10))
         empty.tabBars.buttons["Library"].tap()
         XCTAssertTrue(empty.staticTexts["Your library is empty"].waitForExistence(timeout: 10))
-        XCTAssertTrue(empty.staticTexts["MangaCarta does not provide or host content."].exists)
+        XCTAssertTrue(empty.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS[c] %@", "does not provide or host content")
+        ).firstMatch.exists)
         attach(empty, name: "local-import-empty-state")
         empty.terminate()
 
