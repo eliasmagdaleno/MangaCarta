@@ -439,6 +439,10 @@ private actor FetchProbe {
     func bump() { count += 1 }
 }
 
+struct PublicImageResolver: HostNameResolving {
+    func addresses(for host: String) async throws -> [String] { ["93.184.216.34"] }
+}
+
 @Suite("Host browser capability")
 struct HostBrowserTests {
 

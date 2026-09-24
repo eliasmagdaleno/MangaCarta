@@ -11,7 +11,7 @@ import UIKit
     let bytes = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")!
     try bytes.write(to: file)
     let cacheDir = root.appendingPathComponent("cache")
-    let cache = ImageCache(directory: cacheDir, fetcher: { _ in
+    let cache = ImageCache(directory: cacheDir, resolver: PublicImageResolver(), fetcher: { _ in
         Issue.record("fetcher called")
         return bytes
     })
@@ -21,7 +21,7 @@ import UIKit
 
 @Test func missingFileImageReturnsNil() async {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-    let cache = ImageCache(directory: directory, fetcher: { _ in
+    let cache = ImageCache(directory: directory, resolver: PublicImageResolver(), fetcher: { _ in
         Issue.record("fetcher called")
         return Data()
     })
