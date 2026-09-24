@@ -25,6 +25,7 @@ struct MangaDetailView: View {
     @StateObject private var moreLikeThis: MoreLikeThisViewModel
     @State private var synopsisExpanded = false
     @State private var showingWebPage = false
+    @State private var showingLocalDeleteConfirmation = false
 
     init(manga: Manga, registry: SourceRegistry) {
         self.manga = manga
@@ -36,6 +37,7 @@ struct MangaDetailView: View {
     private var mangaSource: MangaSource? {
         registry.source(id: manga.sourceId)
     }
+    private var isLocalManga: Bool { manga.sourceId == LocalSource.sourceID }
 
     @State private var mangaWebURL: URL?
 
@@ -185,6 +187,18 @@ struct MangaDetailView: View {
                 }
             }
         }
+        .alert("Delete \(manga.title) from this iPhone?", isPresented: $showingLocalDeleteConfirmation) {
+            Button("Delete from Device", role: .destructive) {
+                guard let local = mangaSource as? LocalSource else { return }
+                Task {
+                    try? await LocalLibraryDeletion(local: local.store, library: library, works: works)
+                        .delete(itemId: manga.id)
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("The imported file (\(formattedLocalSize)) is removed from MangaCarta and can't be recovered. Reading history is kept.")
+        }
     }
 
     // MARK: Hero — cover plate on flat paper: title, authors, metadata stamps.
@@ -282,10 +296,11 @@ struct MangaDetailView: View {
                 Menu {
                     Section {
                         Button {
-                            withAnimation(.snappy(duration: 0.2)) { library.toggle(manga) }
+                            if isLocalManga { showingLocalDeleteConfirmation = true }
+                            else { withAnimation(.snappy(duration: 0.2)) { library.toggle(manga) } }
                         } label: {
                             Label(
-                                inLibrary ? "Remove from Library" : "Quick Add to Library",
+                                isLocalManga ? "Delete from Device" : (inLibrary ? "Remove from Library" : "Quick Add to Library"),
                                 systemImage: inLibrary ? "trash" : "bookmark"
                             )
                         }
@@ -318,7 +333,8 @@ struct MangaDetailView: View {
                     .foregroundStyle(inLibrary ? Ink.seal : Color.white)
                     .background(RoundedRectangle(cornerRadius: 12).fill(inLibrary ? Ink.sealSoft : Ink.seal))
                 } primaryAction: {
-                    withAnimation(.snappy(duration: 0.2)) { library.toggle(manga) }
+                            if isLocalManga { showingLocalDeleteConfirmation = true }
+                            else { withAnimation(.snappy(duration: 0.2)) { library.toggle(manga) } }
                 }
                 .buttonStyle(.plain)
             }
@@ -385,10 +401,11 @@ struct MangaDetailView: View {
         return Menu {
             Section {
                 Button {
-                    withAnimation(.snappy(duration: 0.2)) { library.toggle(manga) }
+                    if isLocalManga { showingLocalDeleteConfirmation = true }
+                    else { withAnimation(.snappy(duration: 0.2)) { library.toggle(manga) } }
                 } label: {
                     Label(
-                        inLibrary ? "Remove from Library" : "Quick Add to Library",
+                        isLocalManga ? "Delete from Device" : (inLibrary ? "Remove from Library" : "Quick Add to Library"),
                         systemImage: inLibrary ? "trash" : "bookmark"
                     )
                 }
@@ -419,10 +436,15 @@ struct MangaDetailView: View {
                         .strokeBorder(inLibrary ? Ink.seal : Ink.hairline, lineWidth: inLibrary ? 1.5 : 1)
                 )
         } primaryAction: {
-            withAnimation(.snappy(duration: 0.2)) { library.toggle(manga) }
+            if isLocalManga { showingLocalDeleteConfirmation = true }
+            else { withAnimation(.snappy(duration: 0.2)) { library.toggle(manga) } }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(inLibrary ? "Manage Library Collections" : "Add to Library")
+        .accessibilityLabel(isLocalManga ? "Delete from Device" : (inLibrary ? "Manage Library Collections" : "Add to Library"))
+    }
+
+    private var formattedLocalSize: String {
+        return "the imported file"
     }
 
     // MARK: Tags

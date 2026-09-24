@@ -166,6 +166,7 @@ struct MangaCartaApp: App {
                 // own start. `start()` is idempotent, so the `.active` case below
                 // arriving first, later, or not at all is all the same.
                 .task {
+                    await Self.importUITestFixtureIfRequested(library: library)
                     if !ProcessInfo.processInfo.arguments.contains("-uitest-zero-sources") {
                         await extensions?.installBundledSources()
                     }
@@ -258,6 +259,24 @@ struct MangaCartaApp: App {
             }
         }
     }
+
+#if DEBUG
+    /// Hermetic UI runs can ship a CBZ beside the test bundle; the app still exercises the
+    /// exact store import path used by the Files picker rather than a UI-only shortcut.
+    private static func importUITestFixtureIfRequested(library: LibraryStore) async {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let index = arguments.firstIndex(of: "-uitest-import-fixture"),
+              arguments.indices.contains(index + 1),
+              let url = Bundle.main.url(forResource: arguments[index + 1], withExtension: "cbz") else { return }
+        guard let result = try? await LocalLibraryStore.shared.importArchive(at: url),
+              case .imported(let record) = result else { return }
+        let cover = await LocalLibraryStore.shared.coverURL(itemId: record.itemId)
+        let manga = Manga(id: record.itemId, sourceId: LocalSource.sourceID, title: record.title,
+                          description: "", status: "completed", year: nil, coverURL: cover, malId: nil)
+        if !library.contains(record.itemId) { library.toggle(manga) }
+        library.setChapterNumbers(record.chapters.map { "\($0.number)" }, for: record.itemId)
+    }
+#endif
 }
 
 #if DEBUG

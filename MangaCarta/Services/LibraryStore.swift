@@ -157,6 +157,13 @@ final class LibraryStore: ObservableObject {
         saveItems()
     }
 
+    /// Local imports know their chapter count without a network refresh.
+    func setChapterNumbers(_ numbers: [String], for mangaID: String) {
+        guard let index = items.firstIndex(where: { $0.id == mangaID }) else { return }
+        items[index].chapterNumbers = numbers
+        saveItems()
+    }
+
     /// Toggle a specific collection membership for a manga.
     func toggleCollection(for manga: Manga, collectionId: String) {
         if let idx = items.firstIndex(where: { $0.id == manga.id }) {

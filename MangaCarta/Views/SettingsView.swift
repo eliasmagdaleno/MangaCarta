@@ -5,6 +5,7 @@
 
 import SwiftUI
 import UserNotifications
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @AppStorage(appearanceStorageKey) private var appearanceRaw = AppearanceMode.system.rawValue
@@ -23,6 +24,8 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
     @State private var showingCollectionsSheet = false
     @State private var notificationSummary = NotificationAuthorizationSummary.notRequested
+    @State private var showingLocalImporter = false
+    @StateObject private var localImporter = LocalImportViewModel()
 
     var body: some View {
         NavigationStack {
@@ -51,6 +54,25 @@ struct SettingsView: View {
                         .background(RoundedRectangle(cornerRadius: 14).fill(Ink.surface))
                         .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Ink.hairline, lineWidth: 1))
                         .padding(.horizontal, Gutter.page)
+                        Button { showingLocalImporter = true } label: {
+                            HStack {
+                                Label("Local library", systemImage: "externaldrive")
+                                    .foregroundStyle(Ink.primary)
+                                Spacer()
+                                Text("Import files")
+                                    .foregroundStyle(Ink.seal)
+                            }
+                            .padding(.horizontal, Gutter.page)
+                            .padding(.vertical, 15)
+                        }
+                        .buttonStyle(.plain)
+                        .background(RoundedRectangle(cornerRadius: 14).fill(Ink.surface))
+                        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Ink.hairline, lineWidth: 1))
+                        .padding(.horizontal, Gutter.page)
+                        Text("Imported files are deleted with the app.")
+                            .font(.footnote)
+                            .foregroundStyle(Ink.tertiary)
+                            .padding(.horizontal, Gutter.page)
                     }
 
                     VStack(alignment: .leading, spacing: 14) {
@@ -207,6 +229,16 @@ struct SettingsView: View {
             .sheet(isPresented: $showingCollectionsSheet) {
                 CollectionManagementView()
             }
+            .fileImporter(isPresented: $showingLocalImporter,
+                          allowedContentTypes: [UTType.pdf, UTType.zip, UTType.mangaCartaCBZ],
+                          allowsMultipleSelection: true) { result in
+                if case .success(let urls) = result { localImporter.importFiles(urls) }
+            }
+            .overlay(alignment: .top) {
+                LocalImportBanner(model: localImporter, onCancel: localImporter.cancel)
+                    .padding(.top, 8)
+            }
+            .task { localImporter.configure(registry: registry, library: library, works: works) }
         }
     }
 

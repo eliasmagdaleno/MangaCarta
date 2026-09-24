@@ -7,6 +7,12 @@ enum LocalImportResult: Equatable {
     case duplicate(itemId: String)
 }
 
+struct LocalImportProgress: Sendable, Equatable {
+    let fileName: String
+    let completed: Int
+    let total: Int
+}
+
 enum LocalImportError: Error, Equatable {
     case noImages
     case unreadableArchive(ZipArchiveError)
@@ -27,6 +33,10 @@ actor LocalLibraryStore {
     }
 
     func importArchive(at source: URL) throws -> LocalImportResult {
+        try importArchive(at: source, progress: nil)
+    }
+
+    func importArchive(at source: URL, progress: (@Sendable (LocalImportProgress) -> Void)?) throws -> LocalImportResult {
         let staging = root.appendingPathComponent(".staging").appendingPathComponent(UUID().uuidString)
         let archive = staging.appendingPathComponent("archive")
         let item = staging.appendingPathComponent("item")
@@ -77,6 +87,9 @@ actor LocalLibraryStore {
                     let file = String(format: "%04d.%@", pageIndex + 1, ext)
                     try reader.data(for: entry).write(to: pageDir.appendingPathComponent(file), options: .atomic)
                     files.append(file)
+                    progress?(LocalImportProgress(fileName: source.lastPathComponent,
+                                                  completed: pageIndex + 1,
+                                                  total: group.1.count))
                 }
                 storedChapters.append(LocalChapter(number: chapterIndex + 1,
                     title: group.0 == "Root" ? title : group.0,
