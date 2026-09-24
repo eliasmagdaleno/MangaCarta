@@ -268,7 +268,7 @@ final class ExtensionDomainSchemaTests: XCTestCase {
                 "id": "chapter", "groups": value
             ]]])
             XCTAssertNil(result.value.first?.groups, "unexpectedly accepted \(value)")
-            XCTAssertEqual(result.warnings.map(\.fieldPath), ["items[0].groups"])
+            XCTAssertEqual(result.warnings.map(\.fieldPath), ["items[0]"])
         }
     }
 

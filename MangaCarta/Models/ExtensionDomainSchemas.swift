@@ -144,6 +144,7 @@ struct ExtensionChapter: Equatable {
     let title: String?
     let publishedAt: Date?
     let language: String?
+    let groups: [String]?
 
     func toChapter() -> Chapter {
         Chapter(id: id, number: number ?? "?", title: title, date: publishedAt)
@@ -304,6 +305,7 @@ struct ExtensionDomainValidator {
                 let number = try optionalString(object, key: "number", path: path)
                 let title = try optionalString(object, key: "title", path: path)
                 let language = try optionalString(object, key: "language", path: path)
+                let groups = try chapterGroups(object, path: path)
 
                 var publishedAt: Date?
                 if let rawDate = object["publishedAt"] {
@@ -319,7 +321,8 @@ struct ExtensionDomainValidator {
                                                   number: number,
                                                   title: title,
                                                   publishedAt: publishedAt,
-                                                  language: language))
+                                                  language: language,
+                                                  groups: groups))
             } catch is ExtensionSchemaError {
                 warnings.append(warning(.invalidField, index, path))
             }
@@ -676,6 +679,26 @@ struct ExtensionDomainValidator {
                 throw invalid("\(path).\(key)[\(index)]", "expected a string")
             }
             return string
+        }
+    }
+
+    private func chapterGroups(_ object: [String: Any], path: String) throws -> [String]? {
+        guard let array = try optionalArray(object, key: "groups", path: path) else { return nil }
+        guard array.count <= 10 else {
+            throw invalid("\(path).groups", "too many group names")
+        }
+        return try array.enumerated().map { index, value in
+            guard let string = value as? String else {
+                throw invalid("\(path).groups[\(index)]", "expected a string")
+            }
+            let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else {
+                throw invalid("\(path).groups[\(index)]", "expected a nonempty string")
+            }
+            guard trimmed.unicodeScalars.count <= 200 else {
+                throw invalid("\(path).groups[\(index)]", "string exceeds its Unicode scalar limit")
+            }
+            return trimmed
         }
     }
 
