@@ -32,7 +32,6 @@ final class LocalImportUITests: XCTestCase {
         start.tap()
         XCTAssertTrue(app.buttons["Close reader"].waitForExistence(timeout: 10))
         app.buttons["Close reader"].tap()
-        app.buttons["libraryCoverCard"].tap()
 
         let delete = app.buttons["Delete from Device"]
         XCTAssertTrue(delete.waitForExistence(timeout: 10))
