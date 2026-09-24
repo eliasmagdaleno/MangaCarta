@@ -169,4 +169,5 @@ struct LocalImportSlice2Tests {
     @Test func sourceReadsFileURLsAndFiltersTitles() async throws { try await localSourceReadsFileURLsAndFiltersTitles() }
     @Test func capabilitiesDispatchThroughExistential() { localSourceCapabilitiesDispatchThroughExistential() }
     @MainActor @Test func registryFiltersLocal() { registryAlwaysRegistersLocalButNeverBrowsesIt() }
+    @MainActor @Test func cancellationIsSilent() async throws { try await localImportViewModelCancellationIsSilent() }
 }
