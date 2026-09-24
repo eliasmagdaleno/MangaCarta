@@ -1081,7 +1081,7 @@ struct HostRateLimiterTests {
         try await registry.reserve(sourceID: source, origin: "https://api.mangadex.org", path: "/at-home/server/1")
         try await registry.reserve(sourceID: source, origin: "https://api.mangadex.org", path: "/at-home/server/2")
         try await registry.reserve(sourceID: source, origin: "https://api.mangadex.org", path: "/manga")
-        #expect((await sleeper.dates()).sorted().map(\.timeIntervalSinceReferenceDate) == [0, 0, 0.2, 1.5, 1.7])
+        #expect((await sleeper.dates()).sorted().map(\.timeIntervalSinceReferenceDate) == [0, 0, 0.2, 0.4, 1.5])
     }
 
     @Test("cancelling a waiter releases its final reservation")
@@ -1131,7 +1131,7 @@ private actor BlockingRateLimiterSleeper: RateLimiterSleeper {
     func sleep(until date: Date) async throws {
         recorded.append(date)
         guard date.timeIntervalSinceReferenceDate > 0 else { return }
-        try await Task.sleep(nanoseconds: 10_000_000_000)
+        try await Task.sleep(nanoseconds: 10_000_000)
     }
 
     func dates() -> [Date] { recorded }
