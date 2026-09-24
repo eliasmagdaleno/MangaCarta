@@ -145,6 +145,23 @@ private struct LocalFixture {
     #expect(importer.errors == ["broken.pdf: Could not read this PDF"])
 }
 
+@MainActor @Test func localImportViewModelCancellationIsSilent() async throws {
+    let fixture = try LocalFixture(); defer { fixture.cleanup() }
+    let store = LocalLibraryStore(root: fixture.root.appendingPathComponent("library"))
+    let works = WorkStore(directory: fixture.root.appendingPathComponent("works"))
+    let defaults = UserDefaults(suiteName: "local-import-pdf-cancel-\(UUID().uuidString)")!
+    let registry = SourceRegistry(sources: [LocalSource(store: store)])
+    let library = LibraryStore(defaults: defaults, works: works, registry: registry)
+    let importer = LocalImportViewModel()
+    importer.configure(registry: registry, library: library, works: works)
+
+    importer.importFiles([fixture.archive])
+    importer.cancel()
+    await importer.importFilesAndWait([])
+
+    #expect(importer.errors.isEmpty)
+}
+
 @Suite("LocalImportSlice2Tests")
 struct LocalImportSlice2Tests {
     @Test func importWritesRealPagesAndRecord() async throws { try await localImportWritesRealPagesAndRecord() }

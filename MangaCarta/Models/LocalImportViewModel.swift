@@ -59,7 +59,11 @@ final class LocalImportViewModel: ObservableObject {
                     }
                 } catch {
                     if accessing { url.stopAccessingSecurityScopedResource() }
-                    await MainActor.run { self?.errors.append("\(url.lastPathComponent): \(Self.message(for: error))") }
+                    if case LocalImportError.cancelled = error {
+                        // User cancellation is intentionally silent.
+                    } else {
+                        await MainActor.run { self?.errors.append("\(url.lastPathComponent): \(Self.message(for: error))") }
+                    }
                 }
                 await MainActor.run { self?.completedFiles += 1 }
             }
