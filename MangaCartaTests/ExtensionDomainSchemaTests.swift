@@ -18,7 +18,8 @@ final class ExtensionDomainSchemaTests: XCTestCase {
         return ExtensionDomainValidator(
             currentDate: now,
             calendar: calendar,
-            assetOrigins: ["https://cdn.example.test"]
+            assetOrigins: ["https://cdn.example.test"],
+            hostAPIVersion: HostAPIVersion(major: 1, minor: 2)
         )
     }
 

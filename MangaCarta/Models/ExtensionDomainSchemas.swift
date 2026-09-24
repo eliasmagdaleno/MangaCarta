@@ -172,7 +172,7 @@ struct ExtensionDomainValidator {
     init(currentDate: Date = Date(),
          calendar: Calendar = Calendar(identifier: .gregorian),
          assetOrigins: [String],
-         hostAPIVersion: HostAPIVersion = HostAPIVersion(major: 1, minor: 2)) {
+         hostAPIVersion: HostAPIVersion = HostAPIVersion(major: 1, minor: 0)) {
         currentYear = calendar.component(.year, from: currentDate)
         self.assetOrigins = Set(assetOrigins.compactMap(Self.normalizedOrigin))
         self.hostAPIVersion = hostAPIVersion
