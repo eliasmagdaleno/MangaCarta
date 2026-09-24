@@ -60,20 +60,34 @@ protocol RepositoryTransport: Sendable {
 final class URLSessionRepositoryTransport: RepositoryTransport, @unchecked Sendable {
     private let fetcher: any URLSessionDataFetching
     private let destinations: HostDestinationPolicy
+    let sessionConfiguration: URLSessionConfiguration
 
-    init(configuration: URLSessionConfiguration = .default,
+    init(configuration: URLSessionConfiguration? = nil,
          resolver: any HostNameResolving = SystemHostResolver(),
          fetcher: (any URLSessionDataFetching)? = nil) {
         self.destinations = HostDestinationPolicy(resolver: resolver)
-        configuration.connectionProxyDictionary = [:]
+        let base = configuration ?? Self.sessionConfiguration()
+        let sessionConfiguration = base.copy() as! URLSessionConfiguration
+        sessionConfiguration.connectionProxyDictionary = [:]
+        sessionConfiguration.urlCache = nil
+        sessionConfiguration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        sessionConfiguration.httpShouldSetCookies = false
+        sessionConfiguration.httpCookieAcceptPolicy = .never
+        sessionConfiguration.httpCookieStorage = nil
+        self.sessionConfiguration = sessionConfiguration
         self.fetcher = fetcher ?? URLSessionDataFetcher(
-            configuration: configuration,
+            configuration: sessionConfiguration,
             redirectHandler: URLSessionDataFetcher.httpsOnlyRedirectHandler)
     }
 
     static func sessionConfiguration() -> URLSessionConfiguration {
         let configuration = URLSessionConfiguration.default
         configuration.connectionProxyDictionary = [:]
+        configuration.urlCache = nil
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        configuration.httpShouldSetCookies = false
+        configuration.httpCookieAcceptPolicy = .never
+        configuration.httpCookieStorage = nil
         return configuration
     }
 

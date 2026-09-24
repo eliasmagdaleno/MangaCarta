@@ -73,7 +73,18 @@ final class URLSessionRepositoryTransportTests: XCTestCase {
     private let scriptURL = URL(string: "https://repo.test/engine.js")!
 
     func testRepositorySessionsBypassConfiguredSystemProxies() {
-        XCTAssertTrue(URLSessionRepositoryTransport.sessionConfiguration().connectionProxyDictionary?.isEmpty == true)
+        let supplied = URLSessionConfiguration.default
+        supplied.connectionProxyDictionary = ["HTTPEnable": 1]
+        let transport = URLSessionRepositoryTransport(configuration: supplied,
+                                                       fetcher: FixedMetricsFetcher(result: URLSessionFetchResult(
+                                                           data: Data(),
+                                                           response: URLResponse(url: indexURL,
+                                                                                 mimeType: nil,
+                                                                                 expectedContentLength: 0,
+                                                                                 textEncodingName: nil),
+                                                           connectedPeerAddress: "93.184.216.34")))
+        XCTAssertTrue(transport.sessionConfiguration.connectionProxyDictionary?.isEmpty == true)
+        XCTAssertNotNil(supplied.connectionProxyDictionary)
     }
 
     /// Every host resolves to a public address unless a test says otherwise.
