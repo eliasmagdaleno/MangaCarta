@@ -725,7 +725,11 @@ open because the available evidence cannot settle them honestly:
 None changes the v1 semantic boundary. Each must be resolved before its dependent runtime or
 installer slice is called complete.
 
-## Amendment 3 — paged requests use a nested page value (2026-09-22)
+## Amendment 5 — paged requests use a nested page value (2026-09-22)
+
+*Renumbered from "Amendment 3" on 2026-09-24: that number was already used by the Q10
+version-grammar amendment above, and 4 by the optional-operations one. "Flat" and "nested"
+describe engine request shapes, not Host API versions.*
 
 **Decision:** Option B from GitHub issue #186 is adopted. Every paged entry point sends its
 request with the designed nested shape: `{query, page: {cursor, limit}}` for `search`, and
@@ -741,7 +745,7 @@ host passes a returned cursor back unchanged; engines own the token's meaning.
 The shipped WeebCentral engine was migrated to read `request.page.cursor` and
 `request.page.limit` in the implementation accompanying this amendment. During the
 transition, the host also sends the same values as legacy top-level `request.cursor` and
-`request.limit`, allowing v1 engines to continue paging while v2 engines read only the
-nested value and still reject requests without a `page` object. Remove this compatibility
+`request.limit`, allowing pre-#186 (flat-shape) engines to continue paging while nested-shape engines read
+only the nested value and still reject requests without a `page` object. Remove this compatibility
 shim once all published engines use the nested shape, and no later than no-built-in-sources
 slice 6 removes the bundled package.

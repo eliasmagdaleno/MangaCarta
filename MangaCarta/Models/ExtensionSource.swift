@@ -26,7 +26,7 @@
 //  Paged requests carry the nested `page` value and, during the transition from v1,
 //  duplicate its cursor and limit at the top level for engines that still read the old
 //  shape. Remove the duplicate once all published engines use nesting, and no later than
-//  the no-built-in-sources slice 6 removes the bundled package (Host API design Amendment 3).
+//  the no-built-in-sources slice 6 removes the bundled package (Host API design Amendment 5).
 //
 
 import Foundation
@@ -338,7 +338,7 @@ final class ExtensionSource: MangaSource {
                 // subsequent cursors are replayed byte-for-byte from the previous response.
                 let pageCursor: Any = cursor.map { $0 as Any } ?? (NSNull() as Any)
                 request["page"] = ["cursor": pageCursor, "limit": limit]
-                // Compatibility shim for v1 engines; keep these values identical to page.
+                // Compatibility shim for pre-#186 flat-shape engines; keep these values identical to page.
                 request["cursor"] = pageCursor
                 request["limit"] = limit
                 let value = try await invoke(operation, request: request)
