@@ -31,6 +31,9 @@ final class LocalImportUITests: XCTestCase {
         let start = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Start Reading'")).firstMatch
         XCTAssertTrue(start.waitForExistence(timeout: 15))
         start.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["Page 1 of 2"].waitForExistence(timeout: 10))
+        app.swipeLeft()
+        XCTAssertTrue(app.descendants(matching: .any)["Page 2 of 2"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons["Close reader"].waitForExistence(timeout: 10))
         app.buttons["Close reader"].tap()
 
@@ -39,7 +42,6 @@ final class LocalImportUITests: XCTestCase {
         delete.tap()
         XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 5))
         app.alerts.buttons["Delete from Device"].tap()
-        app.navigationBars.buttons["Library"].tap()
         XCTAssertTrue(app.staticTexts["Your library is empty"].waitForExistence(timeout: 10))
     }
 
