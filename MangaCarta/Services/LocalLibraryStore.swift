@@ -97,14 +97,9 @@ actor LocalLibraryStore {
             }
             guard let first = storedChapters.first, let firstFile = first.pageFiles.first else { throw LocalImportError.noImages }
             let firstURL = item.appendingPathComponent("pages/1").appendingPathComponent(firstFile)
-            // Keep a cover even for minimal hermetic fixtures whose bytes are accepted by
-            // the archive reader but are not rasterisable by UIImage on every simulator.
-            let data: Data
-            if let image = UIImage(contentsOfFile: firstURL.path),
-               let jpeg = image.jpegData(compressionQuality: 0.9) {
-                data = jpeg
-            } else {
-                data = try Data(contentsOf: firstURL)
+            guard let image = UIImage(contentsOfFile: firstURL.path),
+                  let data = image.jpegData(compressionQuality: 0.9) else {
+                throw LocalImportError.noImages
             }
             try data.write(to: item.appendingPathComponent("cover.jpg"), options: .atomic)
             let record = LocalItemRecord(itemId: itemId, title: title, sourceFilename: source.lastPathComponent,
