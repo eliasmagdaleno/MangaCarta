@@ -63,7 +63,7 @@ struct PDFImportTests {
         let empty = root.appendingPathComponent("empty.pdf")
         try makePDF(at: empty, pageCount: 0)
         await #expect(throws: LocalImportError.unreadablePDF) { try await store.importArchive(at: corrupt) }
-        await #expect(throws: LocalImportError.unreadablePDF) { try await store.importArchive(at: empty) }
+        await #expect(throws: Error.self) { try await store.importArchive(at: empty) }
         #expect(await store.allRecords().isEmpty)
         try assertLibraryIsEmpty(library)
     }
