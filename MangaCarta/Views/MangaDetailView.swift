@@ -312,8 +312,9 @@ struct MangaDetailView: View {
                 Menu {
                     Section {
                         Button {
-                            if isLocalManga { showingLocalDeleteConfirmation = true }
-                            else { withAnimation(.snappy(duration: 0.2)) { library.toggle(manga) } }
+                            if isLocalManga { showingLocalDeleteConfirmation = true } else {
+                                withAnimation(.snappy(duration: 0.2)) { library.toggle(manga) }
+                            }
                         } label: {
                             Label(
                                 isLocalManga ? "Delete from Device" : (inLibrary ? "Remove from Library" : "Quick Add to Library"),
@@ -349,8 +350,9 @@ struct MangaDetailView: View {
                     .foregroundStyle(inLibrary ? Ink.seal : Color.white)
                     .background(RoundedRectangle(cornerRadius: 12).fill(inLibrary ? Ink.sealSoft : Ink.seal))
                 } primaryAction: {
-                            if isLocalManga { showingLocalDeleteConfirmation = true }
-                            else { withAnimation(.snappy(duration: 0.2)) { library.toggle(manga) } }
+                            if isLocalManga { showingLocalDeleteConfirmation = true } else {
+                                withAnimation(.snappy(duration: 0.2)) { library.toggle(manga) }
+                            }
                 }
                 .buttonStyle(.plain)
             }
@@ -417,8 +419,9 @@ struct MangaDetailView: View {
         return Menu {
             Section {
                 Button {
-                    if isLocalManga { showingLocalDeleteConfirmation = true }
-                    else { withAnimation(.snappy(duration: 0.2)) { library.toggle(manga) } }
+                    if isLocalManga { showingLocalDeleteConfirmation = true } else {
+                        withAnimation(.snappy(duration: 0.2)) { library.toggle(manga) }
+                    }
                 } label: {
                     Label(
                         isLocalManga ? "Delete from Device" : (inLibrary ? "Remove from Library" : "Quick Add to Library"),
@@ -452,8 +455,9 @@ struct MangaDetailView: View {
                         .strokeBorder(inLibrary ? Ink.seal : Ink.hairline, lineWidth: inLibrary ? 1.5 : 1)
                 )
         } primaryAction: {
-            if isLocalManga { showingLocalDeleteConfirmation = true }
-            else { withAnimation(.snappy(duration: 0.2)) { library.toggle(manga) } }
+            if isLocalManga { showingLocalDeleteConfirmation = true } else {
+                withAnimation(.snappy(duration: 0.2)) { library.toggle(manga) }
+            }
         }
         .buttonStyle(.plain)
         .accessibilityLabel(isLocalManga ? "Delete from Device" : (inLibrary ? "Manage Library Collections" : "Add to Library"))
