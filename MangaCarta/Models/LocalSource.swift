@@ -7,6 +7,7 @@ struct LocalSource: MangaSource {
     let store: LocalLibraryStore
     var isBrowsable: Bool { false }
     var participatesInUpdates: Bool { false }
+    var publishesExternalIds: Bool { false }
     var homeFeedCapabilities: Set<SourceOperation> { [] }
     var imagePrefetchConcurrency: Int { 32 }
 
