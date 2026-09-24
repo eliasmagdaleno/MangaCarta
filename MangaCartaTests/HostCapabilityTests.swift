@@ -968,3 +968,77 @@ private struct LoopbackRedirectingFetcher: URLSessionDataFetching {
         return try await real.fetch(loopbackRequest)
     }
 }
+
+@Suite("Host rate limiting")
+struct HostRateLimiterTests {
+    @Test("concurrent reservations share a Source and origin budget")
+    func concurrentReservationsAreSpaced() async throws {
+        let sleeper = RecordingRateLimiterSleeper()
+        let registry = HostRateLimiterRegistry(defaultInterval: 1,
+                                                rules: [],
+                                                clock: FixedRateLimiterClock(),
+                                                sleeper: sleeper)
+        let source = QualifiedSourceID(rawValue: "repo/source")
+        await withTaskGroup(of: Void.self) { group in
+            for _ in 0..<3 {
+                group.addTask {
+                    try? await registry.reserve(sourceID: source,
+                                                origin: "https://example.com",
+                                                path: "/search")
+                }
+            }
+        }
+        let dates = (await sleeper.dates()).sorted()
+        #expect(dates.count == 3)
+        #expect(dates[1].timeIntervalSince(dates[0]) == 1)
+        #expect(dates[2].timeIntervalSince(dates[1]) == 1)
+    }
+
+    @Test("different Sources and origins have independent budgets")
+    func independentKeysDoNotBlockEachOther() async throws {
+        let sleeper = RecordingRateLimiterSleeper()
+        let registry = HostRateLimiterRegistry(defaultInterval: 1, rules: [],
+                                                clock: FixedRateLimiterClock(), sleeper: sleeper)
+        async let one = registry.reserve(sourceID: QualifiedSourceID(rawValue: "a"),
+                                         origin: "https://example.com", path: "/")
+        async let two = registry.reserve(sourceID: QualifiedSourceID(rawValue: "b"),
+                                         origin: "https://example.com", path: "/")
+        async let three = registry.reserve(sourceID: QualifiedSourceID(rawValue: "a"),
+                                           origin: "https://other.example", path: "/")
+        _ = try await (one, two, three)
+        let dates = await sleeper.dates()
+        #expect(dates.count == 3)
+    }
+
+    @Test("matching path rules add a second budget")
+    func pathRuleIsAppliedAlongsideOriginRule() async throws {
+        let sleeper = RecordingRateLimiterSleeper()
+        let registry = HostRateLimiterRegistry(defaultInterval: 1,
+                                                rules: [HostRateLimitRule(origin: "https://api.example.com",
+                                                                          pathPrefix: "/slow",
+                                                                          requestsPerMinute: 30)],
+                                                clock: FixedRateLimiterClock(), sleeper: sleeper)
+        let source = QualifiedSourceID(rawValue: "a")
+        try await registry.reserve(sourceID: source, origin: "https://api.example.com", path: "/slow/1")
+        try await registry.reserve(sourceID: source, origin: "https://api.example.com", path: "/slow/2")
+        try await registry.reserve(sourceID: source, origin: "https://api.example.com", path: "/other")
+        let dates = (await sleeper.dates()).sorted()
+        #expect(dates.count == 5)
+        #expect(dates.contains { $0.timeIntervalSinceReferenceDate == 2 })
+    }
+}
+
+private struct FixedRateLimiterClock: RateLimiterClock {
+    func now() -> Date { Date(timeIntervalSinceReferenceDate: 0) }
+}
+
+private actor RecordingRateLimiterSleeper: RateLimiterSleeper {
+    private var recorded: [Date] = []
+
+    func sleep(until date: Date) async throws {
+        try Task.checkCancellation()
+        recorded.append(date)
+    }
+
+    func dates() -> [Date] { recorded }
+}
