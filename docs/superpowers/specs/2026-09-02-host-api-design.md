@@ -216,15 +216,20 @@ as for Listings. A non-object detail result rejects the operation.
   "number": "12.5",
   "title": "Optional title",
   "publishedAt": "2026-09-01T12:34:56Z",
-  "language": "en"
+  "language": "en",
+  "groups": ["Example Scanlation"]
 }
 ```
 
 Required: nonempty `id`. `number`, `title`, `publishedAt`, and `language` are optional. Missing
 `number` becomes `?` in the Swift adapter. Dates must be RFC 3339 instants; invalid dates become
 absent with a warning rather than losing the chapter. Invalid chapter items are dropped with
-warnings. Ordering and duplicate policy belong to the operation result; the host does not reorder
-or merge chapters because source-specific chapter identity and split releases make that unsafe.
+warnings. `groups` is an optional Host API 1.2 field: when present it is an array of at most ten
+nonempty strings, each at most 200 Unicode scalars; names are trimmed. A malformed `groups` value
+is dropped, recorded as a warning, and leaves the chapter usable with groups unknown. An absent
+field likewise means the group is unknown. Ordering and duplicate policy belong to the operation
+result; the host does not reorder or merge chapters because source-specific chapter identity and
+split releases make that unsafe.
 
 ### 2.5 Page
 
@@ -456,6 +461,11 @@ removal slice 4)
 
 Leftmost-label wildcards in `network.assetOrigins` are an additive opt-in feature introduced by
 Host API 1.2; declarations selecting an older version must not use them. (added 2026-09-24, #230)
+
+Host API 1.2 is the additive release that introduces both leftmost-label asset-origin wildcards
+and the chapter `groups` result field. A Source using either feature should declare
+`hostAPI.minimum` as `1.2`; a host selecting an older version rejects the wildcard declaration or
+returns `invalid_result` when groups appears in an operation result.
 
 A Source using `listing` or `externalIds` should declare `hostAPI.minimum` as `1.1`, so a host
 older than 1.1 reports a version error rather than an unknown key. (added 2026-09-24, removal
@@ -764,3 +774,19 @@ transition, the host also sends the same values as legacy top-level `request.cur
 only the nested value and still reject requests without a `page` object. Remove this compatibility
 shim once all published engines use the nested shape, and no later than no-built-in-sources
 slice 6 removes the bundled package.
+
+## Amendment 6 — chapter scanlation-group credits (2026-09-24)
+
+**Decision:** Host API 1.2's additive features are leftmost-label `network.assetOrigins` wildcards
+and an optional `groups` array on chapter results.
+The host trims each name, limits the array to ten names and each name to 200 Unicode scalars.
+A non-array, non-string element, empty name, or over-limit value drops only `groups`, records a
+warning, and keeps the chapter with groups unknown. Missing `groups` likewise remains unknown
+rather than an empty claim. The app preserves valid names in chapter values and shows them joined
+by `, ` in the chapter list, including the credit in the row's accessibility label. The Host API
+version gate is evaluated at result time: groups returned under a selected version below 1.2 are
+a real `invalid_result`, unlike #234's declaration-time `externalIds` gate, because groups is an
+optional field in an otherwise valid chapter result and can be safely degraded when malformed.
+
+This makes the scanlation-group credit required by MangaDex's acceptable-use policy available to
+configuration-backed Sources without inventing source-specific selection or deduplication policy.

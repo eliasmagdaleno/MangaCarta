@@ -40,13 +40,22 @@ struct ChapterRowPresentation: Equatable {
     /// a middle dot is not a word — VoiceOver would either swallow it or announce it.
     let accessibilityLabel: String
 
+    /// The source's scanlation-group credit, formatted for the secondary row line.
+    let groupCredit: String?
+
     init(chapter: Chapter, progress: ReadingEntry?, isRead: Bool) {
         let inProgress = progress.map { $0.pageCount > 0 && !$0.isComplete } ?? false
         self.isInProgress = inProgress
         self.isDimmed = isRead && !inProgress
+        let nonemptyGroups = chapter.groups?.compactMap { group -> String? in
+            let trimmed = group.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : trimmed
+        } ?? []
+        self.groupCredit = nonemptyGroups.isEmpty ? nil : nonemptyGroups.joined(separator: ", ")
 
         var parts = ["Chapter \(chapter.number)"]
         if let title = chapter.title, !title.isEmpty { parts.append(title) }
+        if let groupCredit { parts.append("Scanlation group: \(groupCredit)") }
         if let date = chapter.date {
             parts.append(date.formatted(.dateTime.month(.wide).day().year()))
         }

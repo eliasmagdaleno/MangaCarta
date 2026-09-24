@@ -432,3 +432,6 @@ strands a user. The same split governs the upgrade queue
 when a chapter is already on screen, which is exactly the case a failed advance leaves behind;
 blanking out a chapter being read to report that a *different* one is missing is what the commit
 ordering exists to prevent.
+
+**Scanlation group** — the group credited for producing a chapter translation or release. Sources
+may provide zero or more names; omission means the source does not know the credit.
