@@ -682,6 +682,9 @@ enum DeclaredOrigin {
         guard let host = components.host?.lowercased(), !host.isEmpty else {
             return .rejected("it has no host")
         }
+        guard !host.hasSuffix("."), !host.contains("..") else {
+            return .rejected("a host may not contain trailing dots or empty labels")
+        }
         if host.contains("*") && !allowWildcard {
             return .rejected("wildcards are allowed only in assetOrigins")
         }

@@ -715,7 +715,8 @@ final class SourceDeclarationValidatorTests: XCTestCase {
         }
 
         for value in ["https://m*ngadex.network", "https://*.*.mangadex.network",
-                      "https://*.network", "https://*.com", "http://*.mangadex.network"] {
+                      "https://*.network", "https://*.com", "https://*.github.io.",
+                      "https://a..b", "http://*.mangadex.network"] {
             var rejectedJSON = baseDeclaration()
             var mutated = try XCTUnwrap(rejectedJSON["network"] as? [String: Any])
             mutated["assetOrigins"] = [value]
