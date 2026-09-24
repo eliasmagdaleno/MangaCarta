@@ -109,7 +109,7 @@ struct HistoryView: View {
         .listRowBackground(Ink.background)
         .contextMenu {
             NavigationLink {
-                MangaDetailView(manga: entry.asManga)
+                MangaDetailView(manga: entry.asManga, registry: registry)
             } label: {
                 Label("View Manga Details", systemImage: "book")
             }

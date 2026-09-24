@@ -15,6 +15,7 @@ struct BookmarksView: View {
     @EnvironmentObject private var history: HistoryStore
     @EnvironmentObject private var works: WorkStore
     @EnvironmentObject private var updates: UpdateStateStore
+    @EnvironmentObject private var registry: SourceRegistry
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.selectAppTab) private var selectAppTab
 
@@ -62,7 +63,7 @@ struct BookmarksView: View {
                             LazyVGrid(columns: columns, alignment: .leading, spacing: Gutter.section) {
                                 ForEach(displayedItems) { item in
                                     let unread = item.unreadCount(readNumbers: history.readChapterNumbers(forManga: item.id))
-                                    NavigationLink(destination: MangaDetailView(manga: item.asManga)) {
+                                    NavigationLink(destination: MangaDetailView(manga: item.asManga, registry: registry)) {
                                         MangaCoverCard(
                                             title: item.title,
                                             coverURL: item.coverURL,

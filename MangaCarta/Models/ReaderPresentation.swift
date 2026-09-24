@@ -84,6 +84,8 @@ extension MangaDexError: ClassifiedFailure {
 extension SourceError: ClassifiedFailure {
     var isTransient: Bool {
         switch self {
+        case .unavailable:
+            return true                 // A Source may be installed later.
         case .unsupported:
             return false                // The capability does not exist. It will not appear.
         case .extractionFailed:

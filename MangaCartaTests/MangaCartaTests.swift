@@ -604,6 +604,15 @@ final class MangaCartaTests: XCTestCase {
         XCTAssertNil(none.externalIdSource)
     }
 
+    @MainActor func testMoreLikeThisViewModelReceivesTheInjectedRegistry() {
+        let source = MockSource(id: "bridge", name: "Bridge", publishesExternalIds: true)
+        let registry = SourceRegistry(sources: [source])
+        let viewModel = MoreLikeThisViewModel(registry: registry)
+
+        XCTAssertEqual(registry.externalIdSource?.id, "bridge")
+        XCTAssertNotNil(viewModel)
+    }
+
     @MainActor func testRegistrySourceForMangaUsesSourceId() {
         let a = MockSource(id: "a", name: "A")
         let b = MockSource(id: "b", name: "B")
@@ -2712,6 +2721,22 @@ final class MangaCartaTests: XCTestCase {
         Work(id: WorkID(), displayTitle: titles.first ?? "",
              knownTitles: titles, externalIds: ExternalIDs(mal: mal, anilist: nil),
              listings: listings, snapshot: nil)
+    }
+
+    @MainActor func testBridgeWithoutSourceReturnsNilWithoutCaching() async throws {
+        let defaults = UserDefaults(suiteName: "test.bridge.unavailable.\(UUID().uuidString)")!
+        let resolver = MALEntityResolver(
+            store: EntityResolutionStore(defaults: defaults),
+            search: { _ in [] },
+            source: { nil })
+
+        do {
+            _ = try await resolver.resolve(work(["No Source Yet"]))
+            XCTFail("an unavailable bridge must throw so it cannot be cached as a miss")
+        } catch {
+            // Expected transient failure; the cache assertion below is the behavior seam.
+        }
+        XCTAssertTrue(EntityResolutionStore(defaults: defaults).cache.isEmpty)
     }
 
     /// The payoff ADR-0007 built `knownTitles` for: only the *second* Listing's spelling

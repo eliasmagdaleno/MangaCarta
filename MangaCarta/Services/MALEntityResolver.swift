@@ -69,16 +69,28 @@ final class MALEntityResolver {
          titleSearchLimit: Int = 3,
          search: @escaping Search = MALEntityResolver.liveSearch,
          bridgeSearch: BridgeSearch? = nil,
-         source: @escaping () -> MangaSource? = { nil }) {
+         source: @escaping () -> MangaSource?) {
         self.store = store
         self.matcher = matcher
         self.titleSearchLimit = titleSearchLimit
         self.search = search
         self.bridgeSearch = bridgeSearch ?? { title in
-            guard let source = source() else { return [] }
+            guard let source = source() else { throw SourceError.unavailable("external id bridge") }
             return try await source.search(title: title, limit: 10, offset: 0)
         }
     }
+
+#if DEBUG
+    /// Test-only convenience for tests that stub both catalogue searches directly.
+    convenience init(store: EntityResolutionStore,
+                     matcher: MALTitleMatcher = .init(),
+                     titleSearchLimit: Int = 3,
+                     search: @escaping Search = MALEntityResolver.liveSearch,
+                     bridgeSearch: BridgeSearch? = nil) {
+        self.init(store: store, matcher: matcher, titleSearchLimit: titleSearchLimit,
+                  search: search, bridgeSearch: bridgeSearch, source: { nil })
+    }
+#endif
 
     /// The canonical MAL id for a **Work**, or nil if nothing matched with confidence.
     ///

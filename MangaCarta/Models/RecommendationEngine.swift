@@ -102,7 +102,7 @@ final class RecommendationEngine: ObservableObject {
          makeProvider: @escaping (MangaSource) -> CandidateProvider = { @MainActor source in
              CompositeCandidateProvider(
                  tag: TagCandidateProvider(source: source),
-                 mal: MALCandidateProvider(similar: MoreLikeThisProvider()))
+                 mal: MALCandidateProvider(similar: MoreLikeThisProvider(source: { source })))
          },
          now: @escaping () -> Date = Date.init,
          seed: UInt64? = nil,

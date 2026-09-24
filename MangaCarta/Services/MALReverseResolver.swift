@@ -2,7 +2,7 @@
 //  MALReverseResolver.swift
 //  MangaCarta
 //
-//  The one implementation of MAL-id → openable MangaDex `Manga` reverse resolution.
+//  The one implementation of MAL-id → openable Source `Manga` reverse resolution.
 //  Two callers need it — `MoreLikeThisProvider.recommendations(for:)` (MAL's per-title
 //  recommendations) and the AniList ranked pool (ADR-0011) — and they must not each own
 //  a copy, because the *cache-write discipline* below is the kind of rule a second
@@ -25,17 +25,17 @@
 //  one, but only on rows the first spelling missed, and the extra spellings feed the
 //  exact-`malId` arm only. See `searchWidening` for why that asymmetry is the decision.
 //
-//  Network reaches this type through three injected closures rather than direct
-//  `MangaDexAPI` statics — the `MetadataUpgradeQueue.Sleep` / `AniListCandidateProvider
-//  .Resolve` pattern. The defaults are the real endpoints, so no call site changes; the
-//  point is that the cache-write discipline above is finally testable without a network.
+//  Network reaches this type through injected source and title-fetch closures rather than
+//  direct API statics — the `MetadataUpgradeQueue.Sleep` / `AniListCandidateProvider
+//  .Resolve` pattern. The source is resolved lazily so installation changes take effect
+//  without rebuilding the resolver, and the cache-write discipline stays testable offline.
 //
 
 import Foundation
 
 @MainActor
 final class MALReverseResolver {
-    /// MangaDex title search — the fan-out. One call per target, plus up to
+    /// Source title search — the fan-out. One call per target, plus up to
     /// `searchLimit - 1` more for a target whose first spelling missed (ADR-0020).
     typealias Search = @Sendable (String) async throws -> [Manga]
     /// Batch id fetch, covers included — one call for every cache hit combined.
@@ -45,7 +45,7 @@ final class MALReverseResolver {
     typealias FetchTitles = @Sendable (Int) async throws -> [String]
 
     /// What reverse resolution actually needs: a MAL id to confirm against, and the
-    /// spellings to search MangaDex with. Not `MyAnimeListManga` — the AniList pool's
+    /// spellings to search the external-id Source with. Not `MyAnimeListManga` — the AniList pool's
     /// candidates arrive from AniList and only ever carried an `idMal`.
     ///
     /// **`titles` is ordered and the head is privileged** (ADR-0020): `titles[0]` is the
@@ -69,7 +69,7 @@ final class MALReverseResolver {
         }
     }
 
-    /// How many spellings one target may spend on MangaDex searches, **including** the
+    /// How many spellings one target may spend on Source searches, **including** the
     /// baseline (ADR-0020 Decision 1). Measured, not inherited: query 2 recovers 86% of
     /// everything available and query 3 takes it to 94%, while queries 4 and 5 together
     /// buy 5 cards out of 84. Matches `MALEntityResolver.titleSearchLimit`, so the app
@@ -89,15 +89,15 @@ final class MALReverseResolver {
          fetchTitles: @escaping FetchTitles = {
              try await MyAnimeListAPI.alternativeTitles(id: $0)
          },
-         source: @escaping () -> MangaSource? = { nil }) {
+         source: @escaping () -> MangaSource?) {
         self.store = store
         self.matcher = matcher
         self.search = search ?? { title in
-            guard let source = source() else { return [] }
+            guard let source = source() else { throw SourceError.unavailable("external id search") }
             return try await source.search(title: title, limit: 10, offset: 0)
         }
         self.fetchByIds = fetchByIds ?? { ids in
-            guard let source = source() else { return [] }
+            guard let source = source() else { throw SourceError.unavailable("external id fetch") }
             return await Self.fetch(ids: ids, from: source)
         }
         self.fetchTitles = fetchTitles
@@ -120,13 +120,29 @@ final class MALReverseResolver {
         }
     }
 
-    /// Reverse-resolve `targets` to openable MangaDex titles, keyed by `malId`. Never
+#if DEBUG
+    /// Test-only convenience for tests that stub both catalogue operations directly.
+    convenience init(store: EntityResolutionStore = .shared,
+                     matcher: MALTitleMatcher = .init(),
+                     search: Search? = nil,
+                     fetchByIds: FetchByIds? = nil,
+                     fetchTitles: @escaping FetchTitles = {
+                         try await MyAnimeListAPI.alternativeTitles(id: $0)
+                     }) {
+        self.init(store: store, matcher: matcher, search: search, fetchByIds: fetchByIds,
+                  fetchTitles: fetchTitles, source: { nil })
+    }
+#endif
+
+    /// Reverse-resolve `targets` to openable Source titles, keyed by `malId`. Never
     /// throws — a failure degrades to fewer entries, never to an error the caller has to
     /// surface. Absent keys mean "not resolved", which is the *normal* case: AniList's and
-    /// MAL's catalogues are both wider than MangaDex's.
+    /// MAL's catalogue is wider than the registered Source's.
     func resolve(_ targets: [ReverseTarget]) async -> [Int: Manga] {
         // Partition: fresh cache hits (one batch fetch later) versus misses (live search).
-        var resolvedIds: [Int: String] = [:]     // malId -> MangaDex id, from fresh hits
+        // The persisted `mangaDexId` key predates multi-source support. Its value is now a
+        // Source-local id without a sourceId; qualifying that id is slice 8's work.
+        var resolvedIds: [Int: String] = [:]     // malId -> Source-local id, from fresh hits
         var toSearch: [ReverseTarget] = []
         for target in targets {
             if let cached = store.reverseResolution(malId: target.malId), cached.isFresh() {
@@ -172,7 +188,7 @@ final class MALReverseResolver {
         })
     }
 
-    /// Search MangaDex for each target's title, pick a confident match, and record the
+    /// Search the external-id Source for each target's title, pick a confident match, and record the
     /// outcome (bounded concurrency, cap 4 — the pattern established for
     /// `LibraryStore.refresh`). See the cache-write discipline in the file header.
     private func searchAndRecord(_ targets: [ReverseTarget]) async -> [Int: Manga] {

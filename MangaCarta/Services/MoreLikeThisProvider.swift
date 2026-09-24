@@ -21,7 +21,7 @@ final class MoreLikeThisProvider {
     init(store: EntityResolutionStore = .shared,
          resolver: MALEntityResolver? = nil,
          reverse: MALReverseResolver? = nil,
-         source: @escaping () -> MangaSource? = { nil }) {
+         source: @escaping () -> MangaSource?) {
         self.resolver = resolver ?? MALEntityResolver(store: store, source: source)
         self.reverse = reverse ?? MALReverseResolver(store: store, source: source)
     }

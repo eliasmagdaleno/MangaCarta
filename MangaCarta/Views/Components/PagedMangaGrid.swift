@@ -11,6 +11,7 @@
 import SwiftUI
 
 struct PagedMangaGrid: View {
+    @EnvironmentObject private var registry: SourceRegistry
     @ObservedObject var loader: PagedMangaLoader
 
     private let columns = [
@@ -20,7 +21,7 @@ struct PagedMangaGrid: View {
     var body: some View {
         LazyVGrid(columns: columns, alignment: .leading, spacing: Gutter.section) {
             ForEach(loader.items) { manga in
-                NavigationLink(destination: MangaDetailView(manga: manga)) {
+                NavigationLink(destination: MangaDetailView(manga: manga, registry: registry)) {
                     MangaCoverCard(
                         title: manga.title,
                         coverURL: manga.coverURL,

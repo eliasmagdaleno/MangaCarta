@@ -80,6 +80,8 @@ protocol MangaSource {
 
 /// Errors common to the source layer (distinct from a source's own transport errors).
 enum SourceError: LocalizedError {
+    /// No registered source can provide the requested capability yet.
+    case unavailable(String)
     /// The source does not implement an optional capability (carries the capability name).
     case unsupported(String)
     /// A Cloudflare interactive challenge was shown but never completed (dismissed/timed out).
@@ -91,6 +93,8 @@ enum SourceError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
+        case .unavailable(let capability):
+            return "No source is available for \(capability)."
         case .unsupported(let capability):
             return "This source doesn't support \(capability)."
         case .cloudflareUnsolved:
