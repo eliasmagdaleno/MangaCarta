@@ -243,6 +243,35 @@ final class ExtensionDomainSchemaTests: XCTestCase {
         XCTAssertEqual(result.warnings.first?.fieldPath, "items[1].publishedAt")
     }
 
+    func testChapterGroupsAreTrimmedAndOptional() throws {
+        let result = try validator.validateChapters(["items": [
+            ["id": "with-groups", "groups": ["  Alpha  ", "Beta"]],
+            ["id": "without-groups"]
+        ]])
+
+        XCTAssertEqual(result.value[0].groups, ["Alpha", "Beta"])
+        XCTAssertNil(result.value[1].groups)
+        XCTAssertTrue(result.warnings.isEmpty)
+    }
+
+    func testInvalidChapterGroupsAreDroppedWithWarnings() throws {
+        let invalidValues: [Any] = [
+            "not-an-array",
+            ["valid", 7],
+            ["   "],
+            Array(repeating: "group", count: 11),
+            [String(repeating: "x", count: 201)]
+        ]
+
+        for value in invalidValues {
+            let result = try validator.validateChapters(["items": [[
+                "id": "chapter", "groups": value
+            ]]])
+            XCTAssertNil(result.value.first?.groups, "unexpectedly accepted \(value)")
+            XCTAssertEqual(result.warnings.map(\.fieldPath), ["items[0].groups"])
+        }
+    }
+
     func testChaptersDropInvalidItemsWithoutReorderingOrMerging() throws {
         let result = try validator.validateChapters(["items": [
             ["id": "second", "number": "2", "publishedAt": "2026-09-01T12:34:56Z"],
