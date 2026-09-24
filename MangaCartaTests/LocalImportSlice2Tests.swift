@@ -128,6 +128,23 @@ private struct LocalFixture {
     #expect(registry.active?.id == MangaDexSource.sourceID)
 }
 
+@MainActor @Test func localImportViewModelReportsUnreadablePDF() async throws {
+    let fixture = try LocalFixture(); defer { fixture.cleanup() }
+    let pdf = fixture.root.appendingPathComponent("broken.pdf")
+    try Data("not a PDF".utf8).write(to: pdf)
+    let store = LocalLibraryStore(root: fixture.root.appendingPathComponent("library"))
+    let works = WorkStore(directory: fixture.root.appendingPathComponent("works"))
+    let defaults = UserDefaults(suiteName: "local-import-pdf-error-\(UUID().uuidString)")!
+    let registry = SourceRegistry(sources: [LocalSource(store: store)])
+    let library = LibraryStore(defaults: defaults, works: works, registry: registry)
+    let importer = LocalImportViewModel()
+    importer.configure(registry: registry, library: library, works: works)
+
+    await importer.importFilesAndWait([pdf])
+
+    #expect(importer.errors == ["broken.pdf: Could not read this PDF"])
+}
+
 @Suite("LocalImportSlice2Tests")
 struct LocalImportSlice2Tests {
     @Test func importWritesRealPagesAndRecord() async throws { try await localImportWritesRealPagesAndRecord() }

@@ -12,7 +12,8 @@ enum PDFRasterizationError: Error, Equatable {
 struct PDFPageRasterizer: Sendable {
     var longEdge: CGFloat = 2_600
 
-    func rasterize(source: URL, to directory: URL) async throws -> [String] {
+    func rasterize(source: URL, to directory: URL,
+                   progress: (@Sendable (Int, Int) -> Void)? = nil) async throws -> [String] {
         try Task.checkCancellation()
         guard let document = PDFDocument(url: source) else { throw PDFRasterizationError.unreadable }
         if document.isLocked { throw PDFRasterizationError.passwordProtected }
@@ -42,6 +43,7 @@ struct PDFPageRasterizer: Sendable {
                 try data.write(to: file, options: .atomic)
             }
             files.append(name)
+            progress?(index + 1, document.pageCount)
         }
         return files
     }

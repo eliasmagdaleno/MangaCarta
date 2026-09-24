@@ -82,6 +82,10 @@ final class LocalImportViewModel: ObservableObject {
     private static func message(for error: Error) -> String {
         if case LocalImportError.noImages = error { return "No images found" }
         if case LocalImportError.unreadableArchive = error { return "Not a supported archive" }
+        if case LocalImportError.unreadablePDF = error { return "Could not read this PDF" }
+        if case LocalImportError.passwordProtectedPDF = error { return "This PDF is password-protected" }
+        if case LocalImportError.cancelled = error { return "Import cancelled" }
+        if case LocalImportError.insufficientSpace = error { return "Not enough storage available" }
         return error.localizedDescription
     }
 }
