@@ -357,6 +357,7 @@ struct HostHTTPTests {
         let sourceB = QualifiedSourceID(rawValue: "repo/source-b")
         let jar = HostHTTPCookieJar(sourceID: sourceA)
         let resolver = FixedHostResolver(addresses: ["93.184.216.34"])
+        let rateLimiters = HostRateLimiterRegistry()
         let url = try #require(URL(string: "https://allowed.example/start"))
 
         let setCookie = ScriptedHostHTTPTransport { request, _ in
@@ -371,7 +372,8 @@ struct HostHTTPTests {
                                      allowedOrigins: ["https://allowed.example"],
                                      transport: setCookie,
                                      resolver: resolver,
-                                     cookies: jar)
+                                     cookies: jar,
+                                     rateLimiters: rateLimiters)
         _ = try await clientA.request(HostHTTPRequest(url: url))
 
         // Source A gets its own cookie back on a second request.
@@ -385,7 +387,8 @@ struct HostHTTPTests {
                                       allowedOrigins: ["https://allowed.example"],
                                       transport: echoA,
                                       resolver: resolver,
-                                      cookies: jar)
+                                      cookies: jar,
+                                      rateLimiters: rateLimiters)
         _ = try await clientA2.request(HostHTTPRequest(url: url))
         #expect(await echoA.sentCookieHeaders() == ["session=secret"])
 
@@ -400,7 +403,8 @@ struct HostHTTPTests {
                                      allowedOrigins: ["https://allowed.example"],
                                      transport: echoB,
                                      resolver: resolver,
-                                     cookies: jar)
+                                     cookies: jar,
+                                     rateLimiters: rateLimiters)
         _ = try await clientB.request(HostHTTPRequest(url: url))
         #expect(await echoB.sentCookieHeaders() == [nil])
     }
@@ -1008,6 +1012,7 @@ struct HostRateLimiterTests {
         _ = try await (one, two, three)
         let dates = await sleeper.dates()
         #expect(dates.count == 3)
+        #expect(dates.allSatisfy { $0 == Date(timeIntervalSinceReferenceDate: 0) })
     }
 
     @Test("matching path rules add a second budget")
@@ -1024,7 +1029,7 @@ struct HostRateLimiterTests {
         try await registry.reserve(sourceID: source, origin: "https://api.example.com", path: "/other")
         let dates = (await sleeper.dates()).sorted()
         #expect(dates.count == 5)
-        #expect(dates.contains { $0.timeIntervalSinceReferenceDate == 2 })
+        #expect(dates.map(\.timeIntervalSinceReferenceDate) == [0, 0, 1, 2, 2])
     }
 
     @Test("HostHTTP clients for one Source share the registry budget")
@@ -1046,7 +1051,62 @@ struct HostRateLimiterTests {
         async let one = clientA.request(HostHTTPRequest(url: URL(string: "https://example.com/a")!))
         async let two = clientB.request(HostHTTPRequest(url: URL(string: "https://example.com/b")!))
         _ = try await (one, two)
-        #expect((await sleeper.dates()).count == 2)
+        #expect((await sleeper.dates()).sorted().map(\.timeIntervalSinceReferenceDate) == [0, 1])
+    }
+
+    @MainActor
+    @Test("the production host factory retains one shared registry")
+    func factorySharesRegistry() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("HostRateLimiterFactory-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let registry = HostRateLimiterRegistry()
+        let factory = try ExtensionHostCapabilityFactory(
+            directory: directory,
+            transport: ScriptedHostHTTPTransport { request, _ in
+                HostHTTPTransportResponse(statusCode: 200, url: request.url!, headers: [:], body: Data())
+            },
+            resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
+            browserManager: ExtensionBrowserManager(resolver: FixedHostResolver(addresses: ["93.184.216.34"])),
+            diagnosticBuffer: HostDiagnosticBuffer(),
+            rateLimiters: registry)
+        #expect(factory.rateLimiters === registry)
+    }
+
+    @Test("the default MangaDex path rule is 40 requests per minute")
+    func defaultRulesAreMangaDexSpecific() async throws {
+        let sleeper = RecordingRateLimiterSleeper()
+        let registry = HostRateLimiterRegistry(clock: FixedRateLimiterClock(), sleeper: sleeper)
+        let source = QualifiedSourceID(rawValue: "a")
+        try await registry.reserve(sourceID: source, origin: "https://api.mangadex.org", path: "/at-home/server/1")
+        try await registry.reserve(sourceID: source, origin: "https://api.mangadex.org", path: "/at-home/server/2")
+        try await registry.reserve(sourceID: source, origin: "https://api.mangadex.org", path: "/manga")
+        #expect((await sleeper.dates()).sorted().map(\.timeIntervalSinceReferenceDate) == [0, 0, 0.2, 1.5, 1.7])
+    }
+
+    @Test("cancelling a waiter releases its final reservation")
+    func cancellationReleasesSlot() async throws {
+        let sleeper = BlockingRateLimiterSleeper()
+        let limiter = RateLimiter(minimumInterval: 1, clock: FixedRateLimiterClock(), sleeper: sleeper)
+        _ = try await limiter.acquire()
+        let waiting = Task { try await limiter.acquire() }
+        for _ in 0..<10 { await Task.yield() }
+        waiting.cancel()
+        _ = try? await waiting.value
+        _ = try await limiter.acquire()
+        #expect((await sleeper.dates()).map(\.timeIntervalSinceReferenceDate) == [0, 1, 1])
+    }
+
+    @Test("a cancelled middle slot does not collide with a later slot")
+    func middleCancellationPreservesLaterReservation() async throws {
+        let sleeper = RecordingRateLimiterSleeper()
+        let limiter = RateLimiter(minimumInterval: 1, clock: FixedRateLimiterClock(), sleeper: sleeper)
+        _ = try await limiter.acquire()
+        let middle = try await limiter.acquire()
+        _ = try await limiter.acquire()
+        await middle.cancel()
+        _ = try await limiter.acquire()
+        #expect((await sleeper.dates()).map(\.timeIntervalSinceReferenceDate) == [0, 1, 2, 3])
     }
 }
 
@@ -1060,6 +1120,18 @@ private actor RecordingRateLimiterSleeper: RateLimiterSleeper {
     func sleep(until date: Date) async throws {
         try Task.checkCancellation()
         recorded.append(date)
+    }
+
+    func dates() -> [Date] { recorded }
+}
+
+private actor BlockingRateLimiterSleeper: RateLimiterSleeper {
+    private var recorded: [Date] = []
+
+    func sleep(until date: Date) async throws {
+        recorded.append(date)
+        guard date.timeIntervalSinceReferenceDate > 0 else { return }
+        try await Task.sleep(nanoseconds: 10_000_000_000)
     }
 
     func dates() -> [Date] { recorded }

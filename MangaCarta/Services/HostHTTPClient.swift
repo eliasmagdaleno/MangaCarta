@@ -32,13 +32,25 @@ struct HostHTTPClient: Sendable {
          allowedOrigins: [String],
          transport: any HostHTTPTransport = URLSessionHostHTTPTransport(),
          resolver: any HostNameResolving = SystemHostResolver(),
-         rateLimiters: HostRateLimiterRegistry = HostRateLimiterRegistry()) {
+         rateLimiters: HostRateLimiterRegistry) {
         self.init(sourceID: sourceID,
                   allowedOrigins: allowedOrigins,
                   transport: transport,
                   resolver: resolver,
                   cookies: HostHTTPCookieJar(sourceID: sourceID),
                   rateLimiters: rateLimiters)
+    }
+
+    // Test and standalone callers must opt into sharing explicitly through the designated
+    // initializer above; this convenience preserves the old isolated-client API only for
+    // existing policy tests that do not exercise rate limiting.
+    init(sourceID: QualifiedSourceID,
+         allowedOrigins: [String],
+         transport: any HostHTTPTransport = URLSessionHostHTTPTransport(),
+         resolver: any HostNameResolving = SystemHostResolver()) {
+        self.init(sourceID: sourceID, allowedOrigins: allowedOrigins,
+                  transport: transport, resolver: resolver,
+                  rateLimiters: HostRateLimiterRegistry())
     }
 
     /// Takes a jar rather than making one, so a caller serving several Sources can keep each
@@ -50,7 +62,7 @@ struct HostHTTPClient: Sendable {
          transport: any HostHTTPTransport,
          resolver: any HostNameResolving,
          cookies: HostHTTPCookieJar,
-         rateLimiters: HostRateLimiterRegistry = HostRateLimiterRegistry()) {
+         rateLimiters: HostRateLimiterRegistry) {
         policy = HostURLPolicy(allowedOrigins: allowedOrigins, resolver: resolver)
         self.transport = transport
         self.cookies = cookies
@@ -83,8 +95,13 @@ struct HostHTTPClient: Sendable {
             guard let origin = HostURLPolicy.canonicalOrigin(for: url) else {
                 throw HostCapabilityError(code: .policyDenied, message: "the destination origin is invalid")
             }
-            try await rateLimiters.reserve(sourceID: sourceID, origin: origin,
-                                           path: url.path.isEmpty ? "/" : url.path)
+            do {
+                try await rateLimiters.reserve(sourceID: sourceID, origin: origin,
+                                               path: url.path.isEmpty ? "/" : url.path)
+            } catch is CancellationError {
+                throw HostCapabilityError(code: .cancelled,
+                                          message: "the HTTP request was cancelled")
+            }
             let response = try await send(request)
             if let peer = response.connectedPeerAddress, !HostIPAddress.isPublic(peer) {
                 throw HostCapabilityError(code: .policyDenied,

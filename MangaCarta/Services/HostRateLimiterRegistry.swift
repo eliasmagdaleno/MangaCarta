@@ -14,6 +14,11 @@ struct HostRateLimitRule: Sendable, Equatable {
 
 /// Owns one origin limiter and zero or more path limiters for each Source.
 actor HostRateLimiterRegistry {
+    private struct LimiterKey: Hashable, Sendable {
+        let sourceID: QualifiedSourceID
+        let origin: String
+        let pathPrefix: String?
+    }
     static let defaultInterval: TimeInterval = 0.2
     static let defaultRules = [HostRateLimitRule(origin: "https://api.mangadex.org",
                                                   pathPrefix: "/at-home/server",
@@ -23,7 +28,7 @@ actor HostRateLimiterRegistry {
     private let rules: [HostRateLimitRule]
     private let clock: any RateLimiterClock
     private let sleeper: any RateLimiterSleeper
-    private var limiters: [String: RateLimiter] = [:]
+    private var limiters: [LimiterKey: RateLimiter] = [:]
 
     init(defaultInterval: TimeInterval = HostRateLimiterRegistry.defaultInterval,
          rules: [HostRateLimitRule] = HostRateLimiterRegistry.defaultRules,
@@ -36,15 +41,19 @@ actor HostRateLimiterRegistry {
     }
 
     func reserve(sourceID: QualifiedSourceID, origin: String, path: String) async throws {
-        let originLimiter = limiter(key: "(sourceID.rawValue)|(origin)", interval: defaultInterval)
+        let matchingRules = rules.filter { $0.origin == origin && path.hasPrefix($0.pathPrefix) }
         var reservations: [RateLimiterReservation] = []
         do {
-            reservations.append(try await originLimiter.acquire())
-            for rule in rules where rule.origin == origin && path.hasPrefix(rule.pathPrefix) {
-                let pathLimiter = limiter(key: "(sourceID.rawValue)|(origin)|(rule.pathPrefix)",
-                                          interval: rule.interval)
+            // Reserve the stricter path budget first, so a request waiting on it does not
+            // consume an origin slot that cannot yet be used.
+            for rule in matchingRules {
+                let pathLimiter = limiter(sourceID: sourceID, origin: origin,
+                                          pathPrefix: rule.pathPrefix, interval: rule.interval)
                 reservations.append(try await pathLimiter.acquire())
             }
+            let originLimiter = limiter(sourceID: sourceID, origin: origin,
+                                        pathPrefix: nil, interval: defaultInterval)
+            reservations.append(try await originLimiter.acquire())
             try Task.checkCancellation()
         } catch {
             for reservation in reservations { await reservation.cancel() }
@@ -52,7 +61,9 @@ actor HostRateLimiterRegistry {
         }
     }
 
-    private func limiter(key: String, interval: TimeInterval) -> RateLimiter {
+    private func limiter(sourceID: QualifiedSourceID, origin: String,
+                         pathPrefix: String?, interval: TimeInterval) -> RateLimiter {
+        let key = LimiterKey(sourceID: sourceID, origin: origin, pathPrefix: pathPrefix)
         if let existing = limiters[key] { return existing }
         let created = RateLimiter(minimumInterval: interval, clock: clock, sleeper: sleeper)
         limiters[key] = created

@@ -50,10 +50,11 @@ actor RateLimiter {
     }
 
     fileprivate func release(slot: Date) {
-        // Reservations are ordered, so returning one slot moves the frontier back by
-        // exactly one interval. Clamp to now when another waiter is already due.
+        // Only the final reservation can be removed without colliding with a later
+        // reservation that is already in flight.
         guard let nextSlot else { return }
-        self.nextSlot = max(clock.now(), nextSlot.addingTimeInterval(-minimumInterval))
+        guard slot.addingTimeInterval(minimumInterval) == nextSlot else { return }
+        self.nextSlot = max(clock.now(), slot)
     }
 }
 

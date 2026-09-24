@@ -470,11 +470,11 @@ final class ExtensionHostCapabilityFactory {
 
     private let transport: any HostHTTPTransport
     private let resolver: any HostNameResolving
-    private let rateLimiters: HostRateLimiterRegistry
+    let rateLimiters: HostRateLimiterRegistry
     private var cookieJars: [QualifiedSourceID: HostHTTPCookieJar] = [:]
 
     convenience init(directory: URL,
-                     rateLimiters: HostRateLimiterRegistry = HostRateLimiterRegistry()) throws {
+                     rateLimiters: HostRateLimiterRegistry) throws {
         try self.init(directory: directory,
                       transport: URLSessionHostHTTPTransport(),
                       resolver: SystemHostResolver(),
@@ -488,7 +488,7 @@ final class ExtensionHostCapabilityFactory {
          resolver: any HostNameResolving,
          browserManager: ExtensionBrowserManager,
          diagnosticBuffer: HostDiagnosticBuffer,
-         rateLimiters: HostRateLimiterRegistry = HostRateLimiterRegistry()) throws {
+         rateLimiters: HostRateLimiterRegistry) throws {
         storageRepository = try HostStorageRepository(directory: directory)
         self.transport = transport
         self.resolver = resolver
