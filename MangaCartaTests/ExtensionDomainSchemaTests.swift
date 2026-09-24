@@ -253,6 +253,11 @@ final class ExtensionDomainSchemaTests: XCTestCase {
         XCTAssertEqual(result.value[0].toChapter().groups, ["Alpha", "Beta"])
         XCTAssertNil(result.value[1].groups)
         XCTAssertTrue(result.warnings.isEmpty)
+
+        let tenGroups = try validator.validateChapters(["items": [[
+            "id": "ten-groups", "groups": Array(repeating: "group", count: 10)
+        ]]])
+        XCTAssertEqual(tenGroups.value.first?.groups?.count, 10)
     }
 
     func testChapterDecodesCachedJSONWithoutGroups() throws {
