@@ -129,6 +129,14 @@ actor LocalLibraryStore {
         return fm.fileExists(atPath: url.path) ? url : nil
     }
 
+    func itemSize(itemId: String) -> Int {
+        let item = root.appendingPathComponent(itemId)
+        return (fm.enumerator(at: item, includingPropertiesForKeys: [.fileSizeKey])?.compactMap { value in
+            guard let url = value as? URL else { return nil }
+            return try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize
+        }.reduce(0, +)) ?? 0
+    }
+
     func delete(itemId: String) throws {
         try fm.removeItem(at: root.appendingPathComponent(itemId))
     }

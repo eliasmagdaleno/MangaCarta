@@ -468,9 +468,8 @@ struct MangaDetailView: View {
     }
 
     private func loadLocalSize() async {
-        guard isLocalManga, let source = mangaSource as? LocalSource,
-              let record = await source.store.record(itemId: manga.id) else { return }
-        let megabytes = Double(record.byteSize) / 1_048_576
+        guard isLocalManga, let source = mangaSource as? LocalSource else { return }
+        let megabytes = Double(await source.store.itemSize(itemId: manga.id)) / 1_048_576
         localSizeText = String(format: "%.1f MB", megabytes)
     }
 
