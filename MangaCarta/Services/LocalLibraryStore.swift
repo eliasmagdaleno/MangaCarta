@@ -81,13 +81,16 @@ actor LocalLibraryStore {
                     title: group.0 == "Root" ? title : group.0,
                     pageCount: files.count, pageFiles: files))
             }
-            guard let first = storedChapters.first, let firstFile = first.pageFiles.first else { throw LocalImportError.noImages }
-            let firstURL = item.appendingPathComponent("pages/1").appendingPathComponent(firstFile)
-            guard let image = UIImage(contentsOfFile: firstURL.path),
-                  let data = image.jpegData(compressionQuality: 0.9) else {
-                throw LocalImportError.noImages
+            for chapter in storedChapters {
+                for pageFile in chapter.pageFiles {
+                    let pageURL = item.appendingPathComponent("pages/\(chapter.number)").appendingPathComponent(pageFile)
+                    guard let image = UIImage(contentsOfFile: pageURL.path),
+                          let data = image.jpegData(compressionQuality: 0.9) else { continue }
+                    try data.write(to: item.appendingPathComponent("cover.jpg"), options: .atomic)
+                    break
+                }
+                if fm.fileExists(atPath: item.appendingPathComponent("cover.jpg").path) { break }
             }
-            try data.write(to: item.appendingPathComponent("cover.jpg"), options: .atomic)
             let record = LocalItemRecord(itemId: itemId, title: title, sourceFilename: source.lastPathComponent,
                 sha256: hash, byteSize: bytes.count, importedAt: Date(), chapters: storedChapters)
             let encoded = try JSONEncoder().encode(record)

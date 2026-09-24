@@ -27,6 +27,21 @@ struct LocalLibraryStoreTests {
         #expect(itemDirectories(at: root.appendingPathComponent("library")).count == 1)
     }
 
+    @Test func invalidFirstPageFallsBackToNextDecodableCover() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let invalidPNG = Data([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0])
+        let url = try archive(root: root, files: [("001.png", invalidPNG), ("002.png", LocalTestZip.png)])
+        let store = LocalLibraryStore(root: root.appendingPathComponent("library"))
+
+        guard case .imported(let record) = try await store.importArchive(at: url) else {
+            Issue.record("expected import")
+            return
+        }
+        #expect(await store.coverURL(itemId: record.itemId) != nil)
+    }
+
     @Test func failedExtractionLeavesNoItemAndEmptyStaging() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }
