@@ -10,7 +10,7 @@ struct PDFImportTests {
     @Test func threePagePDFImportsRenderedPagesInOrderWithCoverAndNoRetainedPDF() async throws {
         let root = try testRoot()
         defer { try? FileManager.default.removeItem(at: root) }
-        let pdf = root.appendingPathComponent("sample.pdf")
+        let pdf = root.appendingPathComponent("sample")
         try makePDF(at: pdf, pageCount: 3)
         let library = root.appendingPathComponent("library")
         let store = LocalLibraryStore(root: library)
@@ -27,13 +27,22 @@ struct PDFImportTests {
             let image = try #require(CGImageSourceCreateWithURL(page as CFURL, nil)
                 .flatMap { CGImageSourceCreateImageAtIndex($0, 0, nil) })
             let expected = UIColor(hue: CGFloat(index) / 3, saturation: 0.35, brightness: 1, alpha: 1)
-            #expect(centerColor(of: image).distance(to: expected) < 0.15)
+            #expect(rgbaImage(from: image).pixel(at: CGPoint(x: image.width / 2, y: image.height / 2))
+                .distance(to: expected) < 0.15)
+            let rendered = rgbaImage(from: image)
+            #expect(rendered.pixel(at: CGPoint(x: image.width / 2, y: 10)).distance(to: .red) < 0.2)
+            #expect(rendered.pixel(at: CGPoint(x: 10, y: image.height / 2)).distance(to: .blue) < 0.2)
+            #expect(rendered.pixel(at: CGPoint(x: image.width / 2, y: image.height - 10)).distance(to: expected) < 0.2)
             #expect(max(image.width, image.height) == 2_600)
             #expect(abs(Double(image.width) / Double(image.height) - 0.75) < 0.01)
         }
         #expect(await store.coverURL(itemId: record.itemId) != nil)
+        let cover = try #require(await store.coverURL(itemId: record.itemId))
+        let coverImage = try #require(CGImageSourceCreateWithURL(cover as CFURL, nil)
+            .flatMap { CGImageSourceCreateImageAtIndex($0, 0, nil) })
+        #expect(max(coverImage.width, coverImage.height) == 512)
         #expect(!FileManager.default.fileExists(atPath: library.appendingPathComponent(record.itemId)
-            .appendingPathComponent("sample.pdf").path))
+            .appendingPathComponent("sample").path))
     }
 
     @Test func rotatedPDFPageImportsAsLandscape() async throws {
@@ -49,6 +58,10 @@ struct PDFImportTests {
         let page = try #require(await store.pageURLs(itemId: record.itemId, chapter: 1).first)
         let image = try #require(CGImageSourceCreateWithURL(page as CFURL, nil)
             .flatMap { CGImageSourceCreateImageAtIndex($0, 0, nil) })
+        let rendered = rgbaImage(from: image)
+        #expect(rendered.pixel(at: CGPoint(x: 10, y: image.height / 2)).distance(to: .red) < 0.2)
+        #expect(rendered.pixel(at: CGPoint(x: image.width / 2, y: 10)).distance(to: .blue) < 0.2)
+        #expect(rendered.pixel(at: CGPoint(x: image.width - 10, y: image.height / 2)).distance(to: .red) < 0.2)
         #expect(image.width > image.height)
         #expect(max(image.width, image.height) == 2_600)
     }
@@ -63,7 +76,7 @@ struct PDFImportTests {
         let empty = root.appendingPathComponent("empty.pdf")
         try makeZeroPagePDF(at: empty)
         await #expect(throws: LocalImportError.unreadablePDF) { try await store.importArchive(at: corrupt) }
-        await #expect(throws: Error.self) { try await store.importArchive(at: empty) }
+        await #expect(throws: LocalImportError.unreadablePDF) { try await store.importArchive(at: empty) }
         #expect(await store.allRecords().isEmpty)
         try assertLibraryIsEmpty(library)
     }
@@ -78,7 +91,7 @@ struct PDFImportTests {
                                                        PDFDocumentWriteOption.userPasswordOption: "user"]))
         let library = root.appendingPathComponent("library")
         let store = LocalLibraryStore(root: library)
-        await #expect(throws: LocalImportError.unreadablePDF) { try await store.importArchive(at: pdf) }
+        await #expect(throws: LocalImportError.passwordProtectedPDF) { try await store.importArchive(at: pdf) }
         #expect(await store.allRecords().isEmpty)
         try assertLibraryIsEmpty(library)
     }
@@ -97,6 +110,10 @@ struct PDFImportTests {
                 UIColor(hue: CGFloat(index) / CGFloat(max(pageCount, 1)), saturation: 0.35,
                         brightness: 1, alpha: 1).setFill()
                 UIRectFill(CGRect(x: 0, y: 0, width: 300, height: 400))
+                UIColor.red.setFill()
+                UIRectFill(CGRect(x: 0, y: 0, width: 300, height: 100))
+                UIColor.blue.setFill()
+                UIRectFill(CGRect(x: 0, y: 0, width: 40, height: 400))
             }
         }
         try data.write(to: url)
@@ -132,11 +149,29 @@ private extension UIColor {
     }
 }
 
-private func centerColor(of image: CGImage) -> UIColor {
-    let x = image.width / 2
-    let y = image.height / 2
-    guard let data = image.dataProvider?.data, let bytes = CFDataGetBytePtr(data) else { return .black }
-    let index = y * image.bytesPerRow + x * 4
-    return UIColor(red: CGFloat(bytes[index]) / 255, green: CGFloat(bytes[index + 1]) / 255,
-                   blue: CGFloat(bytes[index + 2]) / 255, alpha: 1)
+private struct RGBAImage {
+    let width: Int
+    let height: Int
+    let bytes: [UInt8]
+
+    func pixel(at point: CGPoint) -> UIColor {
+        let x = min(width - 1, max(0, Int(point.x)))
+        let y = min(height - 1, max(0, Int(point.y)))
+        let index = (y * width + x) * 4
+        return UIColor(red: CGFloat(bytes[index]) / 255, green: CGFloat(bytes[index + 1]) / 255,
+                       blue: CGFloat(bytes[index + 2]) / 255, alpha: CGFloat(bytes[index + 3]) / 255)
+    }
+}
+
+private func rgbaImage(from image: CGImage) -> RGBAImage {
+    var bytes = [UInt8](repeating: 0, count: image.width * image.height * 4)
+    bytes.withUnsafeMutableBytes { buffer in
+        guard let baseAddress = buffer.baseAddress,
+              let context = CGContext(data: baseAddress, width: image.width, height: image.height,
+                                       bitsPerComponent: 8, bytesPerRow: image.width * 4,
+                                       space: CGColorSpaceCreateDeviceRGB(),
+                                       bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return }
+        context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+    }
+    return RGBAImage(width: image.width, height: image.height, bytes: bytes)
 }

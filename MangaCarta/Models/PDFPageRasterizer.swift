@@ -4,7 +4,7 @@ import UIKit
 
 enum PDFRasterizationError: Error, Equatable {
     case unreadable
-    case empty
+    case passwordProtected
     case pageUnreadable(Int)
 }
 
@@ -14,8 +14,9 @@ struct PDFPageRasterizer: Sendable {
 
     func rasterize(source: URL, to directory: URL) async throws -> [String] {
         try Task.checkCancellation()
-        guard let document = PDFDocument(url: source), !document.isLocked,
-              document.pageCount > 0 else { throw PDFRasterizationError.unreadable }
+        guard let document = PDFDocument(url: source) else { throw PDFRasterizationError.unreadable }
+        if document.isLocked { throw PDFRasterizationError.passwordProtected }
+        guard document.pageCount > 0 else { throw PDFRasterizationError.unreadable }
         let fileManager = FileManager.default
         try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
         var files: [String] = []

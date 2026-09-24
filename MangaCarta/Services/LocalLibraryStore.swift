@@ -11,6 +11,8 @@ enum LocalImportError: Error, Equatable {
     case noImages
     case unreadableArchive(ZipArchiveError)
     case unreadablePDF
+    case passwordProtectedPDF
+    case cancelled
     case insufficientSpace
 }
 
@@ -44,14 +46,13 @@ actor LocalLibraryStore {
                 return .duplicate(itemId: itemId)
             }
             let title = source.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " ")
-            if source.pathExtension.caseInsensitiveCompare("pdf") == .orderedSame {
+            let isPDF = bytes.starts(with: Data("%PDF-".utf8))
+            if isPDF {
                 do {
                     let pageDir = item.appendingPathComponent("pages/1")
                     let files = try await PDFPageRasterizer().rasterize(source: archive, to: pageDir)
-                    guard let firstFile = files.first else { throw LocalImportError.noImages }
-                    try fm.createDirectory(at: item, withIntermediateDirectories: true)
-                    try fm.copyItem(at: pageDir.appendingPathComponent(firstFile),
-                                    to: item.appendingPathComponent("cover.jpg"))
+                    guard let firstFile = files.first else { throw PDFRasterizationError.unreadable }
+                    try writeCover(from: pageDir.appendingPathComponent(firstFile), to: item.appendingPathComponent("cover.jpg"))
                     let chapter = LocalChapter(number: 1, title: title, pageCount: files.count, pageFiles: files)
                     let record = LocalItemRecord(itemId: itemId, title: title, sourceFilename: source.lastPathComponent,
                         sha256: hash, byteSize: bytes.count, importedAt: Date(), chapters: [chapter])
@@ -65,8 +66,13 @@ actor LocalLibraryStore {
                     try fm.moveItem(at: item, to: destination)
                     try? fm.removeItem(at: staging)
                     return .imported(record)
-                } catch is PDFRasterizationError {
+                } catch is CancellationError {
+                    throw LocalImportError.cancelled
+                } catch let error as PDFRasterizationError {
+                    if error == .passwordProtected { throw LocalImportError.passwordProtectedPDF }
                     throw LocalImportError.unreadablePDF
+                } catch {
+                    throw isOutOfSpace(error) ? LocalImportError.insufficientSpace : LocalImportError.unreadablePDF
                 }
             }
             let reader: ZipArchiveReader
@@ -155,5 +161,25 @@ actor LocalLibraryStore {
 
     func delete(itemId: String) throws {
         try fm.removeItem(at: root.appendingPathComponent(itemId))
+    }
+
+    private func writeCover(from source: URL, to destination: URL) throws {
+        guard let image = UIImage(contentsOfFile: source.path), let cgImage = image.cgImage else {
+            throw PDFRasterizationError.pageUnreadable(0)
+        }
+        let scale = min(1, 512 / max(CGFloat(cgImage.width), CGFloat(cgImage.height)))
+        let size = CGSize(width: max(1, floor(CGFloat(cgImage.width) * scale)),
+                          height: max(1, floor(CGFloat(cgImage.height) * scale)))
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let thumbnail = UIGraphicsImageRenderer(size: size, format: format).image { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
+        guard let data = thumbnail.jpegData(compressionQuality: 0.9) else { throw PDFRasterizationError.pageUnreadable(0) }
+        try data.write(to: destination, options: .atomic)
+    }
+
+    private func isOutOfSpace(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        return nsError.domain == NSCocoaErrorDomain && nsError.code == NSFileWriteOutOfSpaceError
     }
 }
