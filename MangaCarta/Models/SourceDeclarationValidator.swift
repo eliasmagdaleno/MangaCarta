@@ -694,10 +694,7 @@ enum DeclaredOrigin {
             guard host == "*.\(suffix)", !suffix.contains("*"), labels.count >= 2 else {
                 return .rejected("wildcards must be one leftmost label over at least two host labels")
             }
-            // Foundation has no public-suffix-list API. Keep a small deny-list for the
-            // public/shared suffixes that would otherwise make this a broad escape hatch.
-            let denied = ["com", "net", "org", "co.uk", "github.io", "cloudfront.net"]
-            guard !denied.contains(suffix) else {
+            guard !PublicSuffixList.suffixes.contains(suffix) else {
                 return .rejected("wildcards may not cover a public or shared-hosting suffix")
             }
         } else if host.contains("*") {
