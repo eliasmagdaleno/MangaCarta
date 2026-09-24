@@ -78,9 +78,7 @@ final class LocalImportViewModel: ObservableObject {
     /// asynchronous importer used by the Files picker and waits for every result.
     func importFilesAndWait(_ urls: [URL]) async {
         importFiles(urls)
-        while isImporting {
-            await Task.yield()
-        }
+        await task?.value
     }
 
     func cancel() { task?.cancel() }
