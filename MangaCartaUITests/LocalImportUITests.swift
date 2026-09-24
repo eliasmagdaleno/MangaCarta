@@ -8,6 +8,7 @@ final class LocalImportUITests: XCTestCase {
 
     func testImportReadAndDelete() throws {
         let empty = XCUIApplication()
+        empty.launchArguments.append("-uitest-local-import")
         empty.launch()
         XCTAssertTrue(empty.tabBars.buttons["Library"].waitForExistence(timeout: 10))
         empty.tabBars.buttons["Library"].tap()
@@ -19,7 +20,7 @@ final class LocalImportUITests: XCTestCase {
         empty.terminate()
 
         let app = XCUIApplication()
-        app.launchArguments += ["-uitest-import-fixture", "deflated"]
+        app.launchArguments += ["-uitest-local-import", "-uitest-import-fixture", "deflated"]
         app.launchEnvironment["MANGACARTA_UI_FIXTURE_BASE64"] = Self.fixtureBase64
         app.launch()
         app.tabBars.buttons["Library"].tap()

@@ -66,7 +66,16 @@ struct MangaCartaApp: App {
         var updateRegistry: SourceRegistry?
         var repositoryTransport: (any RepositoryTransport)?
 #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("-uitest-mal-signed-out") {
+        if ProcessInfo.processInfo.arguments.contains("-uitest-local-import") {
+            let suite = "local-import-ui-test"
+            defaults = UserDefaults(suiteName: suite)!
+            defaults.removePersistentDomain(forName: suite)
+            directory = FileManager.default.temporaryDirectory
+                .appendingPathComponent("MangaCarta-LocalImportUITest", isDirectory: true)
+            try? FileManager.default.removeItem(at: directory)
+            let local = LocalLibraryStore(root: directory.appendingPathComponent("LocalLibrary"))
+            updateRegistry = SourceRegistry(sources: [MangaDexSource(), LocalSource(store: local)])
+        } else if ProcessInfo.processInfo.arguments.contains("-uitest-mal-signed-out") {
             (ephemeralCredentials, ephemeralPreferences) = AppComposition.ephemeralMALAccount()
         } else if let state = Self.uiTestAccountState {
             // The other account states, on the same ephemeral stores and for the same
