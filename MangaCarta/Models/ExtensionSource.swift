@@ -140,6 +140,10 @@ final class ExtensionSource: MangaSource {
 
     var supportsTagBrowse: Bool { declaration.capabilities.supports(.tagBrowse) }
 
+    var homeFeedCapabilities: Set<SourceOperation> {
+        Set(SourceOperation.discoveryFeeds.filter { declaration.capabilities.supports($0) })
+    }
+
     var imagePrefetchConcurrency: Int {
         declaration.presentation.imagePrefetchConcurrencyHint ?? 5
     }

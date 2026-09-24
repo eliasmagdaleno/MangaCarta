@@ -55,10 +55,6 @@ final class MALEntityResolver {
             .map { MALCandidate(malId: $0.id, titles: $0.allTitles) }
     }
 
-    static let liveBridgeSearch: BridgeSearch = { title in
-        try await MangaDexAPI.searchManga(title: title)
-    }
-
     /// A bridge that finds nothing, for tests about the MAL round.
     ///
     /// The default above is live, matching `search`'s existing precedent so the app is
@@ -72,13 +68,29 @@ final class MALEntityResolver {
          matcher: MALTitleMatcher = .init(),
          titleSearchLimit: Int = 3,
          search: @escaping Search = MALEntityResolver.liveSearch,
-         bridgeSearch: @escaping BridgeSearch = MALEntityResolver.liveBridgeSearch) {
+         bridgeSearch: BridgeSearch? = nil,
+         source: @escaping () -> MangaSource?) {
         self.store = store
         self.matcher = matcher
         self.titleSearchLimit = titleSearchLimit
         self.search = search
-        self.bridgeSearch = bridgeSearch
+        self.bridgeSearch = bridgeSearch ?? { title in
+            guard let source = source() else { throw SourceError.unavailable("external id bridge") }
+            return try await source.search(title: title, limit: 10, offset: 0)
+        }
     }
+
+#if DEBUG
+    /// Test-only convenience for tests that stub both catalogue searches directly.
+    convenience init(store: EntityResolutionStore,
+                     matcher: MALTitleMatcher = .init(),
+                     titleSearchLimit: Int = 3,
+                     search: @escaping Search = MALEntityResolver.liveSearch,
+                     bridgeSearch: BridgeSearch? = nil) {
+        self.init(store: store, matcher: matcher, titleSearchLimit: titleSearchLimit,
+                  search: search, bridgeSearch: bridgeSearch, source: { nil })
+    }
+#endif
 
     /// The canonical MAL id for a **Work**, or nil if nothing matched with confidence.
     ///
@@ -161,7 +173,7 @@ final class MALEntityResolver {
     /// source needs no registration to be bridgeable, and this composes with ADR-0018
     /// instead of duplicating what it knows.
     private static func isBridgeable(_ work: Work) -> Bool {
-        !work.listings.contains { $0.sourceId == MangaDexSource.sourceID }
+        !work.listings.contains { $0.sourceId == LegacySourceID.unattributed }
     }
 
     /// Resolves through MangaDex: search it by title, and take `links.mal` off the entry
@@ -297,7 +309,7 @@ final class MALEntityResolver {
             //    get bridged through MangaDex. Step 1 above already returned if it carried
             //    `links.mal`, so reaching here means MangaDex published none — searching it
             //    again asks a question it has already answered.
-            guard manga.sourceId != MangaDexSource.sourceID else {
+            guard manga.sourceId != LegacySourceID.unattributed else {
                 store.record(sourceId: manga.sourceId, mangaId: manga.id, .unresolved(checkedAt: Date()))
                 return nil
             }

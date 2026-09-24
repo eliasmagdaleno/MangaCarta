@@ -22,6 +22,9 @@ protocol MangaSource {
     var name: String { get }
     /// Whether this source serves adult content. Gated behind a Settings toggle.
     var isNSFW: Bool { get }
+    /// Whether this source publishes external ids (for example MAL ids) that can be
+    /// used by cross-catalogue resolution.
+    var publishesExternalIds: Bool { get }
 
     /// Search the source by title. Results carry `coverURL` and `sourceId`.
     func search(title: String, limit: Int, offset: Int) async throws -> [Manga]
@@ -45,6 +48,8 @@ protocol MangaSource {
     func latestUpdates(limitTitles: Int, language: String, offset: Int) async throws -> [MangaUpdate]
     /// Enriched metadata for a single manga.
     func mangaDetail(id: String) async throws -> MangaDetail
+    /// Fetch a listing by source id when the source supports id-based lookup.
+    func manga(id: String) async throws -> Manga?
     /// The readable chapter list for a manga.
     func chapters(mangaId: String) async throws -> [Chapter]
     /// The per-page image URLs for a chapter.
@@ -62,15 +67,28 @@ protocol MangaSource {
 
     /// Titles for the three Home browse rails: [popular, latest-updates, new-titles].
     var homeRailTitles: [String] { get }
+    /// The Home feeds this source declares. Undeclared feeds have no rail and are not
+    /// loaded. Built-in sources use the default, while extension sources derive this
+    /// from their declaration's capabilities.
+    var homeFeedCapabilities: Set<SourceOperation> { get }
     /// Eyebrow labels above the rail titles, describing how each feed is actually
     /// ordered (e.g. "Top rated"). Empty (the default) hides the eyebrows.
     var homeRailEyebrows: [String] { get }
     /// Whether the middle (latest-updates) rail shows the tinted "NEW" badge.
     var latestRailShowsNewBadge: Bool { get }
+
+    /// Whether this source participates in browse/search surfaces. This must be a
+    /// protocol requirement so overrides dispatch through `any MangaSource`.
+    var isBrowsable: Bool { get }
+    /// Whether refresh, metadata upgrades, and external progress sync may query it.
+    var participatesInUpdates: Bool { get }
+
 }
 
 /// Errors common to the source layer (distinct from a source's own transport errors).
 enum SourceError: LocalizedError {
+    /// No registered source can provide the requested capability yet.
+    case unavailable(String)
     /// The source does not implement an optional capability (carries the capability name).
     case unsupported(String)
     /// A Cloudflare interactive challenge was shown but never completed (dismissed/timed out).
@@ -82,6 +100,8 @@ enum SourceError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
+        case .unavailable(let capability):
+            return "No source is available for \(capability)."
         case .unsupported(let capability):
             return "This source doesn't support \(capability)."
         case .cloudflareUnsolved:
@@ -100,7 +120,12 @@ enum SourceError: LocalizedError {
 /// a "new titles" or "latest updates" feed simply doesn't implement these and callers get
 /// a clear `SourceError.unsupported` instead of a crash. MangaDex overrides all of them.
 extension MangaSource {
+    var isBrowsable: Bool { true }
+    var participatesInUpdates: Bool { true }
     var isNSFW: Bool { false }
+    var publishesExternalIds: Bool { false }
+
+    func manga(id: String) async throws -> Manga? { nil }
 
     var supportsTagBrowse: Bool { false }
 
@@ -127,6 +152,7 @@ extension MangaSource {
     func webURL(forManga id: String) async throws -> URL? { nil }
 
     var homeRailTitles: [String] { ["Popular", "Recently Updated", "Newly Added"] }
+    var homeFeedCapabilities: Set<SourceOperation> { Set(SourceOperation.discoveryFeeds) }
     var homeRailEyebrows: [String] { [] }
     /// Whether the middle (latest-updates) rail shows the tinted "NEW" badge.
     var latestRailShowsNewBadge: Bool { true }

@@ -23,10 +23,19 @@ private struct ExtensionCompositionEnvironmentKey: EnvironmentKey {
     static let defaultValue: AppComposition.ExtensionComposition? = nil
 }
 
+private struct ExtensionStorageErrorEnvironmentKey: EnvironmentKey {
+    static let defaultValue: String? = nil
+}
+
 extension EnvironmentValues {
     var extensionComposition: AppComposition.ExtensionComposition? {
         get { self[ExtensionCompositionEnvironmentKey.self] }
         set { self[ExtensionCompositionEnvironmentKey.self] = newValue }
+    }
+
+    var extensionStorageError: String? {
+        get { self[ExtensionStorageErrorEnvironmentKey.self] }
+        set { self[ExtensionStorageErrorEnvironmentKey.self] = newValue }
     }
 }
 
@@ -75,6 +84,7 @@ struct AppComposition {
     /// current. It is held here so the registrar, the installer and the store live for
     /// the app's lifetime and so a test can drive an install through the real graph.
     let extensions: ExtensionComposition?
+    let extensionStorageError: String?
 
     /// The extension subsystem's four owners, built together because they share one
     /// `SourceLifecycleRegistry`: the installer drives it, the registrar mirrors it.
@@ -235,6 +245,10 @@ struct AppComposition {
          registry: SourceRegistry? = nil,
          repositoryTransport: (any RepositoryTransport)? = nil) {
         WeebCentralIdentityMigration.run(directory: directory, defaults: defaults)
+        let resolvedRegistry = registry ?? .shared
+        let resolvedMALResolver = malResolver ?? MALEntityResolver(
+            store: .shared,
+            source: { resolvedRegistry.externalIdSource })
         // Built first: the three commitment paths below (read, save, feedback) all
         // mint into it, so they must share this one instance (ADR-0007).
         let wk = WorkStore(directory: directory)
@@ -321,7 +335,7 @@ struct AppComposition {
         // in any of those entry points visible to AppCompositionTests.
         let updateState = UpdateStateStore(directory: directory, works: wk)
         let refreshCoordinator = LibraryRefreshCoordinator(
-            works: wk, library: lib, history: hist, updates: updateState, registry: registry)
+            works: wk, library: lib, history: hist, updates: updateState, registry: resolvedRegistry)
         lib.configureRefreshCoordinator(refreshCoordinator)
         let updateNotifier = UpdateNotifier(updates: updateState, works: wk, library: lib,
                                             defaults: defaults)
@@ -355,9 +369,11 @@ struct AppComposition {
         // a Work whose external ids it just learned, and the coordinator decides what that
         // is worth (Task 9 of the MAL plan).
         let upgrades = MetadataUpgradeQueue(works: wk, anilist: anilist, rateLimiter: limiter,
-                                            resolver: malResolver, memory: memory,
+                                            resolver: resolvedMALResolver, memory: memory,
                                             workMetadataChanged: { [weak malProgress] id in
                                                 malProgress?.workMetadataChanged(id)
+                                             }, listingParticipates: { [resolvedRegistry] key in
+                                                 resolvedRegistry.source(id: key.sourceId)?.participatesInUpdates ?? true
                                             })
 
         let vocab = TagVocabularyStore(fetch: { try await limiter.run { try await anilist.tagVocabulary() } })
@@ -367,6 +383,7 @@ struct AppComposition {
         // building a profile, and building one mints Works (ADR-0009).
         let rec = RecommendationEngine(
             history: hist, library: lib, profileStore: ts, workStore: wk,
+            source: { resolvedRegistry.externalIdSource },
             // The third pool (ADR-0011 slice 4). `makeProvider` runs on every rail build, so
             // the provider *struct* is rebuilt each time — that is fine and deliberate, it is
             // a few closures over two actor references. Only the actors need identity, and
@@ -376,10 +393,11 @@ struct AppComposition {
                 // has a single implementation (ADR-0011). It needs no identity of its own —
                 // all its durable state is in `EntityResolutionStore.shared` — so unlike
                 // the two actors above, rebuilding it per rail build would also be correct.
-                let reverse = MALReverseResolver()
+                let reverse = MALReverseResolver(source: { resolvedRegistry.externalIdSource })
                 return CompositeCandidateProvider(
                     tag: TagCandidateProvider(source: source),
-                    mal: MALCandidateProvider(similar: MoreLikeThisProvider(reverse: reverse)),
+                    mal: MALCandidateProvider(similar: MoreLikeThisProvider(
+                        reverse: reverse, source: { resolvedRegistry.externalIdSource })),
                     ani: AniListCandidateProvider(
                         // Hops to the `@MainActor` `WorkStore`; the provider deliberately
                         // is not main-actor-isolated. Same one-way shape as `PriorityPush`.
@@ -420,13 +438,14 @@ struct AppComposition {
         self.account = accountStore
         self.malProgress = malProgress
         self.malOutbox = outbox
-        self.registry = registry ?? .shared
+        self.registry = resolvedRegistry
         (self.listingCounts, self.sourcePreferences, self.fulfillment) =
             Self.makeFulfillment(works: wk, registry: self.registry, defaults: defaults)
-        let extensions = Self.makeExtensions(directory: directory,
-                                              transport: repositoryTransport,
-                                              registry: self.registry)
-        self.extensions = extensions
+        let extensionResult = Self.makeExtensions(directory: directory,
+                                                   transport: repositoryTransport,
+                                                   registry: self.registry)
+        self.extensions = extensionResult.composition
+        self.extensionStorageError = extensionResult.error
     }
 
     /// The installed-Source subsystem (Phase 4). Restores every installed Source from
@@ -438,8 +457,13 @@ struct AppComposition {
         directory: URL,
         transport: (any RepositoryTransport)?,
         registry: SourceRegistry
-    ) -> ExtensionComposition? {
-        guard let host = try? ExtensionHostCapabilityFactory(directory: directory) else { return nil }
+    ) -> (composition: ExtensionComposition?, error: String?) {
+        let host: ExtensionHostCapabilityFactory
+        do {
+            host = try ExtensionHostCapabilityFactory(directory: directory)
+        } catch {
+            return (nil, "Installed Sources could not be read. Nothing was removed.")
+        }
         let repositories = RepositoryStore(directory: directory)
         let lifecycle = SourceLifecycleRegistry()
         let acknowledgement = AdultInstallAcknowledgementHandle()
@@ -452,9 +476,9 @@ struct AppComposition {
         installer.restoreInstalledSources()
         let registrar = ExtensionSourceRegistrar(store: repositories, lifecycle: lifecycle,
                                                  host: host, registry: registry)
-        return ExtensionComposition(repositories: repositories, installer: installer, host: host,
-                                    registrar: registrar, adultAcknowledgement: acknowledgement,
-                                    usesBundledTransport: transport == nil)
+        return (ExtensionComposition(repositories: repositories, installer: installer, host: host,
+                                     registrar: registrar, adultAcknowledgement: acknowledgement,
+                                     usesBundledTransport: transport == nil), nil)
     }
 
     /// Fulfillment's three pieces (ADR-0004). Extracted from `init` only because it had

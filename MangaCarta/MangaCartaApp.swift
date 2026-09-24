@@ -51,6 +51,7 @@ struct MangaCartaApp: App {
     /// Installed Sources (Phase 4). Held for the app's lifetime so the registrar keeps
     /// `registry` current; views reach the sources through `registry`, never this.
     private let extensions: AppComposition.ExtensionComposition?
+    private let extensionStorageError: String?
 
     /// The graph itself lives in `AppComposition`, where it can be built against temp
     /// storage and asserted on. This initializer does nothing but adopt what it built.
@@ -82,6 +83,9 @@ struct MangaCartaApp: App {
                 ? SourceRegistry(sources: [UpdatesUITestSource(), UpdatesUITestAltSource()])
                 : SourceRegistry(sources: [UpdatesUITestSource()])
         }
+        if ProcessInfo.processInfo.arguments.contains("-uitest-zero-sources") {
+            updateRegistry = SourceRegistry(sources: [])
+        }
         if ProcessInfo.processInfo.arguments.contains("-uitest-repository-settings") {
             let suite = "repository-settings-ui-test"
             defaults = UserDefaults(suiteName: suite)!
@@ -111,6 +115,7 @@ struct MangaCartaApp: App {
         self.notifier = composed.notifier
         self.scheduler = composed.scheduler
         self.extensions = composed.extensions
+        self.extensionStorageError = composed.extensionStorageError
         _library = StateObject(wrappedValue: composed.library)
         _history = StateObject(wrappedValue: composed.history)
         _taste = StateObject(wrappedValue: composed.taste)
@@ -155,12 +160,15 @@ struct MangaCartaApp: App {
                 .environmentObject(fulfillment)
                 .environmentObject(registry)
                 .environment(\.extensionComposition, extensions)
+                .environment(\.extensionStorageError, extensionStorageError)
                 .preferredColorScheme(appearance.colorScheme)
                 // `onChange` does not fire for the initial value, so launch needs its
                 // own start. `start()` is idempotent, so the `.active` case below
                 // arriving first, later, or not at all is all the same.
                 .task {
-                    await extensions?.installBundledSources()
+                    if !ProcessInfo.processInfo.arguments.contains("-uitest-zero-sources") {
+                        await extensions?.installBundledSources()
+                    }
 #if DEBUG
                     if UpdatesUITestFixture.state == nil {
                         queue.start()

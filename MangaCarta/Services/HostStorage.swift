@@ -52,14 +52,18 @@ struct HostStorage: Sendable {
 }
 
 actor HostStorageRepository {
+    enum StorageError: Error, Equatable {
+        case unreadable
+    }
+
     private let fileURL: URL
     private var namespaces: [String: [String: JSONValue]]
 
     init(directory: URL) throws {
+        fileURL = directory.appendingPathComponent("extension-storage.json", isDirectory: false)
         do {
             try FileManager.default.createDirectory(at: directory,
                                                     withIntermediateDirectories: true)
-            fileURL = directory.appendingPathComponent("extension-storage.json", isDirectory: false)
             if FileManager.default.fileExists(atPath: fileURL.path) {
                 let data = try Data(contentsOf: fileURL)
                 namespaces = try Self.decode(data)
@@ -67,11 +71,20 @@ actor HostStorageRepository {
                 namespaces = [:]
             }
         } catch let error as HostCapabilityError {
+            Self.quarantineUnreadableFile(at: fileURL)
             throw error
         } catch {
+            Self.quarantineUnreadableFile(at: fileURL)
             throw HostCapabilityError(code: .storage,
                                       message: "Source storage could not be opened")
         }
+    }
+
+    private static func quarantineUnreadableFile(at fileURL: URL) {
+        guard FileManager.default.fileExists(atPath: fileURL.path) else { return }
+        let timestamp = ISO8601DateFormatter().string(from: Date())
+        let quarantinedURL = fileURL.appendingPathExtension("corrupt-\(timestamp)")
+        try? FileManager.default.moveItem(at: fileURL, to: quarantinedURL)
     }
 
     func value(for key: String, sourceID: QualifiedSourceID) -> JSONValue? {

@@ -19,6 +19,14 @@ struct HomeView: View {
     }
 }
 
+struct UnavailableSourceView: View {
+    var body: some View {
+        InkEmptyState(symbol: "externaldrive.badge.xmark", title: "Source unavailable",
+                      message: "This title's Source is not installed. Add its repository in Settings to read it.",
+                      actionTitle: "Open Settings", action: {})
+    }
+}
+
 private struct HomeScreen: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @StateObject private var vm: HomeViewModel
@@ -41,8 +49,8 @@ private struct HomeScreen: View {
     var body: some View {
         // Capture the browse source as a value so the escaping "See all" fetch closures
         // don't reach back into MainActor-isolated state.
-        let source = vm.source
         return NavigationStack {
+            if let source = vm.source {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: Gutter.section) {
 
@@ -168,32 +176,38 @@ private struct HomeScreen: View {
                     // don't provide them just show the plain serif title.
                     let eyebrows = source.homeRailEyebrows
 
-                    section(titles[0], eyebrow: eyebrows.count > 0 ? eyebrows[0] : nil,
-                            items: vm.popular,
-                            stamp: yearStamp,
-                            pagedFetch: { limit, offset in
-                                try await source.popular(limit: limit, offset: offset)
-                            })
+                    if source.homeFeedCapabilities.contains(.popular) {
+                        section(titles[0], eyebrow: eyebrows.count > 0 ? eyebrows[0] : nil,
+                                items: vm.popular,
+                                stamp: yearStamp,
+                                pagedFetch: { limit, offset in
+                                    try await source.popular(limit: limit, offset: offset)
+                                })
+                    }
 
-                    section(titles[1], eyebrow: eyebrows.count > 1 ? eyebrows[1] : nil,
-                            items: vm.latestUpdates.map { $0.manga },
-                            stamp: source.latestRailShowsNewBadge ? { _ in "NEW" } : yearStamp,
-                            tinted: source.latestRailShowsNewBadge,
-                            // Pages the underlying chapter feed, which dedupes down to far
-                            // fewer manga — so ask for a bigger page to still fill a screen.
-                            pageSize: 48,
-                            pagedFetch: { limit, offset in
-                                try await source
-                                    .latestUpdates(limitTitles: limit, language: "en", offset: offset)
-                                    .map { $0.manga }
-                            })
+                    if source.homeFeedCapabilities.contains(.latestUpdates) {
+                        section(titles[1], eyebrow: eyebrows.count > 1 ? eyebrows[1] : nil,
+                                items: vm.latestUpdates.map { $0.manga },
+                                stamp: source.latestRailShowsNewBadge ? { _ in "NEW" } : yearStamp,
+                                tinted: source.latestRailShowsNewBadge,
+                                // Pages the underlying chapter feed, which dedupes down to far
+                                // fewer manga — so ask for a bigger page to still fill a screen.
+                                pageSize: 48,
+                                pagedFetch: { limit, offset in
+                                    try await source
+                                        .latestUpdates(limitTitles: limit, language: "en", offset: offset)
+                                        .map { $0.manga }
+                                })
+                    }
 
-                    section(titles[2], eyebrow: eyebrows.count > 2 ? eyebrows[2] : nil,
-                            items: vm.newTitles,
-                            stamp: yearStamp,
-                            pagedFetch: { limit, offset in
-                                try await source.newTitles(limit: limit, offset: offset)
-                            })
+                    if source.homeFeedCapabilities.contains(.newTitles) {
+                        section(titles[2], eyebrow: eyebrows.count > 2 ? eyebrows[2] : nil,
+                                items: vm.newTitles,
+                                stamp: yearStamp,
+                                pagedFetch: { limit, offset in
+                                    try await source.newTitles(limit: limit, offset: offset)
+                                })
+                    }
                 }
                 .padding(.top, 4)
                 .padding(.bottom, 32)
@@ -207,7 +221,22 @@ private struct HomeScreen: View {
             .refreshable { await engine.refresh() }
             .navigationTitle("Read")
             .navigationBarTitleDisplayMode(.large)
+            } else {
+                noSourcesState
+                    .navigationTitle("Read")
+                    .navigationBarTitleDisplayMode(.large)
+            }
         }
+    }
+
+    private var noSourcesState: some View {
+        InkEmptyState(
+            symbol: "books.vertical",
+            title: "No sources installed",
+            message: "Add a repository you trust in Settings to install Sources. MangaCarta does not provide or host content.",
+            actionTitle: "Open Settings",
+            action: { selectAppTab(.settings) }
+        )
     }
 
     // A titled section: header + rail. Hidden until it has content.
@@ -289,7 +318,7 @@ private struct HomeScreen: View {
     // naming what is loading and from where.
     private var loadingRail: some View {
         VStack(alignment: .leading, spacing: 14) {
-            InkSectionHeader("Loading", eyebrow: vm.source.name)
+            InkSectionHeader("Loading", eyebrow: vm.source?.name ?? "Source")
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Gutter.rail) {
                     ForEach(0..<4, id: \.self) { _ in
@@ -301,7 +330,7 @@ private struct HomeScreen: View {
                 .padding(.horizontal, Gutter.page)
             }
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Loading titles from \(vm.source.name)")
+            .accessibilityLabel("Loading titles from \(vm.source?.name ?? "source")")
         }
     }
 }
@@ -339,5 +368,6 @@ struct InkNotice: View {
         .environmentObject(works)
         .environmentObject(UpdateStateStore(works: works))
         .environmentObject(RecommendationEngine(history: history, library: library,
-                                                profileStore: taste, workStore: works))
+                                                profileStore: taste, workStore: works,
+                                                source: { SourceRegistry.shared.externalIdSource }))
 }

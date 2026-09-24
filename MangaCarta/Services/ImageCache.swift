@@ -162,6 +162,11 @@ final class ImageCache: @unchecked Sendable {
     /// Full resolve: memory → disk → network, populating the faster tiers.
     func loadImage(for url: URL) async -> UIImage? {
         if let img = memory.object(forKey: url as NSURL) { return img }
+        if url.isFileURL {
+            guard let data = try? Data(contentsOf: url), let img = UIImage(data: data) else { return nil }
+            memory.setObject(img, forKey: url as NSURL, cost: data.count)
+            return img
+        }
         let key = Self.key(for: url)
         if let data = await disk.data(for: key), let img = UIImage(data: data) {
             memory.setObject(img, forKey: url as NSURL, cost: data.count)

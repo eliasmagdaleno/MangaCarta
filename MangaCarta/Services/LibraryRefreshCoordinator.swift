@@ -164,8 +164,9 @@ final class LibraryRefreshCoordinator {
     }
 
     private func fetch(_ listings: [ListingKey]) async -> [FetchResult] {
-        let requests = listings.map { listing in
-            (listing, registry.sourceForRefresh(sourceId: listing.sourceId))
+        let requests = listings.compactMap { listing -> (ListingKey, MangaSource)? in
+            guard let source = registry.sourceForRefresh(sourceId: listing.sourceId) else { return nil }
+            return (listing, source)
         }
         return await withTaskGroup(of: FetchResult.self) { group in
             var iterator = requests.makeIterator()
@@ -195,6 +196,7 @@ final class LibraryRefreshCoordinator {
 
     private func eligibleListings(for work: Work, workId: WorkID) -> [ListingKey] {
         work.listings.filter { listing in
+            guard registry.source(id: listing.sourceId)?.participatesInUpdates ?? true else { return false }
             guard let blocked = updates.state(for: workId)?.listings[listing]?.blockedUntil else { return true }
             return blocked <= now()
         }
@@ -227,7 +229,7 @@ final class LibraryRefreshCoordinator {
         let engaged = all.filter { workId in
             guard let work = works.work(workId) else { return false }
             return work.listings.contains { listing in
-                library.items.contains { $0.id == listing.mangaId && ($0.sourceId ?? MangaDexSource.sourceID) == listing.sourceId }
+                library.items.contains { $0.id == listing.mangaId && ($0.sourceId ?? LegacySourceID.unattributed) == listing.sourceId }
                     || history.latestEntry(forManga: listing.mangaId).map {
                         now.timeIntervalSince($0.updatedAt) <= UpdateTuning.recentEngagementWindow
                     } == true

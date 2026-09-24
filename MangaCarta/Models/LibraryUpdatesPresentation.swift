@@ -55,7 +55,7 @@ enum LibraryUpdatesPresentation {
                           now: Date = .now) -> [WorkUpdateSummary] {
         let sourceRegistry = registry ?? .shared
         let saved = Dictionary(uniqueKeysWithValues: library.items.map { item in
-            (ListingKey(sourceId: item.sourceId ?? "mangadex", mangaId: item.id), item)
+            (ListingKey(sourceId: item.sourceId ?? LegacySourceID.unattributed, mangaId: item.id), item)
         })
 
         return works.allWorkIds().compactMap { workId -> WorkUpdateSummary? in

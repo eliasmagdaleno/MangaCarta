@@ -19,9 +19,11 @@ final class MoreLikeThisViewModel: ObservableObject {
 
     // `provider` is built in the (main-actor-isolated) init body rather than as a default
     // argument: default args evaluate in a nonisolated context and can't call the
-    // @MainActor `MoreLikeThisProvider` initializer. Pass a provider explicitly in tests.
-    init(provider: MoreLikeThisProvider? = nil) {
-        self.provider = provider ?? MoreLikeThisProvider()
+    // @MainActor `MoreLikeThisProvider` initializer. Production passes the graph registry;
+    // tests may pass a provider explicitly.
+    init(registry: SourceRegistry, provider: MoreLikeThisProvider? = nil) {
+        self.provider = provider ?? MoreLikeThisProvider(
+            source: { registry.externalIdSource })
     }
 
     /// Idempotent per manga id: loads recommendations once for a given manga. Safe to

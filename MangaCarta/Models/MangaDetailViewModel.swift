@@ -44,10 +44,10 @@ final class MangaDetailViewModel: ObservableObject {
     /// Binds this page to the graph's registry — the one the view reads from the
     /// environment, which `init` could not see. Called on every appear, so it re-resolves
     /// whichever Listing is active rather than snapping back to the one the page opened
-    /// with; an active Listing whose source is unregistered falls back the way
-    /// `SourceRegistry.source(for:)` always has.
+    /// with; an active Listing whose source was uninstalled remains unavailable.
     func adopt(registry: SourceRegistry) {
-        source = registry.source(id: activeListing.sourceId) ?? registry.source(for: manga)
+        source = registry.source(id: activeListing.sourceId)
+            ?? (activeListing.sourceId == manga.sourceId ? registry.source(for: manga) : nil)
     }
 
     /// Points this page at another of the Work's Listings. The caller reloads.
