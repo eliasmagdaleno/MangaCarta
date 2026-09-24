@@ -12,7 +12,7 @@ to the ADRs, which are linked here rather than repeated:
 
 **Supersedes** the "App Store answers" bullets in ADR-0022 Amendment 2. Those were written for a
 build with two content sources. ADRs are amended, never corrected, so ADR-0022 needs an amendment
-that points here (owner decision 1). Guideline quotes were read on 2026-09-22 from
+that points here — added as ADR-0022 Amendment 5 in this PR (owner decision 1, 2026-09-24). Guideline quotes were read on 2026-09-22 from
 <https://developer.apple.com/app-store/review/guidelines/> and
 <https://developer.apple.com/help/app-store-connect/reference/app-information/age-ratings-values-and-definitions/>.
 
@@ -39,9 +39,7 @@ Placeholders are in `[[double brackets]]`.
 > The app ships with no repository and no repository URL, and neither our App Store page nor our
 > website lists one. Each plug-in declares a content class. Plug-ins declared as containing adult
 > content are hidden by default. Installing one requires the user to confirm they are 18 or older
-> (a declared-age gate); if they decline, nothing is installed. To try this flow, use the test
-> repository at [[test repository URL containing only our own sample content, or delete this
-> sentence]].
+> (a declared-age gate); if they decline, nothing is installed.
 >
 > No login, no purchases, no ads. Contact: [[name, email, phone]].
 
@@ -49,9 +47,10 @@ Notes on the text:
 
 - It does not volunteer guideline numbers. That instruction comes from ADR-0022 Amendment 2 and is
   kept.
-- The test-repository sentence is optional (decision 3). A test repository makes the plug-in flow
-  testable, but it is a URL the team hands out. It must contain only owned sample content and must
-  not be the first-party engines repository (ADR-0003 A6, decision 2).
+- **No test repository is given to App Review (owner decision 3, 2026-09-24).** Handing Apple a
+  URL cuts against "the app ships and suggests no repository", and local import is the path
+  reviewers are meant to test. If a reviewer asks to see plug-ins working, create a repository with
+  only owned sample content then — never the first-party engines repository (ADR-0003 A6).
 - "Import from Files" and the "does not provide content" line must match the first-run UI as
   shipped. Recheck them once #216's UI lands.
 
@@ -70,13 +69,18 @@ These are the current App Store Connect categories; the resulting tiers are 4+, 
 | Mature themes, Violence, Sexuality or Nudity (all sub-items) | **See decision 2** | The binary contains none. All content comes from the user's own files and from plug-ins the user installs. |
 | Medical/Wellness, Chance-Based Activities | None / No | The app has none of these. |
 
-**Recommendation for decision 2:** answer Mature or Suggestive Themes and Cartoon or Fantasy
-Violence as **Infrequent/Mild**, and sexual content as None. That lands around **13+**. Reasoning:
-guideline 4.7 says "you are responsible for all such software offered in your app". The app offers
-no plug-ins itself, but typical manga includes mild violence and suggestive themes, so a 4+ rating
-invites a reviewer to test that claim. Adult-class plug-ins are rated above the app, and 4.7.5's
-age gate covers them without raising the app's own rating. The conservative alternative is
-**16+ or 18+** (Paperback is rated 16+). It costs reach but leaves nothing to dispute.
+**Decision 2 (owner, 2026-09-24): target 16+.** Answer Cartoon or Fantasy Violence as
+**Frequent/Intense**, Mature or Suggestive Themes as **Frequent**, and Realistic Violence, Sexual
+Content or Nudity and Profanity as **Infrequent/Mild**. Adjust individual answers if App Store
+Connect computes a tier other than 16+; the tier is the decision, the answers serve it.
+
+Reasoning: first-party manga apps rate lower — Shonen Jump, VIZ Manga and MANGA Plus are all
+**13+** (checked 2026-09-24), each listing sexual content or nudity as infrequent. But each of
+those apps curates every title it carries and so knows its own worst case. MangaCarta cannot: a
+plug-in the reader installs can bring in seinen with graphic violence or nudity without declaring
+itself adult, and guideline 4.7 makes the app responsible for what plug-ins offer. 16+ matches
+that reach, and matches Paperback. Plug-ins declared `mixed`/`adultOnly` are still behind the
+declared-age gate (4.7.5), which covers content above 16+.
 
 ## 3. Listing copy
 
@@ -85,8 +89,9 @@ Guideline 2.3.7 also bars trademarked terms and other apps' names from metadata 
 
 **Name:** MangaCarta (10 / 30)
 
-**Subtitle** (26 / 30): `Read your comics, your way`
-Alternative: `CBZ, ZIP & PDF comic reader` (27).
+**Subtitle** (owner decision 5, 2026-09-24): `CBZ & ZIP comic reader` (22 / 30) until PDF import
+ships, then `CBZ, ZIP & PDF comic reader` (27). It states what the app does, which is the 4.2
+argument. (Rejected: `Read your comics, your way` — friendly but says nothing a reviewer can test.)
 
 **Keywords** (99 / 100, comma-separated, no spaces):
 `cbz,comic,reader,pdf,zip,webtoon,manhwa,manhua,library,offline,import,files,panel,chapter,extension`
@@ -122,11 +127,14 @@ Alternative: `CBZ, ZIP & PDF comic reader` (27).
 > MangaCarta does not provide or host content. You are responsible for having the rights to what
 > you read.
 
-Before submitting, check every bullet against the shipped build. ComicInfo parsing is in #216's v1
+Before submitting, check every bullet against the shipped build — **this is a checklist, not
+copy to paste.** As of 2026-09-24 PDF import, ComicInfo parsing and the first-run "Import from
+Files" screen are not built; the review note's "PDF and ZIP files work the same way" and the `pdf`
+keyword depend on them. ComicInfo parsing is in #216's v1
 scope but not yet built. "No ads" and the privacy line must match the privacy label and #149's
 policy.
 
-**Screenshots:** use only original or public-domain art [[owner-supplied]]. Show no site UI and no
+**Screenshots:** use only original or public-domain art [[owner-supplied — owner decision 4, open]]. Show no site UI and no
 recognisable series.
 
 ## 4. Guideline risk checklist

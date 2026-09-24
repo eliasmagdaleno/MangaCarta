@@ -249,3 +249,25 @@ The condition that *would* reopen Amendment 2 is unchanged and restated so it is
 index the app fetches over the network by default, or a bundled package that offers a `mixed` or
 `adultOnly` Source. The reversal Amendment 2 reserved for "if Review objects anyway" is now the
 next amendment, not this one.
+
+## Amendment 5 — the App Store answers move to one file, and the app targets 16+ (2026-09-24)
+
+Amendment 2's "App Store answers" were written for a build with two content sources. ADR-0003
+Amendment 6 and this ADR's Amendment 4 remove both, so those answers no longer describe the app.
+**The App Review notes, age-rating answers and listing copy now live in
+[`docs/app-store/submission-copy.md`](../app-store/submission-copy.md)**, which supersedes Amendment
+2's answers. This ADR keeps the decisions; that file keeps the text. Amendment 2's declared-age gate
+is unchanged and is what that file's Age Assurance answer relies on.
+
+Owner decisions recorded there, 2026-09-24:
+
+1. **Target 16+**, not the ~13+ first proposed. First-party manga apps (Shonen Jump, VIZ Manga,
+   MANGA Plus) are 13+, but each curates its catalogue; MangaCarta's plug-ins can bring in content
+   that is violent or sexual without declaring itself adult, and guideline 4.7 makes the app
+   responsible for it. Content above 16+ stays behind the declared-age gate (4.7.5).
+2. **No test repository is given to App Review.** Reviewers test local import; a URL we hand out
+   would contradict "no default, suggested or linked repository" (Amendment 2, ADR-0003 A6).
+3. **Subtitle states the formats** (`CBZ & ZIP comic reader`, adding PDF when it ships), and every
+   listing claim is checked against the shipped build before submission.
+
+Sample and screenshot art (original or public domain) remains the owner's, and open.
