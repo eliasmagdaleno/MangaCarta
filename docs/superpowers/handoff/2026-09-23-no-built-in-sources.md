@@ -1,9 +1,9 @@
 # Handoff — no built-in Sources: removal slice 2 and local import slice 2 in review
 
-Date: 2026-09-23, 22:45 PDT (supersedes `archive/2026-09-22-no-built-in-sources.md`)
+Date: 2026-09-23, 22:45 PDT; updated 2026-09-24 00:30 PDT (supersedes `archive/2026-09-22-no-built-in-sources.md`)
 Repository: `/Users/eliasmagdaleno/Manga-Reader` (GitHub `eliasmagdaleno/MangaCarta`)
-`main` at **`f957120`** (#217). Merged 2026-09-23: **#223**, **#217**, **#218**.
-**Two worker PRs are done and awaiting the coordinator: #224 and #225.** See "Next session — start here".
+`main` at **`6fb1d81`** (#225). Merged 2026-09-23/24: **#223**, **#217**, **#218**, **#226**, **#224**, **#225**.
+**No worker is running.** Removal slice 3 is being briefed next. See "Next session — start here".
 
 **This is the live handoff, and it is the whole of what is outstanding.** Writing a new one means
 `git mv`-ing this into `archive/` first and carrying forward whatever below is still true
@@ -19,26 +19,21 @@ Repository: `/Users/eliasmagdaleno/Manga-Reader` (GitHub `eliasmagdaleno/MangaCa
 
 ## Next session — start here
 
-1. **#224 (removal slice 2)** — head `f52a831`, **CI all green** (the one Hermetic UI failure,
-   `RepositorySettingsUITests.testAddedRepositoryCanBeRemoved`, passed on re-run — unrelated flake).
-   Claude reviewed twice; round-2 bugs are fixed and verified in code: `MoreLikeThisViewModel(registry:)`
-   threads the graph registry from `MangaDetailView(manga:registry:)`; no production `{ nil }` source
-   defaults remain (only `#if DEBUG` convenience inits used by tests); a missing Source **throws**
-   `SourceError.unavailable` so the resolvers record nothing (ADR-0008); `MetadataUpgradeQueue` now
-   requires its resolver. **Remaining:** coordinator full unit suite (serially, own sim) → owner merges.
-2. **#225 (local import slice 2)** — head `2078889`, all six follow-up items done (chapter layout incl.
-   decision 2, store failure/staging/re-import, `removeListing` across relaunch + history reattach, mixed
-   refresh, composition, five real mutation checks). CI was running at 22:40 — check it. **It conflicts
-   with #224** in `AppComposition.swift` and `SourceRegistry.swift`: after #224 merges, send the worker
-   (terminal `term_318d21bf-63cf-469f-915a-8bf2a2e43527`) a rebase instruction, then Claude review +
-   coordinator full suite → owner merges.
-3. After both merge: `worker-release --dispatch ctx_db771c360a5a` and `ctx_132baef04933`; remove the
-   worktrees `no-built-in-slice-2`, `local-import-slice-2`, `local-import-zip-reader`, `zero-sources-slice-1`.
-4. **Promote the removal-slice-2 design to a decision record** (ADR-0003 amendment or ADR-0016 note):
-   `publishesExternalIds` protocol requirement; `SourceRegistry.externalIdSource` (active if it publishes,
-   else first that does, else nil); lazy per-call resolution; missing Source ⇒ throw, record nothing,
-   show empty. Also note: cached reverse ids are Source-local ids with no sourceId (slice 8), and
-   MangaDex `manga(id:)` is now one request per id, bounded at 4 (was one batch call).
+1. **#224 and #225 are merged** (`69fb5b2`, `6fb1d81`), each after a Claude review and a coordinator
+   full unit suite (#224: 949 XCTest + 147 Swift Testing; #225: 961 + 180, all green). The #225 run
+   caught one stale test the worker's focused run missed (`testDefaultRegistryContainsAllBuiltInSources`
+   still expected `["mangadex"]`) — another case for the coordinator suite. Both workers are released.
+2. **#227 — ADR-0019 Amendment 2**, docs, ready: records #224's design (`publishesExternalIds`,
+   `SourceRegistry.externalIdSource`, lazy per-call Source, missing Source ⇒ throw and record nothing,
+   Source-local reverse-cache ids, per-id fetch capped at 4). Put in 0019, not 0016, because #215 also
+   edits 0016. **Owner merges.**
+3. **Removal slice 3** (move `Manga` and `mangaCoverURL` out of `MangaDexAPI.swift`) — being briefed
+   2026-09-24; check the PR/worker it produced. Slice 4 (external ids in the extension contract) is
+   now unblocked too; start it after slice 3, since both touch model files.
+4. **Worktree cleanup (owner):** `no-built-in-slice-2`, `local-import-slice-2`,
+   `local-import-zip-reader`, `zero-sources-slice-1` — plus the older list under "Cleanup".
+5. `CLAUDE.md` "Current state" gained a one-line Local bullet from #225, placed above the intro
+   sentence; fold it into the list properly when next editing that file.
 
 ## The big decision this session (owner, 2026-09-22)
 
@@ -91,13 +86,14 @@ Closed: #168.
 | #220 | App Store submission copy (`docs/app-store/submission-copy.md`) | **draft**, docs | owner decisions below |
 | #221 | MangaDex engine research (`docs/research/2026-09-22-mangadex-engine.md`) | docs | owner reads + merges |
 | #222 | Local import slice 2 plan (`docs/superpowers/plans/2026-09-22-local-import-slice-2.md`) | docs; owner's five answers recorded at `7ed53ab` | merge; implement after zero-sources slice 1 and #217 |
-| #224 | Removal slice 2 — registry routing for recommender/MAL | **CI green**, reviewed ×2, fixes verified | coordinator full suite → owner merges (**before #225**) |
-| #225 | Local import slice 2 — `LocalLibraryStore` + `LocalSource` | complete per plan; CI pending at 22:40 | rebase onto #224 → review → full suite → owner merges |
+| #224 | Removal slice 2 — registry routing for recommender/MAL | **merged 2026-09-23** (`69fb5b2`) | remove worktree |
+| #225 | Local import slice 2 — `LocalLibraryStore` + `LocalSource` | **merged 2026-09-24** (`6fb1d81`) | remove worktree |
+| #227 | ADR-0019 Amendment 2 (#224's design) | docs, ready | **owner merges** |
 | #195 | stale draft of ADR-0003 A5 | superseded | close it (owner OK pending) |
 
 #219 (refresh sent an uninstalled Source's Listings to the fallback Source) is **closed** — resolved by #223.
 
-### Workers (run `run_e5fecb527d0a`, Codex `gpt-5.6-luna` medium) — both finished, not yet released
+### Workers (run `run_e5fecb527d0a`, Codex `gpt-5.6-luna` medium) — both **released 2026-09-24**
 
 | Dispatch | Terminal | Worktree (`~/orca/workspaces/Manga-Reader/`) | PR |
 |---|---|---|---|
@@ -117,7 +113,7 @@ Drain: `orca orchestration check --run run_e5fecb527d0a --terminal term_28f131d2
 
 ### No-built-in-Sources removal (slices; map in #215's context and the dependency inventory below)
 1. ✅ merged — #223.
-2. **PR #224, ready** (see top). Route the recommender (`RecommendationEngine` injects `MangaDexSource()`), `MALReverseResolver`
+2. ✅ merged — #224. Route the recommender (`RecommendationEngine` injects `MangaDexSource()`), `MALReverseResolver`
    and the `MALEntityResolver` bridge (`MangaDexAPI.searchManga`) through the registry / "a Source
    that publishes external ids" instead of `MangaDexAPI`.
 3. Move the `Manga` model and `mangaCoverURL` out of `MangaDexAPI.swift`.
@@ -149,7 +145,7 @@ sources; nil-sourceId-means-MangaDex at `HistoryView:155`, `BookmarksView:265`, 
 **Sequencing caution:** slice 4 touches the same registry/`MangaSource` code as slice 2 and local-import slice 2 — start it after both merge.
 
 ### Local import (per #216 / ADR-0025; owner answers recorded there)
-Slice 1 = #217 (**merged**). Slice 2 is fully planned in **#222** and implemented in **PR #225** (see top), with five owner
+Slice 1 = #217 (**merged**). Slice 2 is fully planned in **#222** and implemented in **PR #225 (merged 2026-09-24)**, with five owner
 decisions (2026-09-22): `itemId` = first 16 bytes of the file's SHA-256 (re-import restores
 history; settles spec §2/§5); one folder + loose root images → root images lead, then the folder;
 only the app's staged copy is deleted, never the user's file; `local` kept out of the MAL outbox
