@@ -38,8 +38,8 @@ struct ExtensionSchemaError: LocalizedError, Equatable {
     let fieldPath: String
     let reason: String
 
-    init(fieldPath: String, reason: String) {
-        code = .invalidResponse
+    init(fieldPath: String, reason: String, code: ExtensionHostErrorCode = .invalidResponse) {
+        self.code = code
         self.fieldPath = fieldPath
         self.reason = reason
     }
@@ -166,13 +166,16 @@ struct ExtensionDomainValidator {
 
     private let currentYear: Int
     private let assetOrigins: Set<String>
+    private let hostAPIVersion: HostAPIVersion
 
     /// The clock is injected so the `current year + 1` wire bound remains stable in tests.
     init(currentDate: Date = Date(),
          calendar: Calendar = Calendar(identifier: .gregorian),
-         assetOrigins: [String]) {
+         assetOrigins: [String],
+         hostAPIVersion: HostAPIVersion = HostAPIVersion(major: 1, minor: 2)) {
         currentYear = calendar.component(.year, from: currentDate)
         self.assetOrigins = Set(assetOrigins.compactMap(Self.normalizedOrigin))
+        self.hostAPIVersion = hostAPIVersion
     }
 
     // MARK: - Operation validators
@@ -323,7 +326,8 @@ struct ExtensionDomainValidator {
                                                   publishedAt: publishedAt,
                                                   language: language,
                                                   groups: groups))
-            } catch is ExtensionSchemaError {
+            } catch let error as ExtensionSchemaError {
+                if error.code == .invalidResult { throw error }
                 warnings.append(warning(.invalidField, index, path))
             }
         }
@@ -684,6 +688,9 @@ struct ExtensionDomainValidator {
 
     private func chapterGroups(_ object: [String: Any], path: String) throws -> [String]? {
         guard let array = try optionalArray(object, key: "groups", path: path) else { return nil }
+        guard hostAPIVersion >= HostAPIVersion(major: 1, minor: 2) else {
+            throw invalidResult("\(path).groups", "requires Host API 1.2")
+        }
         guard array.count <= 10 else {
             throw invalid("\(path).groups", "too many group names")
         }
@@ -756,6 +763,10 @@ struct ExtensionDomainValidator {
 
     private func invalid(_ path: String, _ reason: String) -> ExtensionSchemaError {
         ExtensionSchemaError(fieldPath: path, reason: reason)
+    }
+
+    private func invalidResult(_ path: String, _ reason: String) -> ExtensionSchemaError {
+        ExtensionSchemaError(fieldPath: path, reason: reason, code: .invalidResult)
     }
 
     private func warning(_ code: ExtensionValidationWarningCode,

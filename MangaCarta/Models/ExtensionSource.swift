@@ -130,7 +130,8 @@ final class ExtensionSource: MangaSource {
         self.isNSFW = isNSFW
         self.lifecycle = lifecycle
         self.host = host
-        validator = ExtensionDomainValidator(assetOrigins: declaration.network.assetOrigins)
+        validator = ExtensionDomainValidator(assetOrigins: declaration.network.assetOrigins,
+                                              hostAPIVersion: declaration.selectedHostAPIVersion)
     }
 
     // MARK: - Identity and presentation
