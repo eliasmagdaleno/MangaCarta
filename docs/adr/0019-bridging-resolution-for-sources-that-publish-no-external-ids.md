@@ -233,3 +233,37 @@ Two things the run does **not** license, stated here because this is where a lat
 - **32% is not a re-measurement of the offline 31%.** That the two agree to a point is a coincidence
   worth exactly nothing: a different cohort on a different instrument. Amendment 1's whole argument
   is that an in-app run measures a mechanism, not a rate. Do not cite the agreement as corroboration.
+
+## Amendment 2 (2026-09-23) — the bridge's Source comes from the registry, and a missing one records nothing
+
+[ADR-0003 Amendment 6](0003-extension-substrate.md) removes the built-in MangaDex Source, and
+[ADR-0016's 2026-09-22 amendment](0016-mangadex-as-a-resolution-bridge.md) accepts that the bridge
+exists only when an installed Source publishes external ids. This amendment records **how** that is
+implemented (PR #224, removal slice 2). The Decisions above are unchanged; only where the bridge's
+Source comes from changes.
+
+1. **`publishesExternalIds` is a `MangaSource` protocol requirement** (default `false`; MangaDex
+   `true`). It is a requirement, not an extension-only method, so a call through an existential
+   `MangaSource` dispatches to the conformer's value.
+2. **`SourceRegistry.externalIdSource` picks the Source:** the active Source if it publishes
+   external ids, else the first registered Source that does, else `nil`.
+3. **Resolution is lazy, per call.** `MALEntityResolver`, `MALReverseResolver`,
+   `MoreLikeThisProvider` and `RecommendationEngine` take a `source: () -> MangaSource?` closure that
+   reads the registry each time — never a Source captured at construction. Installing a Source
+   takes effect on the next resolution, without a relaunch. Production code has no `{ nil }`
+   defaults, and every caller passes the graph's registry (ADR: "injected, not reached for").
+4. **A missing Source throws `SourceError.unavailable` and records nothing.** The reader sees an
+   empty result, but neither the bridge nor the reverse resolver persists `.unmatched`,
+   `.unresolved` or a reverse miss. **Why:** a "no Source" answer is about the reader's setup, not
+   the title. Caching it as a miss would block resolution for the miss TTL after a capable Source
+   is installed (the ADR-0008 rule that only a real attempt earns a recorded outcome).
+
+**Two consequences to carry forward:**
+
+- The persisted reverse-cache key is still named `mangaDexId`, but its value is now **a
+  Source-local id with no `sourceId` attached**. Qualifying it waits for removal slice 8 (the
+  persisted-id migration). Until then, a cached id is only meaningful against the Source that
+  produced it.
+- The reverse resolver's fetch is now **one `manga(id:)` request per id, at most 4 in flight**
+  (`MALReverseResolver`'s `maxConcurrent`), instead of MangaDex's single batch `ids[]` call — the
+  generic `MangaSource` has no batch fetch. Expect more requests per reverse resolution.
