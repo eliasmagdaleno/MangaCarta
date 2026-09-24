@@ -167,7 +167,7 @@ struct SystemHostResolver: HostNameResolving {
     }
 }
 
-private enum HostIPAddress {
+enum HostIPAddress {
     private static let nonPublicIPv4Ranges: [ClosedRange<UInt32>] = [
         0x0000_0000...0x00FF_FFFF, // 0.0.0.0/8
         0x0A00_0000...0x0AFF_FFFF, // 10.0.0.0/8
@@ -214,6 +214,10 @@ private enum HostIPAddress {
         if bytes.allSatisfy({ $0 == 0 }) { return false }
         if bytes.dropLast().allSatisfy({ $0 == 0 }), bytes.last == 1 { return false }
         if bytes.prefix(10).allSatisfy({ $0 == 0 }), bytes[10] == 0xFF, bytes[11] == 0xFF {
+            return isPublicIPv4(Array(bytes.suffix(4)))
+        }
+        if bytes.prefix(12).elementsEqual([0x00, 0x64, 0xFF, 0x9B, 0x00, 0x00,
+                                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00]) {
             return isPublicIPv4(Array(bytes.suffix(4)))
         }
         if bytes[0] & 0xFE == 0xFC { return false }

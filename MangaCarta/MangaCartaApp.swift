@@ -66,7 +66,17 @@ struct MangaCartaApp: App {
         var updateRegistry: SourceRegistry?
         var repositoryTransport: (any RepositoryTransport)?
 #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("-uitest-mal-signed-out") {
+        if ProcessInfo.processInfo.arguments.contains("-uitest-local-import") {
+            let storageID = ProcessInfo.processInfo.environment["MANGACARTA_UI_TEST_STORAGE_ID"] ?? UUID().uuidString
+            let suite = "local-import-ui-test-\(storageID)"
+            defaults = UserDefaults(suiteName: suite)!
+            defaults.removePersistentDomain(forName: suite)
+            directory = FileManager.default.temporaryDirectory
+                .appendingPathComponent("MangaCarta-LocalImportUITest-\(storageID)", isDirectory: true)
+            try? FileManager.default.removeItem(at: directory)
+            let local = LocalLibraryStore(root: directory.appendingPathComponent("LocalLibrary"))
+            updateRegistry = SourceRegistry(sources: [MangaDexSource(), LocalSource(store: local)])
+        } else if ProcessInfo.processInfo.arguments.contains("-uitest-mal-signed-out") {
             (ephemeralCredentials, ephemeralPreferences) = AppComposition.ephemeralMALAccount()
         } else if let state = Self.uiTestAccountState {
             // The other account states, on the same ephemeral stores and for the same
@@ -166,6 +176,9 @@ struct MangaCartaApp: App {
                 // own start. `start()` is idempotent, so the `.active` case below
                 // arriving first, later, or not at all is all the same.
                 .task {
+#if DEBUG
+                    await Self.importUITestFixtureIfRequested(library: library, works: works, registry: registry)
+#endif
                     if !ProcessInfo.processInfo.arguments.contains("-uitest-zero-sources") {
                         await extensions?.installBundledSources()
                     }
@@ -258,6 +271,25 @@ struct MangaCartaApp: App {
             }
         }
     }
+
+#if DEBUG
+    /// Hermetic UI runs can ship a CBZ beside the test bundle; the app still exercises the
+    /// exact store import path used by the Files picker rather than a UI-only shortcut.
+    private static func importUITestFixtureIfRequested(library: LibraryStore, works: WorkStore,
+                                                       registry: SourceRegistry) async {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let index = arguments.firstIndex(of: "-uitest-import-fixture"),
+              arguments.indices.contains(index + 1),
+              let encoded = ProcessInfo.processInfo.environment["MANGACARTA_UI_FIXTURE_BASE64"],
+              let data = Data(base64Encoded: encoded),
+              registry.source(id: LocalSource.sourceID) is LocalSource else { return }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(arguments[index + 1] + ".cbz")
+        try? data.write(to: url, options: .atomic)
+        let importer = LocalImportViewModel()
+        importer.configure(registry: registry, library: library, works: works)
+        await importer.importFilesAndWait([url])
+    }
+#endif
 }
 
 #if DEBUG

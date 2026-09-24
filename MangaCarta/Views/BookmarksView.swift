@@ -8,6 +8,7 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct BookmarksView: View {
     static let updatesFilterID = "updates"
@@ -23,6 +24,8 @@ struct BookmarksView: View {
     @State private var showingManagementSheet = false
     @State private var refreshBannerMessage: String? = nil
     @State private var showingRefreshBanner = false
+    @State private var showingImporter = false
+    @StateObject private var importer = LocalImportViewModel()
 
     private let columns = [
         GridItem(.adaptive(minimum: 104, maximum: 180), spacing: Gutter.rail)
@@ -46,9 +49,9 @@ struct BookmarksView: View {
                         InkEmptyState(
                             symbol: "books.vertical",
                             title: "Your library is empty",
-                            message: "Save titles to keep them here and see which chapters are unread.",
-                            actionTitle: "Browse Titles",
-                            action: { selectAppTab(.home) }
+                            message: "Import CBZ or ZIP files from Files. MangaCarta does not provide or host content.",
+                            actionTitle: "Import from Files",
+                            action: { showingImporter = true }
                         )
                     } else if displayedItems.isEmpty {
                         InkEmptyState(
@@ -126,6 +129,11 @@ struct BookmarksView: View {
             .navigationTitle("Library")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
+                    Button { showingImporter = true } label: {
+                        Label("Import", systemImage: "square.and.arrow.down")
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         Task { await refreshLibrary() }
                     } label: {
@@ -146,6 +154,16 @@ struct BookmarksView: View {
             .sheet(isPresented: $showingManagementSheet) {
                 CollectionManagementView()
             }
+            .fileImporter(isPresented: $showingImporter,
+                          allowedContentTypes: [UTType.zip, UTType.mangaCartaCBZ],
+                          allowsMultipleSelection: true) { result in
+                if case .success(let urls) = result { importer.importFiles(urls) }
+            }
+            .overlay(alignment: .top) {
+                LocalImportBanner(model: importer, onCancel: importer.cancel)
+                    .padding(.top, 8)
+            }
+            .task { importer.configure(registry: registry, library: library, works: works) }
         }
     }
 

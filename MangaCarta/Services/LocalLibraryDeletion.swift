@@ -13,7 +13,12 @@ final class LocalLibraryDeletion {
     }
 
     func delete(itemId: String) async throws {
-        try await local.delete(itemId: itemId)
+        do {
+            try await local.delete(itemId: itemId)
+        } catch let error as CocoaError where error.code == .fileNoSuchFile {
+            // The staged copy may already have been removed externally; the catalog and
+            // Work still need to converge on the user's requested deletion.
+        }
         if let item = library.item(for: itemId) {
             let manga = Manga(id: item.id, sourceId: item.sourceId ?? "local", title: item.title,
                               description: "", status: "completed", year: nil, coverURL: item.coverURL,

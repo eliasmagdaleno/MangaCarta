@@ -346,6 +346,10 @@ enum PortFixtures {
                    + "&limit=8&offset=0", to: "new-titles.html")
         site.route("\(base)/search/data?sort=Best%20Match&display_mode=Full%20Display"
                    + "&limit=8&offset=0&text=berserk", to: "search.html")
+        site.route("\(base)/search/data?sort=Best%20Match&display_mode=Full%20Display"
+                   + "&limit=2&offset=0&text=berserk", to: "search.html")
+        site.route("\(base)/search/data?sort=Best%20Match&display_mode=Full%20Display"
+                   + "&limit=2&offset=2&text=berserk", to: "search.html")
         site.route("\(base)/latest-updates/1", to: "latest-updates.html")
         site.route("\(base)/series/\(weebSeriesID)", to: "detail.html")
         site.route("\(base)/series/\(weebSeriesID)/full-chapter-list", to: "chapters.html")
