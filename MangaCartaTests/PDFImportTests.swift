@@ -143,7 +143,7 @@ struct PDFImportTests {
 }
 
 private extension UIColor {
-    var isRed: Bool { redComponent > greenComponent + 0.3 && redComponent > blueComponent + 0.3 }
+    var isRed: Bool { redComponent > greenComponent + 0.4 && redComponent > blueComponent + 0.4 }
     var isBlue: Bool { blueComponent > redComponent + 0.2 && blueComponent > greenComponent + 0.2 }
 
     private var redComponent: CGFloat { components.0 }
