@@ -66,7 +66,9 @@ final class URLSessionRepositoryTransport: RepositoryTransport, @unchecked Senda
          fetcher: (any URLSessionDataFetching)? = nil) {
         self.destinations = HostDestinationPolicy(resolver: resolver)
         configuration.connectionProxyDictionary = [:]
-        self.fetcher = fetcher ?? URLSessionDataFetcher(configuration: configuration) { _ in nil }
+        self.fetcher = fetcher ?? URLSessionDataFetcher(
+            configuration: configuration,
+            redirectHandler: URLSessionDataFetcher.httpsOnlyRedirectHandler)
     }
 
     static func sessionConfiguration() -> URLSessionConfiguration {
@@ -119,7 +121,7 @@ final class URLSessionRepositoryTransport: RepositoryTransport, @unchecked Senda
             guard let response = response as? HTTPURLResponse else {
                 throw RepositoryTransportError.invalidResponse
             }
-            if let peer = result.connectedPeerAddress, !HostIPAddress.isPublic(peer) {
+            guard let peer = result.connectedPeerAddress, HostIPAddress.isPublic(peer) else {
                 throw RepositoryTransportError.destinationRefused(
                     "the connected destination was non-public")
             }

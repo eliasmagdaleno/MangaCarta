@@ -165,6 +165,51 @@ struct HostHTTPTests {
         #expect(error?.code == .policyDenied)
     }
 
+    @Test("Public then private resolution cannot return a private response body")
+    func reboundPrivatePeerReturnsNoBody() async throws {
+        let url = try #require(URL(string: "https://allowed.example/start"))
+        let resolver = SequencedHostResolver(answers: [["93.184.216.34"], ["10.0.0.5"]])
+        let fetcher = FixedHTTPMetricsFetcher(result: URLSessionFetchResult(
+            data: Data("secret body".utf8),
+            response: HTTPURLResponse(url: url, statusCode: 200,
+                                      httpVersion: nil, headerFields: nil)!,
+            connectedPeerAddress: "10.0.0.5"))
+        let client = HostHTTPClient(
+            sourceID: QualifiedSourceID(rawValue: "repo/source-a"),
+            allowedOrigins: ["https://allowed.example"],
+            transport: URLSessionHostHTTPTransport(fetcher: fetcher),
+            resolver: resolver)
+
+        let error = await hostCapabilityError {
+            _ = try await client.request(HostHTTPRequest(url: url))
+        }
+
+        #expect(error?.code == .policyDenied)
+        #expect(error?.message == "the connected destination was non-public")
+    }
+
+    @Test("HTTP rejects a response with missing connected peer metrics")
+    func missingConnectedPeerIsRejected() async throws {
+        let url = try #require(URL(string: "https://allowed.example/start"))
+        let fetcher = FixedHTTPMetricsFetcher(result: URLSessionFetchResult(
+            data: Data("response".utf8),
+            response: HTTPURLResponse(url: url, statusCode: 200,
+                                      httpVersion: nil, headerFields: nil)!,
+            connectedPeerAddress: nil))
+        let client = HostHTTPClient(
+            sourceID: QualifiedSourceID(rawValue: "repo/source-a"),
+            allowedOrigins: ["https://allowed.example"],
+            transport: URLSessionHostHTTPTransport(fetcher: fetcher),
+            resolver: FixedHostResolver(addresses: ["93.184.216.34"]))
+
+        let error = await hostCapabilityError {
+            try await client.request(HostHTTPRequest(url: url))
+        }
+
+        #expect(error?.code == .policyDenied)
+        #expect(error?.message == "the connected destination was non-public")
+    }
+
     @Test("HTTP redirects cannot leave the Source's declared origins")
     func redirectCannotEscapeDeclaredOrigins() async throws {
         let transport = ScriptedHostHTTPTransport { request, _ in
@@ -190,6 +235,47 @@ struct HostHTTPTests {
 
         #expect(error?.code == .policyDenied)
         #expect(await transport.requestedURLs() == ["https://allowed.example/start"])
+    }
+
+    @Test("HTTP redirects cannot downgrade to plaintext")
+    func httpRedirectIsRejected() async throws {
+        let transport = ScriptedHostHTTPTransport { request, _ in
+            HostHTTPTransportResponse(
+                statusCode: 302,
+                url: try #require(request.url),
+                headers: ["Location": "http://allowed.example/plaintext"],
+                body: Data())
+        }
+        let client = HostHTTPClient(
+            sourceID: QualifiedSourceID(rawValue: "repo/source-a"),
+            allowedOrigins: ["https://allowed.example"],
+            transport: transport,
+            resolver: FixedHostResolver(addresses: ["93.184.216.34"]))
+
+        let error = await hostCapabilityError {
+            try await client.request(HostHTTPRequest(
+                url: try #require(URL(string: "https://allowed.example/start"))))
+        }
+
+        #expect(error?.code == .policyDenied)
+        #expect(await transport.requestedURLs() == ["https://allowed.example/start"])
+    }
+
+    @Test("HTTP transport refuses plaintext requests before fetching")
+    func httpRequestURLIsRejectedBeforeTransport() async throws {
+        let fetcher = FixedHTTPMetricsFetcher(result: URLSessionFetchResult(
+            data: Data(),
+            response: HTTPURLResponse(url: try #require(URL(string: "http://allowed.example/start")),
+                                      statusCode: 200, httpVersion: nil, headerFields: nil)!,
+            connectedPeerAddress: "93.184.216.34"))
+        let transport = URLSessionHostHTTPTransport(fetcher: fetcher)
+        do {
+            _ = try await transport.send(URLRequest(
+                url: try #require(URL(string: "http://allowed.example/start"))))
+            Issue.record("plaintext request unexpectedly reached the fetcher")
+        } catch let error as HostCapabilityError {
+            #expect(error.code == .policyDenied)
+        }
     }
 
     @Test("Every HTTP redirect hop is resolved again to prevent DNS rebinding")
@@ -945,7 +1031,13 @@ private actor ScriptedHostHTTPTransport: HostHTTPTransport {
     func send(_ request: URLRequest) async throws -> HostHTTPTransportResponse {
         urls.append(request.url?.absoluteString ?? "<missing>")
         cookies.append(request.value(forHTTPHeaderField: "Cookie"))
-        return try handler(request, urls.count)
+        let response = try handler(request, urls.count)
+        return HostHTTPTransportResponse(statusCode: response.statusCode,
+                                         url: response.url,
+                                         headers: response.headers,
+                                         body: response.body,
+                                         connectedPeerAddress: response.connectedPeerAddress
+                                            ?? "93.184.216.34")
     }
 
     func requestedURLs() -> [String] {

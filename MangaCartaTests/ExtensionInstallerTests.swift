@@ -81,8 +81,10 @@ final class URLSessionRepositoryTransportTests: XCTestCase {
         -> URLSessionRepositoryTransport {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [StubRepositoryURLProtocol.self]
-        return URLSessionRepositoryTransport(configuration: configuration,
-                                             resolver: RepositoryFixedResolver(addresses: addresses))
+        let realFetcher = URLSessionDataFetcher(configuration: configuration) { _ in nil }
+        return URLSessionRepositoryTransport(
+            resolver: RepositoryFixedResolver(addresses: addresses),
+            fetcher: PublicPeerFetcher(wrapping: realFetcher))
     }
 
     override func setUp() {
@@ -134,6 +136,28 @@ final class URLSessionRepositoryTransportTests: XCTestCase {
         do {
             _ = try await transport.fetchIndex(at: indexURL)
             XCTFail("private connected peer must be refused")
+        } catch let error as RepositoryTransportError {
+            guard case .destinationRefused = error else {
+                XCTFail("expected destinationRefused, got \(error)")
+                return
+            }
+        }
+    }
+
+    func testIndexWithMissingConnectedPeerIsRefused() async throws {
+        let bytes = try Data(contentsOf: PortFixtures.packageDirectory.appendingPathComponent("index.json"))
+        let fetcher = FixedMetricsFetcher(result: URLSessionFetchResult(
+            data: bytes,
+            response: HTTPURLResponse(url: indexURL, statusCode: 200,
+                                      httpVersion: nil, headerFields: nil)!,
+            connectedPeerAddress: nil))
+        let transport = URLSessionRepositoryTransport(
+            resolver: RepositoryFixedResolver(addresses: ["93.184.216.34"]),
+            fetcher: fetcher)
+
+        do {
+            _ = try await transport.fetchIndex(at: indexURL)
+            XCTFail("missing connected peer must be refused")
         } catch let error as RepositoryTransportError {
             guard case .destinationRefused = error else {
                 XCTFail("expected destinationRefused, got \(error)")
@@ -227,6 +251,22 @@ private struct FixedMetricsFetcher: URLSessionDataFetching {
     let result: URLSessionFetchResult
 
     func fetch(_ request: URLRequest) async throws -> URLSessionFetchResult { result }
+}
+
+private struct PublicPeerFetcher: URLSessionDataFetching {
+    let wrapped: any URLSessionDataFetching
+
+    init(wrapping wrapped: any URLSessionDataFetching) {
+        self.wrapped = wrapped
+    }
+
+    func fetch(_ request: URLRequest) async throws -> URLSessionFetchResult {
+        let result = try await wrapped.fetch(request)
+        return URLSessionFetchResult(data: result.data,
+                                     response: result.response,
+                                     connectedPeerAddress: result.connectedPeerAddress
+                                        ?? "93.184.216.34")
+    }
 }
 
 private struct RepositoryFixedResolver: HostNameResolving {

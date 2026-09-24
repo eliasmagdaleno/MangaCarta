@@ -76,7 +76,7 @@ struct HostHTTPClient: Sendable {
             }
 
             let response = try await send(request)
-            if let peer = response.connectedPeerAddress, !HostIPAddress.isPublic(peer) {
+            guard let peer = response.connectedPeerAddress, HostIPAddress.isPublic(peer) else {
                 throw HostCapabilityError(code: .policyDenied,
                                           message: "the connected destination was non-public")
             }
@@ -296,7 +296,9 @@ final class URLSessionHostHTTPTransport: NSObject, HostHTTPTransport,
 
     override init() {
         let configuration = Self.sessionConfiguration()
-        fetcher = URLSessionDataFetcher(configuration: configuration) { _ in nil }
+        fetcher = URLSessionDataFetcher(
+            configuration: configuration,
+            redirectHandler: URLSessionDataFetcher.httpsOnlyRedirectHandler)
         super.init()
     }
 
@@ -316,6 +318,10 @@ final class URLSessionHostHTTPTransport: NSObject, HostHTTPTransport,
     }
 
     func send(_ request: URLRequest) async throws -> HostHTTPTransportResponse {
+        guard request.url?.scheme?.lowercased() == "https" else {
+            throw HostCapabilityError(code: .policyDenied,
+                                      message: "only HTTPS requests are allowed")
+        }
         let result = try await fetcher.fetch(request)
         let data = result.data
         let response = result.response
