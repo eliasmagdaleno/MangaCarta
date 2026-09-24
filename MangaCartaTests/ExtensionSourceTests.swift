@@ -102,6 +102,45 @@ final class ExtensionSourceTests: XCTestCase {
                        "the runtime received the request the adapter built")
     }
 
+    func testListingLookupUsesOptionalCapabilityAndReturnsMALId() async throws {
+        let source = try echoSource(declareListing: true, declaresMAL: true)
+        let value = try await (source as any MangaSource).manga(id: "lookup-1")
+        XCTAssertEqual(value?.id, "lookup-1")
+        XCTAssertEqual(value?.sourceId, Self.echoID)
+        XCTAssertEqual(value?.malId, 123)
+        XCTAssertEqual(host.invocations.map(\.0), [.listing])
+    }
+
+    func testListingLookupUndeclaredDoesNotInvokeRuntime() async throws {
+        let source = try echoSource()
+        let value = try await (source as any MangaSource).manga(id: "lookup-1")
+        XCTAssertNil(value)
+        XCTAssertTrue(host.invocations.isEmpty)
+    }
+
+    func testListingLookupNullReturnsNil() async throws {
+        let source = try echoSource(declareListing: true, declaresMAL: true)
+        let value = try await source.manga(id: "missing")
+        XCTAssertNil(value)
+        XCTAssertEqual(host.invocations.map(\.0), [.listing])
+    }
+
+    func testListingLookupPropagatesInvocationError() async throws {
+        let source = try echoSource(declareListing: true, declaresMAL: true, failWith: "network")
+        do {
+            _ = try await source.manga(id: "lookup-1")
+            XCTFail("expected invocation error")
+        } catch let error as ExtensionSourceError {
+            XCTAssertEqual(error, .invocation(.network))
+        }
+    }
+
+    func testRegistryChoosesInstalledExternalIdSource() throws {
+        let source = try echoSource(declareListing: true, declaresMAL: true)
+        let registry = SourceRegistry(sources: [source])
+        XCTAssertEqual(registry.externalIdSource?.id, Self.echoID)
+    }
+
     // MARK: Offset paging over a cursor contract
 
     /// `MangaSource` pages by offset; the Host API pages by opaque cursor. The adapter
@@ -254,6 +293,8 @@ final class ExtensionSourceTests: XCTestCase {
     /// what the adapter sent without a DOM. Cursors are decimal offsets, the shape the
     /// shipped theme engine uses too, but the adapter never assumes that.
     private func echoSource(exhaustAt: Int? = nil,
+                            declareListing: Bool = false,
+                            declaresMAL: Bool = false,
                             failWith code: String? = nil,
                             message: String = "") throws -> ExtensionSource {
         let script = """
@@ -261,6 +302,11 @@ final class ExtensionSourceTests: XCTestCase {
           invoke: function (operation, request, context) {
             \(code.map { "return { ok: false, error: { code: \"\($0)\", message: \"\(message)\" } };" } ?? "")
             var cursor = request.cursor === null || request.cursor === undefined ? "null" : request.cursor;
+            if (operation === "listing") {
+              return request.listingId === "missing"
+                ? { ok: true, value: null }
+                : { ok: true, value: { id: request.listingId, title: "Lookup", externalIds: { mal: "123" } } };
+            }
             var id = "cursor=" + cursor + ";limit=" + request.limit;
             if (request.query !== undefined) { id += ";query=" + request.query; }
             var offset = cursor === "null" ? 0 : parseInt(cursor, 10);
@@ -281,11 +327,11 @@ final class ExtensionSourceTests: XCTestCase {
           "engine": "echo",
           "adult": "none",
           "capabilities": { "search": true, "popular": true, "detail": true,
-                            "chapters": true, "pages": true },
+                            "chapters": true, "pages": true\(declareListing ? ", \"listing\": true" : "") },
           "languages": { "mode": "fixed", "values": ["en"] },
           "network": { "httpOrigins": [], "browserOrigins": [], "assetOrigins": [] },
           "hostAPI": { "minimum": "1.0", "maximumExclusive": "2.0" },
-          "configuration": {}
+          "configuration": {}\(declaresMAL ? ", \"externalIds\": [\"mal\"]" : "")
         }
         """, qualifiedId: Self.echoID)
         try lifecycle.register(declaration)

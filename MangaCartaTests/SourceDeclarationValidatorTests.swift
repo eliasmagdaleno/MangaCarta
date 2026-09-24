@@ -119,6 +119,18 @@ final class SourceDeclarationValidatorTests: XCTestCase {
         XCTAssertEqual(declaration.selectedHostAPIVersion, HostAPIVersion(major: 1, minor: 0))
         XCTAssertEqual(declaration.configuration,
                        .object(["baseURL": .string("https://example.test")]))
+        XCTAssertEqual(declaration.externalIds, [])
+    }
+
+    func testExternalIDsAreOptionalAndValidated() throws {
+        var acceptedJSON = baseDeclaration()
+        acceptedJSON["externalIds"] = ["mal"]
+        XCTAssertEqual(try accepted(acceptedJSON).externalIds, ["mal"])
+
+        XCTAssertEqual(try rejected(declaration(setting: "externalIds", to: ["mal", "mal"])),
+                       .duplicateExternalIDNamespace("mal"))
+        XCTAssertEqual(try rejected(declaration(setting: "externalIds", to: ["anilist"])),
+                       .unknownExternalIDNamespace("anilist"))
     }
 
     /// The id is supplied by the installer and copied through untouched. Nothing in the

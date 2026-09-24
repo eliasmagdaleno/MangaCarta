@@ -203,6 +203,14 @@ struct ExtensionDomainValidator {
                                       warnings: warnings)
     }
 
+    func validateListing(_ value: Any) throws -> ExtensionValidatedResult<ExtensionListing> {
+        try validateJSON(value)
+        guard let object = value as? [String: Any] else {
+            throw invalid("listing", "expected an object")
+        }
+        return try listing(from: object, path: "listing", itemIndex: nil)
+    }
+
     func validateUpdatePage(_ value: Any) throws -> ExtensionValidatedPage<ExtensionUpdate> {
         try validateJSON(value)
         let page = try pagination(from: value)
@@ -351,7 +359,7 @@ struct ExtensionDomainValidator {
 
     private func listing(from object: [String: Any],
                          path: String,
-                         itemIndex: Int) throws -> ExtensionValidatedResult<ExtensionListing> {
+                         itemIndex: Int?) throws -> ExtensionValidatedResult<ExtensionListing> {
         let id = try requiredNonemptyString(object, key: "id", path: path,
                                             maximumUTF8Bytes: 512)
         let title = try requiredNonemptyString(object, key: "title", path: path,
@@ -361,10 +369,18 @@ struct ExtensionDomainValidator {
         let contentRating = try enumString(object, key: "contentRating", path: path,
                                            allowed: Self.contentRatings)
         let year = try listingYear(object, path: path)
-        let externalIds = try stringDictionary(object, key: "externalIds", path: path) ?? [:]
+        var externalIds = try stringDictionary(object, key: "externalIds", path: path) ?? [:]
         let alternateTitles = try alternateTitles(object, path: path)
         var coverURL: URL?
         var warnings: [ExtensionValidationWarning] = []
+
+        if let mal = externalIds["mal"],
+           (mal.isEmpty
+            || mal.unicodeScalars.contains { $0.value < 48 || $0.value > 57 }
+            || Int(mal).map({ $0 > 0 }) != true) {
+            externalIds.removeValue(forKey: "mal")
+            warnings.append(warning(.invalidField, itemIndex, "\(path).externalIds.mal"))
+        }
 
         if let rawCover = try optionalString(object, key: "coverURL", path: path) {
             switch assetURL(rawCover) {

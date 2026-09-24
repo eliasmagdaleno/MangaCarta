@@ -43,6 +43,8 @@ enum SourceDeclarationError: Error, Equatable, Sendable {
     case invalidName(reason: TextRejectionReason)
     case invalidEngine(String)
     case invalidAdultClassification(String)
+    case unknownExternalIDNamespace(String)
+    case duplicateExternalIDNamespace(String)
     case missingRequiredCapabilities([String])
     case noDiscoveryCapability
     case invalidLanguageMode(String)
@@ -107,6 +109,10 @@ extension SourceDeclarationError {
         case .invalidAdultClassification(let value):
             return "adult classification '\(value)' is not one of none, mixed, adultOnly. "
                 + "The classification is required and is never assumed."
+        case .unknownExternalIDNamespace(let value):
+            return "externalIds namespace '\(value)' is not supported."
+        case .duplicateExternalIDNamespace(let value):
+            return "externalIds namespace '\(value)' is listed more than once."
         case .missingRequiredCapabilities(let names):
             return "A browsable and readable Source must declare "
                 + "\(SourceOperation.requiredForReading.map(\.rawValue).joined(separator: ", "))"
@@ -179,7 +185,7 @@ enum SourceDeclarationValidator {
 
     private static let topLevelKeys: Set<String> = [
         "localId", "name", "engine", "configuration", "adult",
-        "capabilities", "languages", "network", "presentation", "hostAPI"
+        "capabilities", "languages", "network", "presentation", "hostAPI", "externalIds"
     ]
 
     /// Validates the declaration in `json`.
@@ -239,6 +245,7 @@ enum SourceDeclarationValidator {
         let engineName = try engine(from: root)
         let engineConfiguration = try configuration(from: root)
         let classification = try adult(from: root)
+        let externalIds = try externalIDs(from: root)
         let declared = try capabilities(from: root)
         let languagePolicy = try languages(from: root)
         let networkPolicy = try network(from: root)
@@ -257,6 +264,7 @@ enum SourceDeclarationValidator {
                                  engine: engineName,
                                  configuration: engineConfiguration,
                                  adult: classification,
+                                 externalIds: externalIds,
                                  capabilities: declared,
                                  languages: languagePolicy,
                                  network: networkPolicy,
@@ -319,6 +327,27 @@ enum SourceDeclarationValidator {
             throw SourceDeclarationError.invalidAdultClassification(raw)
         }
         return classification
+    }
+
+    private static func externalIDs(from root: [String: JSONValue]) throws -> [String] {
+        guard let value = root["externalIds"] else { return [] }
+        guard let items = value.arrayValue else {
+            throw SourceDeclarationError.wrongType(path: "externalIds", expected: "array")
+        }
+        var namespaces: [String] = []
+        for item in items {
+            guard let namespace = item.stringValue else {
+                throw SourceDeclarationError.wrongType(path: "externalIds", expected: "string")
+            }
+            guard namespace == "mal" else {
+                throw SourceDeclarationError.unknownExternalIDNamespace(namespace)
+            }
+            guard !namespaces.contains(namespace) else {
+                throw SourceDeclarationError.duplicateExternalIDNamespace(namespace)
+            }
+            namespaces.append(namespace)
+        }
+        return namespaces
     }
 
     // MARK: - Capabilities
@@ -782,6 +811,7 @@ struct SourceDeclaration: Equatable, Sendable {
     /// and nowhere else in the record.
     let configuration: JSONValue
     let adult: AdultClassification
+    let externalIds: [String]
     let capabilities: SourceCapabilities
     let languages: LanguagePolicy
     let network: NetworkPolicy
@@ -796,6 +826,7 @@ struct SourceDeclaration: Equatable, Sendable {
                      engine: String,
                      configuration: JSONValue,
                      adult: AdultClassification,
+                     externalIds: [String],
                      capabilities: SourceCapabilities,
                      languages: LanguagePolicy,
                      network: NetworkPolicy,
@@ -808,6 +839,7 @@ struct SourceDeclaration: Equatable, Sendable {
         self.engine = engine
         self.configuration = configuration
         self.adult = adult
+        self.externalIds = externalIds
         self.capabilities = capabilities
         self.languages = languages
         self.network = network

@@ -24,6 +24,14 @@ final class ExtensionDomainSchemaTests: XCTestCase {
 
     // MARK: - Listing
 
+    func testInvalidMALIdIsDroppedWithWarning() throws {
+        let result = try validator.validateListing(["id": "manga-1", "title": "A Title",
+                                                    "externalIds": ["mal": "0"]])
+        XCTAssertNil(result.value.externalIds["mal"])
+        XCTAssertEqual(result.warnings.map(\.fieldPath), ["listing.externalIds.mal"])
+        XCTAssertEqual(result.warnings.map(\.itemIndex), [nil])
+    }
+
     func testSparseListingPreservesWireMetadataAndAdapterUsesInvokedSource() throws {
         let result = try validator.validateListingPage(exhaustedPage(items: [[
             "id": "  manga-1  ",
