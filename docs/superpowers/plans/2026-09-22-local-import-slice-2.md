@@ -1,5 +1,11 @@
 # Local import slice 2 — `LocalLibraryStore` + `LocalSource` (CBZ/ZIP)
 
+**Status (2026-09-25): implemented by #225.** This is the plan as written against the
+2026-09-22 baseline, retained as an implementation record. Later local-import UI, PDF,
+and follow-up work landed in #236, #235, and #246; consult the
+[local import spec](../specs/2026-09-22-local-import-design.md) and current code for
+remaining work.
+
 **Date:** 2026-09-22
 **Spec:** [`docs/superpowers/specs/2026-09-22-local-import-design.md`](../specs/2026-09-22-local-import-design.md) (PR #216), §§1–3, 6, 7, slice 2 in §8.
 **Decision:** [ADR-0025](../../adr/0025-local-files-as-a-source.md) (PR #216). Owner answers are recorded in the spec's "Decisions" section; this plan does not restate them, it builds them.
