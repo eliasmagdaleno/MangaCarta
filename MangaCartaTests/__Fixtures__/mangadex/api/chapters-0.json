@@ -1,0 +1,4685 @@
+{
+  "result": "ok",
+  "response": "collection",
+  "data": [
+    {
+      "id": "93ea0d72-169d-4418-b48d-95091972a871",
+      "type": "chapter",
+      "attributes": {
+        "volume": "1",
+        "chapter": "1",
+        "title": "The day we met again",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2024-12-15T19:29:07+00:00",
+        "readableAt": "2024-12-15T19:29:07+00:00",
+        "createdAt": "2024-12-15T13:23:35+00:00",
+        "updatedAt": "2025-06-29T19:11:59+00:00",
+        "version": 8,
+        "pages": 52
+      },
+      "relationships": [
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "f47f025d-ca4f-47be-8854-8619748bd6d2",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "127c45b9-b9cc-4ed6-8268-a59f491b698b",
+      "type": "chapter",
+      "attributes": {
+        "volume": "1",
+        "chapter": "2",
+        "title": "A fun morning",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2024-12-21T10:53:43+00:00",
+        "readableAt": "2024-12-21T10:53:43+00:00",
+        "createdAt": "2024-12-21T10:53:43+00:00",
+        "updatedAt": "2024-12-21T10:59:24+00:00",
+        "version": 4,
+        "pages": 31
+      },
+      "relationships": [
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "f47f025d-ca4f-47be-8854-8619748bd6d2",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "b89062e2-d34b-443d-8d67-5718e88ab554",
+      "type": "chapter",
+      "attributes": {
+        "volume": "1",
+        "chapter": "3",
+        "title": "It was a bit scary.",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2024-12-21T22:23:49+00:00",
+        "readableAt": "2024-12-21T22:23:49+00:00",
+        "createdAt": "2024-12-21T22:23:48+00:00",
+        "updatedAt": "2024-12-21T22:24:24+00:00",
+        "version": 3,
+        "pages": 26
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "8353eb18-58b5-4075-9f3e-a94e531cf892",
+      "type": "chapter",
+      "attributes": {
+        "volume": "1",
+        "chapter": "4",
+        "title": "Im glad.",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2024-12-22T17:03:47+00:00",
+        "readableAt": "2024-12-22T17:03:47+00:00",
+        "createdAt": "2024-12-22T17:03:46+00:00",
+        "updatedAt": "2024-12-22T17:04:07+00:00",
+        "version": 3,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "ad922b9c-ce02-403d-a57e-be37d8e6a82c",
+      "type": "chapter",
+      "attributes": {
+        "volume": "1",
+        "chapter": "5",
+        "title": "Happy school life.",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2024-12-24T09:45:55+00:00",
+        "readableAt": "2024-12-24T09:45:55+00:00",
+        "createdAt": "2024-12-24T09:45:54+00:00",
+        "updatedAt": "2024-12-24T09:46:07+00:00",
+        "version": 3,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "acf26b19-cd36-462a-afe7-bb07a33f09b5",
+      "type": "chapter",
+      "attributes": {
+        "volume": "1",
+        "chapter": "6",
+        "title": "Trauma.",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2024-12-24T09:54:44+00:00",
+        "readableAt": "2024-12-24T09:54:44+00:00",
+        "createdAt": "2024-12-24T09:54:44+00:00",
+        "updatedAt": "2024-12-24T09:55:10+00:00",
+        "version": 3,
+        "pages": 23
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "33bb4c45-f4af-41e0-baae-275477a73b13",
+      "type": "chapter",
+      "attributes": {
+        "volume": "1",
+        "chapter": "6.5",
+        "title": "Exclusive bonus chapter",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-01-11T17:35:50+00:00",
+        "readableAt": "2025-01-11T17:35:50+00:00",
+        "createdAt": "2025-01-11T17:35:49+00:00",
+        "updatedAt": "2025-01-11T17:36:16+00:00",
+        "version": 3,
+        "pages": 11
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "72256942-a175-4a40-ae78-5588c7d860a0",
+      "type": "chapter",
+      "attributes": {
+        "volume": "2",
+        "chapter": "7",
+        "title": "Bomb.",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2024-12-27T16:47:48+00:00",
+        "readableAt": "2024-12-27T16:47:48+00:00",
+        "createdAt": "2024-12-27T16:47:45+00:00",
+        "updatedAt": "2025-02-08T21:19:37+00:00",
+        "version": 12,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "c20356d9-8f0f-4e80-ba00-71f266af3809",
+      "type": "chapter",
+      "attributes": {
+        "volume": "2",
+        "chapter": "8",
+        "title": "Nonsense.",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2024-12-28T16:56:07+00:00",
+        "readableAt": "2024-12-28T16:56:07+00:00",
+        "createdAt": "2024-12-28T16:56:06+00:00",
+        "updatedAt": "2025-02-09T16:13:07+00:00",
+        "version": 8,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "edbbb646-32dd-422e-8157-7d02325068d1",
+      "type": "chapter",
+      "attributes": {
+        "volume": "2",
+        "chapter": "9",
+        "title": "Mistake.",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2024-12-31T16:48:50+00:00",
+        "readableAt": "2024-12-31T16:48:50+00:00",
+        "createdAt": "2024-12-31T16:48:50+00:00",
+        "updatedAt": "2025-02-08T21:19:53+00:00",
+        "version": 8,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "94dd7bd0-85ab-48b2-b37a-1e4144d08bd4",
+      "type": "chapter",
+      "attributes": {
+        "volume": "2",
+        "chapter": "10",
+        "title": "Heartless, isn’t he?",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-01-05T14:16:02+00:00",
+        "readableAt": "2025-01-05T14:16:02+00:00",
+        "createdAt": "2025-01-05T14:16:01+00:00",
+        "updatedAt": "2025-04-23T16:49:55+00:00",
+        "version": 13,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "67f00dba-336d-4538-ba8b-1b153298d39d",
+      "type": "chapter",
+      "attributes": {
+        "volume": "2",
+        "chapter": "11",
+        "title": "It'll be fine.",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-01-08T14:35:52+00:00",
+        "readableAt": "2025-01-08T14:35:52+00:00",
+        "createdAt": "2025-01-08T14:35:52+00:00",
+        "updatedAt": "2025-02-08T21:20:11+00:00",
+        "version": 13,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "96cc71a9-1b75-47c5-afc9-8ab819c16f15",
+      "type": "chapter",
+      "attributes": {
+        "volume": "2",
+        "chapter": "12",
+        "title": "Preparation.",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-01-17T16:57:47+00:00",
+        "readableAt": "2025-01-17T16:57:47+00:00",
+        "createdAt": "2025-01-17T16:57:47+00:00",
+        "updatedAt": "2025-02-08T21:21:11+00:00",
+        "version": 4,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "6f0cb9b7-3f7e-42c3-b295-7fc63eef8d3d",
+      "type": "chapter",
+      "attributes": {
+        "volume": "2",
+        "chapter": "13",
+        "title": "Cornered.",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-01-23T19:29:27+00:00",
+        "readableAt": "2025-01-23T19:29:27+00:00",
+        "createdAt": "2025-01-23T19:29:26+00:00",
+        "updatedAt": "2025-02-08T21:21:17+00:00",
+        "version": 6,
+        "pages": 21
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "bbeb8c2b-0035-40d6-8d90-cdcbcc107de8",
+      "type": "chapter",
+      "attributes": {
+        "volume": "2",
+        "chapter": "14",
+        "title": "I was excited!",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-01-30T21:51:22+00:00",
+        "readableAt": "2025-01-30T21:51:22+00:00",
+        "createdAt": "2025-01-30T21:51:21+00:00",
+        "updatedAt": "2025-02-09T16:04:51+00:00",
+        "version": 5,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "d4cc6951-196a-4ced-87fe-1b2b693a793d",
+      "type": "chapter",
+      "attributes": {
+        "volume": "2",
+        "chapter": "15",
+        "title": "Horrible.",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-02-02T19:59:57+00:00",
+        "readableAt": "2025-02-02T19:59:57+00:00",
+        "createdAt": "2025-02-02T19:59:57+00:00",
+        "updatedAt": "2025-02-08T21:21:33+00:00",
+        "version": 5,
+        "pages": 19
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "ee1bcc2f-50f4-408d-8a64-5deda1cf7a12",
+      "type": "chapter",
+      "attributes": {
+        "volume": "2",
+        "chapter": "15.5",
+        "title": "Bonus chapter",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-02-12T14:40:06+00:00",
+        "readableAt": "2025-02-12T14:40:06+00:00",
+        "createdAt": "2025-02-12T14:40:05+00:00",
+        "updatedAt": "2025-02-12T14:40:32+00:00",
+        "version": 3,
+        "pages": 13
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "c36fd62e-27b9-4042-b0c5-cf70573444f3",
+      "type": "chapter",
+      "attributes": {
+        "volume": "3",
+        "chapter": "16",
+        "title": "Turning.",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-02-08T17:42:19+00:00",
+        "readableAt": "2025-02-08T17:42:19+00:00",
+        "createdAt": "2025-02-08T17:42:18+00:00",
+        "updatedAt": "2025-04-24T20:57:23+00:00",
+        "version": 4,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "d09392ec-7ec7-48c5-8ed4-ae9c648fb0ca",
+      "type": "chapter",
+      "attributes": {
+        "volume": "3",
+        "chapter": "17",
+        "title": "Preparations again.",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-02-13T17:48:53+00:00",
+        "readableAt": "2025-02-13T17:48:53+00:00",
+        "createdAt": "2025-02-13T17:48:52+00:00",
+        "updatedAt": "2025-04-24T20:57:30+00:00",
+        "version": 5,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "2539eaaa-52f4-4e4a-970c-31261db47af4",
+      "type": "chapter",
+      "attributes": {
+        "volume": "3",
+        "chapter": "18",
+        "title": "Homeroom.",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-02-17T19:15:22+00:00",
+        "readableAt": "2025-02-17T19:15:22+00:00",
+        "createdAt": "2025-02-17T19:15:22+00:00",
+        "updatedAt": "2025-04-24T20:57:38+00:00",
+        "version": 4,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "e9b2a2b0-12ab-4e77-9b9b-e6ebabb70c73",
+      "type": "chapter",
+      "attributes": {
+        "volume": "3",
+        "chapter": "19",
+        "title": "Done with him.",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-02-24T17:13:55+00:00",
+        "readableAt": "2025-02-24T17:13:55+00:00",
+        "createdAt": "2025-02-24T17:13:54+00:00",
+        "updatedAt": "2025-04-24T20:57:45+00:00",
+        "version": 4,
+        "pages": 21
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "07e49dfe-c2ae-48a1-8230-3f3367861e97",
+      "type": "chapter",
+      "attributes": {
+        "volume": "3",
+        "chapter": "20",
+        "title": "Sound argument.",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-03-03T17:13:50+00:00",
+        "readableAt": "2025-03-03T17:13:50+00:00",
+        "createdAt": "2025-03-03T17:13:49+00:00",
+        "updatedAt": "2025-04-24T20:57:52+00:00",
+        "version": 5,
+        "pages": 19
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "6d220457-2147-4b1a-8947-6821bd3d4e15",
+      "type": "chapter",
+      "attributes": {
+        "volume": "3",
+        "chapter": "21",
+        "title": "The finishing blow",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-03-10T17:58:06+00:00",
+        "readableAt": "2025-03-10T17:58:06+00:00",
+        "createdAt": "2025-03-10T17:58:05+00:00",
+        "updatedAt": "2025-04-24T20:58:00+00:00",
+        "version": 5,
+        "pages": 19
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "fb73659f-a30c-4aac-93b1-87a8db5aaacf",
+      "type": "chapter",
+      "attributes": {
+        "volume": "3",
+        "chapter": "22",
+        "title": "Puppeteer",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-03-17T17:17:19+00:00",
+        "readableAt": "2025-03-17T17:17:19+00:00",
+        "createdAt": "2025-03-17T17:17:18+00:00",
+        "updatedAt": "2025-04-24T20:58:06+00:00",
+        "version": 5,
+        "pages": 19
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "ba315839-cea0-4cbf-94c9-734a7817b992",
+      "type": "chapter",
+      "attributes": {
+        "volume": "3",
+        "chapter": "23",
+        "title": "Fuu-chan",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-03-24T17:20:19+00:00",
+        "readableAt": "2025-03-24T17:20:19+00:00",
+        "createdAt": "2025-03-24T17:20:13+00:00",
+        "updatedAt": "2025-04-24T20:58:11+00:00",
+        "version": 5,
+        "pages": 19
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "3dd31860-975b-41be-9bbc-4dcfffd58940",
+      "type": "chapter",
+      "attributes": {
+        "volume": "3",
+        "chapter": "24",
+        "title": "Sweet refuge",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-03-31T16:35:25+00:00",
+        "readableAt": "2025-03-31T16:35:25+00:00",
+        "createdAt": "2025-03-31T16:35:25+00:00",
+        "updatedAt": "2025-04-24T20:58:16+00:00",
+        "version": 4,
+        "pages": 19
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "4aff2412-d90f-46da-ab6a-969530ce7bdb",
+      "type": "chapter",
+      "attributes": {
+        "volume": "3",
+        "chapter": "24.5",
+        "title": "Bonus chapter",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-04-21T18:45:12+00:00",
+        "readableAt": "2025-04-21T18:45:12+00:00",
+        "createdAt": "2025-04-21T18:45:12+00:00",
+        "updatedAt": "2025-04-24T20:58:21+00:00",
+        "version": 4,
+        "pages": 13
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "84abc77d-1979-40eb-bff5-b943695e0c61",
+      "type": "chapter",
+      "attributes": {
+        "volume": "4",
+        "chapter": "25",
+        "title": "Slacker",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-04-07T16:11:28+00:00",
+        "readableAt": "2025-04-07T16:11:28+00:00",
+        "createdAt": "2025-04-07T16:11:27+00:00",
+        "updatedAt": "2025-07-18T06:42:02+00:00",
+        "version": 4,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "39c0db00-d60a-48be-a78a-debd5cdb59f0",
+      "type": "chapter",
+      "attributes": {
+        "volume": "4",
+        "chapter": "26",
+        "title": "Following the steps",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-04-14T16:21:54+00:00",
+        "readableAt": "2025-04-14T16:21:54+00:00",
+        "createdAt": "2025-04-14T16:21:53+00:00",
+        "updatedAt": "2025-07-18T06:42:10+00:00",
+        "version": 4,
+        "pages": 22
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "1b7f84ab-c80a-4a2b-9410-9d54699eebe7",
+      "type": "chapter",
+      "attributes": {
+        "volume": "4",
+        "chapter": "27",
+        "title": "Petting Plan",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-04-22T14:04:11+00:00",
+        "readableAt": "2025-04-22T14:04:11+00:00",
+        "createdAt": "2025-04-22T14:04:10+00:00",
+        "updatedAt": "2025-07-18T06:42:16+00:00",
+        "version": 4,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "180a4970-7c13-4a68-b583-d37c288660a6",
+      "type": "chapter",
+      "attributes": {
+        "volume": "4",
+        "chapter": "28",
+        "title": "Clueless person",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-04-28T16:07:26+00:00",
+        "readableAt": "2025-04-28T16:07:26+00:00",
+        "createdAt": "2025-04-28T16:07:26+00:00",
+        "updatedAt": "2025-07-18T06:42:24+00:00",
+        "version": 5,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "b742f50c-f72b-4692-8bbb-7448066dc077",
+      "type": "chapter",
+      "attributes": {
+        "volume": "4",
+        "chapter": "29",
+        "title": "The language of flowers",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-05-05T14:01:46+00:00",
+        "readableAt": "2025-05-05T14:01:46+00:00",
+        "createdAt": "2025-05-05T14:01:45+00:00",
+        "updatedAt": "2025-07-18T06:42:32+00:00",
+        "version": 6,
+        "pages": 21
+      },
+      "relationships": [
+        {
+          "id": "493db93e-66dd-4858-9c8e-b9d0c185775c",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Namensideenlos Scanlations",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "zVheyQP3Ge",
+            "contactEmail": null,
+            "description": "\"The best scanlation group there is\"\n   -Mahatma Gandhi\n\n\"The only reason I made Mangadex for is so this could exist\"\n   -John Mangadex\n\n\"The most merciful thing in the world, I think, is the inability of the human mind to correlate all its contents.\"\n-Some Racist Author\n\n\"Ph'nglui mglw'nafh Cthulhu R'lyeh wgah'nagl fhtagn.\"\n-Characters Of The Racist Author",
+            "twitter": null,
+            "mangaUpdates": "https://www.mangaupdates.com/group/14acm4u/namensideenlos-scanlations",
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-10-19T15:44:35+00:00",
+            "updatedAt": "2026-03-28T21:57:27+00:00",
+            "version": 11
+          }
+        },
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "01b51cdb-bbaf-4677-96a9-c33af97bab10",
+      "type": "chapter",
+      "attributes": {
+        "volume": "4",
+        "chapter": "30",
+        "title": "A person who can work hard.",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-05-12T16:02:49+00:00",
+        "readableAt": "2025-05-12T16:02:49+00:00",
+        "createdAt": "2025-05-12T16:02:49+00:00",
+        "updatedAt": "2025-07-18T06:42:40+00:00",
+        "version": 4,
+        "pages": 21
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "44e9cefa-4ba7-4ed2-b69a-9fff0b6ef5b8",
+      "type": "chapter",
+      "attributes": {
+        "volume": "4",
+        "chapter": "31",
+        "title": "A happy future",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-06-02T15:55:11+00:00",
+        "readableAt": "2025-06-02T15:55:11+00:00",
+        "createdAt": "2025-06-02T15:55:11+00:00",
+        "updatedAt": "2025-07-18T06:42:48+00:00",
+        "version": 4,
+        "pages": 19
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "c153aa68-3cd7-4fa0-afb6-0d1482e5e89c",
+      "type": "chapter",
+      "attributes": {
+        "volume": "4",
+        "chapter": "32",
+        "title": "For my happiness",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-06-02T15:55:47+00:00",
+        "readableAt": "2025-06-02T15:55:47+00:00",
+        "createdAt": "2025-06-02T15:55:45+00:00",
+        "updatedAt": "2025-07-18T06:42:57+00:00",
+        "version": 4,
+        "pages": 19
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "aca81c8d-7013-4bff-b413-072f1f76638e",
+      "type": "chapter",
+      "attributes": {
+        "volume": "4",
+        "chapter": "33",
+        "title": "Despair",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-06-02T15:56:01+00:00",
+        "readableAt": "2025-06-02T15:56:01+00:00",
+        "createdAt": "2025-06-02T15:56:01+00:00",
+        "updatedAt": "2025-07-18T06:43:03+00:00",
+        "version": 5,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "f9f58455-b9e8-45fc-abd9-b544f6ab1435",
+      "type": "chapter",
+      "attributes": {
+        "volume": "5",
+        "chapter": "34",
+        "title": "Chains of family.",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-06-09T18:43:01+00:00",
+        "readableAt": "2025-06-09T18:43:01+00:00",
+        "createdAt": "2025-06-09T18:43:01+00:00",
+        "updatedAt": "2026-03-29T21:17:58+00:00",
+        "version": 6,
+        "pages": 19
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "c70ca1da-65fe-4c95-8300-169e09d5366b",
+      "type": "chapter",
+      "attributes": {
+        "volume": "5",
+        "chapter": "35",
+        "title": "The best outcome",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-06-16T16:11:27+00:00",
+        "readableAt": "2025-06-16T16:11:27+00:00",
+        "createdAt": "2025-06-16T16:11:27+00:00",
+        "updatedAt": "2026-03-29T21:18:01+00:00",
+        "version": 5,
+        "pages": 21
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "110cd7a8-d502-47a5-bcf1-8a3582b9d56b",
+      "type": "chapter",
+      "attributes": {
+        "volume": "5",
+        "chapter": "36",
+        "title": null,
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-06-20T21:46:06+00:00",
+        "readableAt": "2025-06-20T21:46:06+00:00",
+        "createdAt": "2025-06-20T21:09:40+00:00",
+        "updatedAt": "2026-03-29T21:18:03+00:00",
+        "version": 10,
+        "pages": 19
+      },
+      "relationships": [
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "898c5ffd-960b-4c49-b87d-cb56520393ba",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "436490fc-7aff-4dd3-ae7b-bf2a8e4631cf",
+      "type": "chapter",
+      "attributes": {
+        "volume": "5",
+        "chapter": "36",
+        "title": "Motive",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-06-20T22:27:27+00:00",
+        "readableAt": "2025-06-20T22:27:27+00:00",
+        "createdAt": "2025-06-20T22:27:24+00:00",
+        "updatedAt": "2026-03-29T21:18:04+00:00",
+        "version": 10,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "ba9aed1c-1a23-44b6-a782-47f8b3f57788",
+      "type": "chapter",
+      "attributes": {
+        "volume": "5",
+        "chapter": "37",
+        "title": "Welcome!",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-06-30T16:06:25+00:00",
+        "readableAt": "2025-06-30T16:06:25+00:00",
+        "createdAt": "2025-06-30T16:06:24+00:00",
+        "updatedAt": "2026-03-29T21:18:08+00:00",
+        "version": 5,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "ed607329-fb24-4988-b59c-fccdeb88fbbb",
+      "type": "chapter",
+      "attributes": {
+        "volume": "5",
+        "chapter": "38",
+        "title": "Yotsuha",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-07-07T15:51:13+00:00",
+        "readableAt": "2025-07-07T15:51:13+00:00",
+        "createdAt": "2025-07-07T15:51:13+00:00",
+        "updatedAt": "2026-03-29T21:18:09+00:00",
+        "version": 7,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "0138e451-a38f-4152-a36d-914a176f4ab6",
+      "type": "chapter",
+      "attributes": {
+        "volume": "5",
+        "chapter": "39",
+        "title": "Like light",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-07-14T16:14:01+00:00",
+        "readableAt": "2025-07-14T16:14:01+00:00",
+        "createdAt": "2025-07-14T16:14:00+00:00",
+        "updatedAt": "2026-03-29T21:18:11+00:00",
+        "version": 4,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "ba837198-bfb4-4976-b919-274b822e3e90",
+      "type": "chapter",
+      "attributes": {
+        "volume": "5",
+        "chapter": "40",
+        "title": null,
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-07-22T19:07:02+00:00",
+        "readableAt": "2025-07-22T19:07:02+00:00",
+        "createdAt": "2025-07-20T17:30:20+00:00",
+        "updatedAt": "2026-03-29T21:18:14+00:00",
+        "version": 5,
+        "pages": 18
+      },
+      "relationships": [
+        {
+          "id": "305a9d62-3ed1-4401-96a8-59e9204778aa",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "WolfieScans",
+            "altNames": [],
+            "locked": false,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": null,
+            "contactEmail": null,
+            "description": "",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2025-07-20T17:31:00+00:00",
+            "updatedAt": "2025-07-22T19:07:52+00:00",
+            "version": 2
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "aaabef70-675b-4562-926f-7bffe9faf803",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "ebb1bd60-7a3c-427a-bfc4-ef75939a82a1",
+      "type": "chapter",
+      "attributes": {
+        "volume": "5",
+        "chapter": "40",
+        "title": "Demon",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-07-22T22:30:45+00:00",
+        "readableAt": "2025-07-22T22:30:45+00:00",
+        "createdAt": "2025-07-22T22:30:45+00:00",
+        "updatedAt": "2026-03-29T21:18:15+00:00",
+        "version": 5,
+        "pages": 21
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "c1e8ac49-208d-42d6-af3d-ae29c23c5d5d",
+      "type": "chapter",
+      "attributes": {
+        "volume": "5",
+        "chapter": "41",
+        "title": "Battle’s End",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-07-28T17:11:49+00:00",
+        "readableAt": "2025-07-28T17:11:49+00:00",
+        "createdAt": "2025-07-28T17:11:47+00:00",
+        "updatedAt": "2026-03-29T21:18:16+00:00",
+        "version": 6,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "ec688f7e-2aeb-4b72-a7b4-e2eadb6f97ab",
+      "type": "chapter",
+      "attributes": {
+        "volume": "5",
+        "chapter": "42",
+        "title": "Death Anniversary",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-08-02T17:19:57+00:00",
+        "readableAt": "2025-08-02T17:19:57+00:00",
+        "createdAt": "2025-08-02T04:49:35+00:00",
+        "updatedAt": "2026-03-29T21:18:18+00:00",
+        "version": 6,
+        "pages": 19
+      },
+      "relationships": [
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "7de69639-302d-4bf6-a86c-8673048cc0de",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "cfa452c3-b60e-47ab-8814-4164d38bef62",
+      "type": "chapter",
+      "attributes": {
+        "volume": "5",
+        "chapter": "42",
+        "title": "Deathday",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-08-03T19:15:17+00:00",
+        "readableAt": "2025-08-03T19:15:17+00:00",
+        "createdAt": "2025-08-03T19:15:17+00:00",
+        "updatedAt": "2026-03-29T21:18:20+00:00",
+        "version": 4,
+        "pages": 19
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "12f10b64-630f-404e-891f-bcb3abcf1d73",
+      "type": "chapter",
+      "attributes": {
+        "volume": "6",
+        "chapter": "43",
+        "title": "Wake",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-08-11T15:46:11+00:00",
+        "readableAt": "2025-08-11T15:46:11+00:00",
+        "createdAt": "2025-08-11T15:46:10+00:00",
+        "updatedAt": "2026-03-29T21:18:22+00:00",
+        "version": 4,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "f260e581-43c2-4716-9f09-f09bede884cd",
+      "type": "chapter",
+      "attributes": {
+        "volume": "6",
+        "chapter": "44",
+        "title": "My sin",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-08-19T15:39:11+00:00",
+        "readableAt": "2025-08-19T15:39:11+00:00",
+        "createdAt": "2025-08-19T15:39:09+00:00",
+        "updatedAt": "2026-03-29T21:18:23+00:00",
+        "version": 5,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "1f95be40-1a01-4c16-bf7e-04548bd98fef",
+      "type": "chapter",
+      "attributes": {
+        "volume": "6",
+        "chapter": "45",
+        "title": "Promise",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-08-25T15:54:08+00:00",
+        "readableAt": "2025-08-25T15:54:08+00:00",
+        "createdAt": "2025-08-25T15:54:07+00:00",
+        "updatedAt": "2026-03-29T21:18:27+00:00",
+        "version": 4,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "199f30a6-b7c7-41db-b772-4b3c2d905f89",
+      "type": "chapter",
+      "attributes": {
+        "volume": "6",
+        "chapter": "46",
+        "title": "After the nightmare",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-09-08T16:12:53+00:00",
+        "readableAt": "2025-09-08T16:12:53+00:00",
+        "createdAt": "2025-09-08T16:12:53+00:00",
+        "updatedAt": "2026-03-29T21:18:32+00:00",
+        "version": 4,
+        "pages": 21
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "9c1eefd4-8998-408f-941f-5c5897435ad3",
+      "type": "chapter",
+      "attributes": {
+        "volume": "6",
+        "chapter": "47",
+        "title": "The next goal.",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-09-15T18:00:39+00:00",
+        "readableAt": "2025-09-15T18:00:39+00:00",
+        "createdAt": "2025-09-15T18:00:38+00:00",
+        "updatedAt": "2026-03-29T21:18:36+00:00",
+        "version": 5,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "c376053e-e7f1-4720-8e81-97fea4719b24",
+      "type": "chapter",
+      "attributes": {
+        "volume": "6",
+        "chapter": "48",
+        "title": "You're amazing!",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-09-22T16:20:03+00:00",
+        "readableAt": "2025-09-22T16:20:03+00:00",
+        "createdAt": "2025-09-22T16:20:03+00:00",
+        "updatedAt": "2026-03-29T21:18:42+00:00",
+        "version": 5,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "39a74a90-a455-40d2-8c5d-2ac925b33c72",
+      "type": "chapter",
+      "attributes": {
+        "volume": "6",
+        "chapter": "49",
+        "title": "Everyone's a friend!",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-10-06T16:15:29+00:00",
+        "readableAt": "2025-10-06T16:15:29+00:00",
+        "createdAt": "2025-10-06T16:15:28+00:00",
+        "updatedAt": "2026-03-29T21:18:47+00:00",
+        "version": 7,
+        "pages": 21
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "e02d8ac5-c2d9-4d02-900d-36893f543828",
+      "type": "chapter",
+      "attributes": {
+        "volume": "6",
+        "chapter": "50",
+        "title": "Straight to the point",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-10-13T15:57:53+00:00",
+        "readableAt": "2025-10-13T15:57:53+00:00",
+        "createdAt": "2025-10-13T15:57:52+00:00",
+        "updatedAt": "2026-03-29T21:18:51+00:00",
+        "version": 4,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "cfef4045-8c46-41b9-bcd1-d5062b025fdd",
+      "type": "chapter",
+      "attributes": {
+        "volume": "6",
+        "chapter": "51",
+        "title": "Rikawa Rikka",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-10-21T15:54:07+00:00",
+        "readableAt": "2025-10-21T15:54:07+00:00",
+        "createdAt": "2025-10-21T15:54:06+00:00",
+        "updatedAt": "2026-03-29T21:18:55+00:00",
+        "version": 4,
+        "pages": 19
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "c8d32287-67f1-4a10-8557-00ee7730f546",
+      "type": "chapter",
+      "attributes": {
+        "volume": "7",
+        "chapter": "52",
+        "title": "Just a bit",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-10-27T17:51:46+00:00",
+        "readableAt": "2025-10-27T17:51:46+00:00",
+        "createdAt": "2025-10-27T17:51:46+00:00",
+        "updatedAt": "2026-03-29T21:18:58+00:00",
+        "version": 4,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "eb0213fa-f97b-475b-a0b1-7026ede55642",
+      "type": "chapter",
+      "attributes": {
+        "volume": "7",
+        "chapter": "53",
+        "title": "I love you!!",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-11-03T17:00:02+00:00",
+        "readableAt": "2025-11-03T17:00:02+00:00",
+        "createdAt": "2025-11-03T17:00:02+00:00",
+        "updatedAt": "2026-03-29T21:19:02+00:00",
+        "version": 4,
+        "pages": 21
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "d58ce09f-dd7f-4774-8024-2080cc06e114",
+      "type": "chapter",
+      "attributes": {
+        "volume": "7",
+        "chapter": "54",
+        "title": "Hmmm",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-11-10T17:33:24+00:00",
+        "readableAt": "2025-11-10T17:33:24+00:00",
+        "createdAt": "2025-11-10T17:33:23+00:00",
+        "updatedAt": "2026-03-29T21:19:03+00:00",
+        "version": 4,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "de433ec1-7764-4093-82ca-4856916fffd4",
+      "type": "chapter",
+      "attributes": {
+        "volume": "7",
+        "chapter": "55",
+        "title": "According to plan",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-11-17T18:00:54+00:00",
+        "readableAt": "2025-11-17T18:00:54+00:00",
+        "createdAt": "2025-11-17T18:00:54+00:00",
+        "updatedAt": "2026-03-29T21:19:07+00:00",
+        "version": 4,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "baf4018b-db02-42e2-9800-eac7f68ef3f7",
+      "type": "chapter",
+      "attributes": {
+        "volume": "7",
+        "chapter": "56",
+        "title": "Strange",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-11-25T13:05:25+00:00",
+        "readableAt": "2025-11-25T13:05:25+00:00",
+        "createdAt": "2025-11-25T13:05:24+00:00",
+        "updatedAt": "2026-03-29T21:19:27+00:00",
+        "version": 4,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "788e4179-4c69-49f7-9de8-016e3f8fd087",
+      "type": "chapter",
+      "attributes": {
+        "volume": "7",
+        "chapter": "57",
+        "title": "Like a dream!",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-12-01T17:04:43+00:00",
+        "readableAt": "2025-12-01T17:04:43+00:00",
+        "createdAt": "2025-12-01T17:04:41+00:00",
+        "updatedAt": "2026-03-29T21:19:29+00:00",
+        "version": 4,
+        "pages": 19
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "8548564d-98a8-442c-bcbe-821ae74da339",
+      "type": "chapter",
+      "attributes": {
+        "volume": "7",
+        "chapter": "58",
+        "title": "That's weird",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-12-08T17:04:53+00:00",
+        "readableAt": "2025-12-08T17:04:53+00:00",
+        "createdAt": "2025-12-08T17:02:53+00:00",
+        "updatedAt": "2026-03-29T21:19:35+00:00",
+        "version": 4,
+        "pages": 19
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "78610633-05c6-45a5-aa6a-d5fc54d88216",
+      "type": "chapter",
+      "attributes": {
+        "volume": "7",
+        "chapter": "59",
+        "title": "Wavering",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-12-22T16:57:08+00:00",
+        "readableAt": "2025-12-22T16:57:08+00:00",
+        "createdAt": "2025-12-22T16:57:08+00:00",
+        "updatedAt": "2026-03-29T21:19:43+00:00",
+        "version": 5,
+        "pages": 19
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "f3a5b879-3c45-4ae2-8095-9186bdf684f5",
+      "type": "chapter",
+      "attributes": {
+        "volume": "7",
+        "chapter": "60",
+        "title": "Help me",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2025-12-22T16:58:13+00:00",
+        "readableAt": "2025-12-22T16:58:13+00:00",
+        "createdAt": "2025-12-22T16:58:12+00:00",
+        "updatedAt": "2026-03-29T21:19:44+00:00",
+        "version": 6,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "d582a03b-8bc4-47aa-8097-f9381efdb93e",
+      "type": "chapter",
+      "attributes": {
+        "volume": "8",
+        "chapter": "61",
+        "title": "Awakening",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2026-01-12T17:16:44+00:00",
+        "readableAt": "2026-01-12T17:16:44+00:00",
+        "createdAt": "2026-01-12T17:16:43+00:00",
+        "updatedAt": "2026-03-29T21:20:00+00:00",
+        "version": 4,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "fe4e7449-0204-47cf-b51a-92e47ba556df",
+      "type": "chapter",
+      "attributes": {
+        "volume": "8",
+        "chapter": "62",
+        "title": "Confession",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2026-01-13T18:13:35+00:00",
+        "readableAt": "2026-01-13T18:13:35+00:00",
+        "createdAt": "2026-01-13T18:13:34+00:00",
+        "updatedAt": "2026-03-29T21:20:03+00:00",
+        "version": 4,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "828e081c-7a73-4850-b7d4-088deccd6c54",
+      "type": "chapter",
+      "attributes": {
+        "volume": "8",
+        "chapter": "63",
+        "title": "To the new world",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2026-01-14T16:45:58+00:00",
+        "readableAt": "2026-01-14T16:45:58+00:00",
+        "createdAt": "2026-01-14T16:45:57+00:00",
+        "updatedAt": "2026-03-29T21:20:04+00:00",
+        "version": 5,
+        "pages": 19
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "ce606bfd-00d3-4c77-9e64-a1087f544274",
+      "type": "chapter",
+      "attributes": {
+        "volume": "8",
+        "chapter": "64",
+        "title": "Do we look alike?",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2026-01-19T16:52:36+00:00",
+        "readableAt": "2026-01-19T16:52:36+00:00",
+        "createdAt": "2026-01-19T16:52:35+00:00",
+        "updatedAt": "2026-03-29T21:20:06+00:00",
+        "version": 5,
+        "pages": 19
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "5441b7a1-85d4-4490-85bc-db77b5bea101",
+      "type": "chapter",
+      "attributes": {
+        "volume": "8",
+        "chapter": "65",
+        "title": "Malice from middle school",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2026-02-02T16:40:36+00:00",
+        "readableAt": "2026-02-02T16:40:36+00:00",
+        "createdAt": "2026-02-02T16:40:35+00:00",
+        "updatedAt": "2026-03-29T21:20:09+00:00",
+        "version": 4,
+        "pages": 19
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "80d1f634-af24-4fd8-bcf2-1f616113fd02",
+      "type": "chapter",
+      "attributes": {
+        "volume": "8",
+        "chapter": "66",
+        "title": "Someone strong.",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2026-02-12T14:50:28+00:00",
+        "readableAt": "2026-02-12T14:50:28+00:00",
+        "createdAt": "2026-02-12T14:50:27+00:00",
+        "updatedAt": "2026-03-29T21:20:10+00:00",
+        "version": 4,
+        "pages": 18
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "3da902b6-0527-424c-ac00-e345f5d97059",
+      "type": "chapter",
+      "attributes": {
+        "volume": "8",
+        "chapter": "67",
+        "title": "Tears.",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2026-02-16T20:30:17+00:00",
+        "readableAt": "2026-02-16T20:30:17+00:00",
+        "createdAt": "2026-02-16T20:30:16+00:00",
+        "updatedAt": "2026-03-29T21:20:12+00:00",
+        "version": 4,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "9fc66dda-260e-40a3-91a9-ad9aaf743293",
+      "type": "chapter",
+      "attributes": {
+        "volume": "8",
+        "chapter": "68",
+        "title": "Odd insult.",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2026-02-23T18:25:20+00:00",
+        "readableAt": "2026-02-23T18:25:20+00:00",
+        "createdAt": "2026-02-23T18:25:20+00:00",
+        "updatedAt": "2026-03-29T21:20:18+00:00",
+        "version": 4,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "7423a74d-fa56-417a-8b7e-7c003d57657d",
+      "type": "chapter",
+      "attributes": {
+        "volume": "8",
+        "chapter": "69",
+        "title": "Childhood Friend",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2026-03-25T04:42:17+00:00",
+        "readableAt": "2026-03-25T04:42:17+00:00",
+        "createdAt": "2026-03-25T04:42:15+00:00",
+        "updatedAt": "2026-06-01T22:32:07+00:00",
+        "version": 8,
+        "pages": 18
+      },
+      "relationships": [
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "9d5aec42-0317-40ec-84bf-f0e31c2519d3",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "56486649-4d68-4abe-bb90-5b66ffee4b1d",
+      "type": "chapter",
+      "attributes": {
+        "volume": "9",
+        "chapter": "70",
+        "title": "Discovery",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2026-03-29T05:52:43+00:00",
+        "readableAt": "2026-03-29T05:52:43+00:00",
+        "createdAt": "2026-03-29T05:52:42+00:00",
+        "updatedAt": "2026-06-25T19:48:58+00:00",
+        "version": 6,
+        "pages": 19
+      },
+      "relationships": [
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "9d5aec42-0317-40ec-84bf-f0e31c2519d3",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "762f2beb-02cf-42e5-9dca-5f372b4524ce",
+      "type": "chapter",
+      "attributes": {
+        "volume": "9",
+        "chapter": "71",
+        "title": "I'm sorry, Fuu-chan",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2026-04-08T05:47:18+00:00",
+        "readableAt": "2026-04-08T05:47:18+00:00",
+        "createdAt": "2026-04-08T05:47:18+00:00",
+        "updatedAt": "2026-06-25T19:49:03+00:00",
+        "version": 5,
+        "pages": 18
+      },
+      "relationships": [
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "9d5aec42-0317-40ec-84bf-f0e31c2519d3",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "91a5f0bf-3453-4edd-a8d2-6c9e01d14ad0",
+      "type": "chapter",
+      "attributes": {
+        "volume": "9",
+        "chapter": "72",
+        "title": "Someone's Testament",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2026-04-15T05:06:25+00:00",
+        "readableAt": "2026-04-15T05:06:25+00:00",
+        "createdAt": "2026-04-15T05:06:25+00:00",
+        "updatedAt": "2026-06-25T19:49:03+00:00",
+        "version": 4,
+        "pages": 19
+      },
+      "relationships": [
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "9d5aec42-0317-40ec-84bf-f0e31c2519d3",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "5d25de0e-a6ef-480e-9c6d-5861482cd3b5",
+      "type": "chapter",
+      "attributes": {
+        "volume": "9",
+        "chapter": "73",
+        "title": "Someone's Testament - Page Two",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2026-05-01T05:08:48+00:00",
+        "readableAt": "2026-05-01T05:08:48+00:00",
+        "createdAt": "2026-05-01T05:08:48+00:00",
+        "updatedAt": "2026-06-25T19:49:05+00:00",
+        "version": 4,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "9d5aec42-0317-40ec-84bf-f0e31c2519d3",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "b497cc1b-5533-4d87-9649-50c01b35a624",
+      "type": "chapter",
+      "attributes": {
+        "volume": "9",
+        "chapter": "74",
+        "title": "Someone's Testament - Page Three",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2026-05-09T06:21:14+00:00",
+        "readableAt": "2026-05-09T06:21:14+00:00",
+        "createdAt": "2026-05-09T06:21:12+00:00",
+        "updatedAt": "2026-06-25T19:49:05+00:00",
+        "version": 4,
+        "pages": 18
+      },
+      "relationships": [
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "9d5aec42-0317-40ec-84bf-f0e31c2519d3",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "c6a4b8de-6b7a-4387-b715-4289d38163f6",
+      "type": "chapter",
+      "attributes": {
+        "volume": "9",
+        "chapter": "75",
+        "title": "What if",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2026-05-20T03:33:10+00:00",
+        "readableAt": "2026-05-20T03:33:10+00:00",
+        "createdAt": "2026-05-20T03:33:10+00:00",
+        "updatedAt": "2026-06-25T19:49:07+00:00",
+        "version": 4,
+        "pages": 18
+      },
+      "relationships": [
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "9d5aec42-0317-40ec-84bf-f0e31c2519d3",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "06ae48d0-13b1-4c07-b2e4-764727be9833",
+      "type": "chapter",
+      "attributes": {
+        "volume": "9",
+        "chapter": "76",
+        "title": "I Love Fuu-chan",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2026-06-01T18:58:09+00:00",
+        "readableAt": "2026-06-01T18:58:09+00:00",
+        "createdAt": "2026-06-01T18:58:08+00:00",
+        "updatedAt": "2026-06-25T19:49:09+00:00",
+        "version": 7,
+        "pages": 19
+      },
+      "relationships": [
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "9d5aec42-0317-40ec-84bf-f0e31c2519d3",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "4d2e3235-62f2-4d2b-9968-cf86d4da6d0b",
+      "type": "chapter",
+      "attributes": {
+        "volume": "9",
+        "chapter": "77",
+        "title": "Investigation",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2026-06-07T02:16:10+00:00",
+        "readableAt": "2026-06-07T02:16:10+00:00",
+        "createdAt": "2026-06-07T02:16:09+00:00",
+        "updatedAt": "2026-06-25T19:49:10+00:00",
+        "version": 5,
+        "pages": 19
+      },
+      "relationships": [
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "9d5aec42-0317-40ec-84bf-f0e31c2519d3",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "db592f2d-5888-413f-b8d3-cf9348227866",
+      "type": "chapter",
+      "attributes": {
+        "volume": "9",
+        "chapter": "78",
+        "title": "Could it be?",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2026-06-27T01:21:06+00:00",
+        "readableAt": "2026-06-27T01:21:06+00:00",
+        "createdAt": "2026-06-27T01:21:05+00:00",
+        "updatedAt": "2026-06-27T01:21:41+00:00",
+        "version": 3,
+        "pages": 18
+      },
+      "relationships": [
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "9d5aec42-0317-40ec-84bf-f0e31c2519d3",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "f3811be0-b108-4361-bd14-7f437f6b21dc",
+      "type": "chapter",
+      "attributes": {
+        "volume": "10",
+        "chapter": "79",
+        "title": "The Worst Theory",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2026-07-02T04:29:04+00:00",
+        "readableAt": "2026-07-02T04:29:04+00:00",
+        "createdAt": "2026-07-02T04:29:04+00:00",
+        "updatedAt": "2026-09-18T14:07:47+00:00",
+        "version": 4,
+        "pages": 18
+      },
+      "relationships": [
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "9d5aec42-0317-40ec-84bf-f0e31c2519d3",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "9fcdf73b-ba5e-47d7-8c21-7805cc298187",
+      "type": "chapter",
+      "attributes": {
+        "volume": "10",
+        "chapter": "80",
+        "title": "The Mastermind is",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2026-07-15T02:29:24+00:00",
+        "readableAt": "2026-07-15T02:29:24+00:00",
+        "createdAt": "2026-07-15T02:29:23+00:00",
+        "updatedAt": "2026-09-18T14:08:00+00:00",
+        "version": 5,
+        "pages": 19
+      },
+      "relationships": [
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "9d5aec42-0317-40ec-84bf-f0e31c2519d3",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "aa129034-4249-441e-96dd-671bf7e7ba6f",
+      "type": "chapter",
+      "attributes": {
+        "volume": "10",
+        "chapter": "81",
+        "title": "Pure Evil.",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2026-08-21T20:25:09+00:00",
+        "readableAt": "2026-08-21T20:25:09+00:00",
+        "createdAt": "2026-08-21T18:50:14+00:00",
+        "updatedAt": "2026-09-18T14:08:11+00:00",
+        "version": 5,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "2b3ac918-f03a-467f-8cca-e840bdc0134b",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "The Front of Armament",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "P3R7e5Ngbb",
+            "contactEmail": null,
+            "description": "I just translate whatever I find interesting.",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2026-04-23T05:48:03+00:00",
+            "updatedAt": "2026-08-20T19:55:09+00:00",
+            "version": 6
+          }
+        },
+        {
+          "id": "42bb26b2-3aa3-466f-80d8-6255366bdb8a",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Esutoro Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "QkQ3mZswjM",
+            "contactEmail": null,
+            "description": "",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2026-07-08T11:16:37+00:00",
+            "updatedAt": "2026-08-21T18:46:18+00:00",
+            "version": 5
+          }
+        },
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "98428dd9-780b-4f74-ae1a-ca397c673c6d",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "69245ed2-90fe-4ac2-983a-29862e952673",
+      "type": "chapter",
+      "attributes": {
+        "volume": "10",
+        "chapter": "82",
+        "title": "Pure Light.",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2026-08-31T14:52:20+00:00",
+        "readableAt": "2026-08-31T14:52:20+00:00",
+        "createdAt": "2026-08-31T14:52:19+00:00",
+        "updatedAt": "2026-09-18T14:08:21+00:00",
+        "version": 4,
+        "pages": 21
+      },
+      "relationships": [
+        {
+          "id": "2b3ac918-f03a-467f-8cca-e840bdc0134b",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "The Front of Armament",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "P3R7e5Ngbb",
+            "contactEmail": null,
+            "description": "I just translate whatever I find interesting.",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2026-04-23T05:48:03+00:00",
+            "updatedAt": "2026-08-20T19:55:09+00:00",
+            "version": 6
+          }
+        },
+        {
+          "id": "42bb26b2-3aa3-466f-80d8-6255366bdb8a",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Esutoro Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "QkQ3mZswjM",
+            "contactEmail": null,
+            "description": "",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2026-07-08T11:16:37+00:00",
+            "updatedAt": "2026-08-21T18:46:18+00:00",
+            "version": 5
+          }
+        },
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "98428dd9-780b-4f74-ae1a-ca397c673c6d",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "8961bd86-09f6-4bc9-bd2c-a3d6afa89ab2",
+      "type": "chapter",
+      "attributes": {
+        "volume": "10",
+        "chapter": "83",
+        "title": "Why i was born",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2026-09-14T15:36:41+00:00",
+        "readableAt": "2026-09-14T15:36:41+00:00",
+        "createdAt": "2026-09-14T15:36:40+00:00",
+        "updatedAt": "2026-09-18T14:08:30+00:00",
+        "version": 6,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "6bcc5864-c627-4b3d-9908-60af780b7b78",
+          "type": "scanlation_group",
+          "attributes": {
+            "name": "Sloppy Rizz Scans",
+            "altNames": [],
+            "locked": true,
+            "website": null,
+            "ircServer": null,
+            "ircChannel": null,
+            "discord": "skKpYykJQq",
+            "contactEmail": null,
+            "description": "Read at your own risk",
+            "twitter": null,
+            "mangaUpdates": null,
+            "focusedLanguages": [
+              "en"
+            ],
+            "official": false,
+            "verified": false,
+            "inactive": false,
+            "publishDelay": null,
+            "exLicensed": false,
+            "createdAt": "2024-12-13T10:27:25+00:00",
+            "updatedAt": "2025-10-27T17:48:43+00:00",
+            "version": 8
+          }
+        },
+        {
+          "id": "0a580438-bc72-4503-940b-12a5da881b56",
+          "type": "manga"
+        },
+        {
+          "id": "2f6e2937-14ad-4919-a68a-bdf92dd65096",
+          "type": "user"
+        }
+      ]
+    }
+  ],
+  "limit": 100,
+  "offset": 0,
+  "total": 89
+}

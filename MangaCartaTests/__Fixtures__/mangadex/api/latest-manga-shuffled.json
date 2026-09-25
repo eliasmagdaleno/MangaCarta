@@ -1,0 +1,103 @@
+{
+  "result": "ok",
+  "response": "collection",
+  "data": [
+    {
+      "id": "m-b",
+      "type": "manga",
+      "attributes": {
+        "title": {
+          "en": "Manga B"
+        },
+        "altTitles": [],
+        "description": {
+          "en": "Manga B synopsis."
+        },
+        "isLocked": false,
+        "links": {},
+        "originalLanguage": "ja",
+        "lastVolume": "2",
+        "lastChapter": "10",
+        "publicationDemographic": "shoujo",
+        "status": "ongoing",
+        "year": 2021,
+        "contentRating": "safe",
+        "tags": [],
+        "state": "published",
+        "chapterNumbersResetOnNewVolume": false,
+        "createdAt": "2021-01-01T00:00:00+00:00",
+        "updatedAt": "2026-09-25T00:00:00+00:00",
+        "version": 1,
+        "availableTranslatedLanguages": [
+          "en"
+        ],
+        "latestUploadedChapter": "c-3"
+      },
+      "relationships": [
+        {
+          "id": "cover-b",
+          "type": "cover_art",
+          "attributes": {
+            "description": "",
+            "volume": "2",
+            "fileName": "cover-b.jpg",
+            "locale": "ja",
+            "createdAt": "2021-01-01T00:00:00+00:00",
+            "updatedAt": "2021-01-01T00:00:00+00:00",
+            "version": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "m-a",
+      "type": "manga",
+      "attributes": {
+        "title": {
+          "en": "Manga A"
+        },
+        "altTitles": [],
+        "description": {
+          "en": "Manga A synopsis."
+        },
+        "isLocked": false,
+        "links": {},
+        "originalLanguage": "ja",
+        "lastVolume": "1",
+        "lastChapter": "5",
+        "publicationDemographic": "shounen",
+        "status": "ongoing",
+        "year": 2020,
+        "contentRating": "safe",
+        "tags": [],
+        "state": "published",
+        "chapterNumbersResetOnNewVolume": false,
+        "createdAt": "2020-01-01T00:00:00+00:00",
+        "updatedAt": "2026-09-25T00:00:00+00:00",
+        "version": 1,
+        "availableTranslatedLanguages": [
+          "en"
+        ],
+        "latestUploadedChapter": "c-1"
+      },
+      "relationships": [
+        {
+          "id": "cover-a",
+          "type": "cover_art",
+          "attributes": {
+            "description": "",
+            "volume": "1",
+            "fileName": "cover-a.jpg",
+            "locale": "ja",
+            "createdAt": "2020-01-01T00:00:00+00:00",
+            "updatedAt": "2020-01-01T00:00:00+00:00",
+            "version": 1
+          }
+        }
+      ]
+    }
+  ],
+  "limit": 2,
+  "offset": 0,
+  "total": 2
+}

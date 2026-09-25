@@ -1,0 +1,46 @@
+{
+  "result": "ok",
+  "total": 102,
+  "data": [
+    {
+      "id": "ch-101",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "101",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-102",
+      "type": "chapter",
+      "attributes": {
+        "chapter": null,
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    }
+  ]
+}
