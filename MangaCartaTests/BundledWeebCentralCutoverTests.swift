@@ -432,15 +432,26 @@ final class InstalledSourceIDMigrationTests: XCTestCase {
 
     func testAppCompositionAppliesBindingBeforeLoadingWorks() throws {
         let record = try installRecord()
-        let work = directory.appendingPathComponent("works.json")
-        let original = Data(#"{"listings":[{"sourceId":"mangadex","mangaId":"123"}]}"#.utf8)
-        try original.write(to: work)
+        let manga = Manga(id: "123", sourceId: "mangadex", title: "Old title",
+                          description: "", status: "ongoing", year: nil, coverURL: nil,
+                          malId: nil, altTitles: [], contentRating: nil)
+        let works = WorkStore(directory: directory)
+        let workID = works.mint(from: manga)
+        works.flush()
+        let oldListing = ListingKey(sourceId: "mangadex", mangaId: "123")
+        let updates = UpdateStateStore(directory: directory, works: works)
+        _ = updates.absorb(workId: workID, listing: oldListing, rawNumbers: ["1"])
+        updates.flush()
+        SourcePreferenceStore(defaults: defaults).choose(oldListing, for: workID)
         InstalledSourceIDMigration.request(legacyID: "mangadex", installed: record, defaults: defaults)
 
-        _ = AppComposition(defaults: defaults, directory: directory,
-                           registry: SourceRegistry(sources: [MangaDexSource()]))
+        let composition = AppComposition(defaults: defaults, directory: directory,
+                                         registry: SourceRegistry(sources: [MangaDexSource()]))
+        let newListing = ListingKey(sourceId: targetID, mangaId: "123")
 
-        XCTAssertTrue(try String(contentsOf: work, encoding: .utf8).contains(targetID))
+        XCTAssertEqual(composition.works.workId(for: newListing), workID)
+        XCTAssertNotNil(UpdateStateStore(directory: directory).state(for: workID)?.listings[newListing])
+        XCTAssertEqual(SourcePreferenceStore(defaults: defaults).choice(for: workID), newListing)
     }
 
     func testNoBindingOrMissingInstallLeavesDataDormant() throws {
