@@ -76,7 +76,7 @@ struct MangaCartaApp: App {
                 .appendingPathComponent("MangaCarta-LocalImportUITest-\(storageID)", isDirectory: true)
             try? FileManager.default.removeItem(at: directory)
             let local = LocalLibraryStore(root: directory.appendingPathComponent("LocalLibrary"))
-            updateRegistry = SourceRegistry(sources: [MangaDexSource(), LocalSource(store: local)])
+            updateRegistry = SourceRegistry(sources: [LocalSource(store: local)])
         } else if ProcessInfo.processInfo.arguments.contains("-uitest-mal-signed-out") {
             (ephemeralCredentials, ephemeralPreferences) = AppComposition.ephemeralMALAccount()
         } else if let state = Self.uiTestAccountState {
@@ -183,11 +183,6 @@ struct MangaCartaApp: App {
                 .task {
 #if DEBUG
                     await Self.importUITestFixtureIfRequested(library: library, works: works, registry: registry)
-#endif
-                    if !ProcessInfo.processInfo.arguments.contains("-uitest-zero-sources") {
-                        await extensions?.installBundledSources()
-                    }
-#if DEBUG
                     if UpdatesUITestFixture.state == nil {
                         queue.start()
                         refresh.startForeground { [notifier] events in

@@ -5,7 +5,8 @@
 //  The single place that knows which manga sources exist and which one is "active" for
 //  browsing. ViewModels and Services resolve their source through here instead of
 //  referencing a concrete API. Two kinds of source live here: the compiled-in set
-//  (`builtInSources()`), fixed for the life of the process, and the installed set
+//  (`builtInSources()` — only the on-device Local library since ADR-0003 Amendment 6),
+//  fixed for the life of the process, and the installed set
 //  (Phase 4), which `ExtensionSourceRegistrar` replaces whenever the lifecycle registry
 //  or the repository store changes. Installed sources are *added* after the built-ins,
 //  never substituted for them; registration order is what the fulfillment ranking's last
@@ -48,7 +49,7 @@ final class SourceRegistry: ObservableObject {
 
     private static let activeKey = "source.activeID"
 
-    /// - Parameter sources: Sources to register, or `nil` for the built-in MangaDex source.
+    /// - Parameter sources: Sources to register, or `nil` for the built-in set (Local only).
     ///   Injectable so tests can supply mock sources.
     init(sources: [MangaSource]? = nil) {
         let sources = sources ?? Self.builtInSources()
@@ -73,16 +74,23 @@ final class SourceRegistry: ObservableObject {
         self.chosenSourceID = stored
     }
 
-    /// The app's compiled-in source. WeebCentral is restored through the bundled package.
+    /// The app's compiled-in sources. No remote content Source ships in the binary
+    /// (ADR-0003 Amendment 6): MangaDex and WeebCentral are installed from a repository the
+    /// reader adds, like any other Source.
     private static func builtInSources() -> [MangaSource] {
-        [MangaDexSource(), LocalSource(store: .shared)]
+        [LocalSource(store: .shared)]
     }
+
+    /// Identities of Sources earlier builds shipped. Nothing registers under them now, and
+    /// their records wait for the reader to reconnect them (ADR-0003 Amendment 7), so a
+    /// lookup must fail as unavailable rather than fall back to whatever is active.
+    private static let retiredSourceIDs = Set(InstalledSourceIDMigration.legacyIDs)
 
     /// Replaces the installed set (Phase 4). The built-ins stay exactly where they were;
     /// `installed` follows them in the order given. If the browse source was one that is
     /// no longer here — uninstalled, disabled, refused at launch — browsing moves to the
     /// first source rather than leaving `activeSourceID` pointing at nothing the picker
-    /// can show. The first source is a built-in, which ADR-0022 keeps non-adult.
+    /// can show.
     func setInstalledSources(_ installed: [MangaSource]) {
         sources = builtIn + installed
         if let chosen = chosenSourceID, chosen != activeSourceID, source(id: chosen) != nil {
@@ -105,7 +113,12 @@ final class SourceRegistry: ObservableObject {
         return sources.first(where: \.publishesExternalIds)
     }
 
-    private var firstBrowsable: MangaSource? { sources.first(where: { $0.isBrowsable }) }
+    /// The fallback browse source. It prefers a non-adult one: no built-in is browsable any
+    /// more (ADR-0003 Amendment 6), so registration order alone no longer keeps an adult
+    /// Source from becoming the default the way the compiled MangaDex did (ADR-0022).
+    private var firstBrowsable: MangaSource? {
+        sources.first(where: { $0.isBrowsable && !$0.isNSFW }) ?? sources.first(where: { $0.isBrowsable })
+    }
 
     /// Look up a source by its stable id (e.g. a manga's `sourceId`). Nil if not registered.
     func source(id: String) -> MangaSource? {
@@ -117,7 +130,8 @@ final class SourceRegistry: ObservableObject {
     /// registered return nil so callers cannot ask another Source for their listing.
     func source(for manga: Manga) -> MangaSource? {
         if let source = source(id: manga.sourceId) { return source }
-        return knownSourceIDs.contains(manga.sourceId) ? nil : active
+        let known = knownSourceIDs.contains(manga.sourceId) || Self.retiredSourceIDs.contains(manga.sourceId)
+        return known ? nil : active
     }
 
     /// Mirrors lifecycle identity knowledge into this registry. The lifecycle owns the
@@ -142,8 +156,8 @@ final class SourceRegistry: ObservableObject {
     var browsableSourceNames: [String] { visibleSources(includeAdult: true).map(\.name) }
 
     /// Whether any registered source serves adult content, and therefore whether the
-    /// "show adult sources" control has anything to gate. False for the built-in set by
-    /// ADR-0022 — the adult source is never merged — which is what hides that control;
+    /// "show adult sources" control has anything to gate. False for the built-in set, which
+    /// is Local only — which is what hides that control;
     /// true the moment a reader installs a `mixed` or `adultOnly` Source (ADR-0022
     /// Amendment 1), which is what shows it again.
     var hasAdultSource: Bool {

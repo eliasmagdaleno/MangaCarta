@@ -97,7 +97,6 @@ struct AppComposition {
         let registrar: ExtensionSourceRegistrar
         /// Where S5's acknowledgement sheet plugs in. Declines until then.
         let adultAcknowledgement: AdultInstallAcknowledgementHandle
-        let usesBundledTransport: Bool
         let migrationDirectory: URL
         let migrationDefaults: UserDefaults
 
@@ -125,40 +124,18 @@ struct AppComposition {
                                                defaults: migrationDefaults)
         }
 
-        /// First-launch install of the bundled WeebCentral package (ADR-0003 Amendment 5),
-        /// and on every later launch the refresh that surfaces an app-update's new bundle
-        /// `version`. Awaited by `MangaCartaApp` right after composition so the registry is
-        /// deterministic by the time any view reads it — an earlier draft fired this from
-        /// `init` as an unstructured `Task`, which left `registry.sources` racing.
-        ///
-        /// A record whose Source the reader *uninstalled* is left alone: the guard is on the
-        /// record's existence, not its state, so the app re-offers rather than reinstalls
-        /// (A5 part 4). The repository URL is the constant `bundled.invalid` URL; a record holding
-        /// any other URL (an earlier draft's `bundled://`) is repointed to it. Returns the installer's sentence when the package could
-        /// not be installed — a packaging defect, not a reader-facing state: MangaDex stays
-        /// usable and the repositories screen shows the Source as offered.
+        /// Retires the WeebCentral package that Amendment 5 builds installed from the app
+        /// bundle (ADR-0003 Amendment 6). Its repository is removed the ordinary way, which
+        /// uninstalls the Source and deletes its script while keeping its Listings, pins and
+        /// history dormant for the reader to reconnect (Amendment 7). Idempotent: a removed
+        /// record is no longer active, and a device that never had one has nothing to do.
+        /// Returns the installer's sentence if the record could not be retired.
         @discardableResult
-        func installBundledSources() async -> String? {
-            guard usesBundledTransport else { return nil }
+        func retireBundledSources() -> String? {
             let id = BundledRepositories.weebCentralRepositoryID
+            guard repositories.repository(id)?.state == .active else { return nil }
             do {
-                let repository: RepositoryRecord
-                if let existing = repositories.repository(id) {
-                    repository = existing
-                    if existing.indexURL == BundledRepositories.weebCentralURL {
-                        _ = try await installer.refresh(id)
-                    } else {
-                        // A record from before the URL was the constant: refreshing its stored
-                        // URL would go to the network and fail on every launch. Repoint it; its
-                        // Sources, uninstalled ones included, are kept.
-                        _ = try await installer.changeRepositoryURL(id, to: BundledRepositories.weebCentralURL)
-                    }
-                } else {
-                    repository = try await installer.addRepository(at: BundledRepositories.weebCentralURL,
-                                                                   repositoryID: id)
-                }
-                guard repositories.sources(in: id).isEmpty else { return nil }
-                _ = try await installer.install(localId: "weebcentral", from: repository.id)
+                try installer.removeRepository(id)
                 return nil
             } catch {
                 return error.localizedDescription
@@ -509,16 +486,19 @@ struct AppComposition {
         let installer = ExtensionInstaller(
             store: repositories,
             registry: lifecycle,
-            transport: transport ?? AppRepositoryTransport(),
+            transport: transport ?? URLSessionRepositoryTransport(),
             dataEraser: InstalledSourceDataEraser(storage: host.storageRepository),
             acknowledgeAdult: { await acknowledgement.acknowledge($0) })
         installer.restoreInstalledSources()
         let registrar = ExtensionSourceRegistrar(store: repositories, lifecycle: lifecycle,
                                                  host: host, registry: registry)
-        return (ExtensionComposition(repositories: repositories, installer: installer, host: host,
-                                     registrar: registrar, adultAcknowledgement: acknowledgement,
-                                     usesBundledTransport: transport == nil,
-                                     migrationDirectory: directory, migrationDefaults: defaults), nil)
+        let composition = ExtensionComposition(repositories: repositories, installer: installer,
+                                               host: host, registrar: registrar,
+                                               adultAcknowledgement: acknowledgement,
+                                               migrationDirectory: directory,
+                                               migrationDefaults: defaults)
+        // Before any view reads the registry, so the withdrawn package is never browsable.
+        return (composition, composition.retireBundledSources())
     }
 
     /// Fulfillment's three pieces (ADR-0004). Extracted from `init` only because it had

@@ -69,8 +69,6 @@ adapters calls `MangaDexAPI` directly.
   Interactive Cloudflare challenges surface the WebView in a sheet; declines are sticky for
   30s and task cancellation is honored. Sources receive it via `SourceContext` — mock the
   `WebViewExtracting` protocol in tests.
-- **`Models/WeebCentralSource.swift`** — the per-page JS extraction scripts are co-located
-  raw strings, and they are **the volatile part** when the site redesigns.
 - **`Models/MangaDexAPI.swift`** — decoding goes through one generic `request` helper using
   `.convertFromSnakeCase`. `toManga(id:relationships:)` stamps `Manga.sourceId` with the
   MangaDex source id — every conversion path must keep doing so.
@@ -194,15 +192,16 @@ The app builds and the core reading loop is implemented.
   `URLSessionRepositoryTransport`, and a `mixed`/`adultOnly` install always shows the declared-age
   sheet (ADR-0022 A2; format design §7.1 — a confirmed reader sees the class named but is not asked
   again).
-  **The WeebCentral cutover landed 2026-09-22** (#201; ADR-0003 Amendment 5, format design §12). The
-  compiled `WeebCentralSource` is deleted and `builtInSources()` is MangaDex alone. WeebCentral ships
-  as a **bundled package** in `MangaCarta/Resources/BundledRepositories/weebcentral/`, which must stay
-  a **folder reference** in the pbxproj — otherwise Xcode flattens it and
-  `url(forResource:subdirectory:)` returns nil. Bundled URLs use the never-resolvable host
-  `bundled.invalid`, which `AppRepositoryTransport` serves from the app bundle;
-  `ExtensionComposition.installBundledSources()` installs on first launch, and
-  `WeebCentralIdentityMigration` rewrites persisted bare `"weebcentral"` ids to the qualified id.
-  **This and the built-in MangaDex Source are reversed by ADR-0003 Amendment 6; removal in progress.**
+  **No remote content Source ships in the app** (ADR-0003 Amendment 6, removed 2026-09-25).
+  `builtInSources()` is Local alone; MangaDex and WeebCentral are engines in a separate public
+  repository that the reader adds by URL, and the app links to none. `MangaDexSource` and
+  `MangaDexAPI` still compile — AniList, MAL and the resolver use them — but nothing registers
+  them. Devices that ran a bundled-WeebCentral build have that repository retired at composition
+  (`ExtensionComposition.retireBundledSources()`), which keeps its data. Legacy `mangadex` and
+  bundled-WeebCentral records stay dormant — `SourceRegistry` never routes them to another
+  Source — until the reader installs a matching Source and accepts the reconnect prompt
+  (`InstalledSourceIDMigration`, Amendment 7). `WeebCentralIdentityMigration` still rewrites bare
+  `"weebcentral"` ids from before the bundle.
 - Design/spec/plan for shipped work live in `docs/superpowers/{specs,plans}/`.
 
 Still minimal: no cross-device sync. Content refresh is no longer manual-only (see above);
