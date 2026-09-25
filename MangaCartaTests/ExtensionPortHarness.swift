@@ -258,9 +258,12 @@ struct PortedSource {
 
 enum PortFixtures {
 
+    /// The WeebCentral engine and index the app once bundled, kept as fixtures now that the
+    /// package is withdrawn (ADR-0003 Amendment 6). `engine.js` is byte-identical to the copy
+    /// published to the engines repository, whose index pins its SHA-256.
     static var packageDirectory: URL {
         URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .deletingLastPathComponent().appendingPathComponent("MangaCarta/Resources/BundledRepositories/weebcentral")
+            .appendingPathComponent("__Fixtures__/weebcentral")
     }
 
     static let weebSeriesID = "01KQJGKCAB7Q2GJ5T27N2WVNP6"

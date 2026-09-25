@@ -57,10 +57,6 @@ final class RepositorySettingsViewModel: ObservableObject {
     static let ageQuestionCopy = "Confirm that you are 18 or over to install it."
     static let alreadyConfirmedCopy = "You have already confirmed your age on this device."
 
-    static func isBundled(_ repository: RepositoryRecord) -> Bool {
-        repository.id == BundledRepositories.weebCentralRepositoryID
-    }
-
     static func shouldShowAdultSourcesToggle(isConfirmed: Bool, hasRegisteredAdultSource: Bool) -> Bool {
         isConfirmed && hasRegisteredAdultSource
     }

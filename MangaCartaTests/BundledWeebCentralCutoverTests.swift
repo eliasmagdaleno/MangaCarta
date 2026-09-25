@@ -2,35 +2,35 @@
 //  BundledWeebCentralCutoverTests.swift
 //  MangaCartaTests
 //
-//  ADR-0003 Amendment 5 and repository format design §12: WeebCentral ships as a bundled
-//  package installed through the ordinary installer under a fixed identity; the compiled
-//  Source is gone. Three classes so each clause's mutation can be run alone:
-//  first launch (A5 parts 1, 3, 4), the identity migration (part 5), and the structural
-//  facts the cutover PR promised (one copy of the engine; the Settings predicate).
+//  The WeebCentral package that ADR-0003 Amendment 5 bundled is withdrawn by Amendment 6.
+//  Four classes so each clause's mutation can be run alone: retiring the bundled record on
+//  devices that installed it, the bare-id identity migration (A5 part 5, still needed for
+//  data older than the bundle), reconnecting legacy data by reader choice (Amendment 7), and
+//  the structural fact that no package ships in the app.
 //
 
 import XCTest
 @testable import MangaCarta
 
-// MARK: - First launch, uninstall, app update, adult refusal
+// MARK: - Retiring the bundled record (Amendment 6)
 
 @MainActor
-final class BundledWeebCentralInstallTests: XCTestCase {
+final class BundledWeebCentralRetirementTests: XCTestCase {
     private var directory: URL!
     private var defaults: UserDefaults!
     private var suite: String!
 
     private let repositoryID = BundledRepositories.weebCentralRepositoryID
-    private var qualifiedID: String {
-        ExtensionInstaller.qualifiedID(repositoryID: repositoryID, localId: "weebcentral").rawValue
+    private var qualifiedID: QualifiedSourceID {
+        ExtensionInstaller.qualifiedID(repositoryID: repositoryID, localId: "weebcentral")
     }
 
     override func setUp() {
         super.setUp()
         directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("BundledWeebCentralInstallTests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("BundledWeebCentralRetirementTests-\(UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        suite = "BundledWeebCentralInstallTests-\(UUID().uuidString)"
+        suite = "BundledWeebCentralRetirementTests-\(UUID().uuidString)"
         defaults = UserDefaults(suiteName: suite)
     }
 
@@ -40,198 +40,64 @@ final class BundledWeebCentralInstallTests: XCTestCase {
         super.tearDown()
     }
 
-    /// A composition over the real app bundle's package, with its own registry so the
-    /// singleton never leaks between tests.
-    private func compose() -> (AppComposition, SourceRegistry) {
-        let registry = SourceRegistry(sources: [MangaDexSource()])
-        let composition = AppComposition(defaults: defaults, directory: directory, registry: registry)
-        return (composition, registry)
-    }
-
-    // A5 part 1 + part 2: the ordinary installer, the fixed id, MangaDex first.
-    func testFirstLaunchInstallsBundledWeebCentralAfterMangaDex() async throws {
-        let (composition, registry) = compose()
-        XCTAssertEqual(registry.sources.map(\.id), [MangaDexSource.sourceID],
-                       "nothing is installed until installBundledSources() is awaited")
-
-        let failure = await composition.extensions?.installBundledSources()
-
-        XCTAssertNil(failure)
-        XCTAssertEqual(registry.sources.map(\.id), [MangaDexSource.sourceID, qualifiedID])
-        XCTAssertEqual(qualifiedID, "9c6a1c65-2ab0-4b53-8f91-55bdfdeb8e55:weebcentral",
-                       "the identity is the compiled-in constant, the same on every device")
-        let source = try XCTUnwrap(registry.source(id: qualifiedID) as? ExtensionSource)
-        XCTAssertEqual(source.name, "WeebCentral")
-        XCTAssertFalse(source.isNSFW)
-        XCTAssertNil(registry.source(id: "weebcentral"), "the bare compiled id no longer resolves")
-    }
-
-    func testSecondLaunchDoesNotInstallTwice() async throws {
-        let (first, _) = compose()
-        await first.extensions?.installBundledSources()
-
-        let (second, registry) = compose()
-        await second.extensions?.installBundledSources()
-
-        XCTAssertEqual(registry.sources.map(\.id), [MangaDexSource.sourceID, qualifiedID])
-        XCTAssertEqual(second.extensions?.repositories.repositories.count, 1)
-        XCTAssertEqual(second.extensions?.repositories.sources(in: repositoryID).count, 1)
-    }
-
-    // A record left by an earlier draft's `bundled://` URL, verbatim from a simulator that
-    // ran it: the record exists, so the first-launch add is skipped, and a refresh of the
-    // stale URL fails — WeebCentral was never installed on that device, silently.
-    func testARecordWithAStaleBundledURLIsRepointedAndTheSourceInstalled() async throws {
-        let stale = """
-        {"bundles":[],"sources":[],"repositories":[{"addedAt":811722929.185757,\
-        "name":"WeebCentral","format":1,"id":"9C6A1C65-2AB0-4B53-8F91-55BDFDEB8E55",\
-        "indexURL":"bundled:\\/\\/weebcentral\\/index.json",\
-        "lastRefreshedAt":811722929.185757,"state":"active"}]}
-        """
-        try Data(stale.utf8).write(to: directory.appendingPathComponent("repositories.json"))
-
-        let (composition, registry) = compose()
-        let failure = await composition.extensions?.installBundledSources()
-
-        XCTAssertNil(failure)
-        XCTAssertEqual(registry.sources.map(\.id), [MangaDexSource.sourceID, qualifiedID])
-        XCTAssertEqual(composition.extensions?.repositories.repository(repositoryID)?.indexURL,
-                       BundledRepositories.weebCentralURL)
-    }
-
-    // A reader who browsed WeebCentral keeps browsing it. The registry is built before any
-    // installed Source registers, so the stored choice is not there to restore at init; it must
-    // be restored when the installed set arrives, not replaced by the MangaDex fallback.
-    func testTheStoredBrowseSourceIsRestoredOnceTheInstalledSourceRegisters() async {
-        let saved = UserDefaults.standard.object(forKey: "source.activeID")
-        defer { UserDefaults.standard.set(saved, forKey: "source.activeID") }
-        UserDefaults.standard.set(qualifiedID, forKey: "source.activeID")
-
-        let (composition, registry) = compose()
-        XCTAssertEqual(registry.activeSourceID, MangaDexSource.sourceID, "not registered yet")
-        await composition.extensions?.installBundledSources()
-
-        XCTAssertEqual(registry.activeSourceID, qualifiedID)
-    }
-
-    // A5 part 4: uninstall is respected across launches; the Source is re-offered, not reinstalled.
-    func testAnUninstalledBundledSourceStaysUninstalledAtTheNextLaunchAndIsStillOffered() async throws {
-        let (first, _) = compose()
-        await first.extensions?.installBundledSources()
-        try first.extensions?.installer.uninstall(QualifiedSourceID(rawValue: qualifiedID))
-
-        let (second, registry) = compose()
-        let failure = await second.extensions?.installBundledSources()
-
-        XCTAssertNil(failure)
-        XCTAssertEqual(registry.sources.map(\.id), [MangaDexSource.sourceID])
-        let record = try XCTUnwrap(second.extensions?.repositories.sources(in: repositoryID).first)
-        XCTAssertEqual(record.state, .uninstalled)
-        let offered = second.extensions?.installer.listings[repositoryID]?.entries.compactMap(\.localId)
-        XCTAssertEqual(offered, ["weebcentral"], "the repositories screen can still offer it")
-    }
-
-    // A5 part 3 through the launch path: an installed bundle older than the app's is offered at
-    // the next launch, never applied by it.
-    func testALaunchOffersANewerBundledVersionWithoutApplyingIt() async throws {
-        let (first, _) = compose()
-        await first.extensions?.installBundledSources()
-        let file = directory.appendingPathComponent("repositories.json")
-        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
-        json["bundles"] = (json["bundles"] as? [[String: Any]] ?? []).map { var b = $0; b["version"] = 1; return b }
-        try JSONSerialization.data(withJSONObject: json).write(to: file)
-
-        let (second, _) = compose()
-        let failure = await second.extensions?.installBundledSources()
-
-        XCTAssertNil(failure)
-        let bundleId = try XCTUnwrap(second.extensions?.repositories.sources(in: repositoryID).first?.bundleId)
-        XCTAssertEqual(second.extensions?.repositories.bundle(bundleId, in: repositoryID)?.version, 1,
-                       "a launch never applies an update")
-        XCTAssertEqual(second.extensions?.installer.listings[repositoryID]?.availableUpdates[bundleId], 2,
-                       "but it offers one")
-    }
-
-    // A5 part 3 + §12 "Operations": a new bundle version arrives with the app and is
-    // offered through refresh, applied only by the reader-confirmed updateBundle.
-    func testAnAppUpdateOffersTheNewBundleVersionButAppliesItOnlyThroughUpdateBundle() async throws {
-        let package = try copiedPackage()
-        let transport = BundledRepositoryTransport(resourceDirectory: package)
+    /// The state an Amendment 5 build left behind: the bundled repository, active, with its
+    /// WeebCentral Source installed and its script on disk.
+    private func seedBundledInstall() throws {
         let store = RepositoryStore(directory: directory)
-        let installer = ExtensionInstaller(store: store, registry: SourceLifecycleRegistry(),
-                                           transport: transport,
-                                           dataEraser: RecordingDataEraser(storage: try HostStorageRepository(directory: directory)),
-                                           acknowledgeAdult: { _ in false })
-        let repository = try await installer.addRepository(at: BundledRepositories.weebCentralURL,
-                                                           repositoryID: repositoryID)
-        let installed = try await installer.install(localId: "weebcentral", from: repository.id)
-        XCTAssertEqual(store.bundle(installed.bundleId, in: repositoryID)?.version, 2)
-
-        try rewriteIndex(in: package) { index in
-            index["bundles"] = (index["bundles"] as? [[String: Any]] ?? []).map { var b = $0; b["version"] = 3; return b }
-        }
-        _ = try await installer.refresh(repositoryID)
-
-        XCTAssertEqual(installer.listings[repositoryID]?.availableUpdates[installed.bundleId], 3, "offered")
-        XCTAssertEqual(store.bundle(installed.bundleId, in: repositoryID)?.version, 2, "not applied by refresh")
-
-        try await installer.updateBundle(installed.bundleId, in: repositoryID)
-        XCTAssertEqual(store.bundle(installed.bundleId, in: repositoryID)?.version, 3)
-    }
-
-    // §12 "Adult Sources": a bundled index may declare only none-class Sources.
-    func testABundledIndexDeclaringAnAdultSourceIsRefusedWithASentence() async throws {
-        let package = try copiedPackage()
-        try rewriteIndex(in: package) { index in
-            index["bundles"] = (index["bundles"] as? [[String: Any]] ?? []).map { bundle in
-                var b = bundle
-                b["sources"] = (b["sources"] as? [[String: Any]] ?? []).map { var s = $0; s["adult"] = "mixed"; return s }
-                return b
-            }
-        }
-        let transport = BundledRepositoryTransport(resourceDirectory: package)
-
-        do {
-            _ = try await transport.fetchIndex(at: BundledRepositories.weebCentralURL)
-            XCTFail("a mixed Source in a bundled index must be refused")
-        } catch let error as BundledRepositoryTransport.Error {
-            XCTAssertEqual(error, .adultSource("weebcentral"))
-            XCTAssertTrue(error.localizedDescription.contains("weebcentral"))
+        try store.writeScript(Data("script".utf8), for: "engine", in: repositoryID)
+        try store.commit { snapshot in
+            snapshot.repositories[self.repositoryID] = RepositoryRecord(
+                id: self.repositoryID, indexURL: URL(string: "https://bundled.invalid/weebcentral/index.json")!,
+                name: "WeebCentral", addedAt: .now, lastRefreshedAt: nil, state: .active, format: 1)
+            snapshot.sources[self.qualifiedID] = InstalledSourceRecord(
+                qualifiedId: self.qualifiedID, repositoryID: self.repositoryID, localId: "weebcentral",
+                bundleId: "engine", declaration: .object([:]), state: .registered,
+                localAdultElevation: nil, installedAt: .now, updatedAt: .now)
         }
     }
 
-    func testTheBundledScriptDigestIsCheckedLikeAnyOther() async throws {
-        let package = try copiedPackage()
-        let script = package.appendingPathComponent("engine.js")
-        try (try Data(contentsOf: script) + Data("\n// tampered".utf8)).write(to: script)
-        let installer = ExtensionInstaller(store: RepositoryStore(directory: directory),
-                                           registry: SourceLifecycleRegistry(),
-                                           transport: BundledRepositoryTransport(resourceDirectory: package),
-                                           dataEraser: RecordingDataEraser(storage: try HostStorageRepository(directory: directory)),
-                                           acknowledgeAdult: { _ in false })
-        let repository = try await installer.addRepository(at: BundledRepositories.weebCentralURL,
-                                                           repositoryID: repositoryID)
-        do {
-            _ = try await installer.install(localId: "weebcentral", from: repository.id)
-            XCTFail("a script whose bytes do not match the index digest must not install")
-        } catch let error as ExtensionInstallError {
-            if case .scriptDigestMismatch = error {} else { XCTFail("unexpected \(error)") }
+    private func compose() -> (AppComposition, SourceRegistry) {
+        let registry = SourceRegistry(sources: [])
+        return (AppComposition(defaults: defaults, directory: directory, registry: registry), registry)
+    }
+
+    func testComposingRetiresTheBundledRepositoryAndKeepsItsData() throws {
+        try seedBundledInstall()
+        let works = directory.appendingPathComponent("works.json")
+        let saved = Data(#"{"listings":[{"sourceId":"\#(qualifiedID.rawValue)","mangaId":"abc"}]}"#.utf8)
+        try saved.write(to: works)
+
+        let (composition, registry) = compose()
+
+        let store = RepositoryStore(directory: directory)
+        XCTAssertEqual(store.repository(repositoryID)?.state, .removed)
+        XCTAssertEqual(store.source(qualifiedID)?.state, .uninstalled)
+        XCTAssertNil(store.scriptData(for: "engine", in: repositoryID))
+        XCTAssertNil(registry.source(id: qualifiedID.rawValue))
+        XCTAssertNil(composition.extensionStorageError)
+        XCTAssertEqual(try Data(contentsOf: works), saved)
+    }
+
+    func testRetiringIsInertOnALaterLaunchAndOnADeviceThatNeverHadTheBundle() throws {
+        _ = compose()
+        XCTAssertNil(RepositoryStore(directory: directory).repository(repositoryID))
+
+        try seedBundledInstall()
+        _ = compose()
+        let (second, _) = compose()
+        XCTAssertNil(second.extensionStorageError)
+        XCTAssertEqual(RepositoryStore(directory: directory).repository(repositoryID)?.state, .removed)
+    }
+
+    /// Its data waits for the reader (Amendment 7): a lookup must not reach another Source.
+    func testALegacyListingIsUnavailableRatherThanSentToTheActiveSource() {
+        let registry = SourceRegistry(sources: [UpdatesUITestSource()])
+        for legacyID in [LegacySourceID.unattributed, WeebCentralIdentityMigration.qualifiedID] {
+            let manga = Manga(id: "abc", sourceId: legacyID, title: "Old", description: "",
+                              status: "ongoing", year: nil, coverURL: nil, malId: nil,
+                              altTitles: [], contentRating: nil)
+            XCTAssertNil(registry.source(for: manga), legacyID)
         }
-    }
-
-    // MARK: helpers
-
-    private func copiedPackage() throws -> URL {
-        let copy = directory.appendingPathComponent("package", isDirectory: true)
-        try FileManager.default.copyItem(at: PortFixtures.packageDirectory, to: copy)
-        return copy
-    }
-
-    private func rewriteIndex(in package: URL, _ edit: (inout [String: Any]) -> Void) throws {
-        let url = package.appendingPathComponent("index.json")
-        var index = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
-        edit(&index)
-        try JSONSerialization.data(withJSONObject: index, options: [.prettyPrinted]).write(to: url)
     }
 }
 
@@ -356,7 +222,7 @@ final class WeebCentralIdentityMigrationTests: XCTestCase {
     }
 }
 
-// MARK: - Structural facts
+// MARK: - Reconnecting by reader choice (Amendment 7)
 
 @MainActor
 final class InstalledSourceIDMigrationTests: XCTestCase {
@@ -547,34 +413,11 @@ final class BundledWeebCentralStructureTests: XCTestCase {
         URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
     }
 
-    /// The cutover PR's promise: one copy of the engine script in the repository.
-    func testExactlyOneCopyOfTheEngineScriptExists() throws {
-        let marker = "registerEngine(\"htmlSelectorTheme\""
-        var hits: [String] = []
-        for top in ["MangaCarta", "MangaCartaTests", "MangaCartaUITests", "scripts"] {
-            let root = repositoryRoot.appendingPathComponent(top)
-            guard let walker = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil) else { continue }
-            for case let url as URL in walker where ["swift", "js", "json", "md"].contains(url.pathExtension) {
-                if let text = try? String(contentsOf: url, encoding: .utf8), text.contains(marker) {
-                    hits.append(url.path.replacingOccurrences(of: repositoryRoot.path + "/", with: ""))
-                }
-            }
-        }
-        // The one exception: a frozen copy of the v1 engine, kept so the host's paging
-        // compatibility shim (#186) is tested against a real legacy reader. It goes when the shim does.
-        XCTAssertEqual(hits.sorted(), ["MangaCarta/Resources/BundledRepositories/weebcentral/engine.js",
-                                       "MangaCartaTests/__Fixtures__/weebcentral/engine-v1.js"])
-    }
-
-    /// §12: no Remove and no Change URL for a bundled repository — the predicate the screen uses.
-    @MainActor
-    func testOnlyTheBundledRepositoryIsBundled() {
-        let bundled = RepositoryRecord(id: BundledRepositories.weebCentralRepositoryID,
-                                       indexURL: BundledRepositories.weebCentralURL, name: "WeebCentral",
-                                       addedAt: .now, lastRefreshedAt: nil, state: .active, format: 1)
-        let other = RepositoryRecord(id: UUID(), indexURL: URL(string: "https://repo.test/index.json")!,
-                                     name: "Other", addedAt: .now, lastRefreshedAt: nil, state: .active, format: 1)
-        XCTAssertTrue(RepositorySettingsViewModel.isBundled(bundled))
-        XCTAssertFalse(RepositorySettingsViewModel.isBundled(other))
+    /// Amendment 6: no Source package ships inside the app.
+    func testNoRepositoryPackageShipsInTheApp() {
+        XCTAssertNil(Bundle.main.url(forResource: "index", withExtension: "json",
+                                     subdirectory: "BundledRepositories/weebcentral"))
+        XCTAssertFalse(FileManager.default.fileExists(
+            atPath: repositoryRoot.appendingPathComponent("MangaCarta/Resources/BundledRepositories").path))
     }
 }

@@ -81,7 +81,6 @@
 		ADEF83D02E8F329200CF2434 /* BookmarksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADEF83CF2E8F329200CF2434 /* BookmarksView.swift */; };
 		ADEF83D22E8F32A500CF2434 /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADEF83D12E8F32A500CF2434 /* SearchView.swift */; };
 		ADEF83D42E8F32B300CF2434 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADEF83D32E8F32B300CF2434 /* SettingsView.swift */; };
-		B0D1ED00A5F0000000000002 /* BundledRepositories in Resources */ = {isa = PBXBuildFile; fileRef = B0D1ED00A5F0000000000001 /* BundledRepositories */; };
 		B2282CBFC63A868370290A54 /* RepositoryIndexValidatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B1DC8D1ABB8F639591D5ABE /* RepositoryIndexValidatorTests.swift */; };
 		B6789B3D65FC89884B2C4DB2 /* UpgradeAttemptMemoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FDBB47532459A9B7F65F5D3 /* UpgradeAttemptMemoryTests.swift */; };
 		BF0D50CF07C99D0717A2D054 /* MALCredentialStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5E70158C296EAD62B78AD1B /* MALCredentialStoreTests.swift */; };
@@ -212,7 +211,6 @@
 		ADEF83CF2E8F329200CF2434 /* BookmarksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarksView.swift; sourceTree = "<group>"; };
 		ADEF83D12E8F32A500CF2434 /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
 		ADEF83D32E8F32B300CF2434 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		B0D1ED00A5F0000000000001 /* BundledRepositories */ = {isa = PBXFileReference; lastKnownFileType = folder; name = BundledRepositories; path = Resources/BundledRepositories; sourceTree = "<group>"; };
 		B0E74298ED1B8A1EF38B1F1A /* ListingCountCacheTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = ListingCountCacheTests.swift; path = ListingCountCacheTests.swift; sourceTree = "<group>"; };
 		B1F8F25CDCFB39414F501863 /* SimulatorSeed.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; path = SimulatorSeed.swift; sourceTree = "<group>"; };
 		B3B6993ADB787E853D2AA745 /* MangaDetailRetargetTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = MangaDetailRetargetTests.swift; path = MangaDetailRetargetTests.swift; sourceTree = "<group>"; };
@@ -336,7 +334,6 @@
 				ADE549282C0A9CCC007AE172 /* Assets.xcassets */,
 				ADE5492A2C0A9CCC007AE172 /* Preview Content */,
 				059A06C836FA253905E57939 /* PrivacyInfo.xcprivacy */,
-				B0D1ED00A5F0000000000001 /* BundledRepositories */,
 			);
 			path = MangaCarta;
 			sourceTree = "<group>";
@@ -575,7 +572,6 @@
 				ADE5492C2C0A9CCC007AE172 /* Preview Assets.xcassets in Resources */,
 				ADE549292C0A9CCC007AE172 /* Assets.xcassets in Resources */,
 				DF6EA88109DD4986DEDE9B48 /* PrivacyInfo.xcprivacy in Resources */,
-				B0D1ED00A5F0000000000002 /* BundledRepositories in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
