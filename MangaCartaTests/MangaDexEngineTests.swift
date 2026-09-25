@@ -296,4 +296,36 @@ final class MangaDexEngineTests: XCTestCase {
 
         XCTAssertEqual(url?.absoluteString, "https://mangadex.org/title/\(MangaDexFixtures.mangaID)")
     }
+
+    func testPagesHonourQualityAndPassTheWildcardAssetOrigin() async throws {
+        let url = "\(MangaDexFixtures.api)/at-home/server/\(MangaDexFixtures.chapterID)"
+        await host.transport.route(url, to: "at-home.json")
+        let source = try makeSource()
+
+        let saver = try await source.pageURLs(chapterId: MangaDexFixtures.chapterID, preferDataSaver: true)
+        let original = try await source.pageURLs(chapterId: MangaDexFixtures.chapterID, preferDataSaver: false)
+
+        XCTAssertFalse(saver.isEmpty)
+        XCTAssertTrue(saver.allSatisfy { $0.path.contains("/data-saver/") })
+        XCTAssertTrue(original.allSatisfy { $0.path.contains("/data/") })
+        XCTAssertEqual(saver.count, original.count)
+    }
+
+    // Review Focus 1
+    func testAnUndeclaredImageHostRejectsTheWholeChapter() async throws {
+        await host.transport.route(
+            "\(MangaDexFixtures.api)/at-home/server/\(MangaDexFixtures.chapterID)",
+            to: "at-home-foreign.json")
+        let source = try makeSource()
+
+        do {
+            _ = try await source.pageURLs(chapterId: MangaDexFixtures.chapterID, preferDataSaver: true)
+            XCTFail("a page outside assetOrigins must reject the chapter")
+        } catch let error as ExtensionSourceError {
+            // The asset-origin validator (ExtensionDomainValidator.validatePages, via `invalid(...)`)
+            // rejects with the default schema-error code, .invalidResponse — not .unsupported
+            // (which is what an unrouted/unimplemented operation would surface as).
+            XCTAssertEqual(error, .invocation(.invalidResponse))
+        }
+    }
 }

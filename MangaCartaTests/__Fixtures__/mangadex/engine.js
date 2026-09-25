@@ -300,6 +300,19 @@
     return { ok: true, value: { url: cfg.siteBaseURL + "/title/" + encodeURIComponent(request.listingId) } };
   }
 
+  async function pages(request, context, cfg) {
+    var body = await getJSON(context, cfg, "/at-home/server/" + encodeURIComponent(request.chapterId), []);
+    if (!body || !body.chapter || typeof body.baseUrl !== "string") {
+      return fail("http", "MangaDex has no such chapter");
+    }
+    var saver = request.quality === "dataSaver";
+    var files = (saver ? body.chapter.dataSaver : body.chapter.data) || [];
+    var mode = saver ? "data-saver" : "data";
+    return { ok: true, value: { items: files.map(function (file) {
+      return { url: body.baseUrl + "/" + mode + "/" + body.chapter.hash + "/" + file };
+    }) } };
+  }
+
   async function invoke(operation, request, context) {
     var cfg = context.source.configuration || {};
     try {
@@ -322,6 +335,8 @@
         return await listing(request, context, cfg);
       case "webURL":
         return webURL(request, cfg);
+      case "pages":
+        return await pages(request, context, cfg);
       default:
         return fail("unsupported", operation + " is not implemented by this engine");
       }
