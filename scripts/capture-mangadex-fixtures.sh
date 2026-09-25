@@ -23,3 +23,15 @@ echo "CHAPTER_ID=$CHAPTER_ID"
 get "/at-home/server/$CHAPTER_ID" at-home.json
 get "/chapter?translatedLanguage%5B%5D=en&order%5BreadableAt%5D=desc&includes%5B%5D=manga&limit=40&offset=0" latest-chapters.json
 get "/manga/tag" tags.json
+
+# latest-manga.json: the manga behind latest-chapters.json, in first-seen chapter order,
+# capped at 20 ids (updatesPage's dedupe rule in engine.js).
+MANGA_IDS="$(jq -r '.data[] | (.relationships[] | select(.type=="manga") | .id)' "$OUT/latest-chapters.json" | awk '!seen[$0]++' | head -20)"
+IDS_QUERY="$(printf '%s\n' "$MANGA_IDS" | awk '{printf "&ids%%5B%%5D=%s", $0}')"
+IDS_COUNT="$(printf '%s\n' "$MANGA_IDS" | wc -l | tr -d ' ')"
+get "/manga?includes%5B%5D=cover_art${IDS_QUERY}&limit=${IDS_COUNT}" latest-manga.json
+
+# tag-romance.json: the Romance tag's id comes from tags.json, captured above.
+ROMANCE_TAG_ID="${ROMANCE_TAG_ID:-$(jq -r '.data[] | select(.attributes.name.en=="Romance") | .id' "$OUT/tags.json")}"
+echo "ROMANCE_TAG_ID=$ROMANCE_TAG_ID"
+get "/manga?includedTags%5B%5D=$ROMANCE_TAG_ID&order%5Brating%5D=desc&includes%5B%5D=cover_art&limit=5&offset=0" tag-romance.json

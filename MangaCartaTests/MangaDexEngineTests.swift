@@ -200,4 +200,43 @@ final class MangaDexEngineTests: XCTestCase {
             XCTAssertEqual(error, .invocation(.rateLimited))
         }
     }
+
+    // Review Focus 5
+    func testLatestUpdatesDedupesToOneUpdatePerMangaInNewestChapterOrder() async throws {
+        let api = MangaDexFixtures.api
+        await host.transport.route(
+            "\(api)/chapter?includes[]=manga&translatedLanguage[]=en&order[readableAt]=desc&limit=40&offset=0",
+            to: "latest-chapters-dupes.json")
+        await host.transport.route(
+            "\(api)/manga?includes[]=cover_art&ids[]=m-a&ids[]=m-b&limit=2",
+            to: "latest-manga-shuffled.json")
+        let source = try makeSource()
+
+        let updates = try await source.latestUpdates(limitTitles: 20, language: "en", offset: 0)
+
+        XCTAssertEqual(updates.map(\.manga.id), ["m-a", "m-b"])
+        XCTAssertEqual(updates.map(\.chapterId), ["c-1", "c-3"])
+    }
+
+    func testTagBrowseResolvesTheTagNameToItsId() async throws {
+        let romanceTagId = "423e2eae-a7a2-4a8b-ac03-a8351462d71d"
+        await host.transport.route("\(MangaDexFixtures.api)/manga/tag", to: "tags.json")
+        await host.transport.route(
+            "\(MangaDexFixtures.api)/manga?includedTags[]=\(romanceTagId)&order[rating]=desc&includes[]=cover_art&limit=5&offset=0",
+            to: "tag-romance.json")
+        let source = try makeSource()
+
+        let results = try await source.mangaByTag(tag: "Romance", limit: 5, offset: 0)
+
+        XCTAssertEqual(results.count, 5)
+    }
+
+    func testTagBrowseForAnUnknownTagIsAnEmptyFeedNotAnError() async throws {
+        await host.transport.route("\(MangaDexFixtures.api)/manga/tag", to: "tags.json")
+        let source = try makeSource()
+
+        let results = try await source.mangaByTag(tag: "No Such Tag", limit: 5, offset: 0)
+
+        XCTAssertTrue(results.isEmpty)
+    }
 }

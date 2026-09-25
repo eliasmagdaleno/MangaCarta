@@ -163,6 +163,57 @@
                                          offset, limit, data.length, total) };
   }
 
+  async function updatesPage(request, context, cfg) {
+    var page = requirePage(request);
+    var titles = listLimit(page);
+    var chapterLimit = Math.min(MAX_LIMIT, titles * 2);
+    var offset = offsetFrom(page.cursor);
+    if (offset + chapterLimit > OFFSET_WINDOW) {
+      return { ok: true, value: { items: [], nextCursor: null, exhausted: true } };
+    }
+    var chapters = await getJSON(context, cfg, "/chapter", [
+      ["includes[]", "manga"], ["translatedLanguage[]", request.language || "en"],
+      ["order[readableAt]", "desc"], ["limit", chapterLimit], ["offset", offset]
+    ]);
+    var rows = (chapters && chapters.data) || [];
+    var order = [];
+    var newest = {};
+    rows.forEach(function (chapter) {
+      var manga = (chapter.relationships || []).filter(function (rel) { return rel.type === "manga"; })[0];
+      if (!manga || newest[manga.id] || order.length >= titles) { return; }
+      newest[manga.id] = chapter.id;
+      order.push(manga.id);
+    });
+    var byId = {};
+    if (order.length) {
+      var pairs = [["includes[]", "cover_art"]];
+      order.forEach(function (id) { pairs.push(["ids[]", id]); });
+      pairs.push(["limit", order.length]);
+      var manga = await getJSON(context, cfg, "/manga", pairs);
+      ((manga && manga.data) || []).forEach(function (item) { byId[item.id] = item; });
+    }
+    // MangaDex returns ids[] results in its own order; the feed's order is the chapters'.
+    var items = order.filter(function (id) { return byId[id]; }).map(function (id) {
+      return { chapterId: newest[id], listing: toListing(byId[id], cfg) };
+    });
+    var total = chapters && typeof chapters.total === "number" ? chapters.total : offset + rows.length;
+    // The cursor is a *chapter* offset: dedupe shrinks the page, so a short item list is
+    // not the end of the feed (MangaDexAPI.fetchLatestUpdates' note).
+    return { ok: true, value: pageResult(items, offset, chapterLimit, rows.length, total) };
+  }
+
+  async function tagPage(request, context, cfg) {
+    var page = requirePage(request);
+    var tags = await getJSON(context, cfg, "/manga/tag", []);
+    var wanted = String(request.tag || "").toLowerCase();
+    var match = ((tags && tags.data) || []).filter(function (tag) {
+      var name = tag.attributes && tag.attributes.name ? tag.attributes.name.en : null;
+      return typeof name === "string" && name.toLowerCase() === wanted;
+    })[0];
+    if (!match) { return { ok: true, value: { items: [], nextCursor: null, exhausted: true } }; }
+    return await mangaPage(request, context, cfg, [["includedTags[]", match.id], ["order[rating]", "desc"]]);
+  }
+
   async function invoke(operation, request, context) {
     var cfg = context.source.configuration || {};
     try {
@@ -173,6 +224,10 @@
         return await mangaPage(request, context, cfg, [["order[rating]", "desc"]]);
       case "newTitles":
         return await mangaPage(request, context, cfg, [["order[createdAt]", "desc"]]);
+      case "latestUpdates":
+        return await updatesPage(request, context, cfg);
+      case "tagBrowse":
+        return await tagPage(request, context, cfg);
       default:
         return fail("unsupported", operation + " is not implemented by this engine");
       }
