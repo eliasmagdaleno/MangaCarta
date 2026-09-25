@@ -25,7 +25,9 @@ struct BookmarksView: View {
     @State private var refreshBannerMessage: String? = nil
     @State private var showingRefreshBanner = false
     @State private var showingImporter = false
-    @StateObject private var importer = LocalImportViewModel()
+    @State private var localItemToDelete: LibraryItem?
+    @State private var deletionError: String?
+    @EnvironmentObject private var importer: LocalImportViewModel
 
     private let columns = [
         GridItem(.adaptive(minimum: 104, maximum: 180), spacing: Gutter.rail)
@@ -51,7 +53,9 @@ struct BookmarksView: View {
                             title: "Your library is empty",
                             message: "Import CBZ, ZIP or PDF files from Files. MangaCarta does not provide or host content.",
                             actionTitle: "Import from Files",
-                            action: { showingImporter = true }
+                            action: { showingImporter = true },
+                            secondaryActionTitle: "Add a repository",
+                            secondaryAction: { selectAppTab(.settings) }
                         )
                     } else if displayedItems.isEmpty {
                         InkEmptyState(
@@ -75,6 +79,15 @@ struct BookmarksView: View {
                                         )
                                     }
                                     .buttonStyle(.plain)
+                                    .contextMenu {
+                                        if item.sourceId == LocalSource.sourceID {
+                                            Button(role: .destructive) {
+                                                localItemToDelete = item
+                                            } label: {
+                                                Label("Delete from Device", systemImage: "trash")
+                                            }
+                                        }
+                                    }
                                     // The grid's only stable handle for UI tests; the label is
                                     // the title, which varies with whatever is in the library.
                                     .accessibilityIdentifier("libraryCoverCard")
@@ -163,7 +176,41 @@ struct BookmarksView: View {
                 LocalImportBanner(model: importer, onCancel: importer.cancel)
                     .padding(.top, 8)
             }
-            .task { importer.configure(registry: registry, library: library, works: works) }
+            .confirmationDialog(
+                "Delete \(localItemToDelete?.title ?? "this title") from this iPhone?",
+                isPresented: Binding(
+                    get: { localItemToDelete != nil },
+                    set: { if !$0 { localItemToDelete = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                if let item = localItemToDelete {
+                    Button("Delete from Device", role: .destructive) { deleteLocalItem(item) }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("The imported pages are removed from MangaCarta and can't be recovered. Reading history is kept.")
+            }
+            .alert("Couldn't delete from device", isPresented: Binding(
+                get: { deletionError != nil },
+                set: { if !$0 { deletionError = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(deletionError ?? "The imported file could not be removed.")
+            }
+        }
+    }
+
+    private func deleteLocalItem(_ item: LibraryItem) {
+        guard let local = registry.source(id: LocalSource.sourceID) as? LocalSource else { return }
+        Task {
+            do {
+                try await LocalLibraryDeletion(local: local.store, library: library, works: works)
+                    .delete(itemId: item.id)
+            } catch {
+                deletionError = error.localizedDescription
+            }
         }
     }
 
@@ -292,5 +339,6 @@ private extension LibraryItem {
         .environmentObject(LibraryStore())
         .environmentObject(HistoryStore())
         .environmentObject(works)
+        .environmentObject(LocalImportViewModel())
         .environmentObject(UpdateStateStore(works: works))
 }

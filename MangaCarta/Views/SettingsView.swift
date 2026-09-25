@@ -25,7 +25,9 @@ struct SettingsView: View {
     @State private var showingCollectionsSheet = false
     @State private var notificationSummary = NotificationAuthorizationSummary.notRequested
     @State private var showingLocalImporter = false
-    @StateObject private var localImporter = LocalImportViewModel()
+    @State private var localItemCount = 0
+    @State private var localDiskBytes = 0
+    @EnvironmentObject private var localImporter: LocalImportViewModel
 
     var body: some View {
         NavigationStack {
@@ -59,8 +61,13 @@ struct SettingsView: View {
                                 Label("Local library", systemImage: "externaldrive")
                                     .foregroundStyle(Ink.primary)
                                 Spacer()
-                                Text("Import files")
-                                    .foregroundStyle(Ink.seal)
+                                VStack(alignment: .trailing, spacing: 2) {
+                                    Text("Import files")
+                                        .foregroundStyle(Ink.seal)
+                                    Text(localUsageText)
+                                        .font(.caption)
+                                        .foregroundStyle(Ink.secondary)
+                                }
                             }
                             .padding(.horizontal, Gutter.page)
                             .padding(.vertical, 15)
@@ -238,7 +245,7 @@ struct SettingsView: View {
                 LocalImportBanner(model: localImporter, onCancel: localImporter.cancel)
                     .padding(.top, 8)
             }
-            .task { localImporter.configure(registry: registry, library: library, works: works) }
+            .task(id: library.items) { await refreshLocalUsage() }
         }
     }
 
@@ -254,6 +261,19 @@ struct SettingsView: View {
         }
         .padding(.horizontal, Gutter.page)
         .padding(.vertical, 15)
+    }
+
+    private func refreshLocalUsage() async {
+        guard let local = registry.source(id: LocalSource.sourceID) as? LocalSource else { return }
+        let usage = await local.store.usage()
+        localItemCount = usage.count
+        localDiskBytes = usage.bytes
+    }
+
+    private var localUsageText: String {
+        let count = localItemCount == 1 ? "1 item" : "\(localItemCount) items"
+        let size = ByteCountFormatter.string(fromByteCount: Int64(localDiskBytes), countStyle: .file)
+        return "\(count) · \(size)"
     }
 
     private var inAppUpdateStatus: String {
@@ -555,5 +575,6 @@ private struct AppearancePicker: View {
         .environmentObject(LibraryStore(works: works))
         .environmentObject(HistoryStore(works: works))
         .environmentObject(works)
+        .environmentObject(LocalImportViewModel())
         .environmentObject(UpdateStateStore(works: works))
 }
