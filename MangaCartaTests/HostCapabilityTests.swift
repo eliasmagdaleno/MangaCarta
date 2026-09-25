@@ -9,6 +9,7 @@
 import Foundation
 import Network
 import Testing
+import UIKit
 import WebKit
 import XCTest
 @testable import MangaCarta
@@ -534,6 +535,136 @@ struct HostHTTPTests {
         #expect(response.retryAfterSeconds == 45)
         #expect(response.body == .text("try later"))
         #expect(await transport.requestedURLs().count == 1)
+    }
+}
+
+@Suite("Image cache network boundary")
+struct ImageCacheNetworkTests {
+    private let url = URL(string: "https://a.mangadex.network/page.png")!
+    private let png = Data(base64Encoded:
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")!
+
+    @Test("Image session bypasses proxies and URLCache")
+    func imageSessionConfiguration() {
+        let configuration = ImageCache.sessionConfiguration()
+        #expect(configuration.connectionProxyDictionary?.isEmpty == true)
+        #expect(configuration.urlCache == nil)
+        #expect(configuration.requestCachePolicy == .reloadIgnoringLocalCacheData)
+    }
+
+    @Test("A private or missing connected peer never reaches image decoding")
+    func rejectsUntrustedPeerBeforeDecode() async {
+        for peer in ["10.0.0.5", nil] as [String?] {
+            let directory = temporaryDirectory()
+            let decoder = ImageDecodeProbe()
+            let cache = ImageCache(
+                directory: directory,
+                resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
+                sessionFetcher: ImageFetchProbe(result: result(peer: peer)),
+                decoder: { decoder.decode($0) })
+
+            #expect(await cache.loadImage(for: url) == nil)
+            #expect(decoder.count == 0)
+            let disk = ImageDiskCache(directory: directory, maxBytes: 1_000_000)
+            #expect(await disk.has(ImageCache.key(for: url)) == false)
+        }
+    }
+
+    @Test("A URLSession cache response is refused despite a public peer")
+    func rejectsURLSessionCacheResponse() async {
+        let decoder = ImageDecodeProbe()
+        let cache = ImageCache(
+            directory: temporaryDirectory(),
+            resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
+            sessionFetcher: ImageFetchProbe(result: result(
+                peer: "93.184.216.34", fetchType: .localCache)),
+            decoder: { decoder.decode($0) })
+
+        #expect(await cache.loadImage(for: url) == nil)
+        #expect(decoder.count == 0)
+    }
+
+    @Test("A public peer loads, then ImageCache's disk hit works offline")
+    func publicPeerAndOfflineDiskHit() async {
+        let directory = temporaryDirectory()
+        let firstFetcher = ImageFetchProbe(result: result(peer: "93.184.216.34"))
+        let online = ImageCache(directory: directory,
+                                resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
+                                sessionFetcher: firstFetcher)
+        #expect(await online.loadImage(for: url) != nil)
+        #expect(await firstFetcher.count == 1)
+
+        let offlineFetcher = ImageFetchProbe(result: result(peer: nil))
+        let offline = ImageCache(directory: directory,
+                                 resolver: FixedHostResolver(addresses: []),
+                                 sessionFetcher: offlineFetcher)
+        #expect(await offline.loadImage(for: url) != nil)
+        #expect(await offlineFetcher.count == 0)
+    }
+
+    @Test("The real URLSession peer metric blocks a rebound loopback image")
+    func realURLSessionLoopbackPeerNeverDecodes() async throws {
+        let server = try LoopbackHTTPServer()
+        let port = try await server.start()
+        defer { server.stop() }
+        let decoder = ImageDecodeProbe()
+        let fetcher = OriginalImageURLFetcher(
+            real: LoopbackRedirectingFetcher(
+                real: URLSessionDataFetcher(
+                    configuration: ImageCache.sessionConfiguration(),
+                    redirectHandler: URLSessionDataFetcher.httpsOnlyRedirectHandler),
+                port: port))
+        let observed = try await fetcher.fetch(URLRequest(url: url))
+        #expect(observed.response.url == url)
+        let peer = try #require(observed.connectedPeerAddress)
+        #expect(!HostIPAddress.isPublic(peer))
+        let cache = ImageCache(
+            directory: temporaryDirectory(),
+            resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
+            sessionFetcher: fetcher,
+            decoder: { decoder.decode($0) })
+
+        #expect(await cache.loadImage(for: url) == nil)
+        #expect(decoder.count == 0)
+    }
+
+    private func result(peer: String?,
+                        fetchType: URLSessionResourceFetchType = .networkLoad) -> URLSessionFetchResult {
+        URLSessionFetchResult(
+            data: png,
+            response: HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+            connectedPeerAddress: peer,
+            resourceFetchType: fetchType)
+    }
+}
+
+private actor ImageFetchProbe: URLSessionDataFetching {
+    let result: URLSessionFetchResult
+    private(set) var count = 0
+
+    init(result: URLSessionFetchResult) { self.result = result }
+
+    func fetch(_ request: URLRequest) async throws -> URLSessionFetchResult {
+        count += 1
+        return result
+    }
+}
+
+private final class ImageDecodeProbe: @unchecked Sendable {
+    private let lock = NSLock()
+    private var calls = 0
+
+    var count: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return calls
+    }
+
+    func decode(_ data: Data) -> UIImage? {
+        lock.lock()
+        calls += 1
+        lock.unlock()
+        return UIImage(data: data)
     }
 }
 
@@ -1077,5 +1208,23 @@ private struct LoopbackRedirectingFetcher: URLSessionDataFetching {
         var loopbackRequest = request
         loopbackRequest.url = URL(string: "http://127.0.0.1:\(port)/")
         return try await real.fetch(loopbackRequest)
+    }
+}
+
+/// Keep the public image URL in the synthetic response so only the real peer metric
+/// can reject the loopback fetch in ImageCache's integration test.
+private struct OriginalImageURLFetcher: URLSessionDataFetching {
+    let real: any URLSessionDataFetching
+
+    func fetch(_ request: URLRequest) async throws -> URLSessionFetchResult {
+        let result = try await real.fetch(request)
+        guard let url = request.url, let http = result.response as? HTTPURLResponse,
+              let response = HTTPURLResponse(url: url, statusCode: http.statusCode,
+                                             httpVersion: nil, headerFields: nil) else {
+            return result
+        }
+        return URLSessionFetchResult(data: result.data, response: response,
+                                     connectedPeerAddress: result.connectedPeerAddress,
+                                     resourceFetchType: result.resourceFetchType)
     }
 }

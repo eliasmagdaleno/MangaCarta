@@ -21,7 +21,11 @@ import CryptoKit
 import os
 
 /// Signals the image fetcher hit a rate-limit response worth backing off on.
-enum ImageFetchError: Error { case rateLimited }
+enum ImageFetchError: Error {
+    case rateLimited
+    case destinationRefused
+    case invalidResponse
+}
 
 // MARK: - Disk tier
 
@@ -112,6 +116,7 @@ final class ImageCache: @unchecked Sendable {
     private let disk: ImageDiskCache
     private let destinationPolicy: HostDestinationPolicy
     private let fetch: @Sendable (URL) async throws -> Data
+    private let decode: @Sendable (Data) -> UIImage?
     private let maxConcurrentPrefetch = 5
     private let retryBaseDelay: TimeInterval
     private let maxImageRetries: Int
@@ -122,14 +127,17 @@ final class ImageCache: @unchecked Sendable {
     ///   - diskLimitBytes: Disk cap enforced by `trim()`.
     ///   - retryBaseDelay: Base delay for exponential backoff on rate-limit retries.
     ///   - maxImageRetries: Maximum number of retries on rate-limit errors.
-    ///   - fetcher: Network fetch (injectable for tests). Defaults to `URLSession.shared`.
+    ///   - fetcher: Raw network fetch override for existing tests.
+    ///   - sessionFetcher: URLSession transport override for peer-policy tests.
     init(directory: URL? = nil,
          memoryLimitBytes: Int = 100 * 1024 * 1024,
          diskLimitBytes: Int = 500 * 1024 * 1024,
          retryBaseDelay: TimeInterval = 0.5,
          maxImageRetries: Int = 2,
          resolver: any HostNameResolving = SystemHostResolver(),
-         fetcher: (@Sendable (URL) async throws -> Data)? = nil) {
+         fetcher: (@Sendable (URL) async throws -> Data)? = nil,
+         sessionFetcher: (any URLSessionDataFetching)? = nil,
+         decoder: @escaping @Sendable (Data) -> UIImage? = { UIImage(data: $0) }) {
         let dir = directory ?? FileManager.default
             .urls(for: .cachesDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("PageImageCache")
@@ -138,14 +146,37 @@ final class ImageCache: @unchecked Sendable {
         self.memory.totalCostLimit = memoryLimitBytes
         self.retryBaseDelay = retryBaseDelay
         self.maxImageRetries = maxImageRetries
+        self.decode = decoder
+        let guardedFetcher = sessionFetcher ?? URLSessionDataFetcher(
+            configuration: Self.sessionConfiguration(),
+            redirectHandler: URLSessionDataFetcher.httpsOnlyRedirectHandler)
         self.fetch = fetcher ?? { url in
-            let (data, response) = try await URLSession.shared.data(from: url)
-            if let http = response as? HTTPURLResponse, http.statusCode == 429 || http.statusCode == 503 {
+            let result = try await guardedFetcher.fetch(URLRequest(url: url))
+            guard result.resourceFetchType != .localCache,
+                  let peer = result.connectedPeerAddress,
+                  HostIPAddress.isPublic(peer) else {
+                throw ImageFetchError.destinationRefused
+            }
+            guard let http = result.response as? HTTPURLResponse, http.url == url else {
+                throw ImageFetchError.invalidResponse
+            }
+            if http.statusCode == 429 || http.statusCode == 503 {
                 throw ImageFetchError.rateLimited
             }
-            return data
+            guard (200..<300).contains(http.statusCode) else {
+                throw ImageFetchError.invalidResponse
+            }
+            return result.data
         }
         Task { await disk.trim() }   // enforce the cap on startup
+    }
+
+    static func sessionConfiguration() -> URLSessionConfiguration {
+        let configuration = URLSessionConfiguration.default
+        configuration.connectionProxyDictionary = [:]
+        configuration.urlCache = nil
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        return configuration
     }
 
     /// Exponential backoff schedule for image retries: `base * 2^attempt`.
@@ -168,12 +199,12 @@ final class ImageCache: @unchecked Sendable {
     func loadImage(for url: URL) async -> UIImage? {
         if let img = memory.object(forKey: url as NSURL) { return img }
         if url.isFileURL {
-            guard let data = try? Data(contentsOf: url), let img = UIImage(data: data) else { return nil }
+            guard let data = try? Data(contentsOf: url), let img = decode(data) else { return nil }
             memory.setObject(img, forKey: url as NSURL, cost: data.count)
             return img
         }
         let key = Self.key(for: url)
-        if let data = await disk.data(for: key), let img = UIImage(data: data) {
+        if let data = await disk.data(for: key), let img = decode(data) {
             memory.setObject(img, forKey: url as NSURL, cost: data.count)
             return img
         }
@@ -187,7 +218,7 @@ final class ImageCache: @unchecked Sendable {
         while true {
             do {
                 let data = try await fetch(url)
-                guard let img = UIImage(data: data) else { return nil }
+                guard let img = decode(data) else { return nil }
                 memory.setObject(img, forKey: url as NSURL, cost: data.count)
                 await disk.store(data, for: key)
                 return img
