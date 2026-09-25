@@ -863,7 +863,7 @@ final class MangaCartaTests: XCTestCase {
     @MainActor func testLoadImageFetchesOnceThenServesFromMemory() async {
         let png = tinyPNG()
         let counter = SyncCallCounter()
-        let cache = ImageCache(directory: makeTempDir(), fetcher: { _ in counter.bump(); return png })
+        let cache = ImageCache(directory: makeTempDir(), resolver: PublicImageResolver(), fetcher: { _ in counter.bump(); return png })
         let url = URL(string: "https://example.com/p1.png")!
 
         let first = await cache.loadImage(for: url)        // network
@@ -880,12 +880,12 @@ final class MangaCartaTests: XCTestCase {
         let url = URL(string: "https://example.com/p2.png")!
 
         let c1 = SyncCallCounter()
-        let cache1 = ImageCache(directory: dir, fetcher: { _ in c1.bump(); return png })
+        let cache1 = ImageCache(directory: dir, resolver: PublicImageResolver(), fetcher: { _ in c1.bump(); return png })
         _ = await cache1.loadImage(for: url)               // network → disk
         XCTAssertEqual(c1.count, 1)
 
         let c2 = SyncCallCounter()
-        let cache2 = ImageCache(directory: dir, fetcher: { _ in c2.bump(); return png }) // fresh memory, same disk
+        let cache2 = ImageCache(directory: dir, resolver: PublicImageResolver(), fetcher: { _ in c2.bump(); return png }) // fresh memory, same disk
         let hit = await cache2.loadImage(for: url)         // disk hit
         XCTAssertNotNil(hit)
         XCTAssertEqual(c2.count, 0)                        // no network
@@ -923,7 +923,7 @@ final class MangaCartaTests: XCTestCase {
 
     @MainActor func testClearEmptiesMemory() async {
         let png = tinyPNG()
-        let cache = ImageCache(directory: makeTempDir(), fetcher: { _ in png })
+        let cache = ImageCache(directory: makeTempDir(), resolver: PublicImageResolver(), fetcher: { _ in png })
         let url = URL(string: "https://example.com/p3.png")!
         _ = await cache.loadImage(for: url)
         XCTAssertNotNil(cache.image(for: url))
@@ -934,7 +934,7 @@ final class MangaCartaTests: XCTestCase {
     @MainActor func testPrefetchWarmsAllURLsAndDedupes() async {
         let png = tinyPNG()
         let counter = SyncCallCounter()
-        let cache = ImageCache(directory: makeTempDir(), fetcher: { _ in counter.bump(); return png })
+        let cache = ImageCache(directory: makeTempDir(), resolver: PublicImageResolver(), fetcher: { _ in counter.bump(); return png })
         let urls = (0..<8).map { URL(string: "https://example.com/pf\($0).png")! }
 
         await cache.prefetchAwaitable(urls)
@@ -975,6 +975,7 @@ final class MangaCartaTests: XCTestCase {
         let png = onePixelPNGData()
         let counter = CallCounter()
         let cache = ImageCache(directory: tempCacheDir(), retryBaseDelay: 0, maxImageRetries: 2,
+                               resolver: PublicImageResolver(),
                                fetcher: { _ in
             let n = await counter.next()
             if n == 0 { throw ImageFetchError.rateLimited }
@@ -988,6 +989,7 @@ final class MangaCartaTests: XCTestCase {
 
     func testImageCacheGivesUpAfterMaxRetries() async {
         let cache = ImageCache(directory: tempCacheDir(), retryBaseDelay: 0, maxImageRetries: 2,
+                               resolver: PublicImageResolver(),
                                fetcher: { _ in throw ImageFetchError.rateLimited })
         let img = await cache.loadImage(for: URL(string: "https://i.example/2.jpg")!)
         XCTAssertNil(img)
@@ -1008,7 +1010,7 @@ final class MangaCartaTests: XCTestCase {
     func testPrefetchWithConcurrencyCapStillLoadsEveryURL() async {
         let png = onePixelPNGData()
         let fetched = FetchedURLs()
-        let cache = ImageCache(directory: tempCacheDir(), fetcher: { url in
+        let cache = ImageCache(directory: tempCacheDir(), resolver: PublicImageResolver(), fetcher: { url in
             await fetched.add(url); return png
         })
         let urls = (1...6).map { URL(string: "https://i.example/\($0).jpg")! }

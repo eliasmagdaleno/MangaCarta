@@ -82,6 +82,26 @@ would not. **If ADR-0017 ships and refusals persist with `.unmatched` outcomes w
 candidate scored *below* 0.90 rather than tying**, that is a reach failure, and this ADR is the
 thing to reopen.
 
+## Amendment (2026-09-22) — the bridge exists only when an installed Source publishes external ids
+
+[ADR-0003 Amendment 6](0003-extension-substrate.md#amendment-6--the-app-store-build-ships-no-built-in-and-no-bundled-source-2026-09-22)
+removes the built-in MangaDex Source. Everything this ADR and ADR-0019 describe assumed MangaDex was
+always registered: its `links.mal` gave MangaDex-sourced Works a MAL id directly, and ADR-0019's
+bridge looks titles up in MangaDex to borrow one. **From this amendment on, that route is available
+only when the reader has installed a Source that publishes external ids.** The extension contract is
+gaining an external-ids field (e.g. `malId`) for this, so an installed MangaDex engine can supply
+what the compiled Source did.
+
+With no such Source installed, MAL/AniList resolution falls back to MAL's own search — the weakest
+of the searches, per this ADR's Context — and **some Works stay unresolved** that the bridge would
+have resolved. More Like This, the metadata upgrade bridge and the MAL-dependent parts of For You
+return less, or nothing, for those Works. **The owner accepted this on 2026-09-22** as the cost of
+shipping no content Source.
+
+Nothing above is re-decided: this ADR stays Rejected for MangaDex-sourced titles, ADR-0019 stays the
+record of what ships, and its thresholds and gate are unchanged. What changed is only whether the
+bridge's data source is present.
+
 ## Amendment (2026-08-09) — Decision 3's mechanism was wrong
 
 The first draft of Decision 3 said: MangaDex's near-duplicate entries (colour re-releases, regional

@@ -102,11 +102,64 @@ private struct LocalFixture {
     #expect(source.participatesInUpdates == false)
 }
 
+@MainActor @Test func localImportViewModelMintsWorkAndListing() async throws {
+    let fixture = try LocalFixture(); defer { fixture.cleanup() }
+    let store = LocalLibraryStore(root: fixture.root.appendingPathComponent("library"))
+    let works = WorkStore(directory: fixture.root.appendingPathComponent("works"))
+    let defaults = UserDefaults(suiteName: "local-import-work-\(UUID().uuidString)")!
+    let registry = SourceRegistry(sources: [LocalSource(store: store)])
+    let library = LibraryStore(defaults: defaults, works: works, registry: registry)
+    let importer = LocalImportViewModel()
+    importer.configure(registry: registry, library: library, works: works)
+
+    await importer.importFilesAndWait([fixture.archive])
+
+    let item = try #require(library.items.first)
+    #expect(item.sourceId == LocalSource.sourceID)
+    #expect(item.chapterNumbers == ["1"])
+    let listing = ListingKey(sourceId: LocalSource.sourceID, mangaId: item.id)
+    #expect(works.workId(for: listing) != nil)
+}
+
 @MainActor @Test func registryAlwaysRegistersLocalButNeverBrowsesIt() {
     let registry = SourceRegistry(sources: [LocalSource(), MangaDexSource()])
     #expect(registry.source(id: "local") != nil)
     #expect(!registry.visibleSources(includeAdult: true).contains { $0.id == "local" })
     #expect(registry.active?.id == MangaDexSource.sourceID)
+}
+
+@MainActor @Test func localImportViewModelReportsUnreadablePDF() async throws {
+    let fixture = try LocalFixture(); defer { fixture.cleanup() }
+    let pdf = fixture.root.appendingPathComponent("broken.pdf")
+    try Data("not a PDF".utf8).write(to: pdf)
+    let store = LocalLibraryStore(root: fixture.root.appendingPathComponent("library"))
+    let works = WorkStore(directory: fixture.root.appendingPathComponent("works"))
+    let defaults = UserDefaults(suiteName: "local-import-pdf-error-\(UUID().uuidString)")!
+    let registry = SourceRegistry(sources: [LocalSource(store: store)])
+    let library = LibraryStore(defaults: defaults, works: works, registry: registry)
+    let importer = LocalImportViewModel()
+    importer.configure(registry: registry, library: library, works: works)
+
+    await importer.importFilesAndWait([pdf])
+
+    #expect(importer.errors == ["broken.pdf: Could not read this PDF"])
+}
+
+@MainActor @Test func localImportViewModelCancellationIsSilent() async throws {
+    let fixture = try LocalFixture(); defer { fixture.cleanup() }
+    let store = LocalLibraryStore(root: fixture.root.appendingPathComponent("library"))
+    let works = WorkStore(directory: fixture.root.appendingPathComponent("works"))
+    let defaults = UserDefaults(suiteName: "local-import-pdf-cancel-\(UUID().uuidString)")!
+    let registry = SourceRegistry(sources: [LocalSource(store: store)])
+    let library = LibraryStore(defaults: defaults, works: works, registry: registry)
+    let importer = LocalImportViewModel()
+    importer.configure(registry: registry, library: library, works: works)
+
+    importer.importFiles([fixture.archive])
+    importer.cancel()
+    await importer.importFilesAndWait([])
+
+    #expect(importer.errors.isEmpty)
 }
 
 @Suite("LocalImportSlice2Tests")
@@ -116,4 +169,5 @@ struct LocalImportSlice2Tests {
     @Test func sourceReadsFileURLsAndFiltersTitles() async throws { try await localSourceReadsFileURLsAndFiltersTitles() }
     @Test func capabilitiesDispatchThroughExistential() { localSourceCapabilitiesDispatchThroughExistential() }
     @MainActor @Test func registryFiltersLocal() { registryAlwaysRegistersLocalButNeverBrowsesIt() }
+    @MainActor @Test func cancellationIsSilent() async throws { try await localImportViewModelCancellationIsSilent() }
 }

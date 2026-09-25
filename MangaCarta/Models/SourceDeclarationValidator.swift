@@ -274,7 +274,7 @@ enum SourceDeclarationValidator {
             throw SourceDeclarationError.externalIDsRequireListing
         }
         let languagePolicy = try languages(from: root)
-        let networkPolicy = try network(from: root)
+        let networkPolicy = try network(from: root, selectedHostAPIVersion: selected)
         let presentationRecord = try presentation(from: root, capabilities: declared)
         try checkRegistrationInvariants(declared)
 
@@ -432,19 +432,28 @@ enum SourceDeclarationValidator {
 
     // MARK: - Network
 
-    private static func network(from root: [String: JSONValue]) throws -> NetworkPolicy {
+    private static func network(from root: [String: JSONValue],
+                                selectedHostAPIVersion: HostAPIVersion) throws -> NetworkPolicy {
         let dictionary = try object(root, "network", at: "")
         try rejectUnknownKeys(in: dictionary,
                               allowed: ["httpOrigins", "browserOrigins", "assetOrigins"],
                               at: "network")
+        let assetOrigins = try origins(dictionary, "assetOrigins", allowWildcards: true)
+        if selectedHostAPIVersion < HostAPIVersion(major: 1, minor: 2),
+           assetOrigins.contains(where: { $0.contains("*") }) {
+            throw SourceDeclarationError.featureRequiresHostAPIVersion(
+                feature: "network.assetOrigins wildcard",
+                minimum: HostAPIVersion(major: 1, minor: 2), selected: selectedHostAPIVersion)
+        }
         return NetworkPolicy(httpOrigins: try origins(dictionary, "httpOrigins"),
                              browserOrigins: try origins(dictionary, "browserOrigins"),
-                             assetOrigins: try origins(dictionary, "assetOrigins"))
+                             assetOrigins: assetOrigins)
     }
 
     /// An omitted list denies that role. Silence is never permission here: a Source that
     /// never declared a browser origin cannot reach one.
-    private static func origins(_ dictionary: [String: JSONValue], _ key: String) throws -> [String] {
+    private static func origins(_ dictionary: [String: JSONValue], _ key: String,
+                                allowWildcards: Bool = false) throws -> [String] {
         guard let value = dictionary[key] else { return [] }
         let path = "network.\(key)"
         guard let items = value.arrayValue else {
@@ -456,7 +465,7 @@ enum SourceDeclarationValidator {
             guard let raw = item.stringValue else {
                 throw SourceDeclarationError.wrongType(path: path, expected: "string")
             }
-            switch DeclaredOrigin.canonicalized(raw) {
+            switch DeclaredOrigin.canonicalized(raw, allowWildcard: allowWildcards) {
             case .rejected(let reason):
                 throw SourceDeclarationError.invalidOrigin(path: path, value: raw, reason: reason)
             case .canonical(let origin):
@@ -654,7 +663,7 @@ enum DeclaredOrigin {
         case rejected(String)
     }
 
-    static func canonicalized(_ raw: String) -> Outcome {
+    static func canonicalized(_ raw: String, allowWildcard: Bool = false) -> Outcome {
         guard let components = URLComponents(string: raw) else {
             return .rejected("it is not a parsable URL")
         }
@@ -672,6 +681,27 @@ enum DeclaredOrigin {
         }
         guard let host = components.host?.lowercased(), !host.isEmpty else {
             return .rejected("it has no host")
+        }
+        guard !host.hasSuffix("."), !host.contains("..") else {
+            return .rejected("a host may not contain trailing dots or empty labels")
+        }
+        if host.contains("*") && !allowWildcard {
+            return .rejected("wildcards are allowed only in assetOrigins")
+        }
+        if host.hasPrefix("*.") {
+            let suffix = String(host.dropFirst(2))
+            let labels = suffix.split(separator: ".")
+            guard host == "*.\(suffix)", !suffix.contains("*"), labels.count >= 2 else {
+                return .rejected("wildcards must be one leftmost label over at least two host labels")
+            }
+            // The two-label minimum also models the implicit TLD rule: *.ck is rejected
+            // before PSL lookup because a one-label suffix is never an acceptable boundary.
+            guard !PublicSuffixList.isPublicSuffix(suffix),
+                  !PublicSuffixList.isPublicSuffix("x.\(suffix)") else {
+                return .rejected("wildcards may not cover a public or shared-hosting suffix")
+            }
+        } else if host.contains("*") {
+            return .rejected("wildcards must be exactly one leftmost label")
         }
         if let reason = unreachableHostReason(host) {
             return .rejected(reason)

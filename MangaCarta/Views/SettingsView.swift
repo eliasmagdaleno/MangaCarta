@@ -5,6 +5,7 @@
 
 import SwiftUI
 import UserNotifications
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @AppStorage(appearanceStorageKey) private var appearanceRaw = AppearanceMode.system.rawValue
@@ -23,6 +24,10 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
     @State private var showingCollectionsSheet = false
     @State private var notificationSummary = NotificationAuthorizationSummary.notRequested
+    @State private var showingLocalImporter = false
+    @State private var localItemCount = 0
+    @State private var localDiskBytes = 0
+    @EnvironmentObject private var localImporter: LocalImportViewModel
 
     var body: some View {
         NavigationStack {
@@ -51,6 +56,30 @@ struct SettingsView: View {
                         .background(RoundedRectangle(cornerRadius: 14).fill(Ink.surface))
                         .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Ink.hairline, lineWidth: 1))
                         .padding(.horizontal, Gutter.page)
+                        Button { showingLocalImporter = true } label: {
+                            HStack {
+                                Label("Local library", systemImage: "externaldrive")
+                                    .foregroundStyle(Ink.primary)
+                                Spacer()
+                                VStack(alignment: .trailing, spacing: 2) {
+                                    Text("Import files")
+                                        .foregroundStyle(Ink.seal)
+                                    Text(localUsageText)
+                                        .font(.caption)
+                                        .foregroundStyle(Ink.secondary)
+                                }
+                            }
+                            .padding(.horizontal, Gutter.page)
+                            .padding(.vertical, 15)
+                        }
+                        .buttonStyle(.plain)
+                        .background(RoundedRectangle(cornerRadius: 14).fill(Ink.surface))
+                        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Ink.hairline, lineWidth: 1))
+                        .padding(.horizontal, Gutter.page)
+                        Text("Imported files are deleted with the app.")
+                            .font(.footnote)
+                            .foregroundStyle(Ink.tertiary)
+                            .padding(.horizontal, Gutter.page)
                     }
 
                     VStack(alignment: .leading, spacing: 14) {
@@ -207,6 +236,16 @@ struct SettingsView: View {
             .sheet(isPresented: $showingCollectionsSheet) {
                 CollectionManagementView()
             }
+            .fileImporter(isPresented: $showingLocalImporter,
+                          allowedContentTypes: [UTType.zip, UTType.mangaCartaCBZ, UTType.pdf],
+                          allowsMultipleSelection: true) { result in
+                if case .success(let urls) = result { localImporter.importFiles(urls) }
+            }
+            .overlay(alignment: .top) {
+                LocalImportBanner(model: localImporter, onCancel: localImporter.cancel)
+                    .padding(.top, 8)
+            }
+            .task(id: library.items) { await refreshLocalUsage() }
         }
     }
 
@@ -222,6 +261,19 @@ struct SettingsView: View {
         }
         .padding(.horizontal, Gutter.page)
         .padding(.vertical, 15)
+    }
+
+    private func refreshLocalUsage() async {
+        guard let local = registry.source(id: LocalSource.sourceID) as? LocalSource else { return }
+        let usage = await local.store.usage()
+        localItemCount = usage.count
+        localDiskBytes = usage.bytes
+    }
+
+    private var localUsageText: String {
+        let count = localItemCount == 1 ? "1 item" : "\(localItemCount) items"
+        let size = ByteCountFormatter.string(fromByteCount: Int64(localDiskBytes), countStyle: .file)
+        return "\(count) · \(size)"
     }
 
     private var inAppUpdateStatus: String {
@@ -523,5 +575,6 @@ private struct AppearancePicker: View {
         .environmentObject(LibraryStore(works: works))
         .environmentObject(HistoryStore(works: works))
         .environmentObject(works)
+        .environmentObject(LocalImportViewModel())
         .environmentObject(UpdateStateStore(works: works))
 }

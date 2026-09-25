@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Home, minus one thing it cannot do for itself: a `@StateObject` is built in `init`,
 /// which runs before the environment exists, so `HomeScreen` below cannot read the graph's
@@ -45,6 +46,8 @@ private struct HomeScreen: View {
     @Environment(\.selectAppTab) private var selectAppTab
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("settings.showAdultSources") private var showAdultSources = false
+    @State private var showingImporter = false
+    @EnvironmentObject private var importer: LocalImportViewModel
 
     var body: some View {
         // Capture the browse source as a value so the escaping "See all" fetch closures
@@ -221,10 +224,27 @@ private struct HomeScreen: View {
             .refreshable { await engine.refresh() }
             .navigationTitle("Read")
             .navigationBarTitleDisplayMode(.large)
+            .fileImporter(isPresented: $showingImporter,
+                          allowedContentTypes: [UTType.zip, UTType.mangaCartaCBZ, UTType.pdf],
+                          allowsMultipleSelection: true) { result in
+                if case .success(let urls) = result { importer.importFiles(urls) }
+            }
+            .overlay(alignment: .top) {
+                LocalImportBanner(model: importer, onCancel: importer.cancel).padding(.top, 8)
+            }
             } else {
                 noSourcesState
                     .navigationTitle("Read")
                     .navigationBarTitleDisplayMode(.large)
+                    .fileImporter(isPresented: $showingImporter,
+                                  allowedContentTypes: [UTType.zip, UTType.mangaCartaCBZ, UTType.pdf],
+                                  allowsMultipleSelection: true) { result in
+                        if case .success(let urls) = result { importer.importFiles(urls) }
+                    }
+                    .overlay(alignment: .top) {
+                        LocalImportBanner(model: importer, onCancel: importer.cancel)
+                            .padding(.top, 8)
+                    }
             }
         }
     }
@@ -233,9 +253,11 @@ private struct HomeScreen: View {
         InkEmptyState(
             symbol: "books.vertical",
             title: "No sources installed",
-            message: "Add a repository you trust in Settings to install Sources. MangaCarta does not provide or host content.",
-            actionTitle: "Open Settings",
-            action: { selectAppTab(.settings) }
+            message: "Import CBZ, ZIP or PDF files from Files. MangaCarta does not provide or host content.",
+            actionTitle: "Import from Files",
+            action: { showingImporter = true },
+            secondaryActionTitle: "Add a repository",
+            secondaryAction: { selectAppTab(.settings) }
         )
     }
 
@@ -366,6 +388,7 @@ struct InkNotice: View {
         .environmentObject(history)
         .environmentObject(taste)
         .environmentObject(works)
+        .environmentObject(LocalImportViewModel())
         .environmentObject(UpdateStateStore(works: works))
         .environmentObject(RecommendationEngine(history: history, library: library,
                                                 profileStore: taste, workStore: works,

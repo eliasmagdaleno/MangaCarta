@@ -175,6 +175,8 @@ struct InkEmptyState: View {
     let message: String
     var actionTitle: String? = nil
     var action: (() -> Void)? = nil
+    var secondaryActionTitle: String? = nil
+    var secondaryAction: (() -> Void)? = nil
 
     var body: some View {
         VStack(spacing: 14) {
@@ -201,6 +203,13 @@ struct InkEmptyState: View {
                     .frame(minHeight: 44)
                     .padding(.horizontal, 18)
                     .background(RoundedRectangle(cornerRadius: 12).fill(Ink.seal))
+                    .buttonStyle(.plain)
+            }
+            if let secondaryActionTitle, let secondaryAction {
+                Button(secondaryActionTitle, action: secondaryAction)
+                    .font(.subheadline.bold())
+                    .foregroundStyle(Ink.seal)
+                    .frame(minHeight: 44)
                     .buttonStyle(.plain)
             }
         }

@@ -9,12 +9,55 @@
 import Foundation
 import Network
 import Testing
+import UIKit
 import WebKit
 import XCTest
 @testable import MangaCarta
 
 @Suite("Host HTTP capability")
 struct HostHTTPTests {
+
+    @Test("Host HTTP sessions bypass configured system proxies")
+    func hostHTTPSessionBypassesSystemProxies() {
+        #expect(URLSessionHostHTTPTransport.sessionConfiguration().connectionProxyDictionary?.isEmpty == true)
+    }
+
+    @Test("HTTP policies reject wildcard origin patterns")
+    func wildcardAssetOriginIsRejectedByHTTPPolicy() async throws {
+        let url = try #require(URL(string: "https://a.mangadex.network/page.jpg"))
+        let policy = HostURLPolicy(allowedOrigins: ["https://*.mangadex.network"],
+                                   resolver: FixedHostResolver(addresses: ["93.184.216.34"]))
+        let error = await hostCapabilityError { try await policy.validate(url) }
+        #expect(error?.code == .policyDenied)
+
+        let bareWildcard = HostURLPolicy(allowedOrigins: ["*"],
+                                         resolver: FixedHostResolver(addresses: ["93.184.216.34"]))
+        let bareError = await hostCapabilityError {
+            try await bareWildcard.validate(try #require(URL(string: "https://example.com/image.jpg")))
+        }
+        #expect(bareError?.code == .policyDenied)
+    }
+
+    @Test("ImageCache refuses a wildcard-matched URL resolving privately")
+    func imageCacheRejectsPrivateWildcardAsset() async throws {
+        let probe = FetchProbe()
+        let cache = ImageCache(directory: FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString),
+            resolver: FixedHostResolver(addresses: ["10.0.0.5"]),
+            fetcher: { _ in await probe.bump(); return Data("not an image".utf8) })
+        let url = try #require(URL(string: "https://a.mangadex.network/page.jpg"))
+        #expect(await cache.loadImage(for: url) == nil)
+        #expect(await probe.count == 0)
+
+        let publicProbe = FetchProbe()
+        let publicCache = ImageCache(directory: FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString),
+            resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
+            fetcher: { _ in await publicProbe.bump(); return Data("not an image".utf8) })
+        let publicURL = try #require(URL(string: "https://a.mangadex.network/page.jpg"))
+        #expect(await publicCache.loadImage(for: publicURL) == nil)
+        #expect(await publicProbe.count == 1)
+    }
 
     @Test("Connected loopback peers are refused on the real URLSession path")
     func realURLSessionRefusesLoopbackPeer() async throws {
@@ -83,6 +126,19 @@ struct HostHTTPTests {
         }
     }
 
+    @Test("URLSession delegate reports the connected peer before completion")
+    func realURLSessionReportsPeerMetrics() async throws {
+        let server = try LoopbackHTTPServer()
+        let port = try await server.start()
+        defer { server.stop() }
+        let fetcher = URLSessionDataFetcher(configuration: .ephemeral) { _ in nil }
+        let result = try await fetcher.fetch(URLRequest(
+            url: try #require(URL(string: "http://127.0.0.1:\(port)/"))))
+
+        #expect(result.connectedPeerAddress != nil)
+        #expect(result.resourceFetchType == .networkLoad)
+    }
+
     @Test("HostIPAddress handles mapped, scoped, NAT64, and public addresses")
     func hostIPAddressForms() {
         let cases: [(String, Bool)] = [
@@ -123,6 +179,51 @@ struct HostHTTPTests {
         #expect(error?.code == .policyDenied)
     }
 
+    @Test("A private connected peer is refused and no response body is returned")
+    func privateConnectedPeerIsRefusedAfterRebinding() async throws {
+        let url = try #require(URL(string: "https://allowed.example/start"))
+        let resolver = SequencedHostResolver(answers: [["93.184.216.34"], ["10.0.0.5"]])
+        let fetcher = FixedHTTPMetricsFetcher(result: URLSessionFetchResult(
+            data: Data("secret body".utf8),
+            response: HTTPURLResponse(url: url, statusCode: 200,
+                                      httpVersion: nil, headerFields: nil)!,
+            connectedPeerAddress: "10.0.0.5"))
+        let client = HostHTTPClient(
+            sourceID: QualifiedSourceID(rawValue: "repo/source-a"),
+            allowedOrigins: ["https://allowed.example"],
+            transport: URLSessionHostHTTPTransport(fetcher: fetcher),
+            resolver: resolver)
+
+        let error = await hostCapabilityError {
+            _ = try await client.request(HostHTTPRequest(url: url))
+        }
+
+        #expect(error?.code == .policyDenied)
+        #expect(error?.message == "the connected destination was non-public")
+    }
+
+    @Test("HTTP rejects a response with missing connected peer metrics")
+    func missingConnectedPeerIsRejected() async throws {
+        let url = try #require(URL(string: "https://allowed.example/start"))
+        let fetcher = FixedHTTPMetricsFetcher(result: URLSessionFetchResult(
+            data: Data("response".utf8),
+            response: HTTPURLResponse(url: url, statusCode: 200,
+                                      httpVersion: nil, headerFields: nil)!,
+            connectedPeerAddress: nil))
+        let client = HostHTTPClient(
+            sourceID: QualifiedSourceID(rawValue: "repo/source-a"),
+            allowedOrigins: ["https://allowed.example"],
+            transport: URLSessionHostHTTPTransport(fetcher: fetcher),
+            resolver: FixedHostResolver(addresses: ["93.184.216.34"]))
+
+        let error = await hostCapabilityError {
+            try await client.request(HostHTTPRequest(url: url))
+        }
+
+        #expect(error?.code == .policyDenied)
+        #expect(error?.message == "the connected destination was non-public")
+    }
+
     @Test("HTTP redirects cannot leave the Source's declared origins")
     func redirectCannotEscapeDeclaredOrigins() async throws {
         let transport = ScriptedHostHTTPTransport { request, _ in
@@ -148,6 +249,47 @@ struct HostHTTPTests {
 
         #expect(error?.code == .policyDenied)
         #expect(await transport.requestedURLs() == ["https://allowed.example/start"])
+    }
+
+    @Test("HTTP redirects cannot downgrade to plaintext")
+    func httpRedirectIsRejected() async throws {
+        let transport = ScriptedHostHTTPTransport { request, _ in
+            HostHTTPTransportResponse(
+                statusCode: 302,
+                url: try #require(request.url),
+                headers: ["Location": "http://allowed.example/plaintext"],
+                body: Data())
+        }
+        let client = HostHTTPClient(
+            sourceID: QualifiedSourceID(rawValue: "repo/source-a"),
+            allowedOrigins: ["https://allowed.example"],
+            transport: transport,
+            resolver: FixedHostResolver(addresses: ["93.184.216.34"]))
+
+        let error = await hostCapabilityError {
+            try await client.request(HostHTTPRequest(
+                url: try #require(URL(string: "https://allowed.example/start"))))
+        }
+
+        #expect(error?.code == .policyDenied)
+        #expect(await transport.requestedURLs() == ["https://allowed.example/start"])
+    }
+
+    @Test("HTTP transport refuses plaintext requests before fetching")
+    func httpRequestURLIsRejectedBeforeTransport() async throws {
+        let fetcher = FixedHTTPMetricsFetcher(result: URLSessionFetchResult(
+            data: Data(),
+            response: HTTPURLResponse(url: try #require(URL(string: "http://allowed.example/start")),
+                                      statusCode: 200, httpVersion: nil, headerFields: nil)!,
+            connectedPeerAddress: "93.184.216.34"))
+        let transport = URLSessionHostHTTPTransport(fetcher: fetcher)
+        do {
+            _ = try await transport.send(URLRequest(
+                url: try #require(URL(string: "http://allowed.example/start"))))
+            Issue.record("plaintext request unexpectedly reached the fetcher")
+        } catch let error as HostCapabilityError {
+            #expect(error.code == .policyDenied)
+        }
     }
 
     @Test("Every HTTP redirect hop is resolved again to prevent DNS rebinding")
@@ -394,6 +536,146 @@ struct HostHTTPTests {
         #expect(response.body == .text("try later"))
         #expect(await transport.requestedURLs().count == 1)
     }
+}
+
+@Suite("Image cache network boundary")
+struct ImageCacheNetworkTests {
+    private let url = URL(string: "https://a.mangadex.network/page.png")!
+    private let png = Data(base64Encoded:
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")!
+
+    @Test("Image session bypasses proxies and URLCache")
+    func imageSessionConfiguration() {
+        let configuration = ImageCache.sessionConfiguration()
+        #expect(configuration.connectionProxyDictionary?.isEmpty == true)
+        #expect(configuration.urlCache == nil)
+        #expect(configuration.requestCachePolicy == .reloadIgnoringLocalCacheData)
+    }
+
+    @Test("A private or missing connected peer never reaches image decoding")
+    func rejectsUntrustedPeerBeforeDecode() async {
+        for peer in ["10.0.0.5", nil] as [String?] {
+            let directory = temporaryDirectory()
+            let decoder = ImageDecodeProbe()
+            let cache = ImageCache(
+                directory: directory,
+                resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
+                sessionFetcher: ImageFetchProbe(result: result(peer: peer)),
+                decoder: { decoder.decode($0) })
+
+            #expect(await cache.loadImage(for: url) == nil)
+            #expect(decoder.count == 0)
+            let disk = ImageDiskCache(directory: directory, maxBytes: 1_000_000)
+            #expect(await disk.has(ImageCache.key(for: url)) == false)
+        }
+    }
+
+    @Test("A URLSession cache response is refused despite a public peer")
+    func rejectsURLSessionCacheResponse() async {
+        let decoder = ImageDecodeProbe()
+        let cache = ImageCache(
+            directory: temporaryDirectory(),
+            resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
+            sessionFetcher: ImageFetchProbe(result: result(
+                peer: "93.184.216.34", fetchType: .localCache)),
+            decoder: { decoder.decode($0) })
+
+        #expect(await cache.loadImage(for: url) == nil)
+        #expect(decoder.count == 0)
+    }
+
+    @Test("A public peer loads, then ImageCache's disk hit works offline")
+    func publicPeerAndOfflineDiskHit() async {
+        let directory = temporaryDirectory()
+        let firstFetcher = ImageFetchProbe(result: result(peer: "93.184.216.34"))
+        let online = ImageCache(directory: directory,
+                                resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
+                                sessionFetcher: firstFetcher)
+        #expect(await online.loadImage(for: url) != nil)
+        #expect(await firstFetcher.count == 1)
+
+        let offlineFetcher = ImageFetchProbe(result: result(peer: nil))
+        let offline = ImageCache(directory: directory,
+                                 resolver: FixedHostResolver(addresses: []),
+                                 sessionFetcher: offlineFetcher)
+        #expect(await offline.loadImage(for: url) != nil)
+        #expect(await offlineFetcher.count == 0)
+    }
+
+    @Test("The real URLSession peer metric blocks a rebound loopback image")
+    func realURLSessionLoopbackPeerNeverDecodes() async throws {
+        let server = try LoopbackHTTPServer()
+        let port = try await server.start()
+        defer { server.stop() }
+        let decoder = ImageDecodeProbe()
+        let fetcher = OriginalImageURLFetcher(
+            real: LoopbackRedirectingFetcher(
+                real: URLSessionDataFetcher(
+                    configuration: ImageCache.sessionConfiguration(),
+                    redirectHandler: URLSessionDataFetcher.httpsOnlyRedirectHandler),
+                port: port))
+        let observed = try await fetcher.fetch(URLRequest(url: url))
+        #expect(observed.response.url == url)
+        let peer = try #require(observed.connectedPeerAddress)
+        #expect(!HostIPAddress.isPublic(peer))
+        let cache = ImageCache(
+            directory: temporaryDirectory(),
+            resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
+            sessionFetcher: fetcher,
+            decoder: { decoder.decode($0) })
+
+        #expect(await cache.loadImage(for: url) == nil)
+        #expect(decoder.count == 0)
+    }
+
+    private func result(peer: String?,
+                        fetchType: URLSessionResourceFetchType = .networkLoad) -> URLSessionFetchResult {
+        URLSessionFetchResult(
+            data: png,
+            response: HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+            connectedPeerAddress: peer,
+            resourceFetchType: fetchType)
+    }
+}
+
+private actor ImageFetchProbe: URLSessionDataFetching {
+    let result: URLSessionFetchResult
+    private(set) var count = 0
+
+    init(result: URLSessionFetchResult) { self.result = result }
+
+    func fetch(_ request: URLRequest) async throws -> URLSessionFetchResult {
+        count += 1
+        return result
+    }
+}
+
+private final class ImageDecodeProbe: @unchecked Sendable {
+    private let lock = NSLock()
+    private var calls = 0
+
+    var count: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return calls
+    }
+
+    func decode(_ data: Data) -> UIImage? {
+        lock.lock()
+        calls += 1
+        lock.unlock()
+        return UIImage(data: data)
+    }
+}
+
+private actor FetchProbe {
+    private(set) var count = 0
+
+    func bump() { count += 1 }
+}
+
+struct PublicImageResolver: HostNameResolving {
+    func addresses(for host: String) async throws -> [String] { ["93.184.216.34"] }
 }
 
 @Suite("Host browser capability")
@@ -783,7 +1065,8 @@ private actor BridgeHTTPTransport: HostHTTPTransport {
         return HostHTTPTransportResponse(statusCode: 200,
                                          url: request.url!,
                                          headers: [:],
-                                         body: Data("ok".utf8))
+                                         body: Data("ok".utf8),
+                                         connectedPeerAddress: "93.184.216.34")
     }
 
     func lastRequest() -> URLRequest? { request }
@@ -893,7 +1176,13 @@ private actor ScriptedHostHTTPTransport: HostHTTPTransport {
     func send(_ request: URLRequest) async throws -> HostHTTPTransportResponse {
         urls.append(request.url?.absoluteString ?? "<missing>")
         cookies.append(request.value(forHTTPHeaderField: "Cookie"))
-        return try handler(request, urls.count)
+        let response = try handler(request, urls.count)
+        return HostHTTPTransportResponse(statusCode: response.statusCode,
+                                         url: response.url,
+                                         headers: response.headers,
+                                         body: response.body,
+                                         connectedPeerAddress: response.connectedPeerAddress
+                                            ?? "93.184.216.34")
     }
 
     func requestedURLs() -> [String] {
@@ -919,5 +1208,23 @@ private struct LoopbackRedirectingFetcher: URLSessionDataFetching {
         var loopbackRequest = request
         loopbackRequest.url = URL(string: "http://127.0.0.1:\(port)/")
         return try await real.fetch(loopbackRequest)
+    }
+}
+
+/// Keep the public image URL in the synthetic response so only the real peer metric
+/// can reject the loopback fetch in ImageCache's integration test.
+private struct OriginalImageURLFetcher: URLSessionDataFetching {
+    let real: any URLSessionDataFetching
+
+    func fetch(_ request: URLRequest) async throws -> URLSessionFetchResult {
+        let result = try await real.fetch(request)
+        guard let url = request.url, let http = result.response as? HTTPURLResponse,
+              let response = HTTPURLResponse(url: url, statusCode: http.statusCode,
+                                             httpVersion: nil, headerFields: nil) else {
+            return result
+        }
+        return URLSessionFetchResult(data: result.data, response: response,
+                                     connectedPeerAddress: result.connectedPeerAddress,
+                                     resourceFetchType: result.resourceFetchType)
     }
 }

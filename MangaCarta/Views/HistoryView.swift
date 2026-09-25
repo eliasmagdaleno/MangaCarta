@@ -78,7 +78,7 @@ struct HistoryView: View {
             }
         } label: {
             HStack(spacing: 12) {
-                AsyncImage(url: entry.coverURL) { phase in
+                CachedAsyncImage(url: entry.coverURL) { phase in
                     switch phase {
                     case .success(let img): img.resizable().scaledToFill()
                     default: CoverPlaceholder()
