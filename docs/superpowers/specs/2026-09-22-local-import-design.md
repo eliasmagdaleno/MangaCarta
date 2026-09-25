@@ -1,8 +1,7 @@
 # Local import design
 
 **Date:** 2026-09-22
-**Status:** Design specification. The owner decided the open questions on 2026-09-22 (see
-"Decisions" at the end); one owner item remains. Nothing here is built.
+**Status:** Accepted design decisions from 2026-09-22 (see "Decisions" at the end); one owner item remains. For current implementation status, see `CLAUDE.md` and the live handoff.
 **Evidence baseline:** `main` at `70317bc`, after the WeebCentral cutover (#201).
 
 ## Purpose and ownership
@@ -61,14 +60,14 @@ Trade-offs accepted:
   treat "`local` is registered" as "a browse Source exists".
 - **`ImageCache` would copy local pages into its 500 MB disk cache.** Slice 2 adds an
   `isFileURL` bypass so local pages are read directly and never duplicated.
-- **`SourceRegistry.sourceForRefresh` falls back to MangaDex for an unknown id.** Harmless today,
-  but the refresh skip in §6 must not depend on that fallback.
+- **Refresh eligibility must use the Source's declared capability.** An unknown Source and a
+  local Listing must not be sent through a fallback Source.
 
 ## 2. Storage — copy into Application Support
 
 **Recommendation:** copy on import into
-`Application Support/LocalLibrary/<itemId>/`, where `itemId` is a UUID minted at import and is the
-Listing's `mangaId`. Each item directory holds `pages/<chapter>/` (extracted images, zero-padded
+`Application Support/LocalLibrary/<itemId>/`, where `itemId` is the first 16 bytes of the
+imported file's SHA-256 digest, encoded as 32 hexadecimal characters, and is the Listing's `mangaId`. Each item directory holds `pages/<chapter>/` (extracted images, zero-padded
 `0001.jpg` …, one subdirectory per chapter), `cover.jpg` (thumbnail of page one) and
 `item.json` (title, source filename, SHA-256, byte size, page count, import date, parsed
 ComicInfo fields). A `LocalLibraryStore` owns the index. **The original archive is not kept:**
@@ -262,11 +261,11 @@ syncs them.
 - `SourceRegistryTests` — `visibleSources` never includes `local`.
 - `MetadataUpgradeQueueTests` — a local-only Work is never enqueued.
 
-**UI (hermetic, XCUITest):** there is no tap tool and `fileImporter`'s system picker is not
-drivable reliably, so the test does not go through it. A launch argument
+**UI (hermetic, XCUITest):** the system `fileImporter` picker is not reliably drivable, so the
+launch fixture supplies a CBZ to the same `LocalImportViewModel` path the picker uses. The fixture
+is supplied by the UI test and is not bundled in the release app. A launch argument
 `-uitest-import-fixture <name>` (the pattern `UpdatesUITests` uses for `-uitest-updates-state`)
-makes the app import a fixture CBZ bundled in the UI-test target through the *same*
-`LocalLibraryStore.import(url:)` the picker calls. `LocalImportUITests` then asserts: the empty
+triggers that path. `LocalImportUITests` then asserts: the empty
 state shows the "does not provide or host content" copy before import; the item appears in
 Library; opening it shows page 1; paging to the end marks it read; "Delete from Device" shows
 the warning and, confirmed, returns Library to the empty state; screenshots attached at each step. Fixture art is original or public domain (§9). Runs on iPhone 17 Pro locally; the test must
