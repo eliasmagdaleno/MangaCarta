@@ -35,6 +35,7 @@ struct MangaCartaApp: App {
     @StateObject private var fulfillment: FulfillmentCoordinator
     /// The graph's registry, so views resolve sources from the same one the services do.
     @StateObject private var registry: SourceRegistry
+    @StateObject private var localImporter: LocalImportViewModel
 
     /// Plain properties rather than `@StateObject` — neither publishes anything, so a view
     /// that could reach one could only misuse it (ADR-0010). See `AppComposition` for why
@@ -137,6 +138,9 @@ struct MangaCartaApp: App {
         _sourcePreferences = StateObject(wrappedValue: composed.sourcePreferences)
         _fulfillment = StateObject(wrappedValue: composed.fulfillment)
         _registry = StateObject(wrappedValue: composed.registry)
+        let localImporter = LocalImportViewModel()
+        localImporter.configure(registry: composed.registry, library: composed.library, works: composed.works)
+        _localImporter = StateObject(wrappedValue: localImporter)
         scheduler.register()
     }
 
@@ -169,6 +173,7 @@ struct MangaCartaApp: App {
                 .environmentObject(sourcePreferences)
                 .environmentObject(fulfillment)
                 .environmentObject(registry)
+                .environmentObject(localImporter)
                 .environment(\.extensionComposition, extensions)
                 .environment(\.extensionStorageError, extensionStorageError)
                 .preferredColorScheme(appearance.colorScheme)

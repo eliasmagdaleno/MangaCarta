@@ -44,9 +44,12 @@ actor LocalLibraryStore {
         let archive = staging.appendingPathComponent("archive")
         let item = staging.appendingPathComponent("item")
         do {
+            try Task.checkCancellation()
             try fm.createDirectory(at: staging, withIntermediateDirectories: true)
             try fm.copyItem(at: source, to: archive)
+            try Task.checkCancellation()
             let bytes = try Data(contentsOf: archive, options: .mappedIfSafe)
+            try Task.checkCancellation()
             let digest = SHA256.hash(data: bytes)
             let hash = digest.map { String(format: "%02x", $0) }.joined()
             let itemId = String(hash.prefix(32))
@@ -64,6 +67,7 @@ actor LocalLibraryStore {
                     let files = try await PDFPageRasterizer().rasterize(source: archive, to: pageDir) { completed, total in
                         progress?(LocalImportProgress(fileName: source.lastPathComponent, completed: completed, total: total))
                     }
+                    try Task.checkCancellation()
                     guard let firstFile = files.first else { throw PDFRasterizationError.unreadable }
                     try writeCover(from: pageDir.appendingPathComponent(firstFile), to: item.appendingPathComponent("cover.jpg"))
                     let chapter = LocalChapter(number: 1, title: title, pageCount: files.count, pageFiles: files)
@@ -72,6 +76,7 @@ actor LocalLibraryStore {
                     let encoded = try JSONEncoder().encode(record)
                     try encoded.write(to: item.appendingPathComponent("item.json"), options: .atomic)
                     try? fm.removeItem(at: archive)
+                    try Task.checkCancellation()
                     if fm.fileExists(atPath: destination.appendingPathComponent("item.json").path) {
                         try? fm.removeItem(at: staging)
                         return .duplicate(itemId: itemId)
@@ -100,24 +105,31 @@ actor LocalLibraryStore {
             try fm.createDirectory(at: item, withIntermediateDirectories: true)
             var storedChapters: [LocalChapter] = []
             for (chapterIndex, group) in groups.enumerated() {
+                try Task.checkCancellation()
                 let pageDir = item.appendingPathComponent("pages/\(chapterIndex + 1)")
                 try fm.createDirectory(at: pageDir, withIntermediateDirectories: true)
                 var files: [String] = []
                 for (pageIndex, entry) in group.1.enumerated() {
+                    try Task.checkCancellation()
                     let ext = URL(fileURLWithPath: entry.name).pathExtension.lowercased()
                     let file = String(format: "%04d.%@", pageIndex + 1, ext)
-                    try reader.data(for: entry).write(to: pageDir.appendingPathComponent(file), options: .atomic)
+                    let page = try reader.data(for: entry)
+                    try Task.checkCancellation()
+                    try page.write(to: pageDir.appendingPathComponent(file), options: .atomic)
                     files.append(file)
                     progress?(LocalImportProgress(fileName: source.lastPathComponent,
                                                   completed: pageIndex + 1,
                                                   total: group.1.count))
+                    try Task.checkCancellation()
                 }
                 storedChapters.append(LocalChapter(number: chapterIndex + 1,
                     title: group.0 == "Root" ? title : group.0,
                     pageCount: files.count, pageFiles: files))
             }
             for chapter in storedChapters {
+                try Task.checkCancellation()
                 for pageFile in chapter.pageFiles {
+                    try Task.checkCancellation()
                     let pageURL = item.appendingPathComponent("pages/\(chapter.number)").appendingPathComponent(pageFile)
                     guard let image = UIImage(contentsOfFile: pageURL.path),
                           let data = image.jpegData(compressionQuality: 0.9) else { continue }
@@ -131,11 +143,13 @@ actor LocalLibraryStore {
             let encoded = try JSONEncoder().encode(record)
             try encoded.write(to: item.appendingPathComponent("item.json"), options: .atomic)
             try? fm.removeItem(at: archive)
+            try Task.checkCancellation()
             try fm.moveItem(at: item, to: destination)
             try? fm.removeItem(at: staging)
             return .imported(record)
         } catch {
             try? fm.removeItem(at: staging)
+            if error is CancellationError { throw LocalImportError.cancelled }
             throw error
         }
     }
@@ -170,6 +184,11 @@ actor LocalLibraryStore {
             guard let url = value as? URL else { return nil }
             return try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize
         }.reduce(0, +)) ?? 0
+    }
+
+    func usage() -> (count: Int, bytes: Int) {
+        let records = allRecords()
+        return (records.count, records.reduce(0) { $0 + itemSize(itemId: $1.itemId) })
     }
 
     func delete(itemId: String) throws {

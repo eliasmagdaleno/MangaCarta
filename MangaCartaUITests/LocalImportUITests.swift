@@ -19,6 +19,7 @@ final class LocalImportUITests: XCTestCase {
         XCTAssertTrue(empty.staticTexts.matching(
             NSPredicate(format: "label CONTAINS[c] %@", "does not provide or host content")
         ).firstMatch.exists)
+        XCTAssertTrue(empty.buttons["Add a repository"].exists)
         attach(empty, name: "local-import-empty-state")
         empty.terminate()
 
@@ -48,6 +49,31 @@ final class LocalImportUITests: XCTestCase {
         delete.tap()
         XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 5))
         app.alerts.buttons["Delete from Device"].tap()
+        XCTAssertTrue(app.staticTexts["Your library is empty"].waitForExistence(timeout: 10))
+    }
+
+    func testSettingsUsageAndLibraryContextDelete() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-uitest-local-import", "-uitest-import-fixture", "deflated"]
+        app.launchEnvironment["MANGACARTA_UI_TEST_STORAGE_ID"] = storageID
+        app.launchEnvironment["MANGACARTA_UI_FIXTURE_BASE64"] = Self.fixtureBase64
+        app.launch()
+
+        app.tabBars.buttons["Settings"].tap()
+        let usage = app.staticTexts.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "1 item ·")
+        ).firstMatch
+        XCTAssertTrue(usage.waitForExistence(timeout: 15))
+
+        app.tabBars.buttons["Library"].tap()
+        let card = app.buttons["libraryCoverCard"]
+        XCTAssertTrue(card.waitForExistence(timeout: 15))
+        card.press(forDuration: 1.1)
+        let delete = app.buttons["Delete from Device"]
+        XCTAssertTrue(delete.waitForExistence(timeout: 5))
+        delete.tap()
+        XCTAssertTrue(app.buttons["Delete from Device"].waitForExistence(timeout: 5))
+        app.buttons["Delete from Device"].tap()
         XCTAssertTrue(app.staticTexts["Your library is empty"].waitForExistence(timeout: 10))
     }
 
