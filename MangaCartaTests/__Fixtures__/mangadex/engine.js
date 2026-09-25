@@ -178,12 +178,15 @@
     var rows = (chapters && chapters.data) || [];
     var order = [];
     var newest = {};
-    rows.forEach(function (chapter) {
+    var consumed = 0;
+    for (var i = 0; i < rows.length && order.length < titles; i++) {
+      var chapter = rows[i];
+      consumed++;
       var manga = (chapter.relationships || []).filter(function (rel) { return rel.type === "manga"; })[0];
-      if (!manga || newest[manga.id] || order.length >= titles) { return; }
+      if (!manga || newest[manga.id]) { continue; }
       newest[manga.id] = chapter.id;
       order.push(manga.id);
-    });
+    }
     var byId = {};
     if (order.length) {
       var pairs = [["includes[]", "cover_art"]];
@@ -197,9 +200,13 @@
       return { chapterId: newest[id], listing: toListing(byId[id], cfg) };
     });
     var total = chapters && typeof chapters.total === "number" ? chapters.total : offset + rows.length;
-    // The cursor is a *chapter* offset: dedupe shrinks the page, so a short item list is
-    // not the end of the feed (MangaDexAPI.fetchLatestUpdates' note).
-    return { ok: true, value: pageResult(items, offset, chapterLimit, rows.length, total) };
+    // A fetched chapter beyond the title quota has not been returned. Start the next page
+    // at the first unconsumed chapter rather than skipping the rest of this response.
+    var next = offset + consumed;
+    var exhausted = consumed === 0 || next >= total ||
+      (consumed === rows.length && rows.length < chapterLimit) || next + chapterLimit > OFFSET_WINDOW;
+    return { ok: true, value: { items: items, nextCursor: exhausted ? null : String(next),
+                                exhausted: exhausted } };
   }
 
   async function tagPage(request, context, cfg) {

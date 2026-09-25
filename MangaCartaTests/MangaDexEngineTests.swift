@@ -230,6 +230,22 @@ final class MangaDexEngineTests: XCTestCase {
         XCTAssertEqual(updates.map(\.chapterId), ["c-1", "c-3"])
     }
 
+    func testLatestUpdatesCursorKeepsUnreturnedTitlesForTheNextPage() async throws {
+        let api = MangaDexFixtures.api
+        let chapterQuery = "\(api)/chapter?includes[]=manga&translatedLanguage[]=en&order[readableAt]=desc&limit=2"
+        await host.transport.route("\(chapterQuery)&offset=0", to: "latest-chapters-distinct-p0.json")
+        await host.transport.route("\(chapterQuery)&offset=1", to: "latest-chapters-distinct-p1.json")
+        await host.transport.route("\(api)/manga?includes[]=cover_art&ids[]=m-a&limit=1", to: "latest-manga-a.json")
+        await host.transport.route("\(api)/manga?includes[]=cover_art&ids[]=m-b&limit=1", to: "latest-manga-b.json")
+        let source = try makeSource()
+
+        let first = try await source.latestUpdates(limitTitles: 1, language: "en", offset: 0)
+        let second = try await source.latestUpdates(limitTitles: 1, language: "en", offset: 1)
+
+        XCTAssertEqual(first.map(\.manga.id), ["m-a"])
+        XCTAssertEqual(second.map(\.manga.id), ["m-b"])
+    }
+
     func testTagBrowseResolvesTheTagNameToItsId() async throws {
         let romanceTagId = "423e2eae-a7a2-4a8b-ac03-a8351462d71d"
         await host.transport.route("\(MangaDexFixtures.api)/manga/tag", to: "tags.json")

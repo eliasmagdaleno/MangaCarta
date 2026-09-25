@@ -6,7 +6,7 @@
       "id": "mangadex-api",
       "version": 1,
       "script": "https://raw.githubusercontent.com/proxy-link/mangacarta-sources/main/mangadex/engine.js",
-      "scriptSHA256": "47b348821e9f597fe11fc24dd95a80f99e9b6e246051424016289910e7781097",
+      "scriptSHA256": "00841cf59575c3e5ea3045879e4d38e113c1fbf0008aaef3e4c981f929ccef49",
       "sources": [
         {
           "localId": "mangadex",
