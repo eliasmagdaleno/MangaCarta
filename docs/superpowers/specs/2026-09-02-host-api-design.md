@@ -559,10 +559,11 @@ DNS check still runs before the fetch; redirects are not followed. ImageCache's 
 continues to serve previously loaded images offline, and local `file://` pages still bypass
 network transport.
 
-> **Amendment 4 (2026-09-04, contract gap 4).** The sentence above is superseded for the optional
-> cover field alone. A **policy-invalid optional cover URL now also drops the field with a
-> warning** and keeps the item, carrying the distinct warning code `policy_invalid_url`. As
-> written, one `http://` cover rejected the whole operation and erased an otherwise usable feed,
+> **Amendment 4 (2026-09-04, contract gap 4).** The opening §10 rule for policy-invalid URLs is
+> superseded for the optional cover field alone. A **policy-invalid optional cover URL now also
+> drops the field with a warning** and keeps the item, carrying the distinct warning code
+> `policy_invalid_url`. As written, one `http://` cover rejected the whole operation and erased an
+> otherwise usable feed,
 > defeating Section 2.1's partial-success rule; the host never loads the rejected URL under either
 > reading, so nothing is weakened by keeping the rest of the feed. **Unchanged:** every page URL,
 > every browser `webURL`, and every network request URL still reject the operation. See
