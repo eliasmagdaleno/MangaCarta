@@ -85,6 +85,7 @@ struct AppComposition {
     /// the app's lifetime and so a test can drive an install through the real graph.
     let extensions: ExtensionComposition?
     let extensionStorageError: String?
+    let hostRateLimiters: HostRateLimiterRegistry
 
     /// The extension subsystem's four owners, built together because they share one
     /// `SourceLifecycleRegistry`: the installer drives it, the registrar mirrors it.
@@ -439,11 +440,13 @@ struct AppComposition {
         self.malProgress = malProgress
         self.malOutbox = outbox
         self.registry = resolvedRegistry
+        self.hostRateLimiters = HostRateLimiterRegistry()
         (self.listingCounts, self.sourcePreferences, self.fulfillment) =
             Self.makeFulfillment(works: wk, registry: self.registry, defaults: defaults)
         let extensionResult = Self.makeExtensions(directory: directory,
                                                    transport: repositoryTransport,
-                                                   registry: self.registry)
+                                                   registry: self.registry,
+                                                   rateLimiters: self.hostRateLimiters)
         self.extensions = extensionResult.composition
         self.extensionStorageError = extensionResult.error
     }
@@ -456,11 +459,12 @@ struct AppComposition {
     private static func makeExtensions(
         directory: URL,
         transport: (any RepositoryTransport)?,
-        registry: SourceRegistry
+        registry: SourceRegistry,
+        rateLimiters: HostRateLimiterRegistry
     ) -> (composition: ExtensionComposition?, error: String?) {
         let host: ExtensionHostCapabilityFactory
         do {
-            host = try ExtensionHostCapabilityFactory(directory: directory)
+            host = try ExtensionHostCapabilityFactory(directory: directory, rateLimiters: rateLimiters)
         } catch {
             return (nil, "Installed Sources could not be read. Nothing was removed.")
         }

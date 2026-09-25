@@ -316,4 +316,15 @@ final class AniListAPITests: XCTestCase {
             XCTAssertEqual(error, .notFound)
         }
     }
+
+    func testCancellationWhileWaitingStillRunsTheOperation() async throws {
+        let limiter = AniListRateLimiter(minimumInterval: 1)
+        _ = try await limiter.run { 1 }
+
+        let waiting = Task { try await limiter.run { 2 } }
+        waiting.cancel()
+
+        let result = try await waiting.value
+        XCTAssertEqual(result, 2)
+    }
 }

@@ -26,16 +26,31 @@ struct HostHTTPClient: Sendable {
     private let transport: any HostHTTPTransport
     private let cookies: HostHTTPCookieJar
     private let sourceID: QualifiedSourceID
+    private let rateLimiters: HostRateLimiterRegistry
 
     init(sourceID: QualifiedSourceID,
          allowedOrigins: [String],
          transport: any HostHTTPTransport = URLSessionHostHTTPTransport(),
-         resolver: any HostNameResolving = SystemHostResolver()) {
+         resolver: any HostNameResolving = SystemHostResolver(),
+         rateLimiters: HostRateLimiterRegistry) {
         self.init(sourceID: sourceID,
                   allowedOrigins: allowedOrigins,
                   transport: transport,
                   resolver: resolver,
-                  cookies: HostHTTPCookieJar(sourceID: sourceID))
+                  cookies: HostHTTPCookieJar(sourceID: sourceID),
+                  rateLimiters: rateLimiters)
+    }
+
+    // Test and standalone callers must opt into sharing explicitly through the designated
+    // initializer above; this convenience preserves the old isolated-client API only for
+    // existing policy tests that do not exercise rate limiting.
+    init(sourceID: QualifiedSourceID,
+         allowedOrigins: [String],
+         transport: any HostHTTPTransport = URLSessionHostHTTPTransport(),
+         resolver: any HostNameResolving = SystemHostResolver()) {
+        self.init(sourceID: sourceID, allowedOrigins: allowedOrigins,
+                  transport: transport, resolver: resolver,
+                  rateLimiters: HostRateLimiterRegistry())
     }
 
     /// Takes a jar rather than making one, so a caller serving several Sources can keep each
@@ -46,11 +61,13 @@ struct HostHTTPClient: Sendable {
          allowedOrigins: [String],
          transport: any HostHTTPTransport,
          resolver: any HostNameResolving,
-         cookies: HostHTTPCookieJar) {
+         cookies: HostHTTPCookieJar,
+         rateLimiters: HostRateLimiterRegistry) {
         policy = HostURLPolicy(allowedOrigins: allowedOrigins, resolver: resolver)
         self.transport = transport
         self.cookies = cookies
         self.sourceID = sourceID
+        self.rateLimiters = rateLimiters
     }
 
     func request(_ input: HostHTTPRequest) async throws -> HostHTTPResponse {
@@ -75,6 +92,16 @@ struct HostHTTPClient: Sendable {
                 request.setValue(cookie, forHTTPHeaderField: "Cookie")
             }
 
+            guard let origin = HostURLPolicy.canonicalOrigin(for: url) else {
+                throw HostCapabilityError(code: .policyDenied, message: "the destination origin is invalid")
+            }
+            do {
+                try await rateLimiters.reserve(sourceID: sourceID, origin: origin,
+                                               path: url.path.isEmpty ? "/" : url.path)
+            } catch is CancellationError {
+                throw HostCapabilityError(code: .cancelled,
+                                          message: "the HTTP request was cancelled")
+            }
             let response = try await send(request)
             guard let peer = response.connectedPeerAddress, HostIPAddress.isPublic(peer) else {
                 throw HostCapabilityError(code: .policyDenied,
