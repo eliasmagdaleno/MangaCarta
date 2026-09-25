@@ -29,7 +29,7 @@
           "languages": { "mode": "fixed", "values": ["en"] },
           "network": {
             "httpOrigins": ["https://api.mangadex.org"],
-            "browserOrigins": [],
+            "browserOrigins": ["https://mangadex.org"],
             "assetOrigins": ["https://uploads.mangadex.org", "https://*.mangadex.network"]
           },
           "presentation": {

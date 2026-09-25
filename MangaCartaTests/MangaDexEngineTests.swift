@@ -138,6 +138,7 @@ final class MangaDexEngineTests: XCTestCase {
         XCTAssertEqual(declaration.network.httpOrigins, ["https://api.mangadex.org"])
         XCTAssertEqual(declaration.network.assetOrigins,
                        ["https://uploads.mangadex.org", "https://*.mangadex.network"])
+        XCTAssertEqual(declaration.network.browserOrigins, ["https://mangadex.org"])
     }
 
     func testSearchMapsListingsWithCoverMalIdAndQualifiedSourceId() async throws {
