@@ -21,7 +21,10 @@ enum MangaDexFixtures {
     static let script: String = {
         let url = directory.appendingPathComponent("engine.js")
         guard let data = try? Data(contentsOf: url) else { preconditionFailure("missing \(url.path)") }
-        return String(decoding: data, as: UTF8.self)
+        guard let script = String(bytes: data, encoding: .utf8) else {
+            preconditionFailure("non-UTF-8 engine.js")
+        }
+        return script
     }()
 
     static let index: [String: Any] = {
@@ -39,8 +42,16 @@ enum MangaDexFixtures {
 
     static let declarationJSON: String = {
         let source = ((bundle["sources"] as? [[String: Any]])?.first)!
-        let data = try! JSONSerialization.data(withJSONObject: source)
-        return String(decoding: data, as: UTF8.self)
+        let data: Data
+        do {
+            data = try JSONSerialization.data(withJSONObject: source)
+        } catch {
+            preconditionFailure("malformed MangaDex declaration: \(error)")
+        }
+        guard let declaration = String(bytes: data, encoding: .utf8) else {
+            preconditionFailure("non-UTF-8 declaration")
+        }
+        return declaration
     }()
 
     static func body(_ file: String) throws -> Data {
@@ -244,8 +255,9 @@ final class MangaDexEngineTests: XCTestCase {
     func testChaptersPageThroughEveryPageCreditGroupsAndCollapseDuplicateNumbers() async throws {
         let api = MangaDexFixtures.api
         for (offset, file) in [(0, "chapters-p0.json"), (100, "chapters-p1.json")] {
+            let path = "\(api)/chapter?manga=m-1&translatedLanguage[]=en"
             await host.transport.route(
-                "\(api)/chapter?manga=m-1&translatedLanguage[]=en&order[chapter]=asc&includes[]=scanlation_group&limit=100&offset=\(offset)",
+                "\(path)&order[chapter]=asc&includes[]=scanlation_group&limit=100&offset=\(offset)",
                 to: file)
         }
         let source = try makeSource()
@@ -327,5 +339,11 @@ final class MangaDexEngineTests: XCTestCase {
             // (which is what an unrouted/unimplemented operation would surface as).
             XCTAssertEqual(error, .invocation(.invalidResponse))
         }
+    }
+
+    func testIndexPinsThisEngine() throws {
+        let data = try Data(contentsOf: MangaDexFixtures.directory.appendingPathComponent("engine.js"))
+        let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        XCTAssertEqual(MangaDexFixtures.bundle["scriptSHA256"] as? String, digest)
     }
 }
