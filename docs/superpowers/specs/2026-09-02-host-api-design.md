@@ -530,7 +530,7 @@ because the platform has no public suffix list API, and rejects a wildcard whose
 children are public suffixes. Wildcard-matched assets use the host image loader, which resolves
 the hostname and rejects private addresses before fetching, just like other remotely loaded
 covers and pages. This is a resolve-then-fetch check; DNS can rebind between those operations.
-The image-load hardening note added for #237 is separate from the transport decision below.
+The connected-peer check in §10.2 closes the response-acceptance gap for ImageCache.
 (added 2026-09-24, #230, #237)
 
 ### 10.1 Network transport hardening (#233)
@@ -547,9 +547,17 @@ This closes response-body exfiltration but does not make URLSession connect to a
 rebound host may receive a TLS ClientHello, but no plaintext request body. A future transport may
 add IP pinning if that remaining exposure needs to be eliminated.
 
-Image loads are not covered by this hardening: `ImageCache` still uses `URLSession.shared`, so it
-still uses the system proxy and shared cache and performs no connected-peer check. `WKWebView`
-traffic is likewise outside this decision and cannot bypass system proxies.
+Image loads have their own policy in §10.2. `WKWebView` traffic is outside this decision and
+cannot bypass system proxies.
+
+### 10.2 Image-load transport hardening (#244)
+
+On a network miss, `ImageCache` uses a dedicated `URLSessionDataFetcher` with system proxies
+bypassed and URLSession caching disabled. It rejects local-cache responses and missing or
+non-public connected peers before decoding or storing image bytes. The same destination-policy
+DNS check still runs before the fetch; redirects are not followed. ImageCache's own disk cache
+continues to serve previously loaded images offline, and local `file://` pages still bypass
+network transport.
 
 > **Amendment 4 (2026-09-04, contract gap 4).** The sentence above is superseded for the optional
 > cover field alone. A **policy-invalid optional cover URL now also drops the field with a
