@@ -358,6 +358,190 @@ final class WeebCentralIdentityMigrationTests: XCTestCase {
 
 // MARK: - Structural facts
 
+@MainActor
+final class InstalledSourceIDMigrationTests: XCTestCase {
+    private var directory: URL!
+    private var defaults: UserDefaults!
+    private var suite: String!
+    private let repositoryID = UUID()
+    private let localID = "mangadex"
+    private var targetID: String {
+        ExtensionInstaller.qualifiedID(repositoryID: repositoryID, localId: localID).rawValue
+    }
+
+    override func setUp() {
+        super.setUp()
+        directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("InstalledSourceIDMigrationTests-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        suite = "InstalledSourceIDMigrationTests-\(UUID().uuidString)"
+        defaults = UserDefaults(suiteName: suite)
+    }
+
+    override func tearDown() {
+        defaults.removePersistentDomain(forName: suite)
+        try? FileManager.default.removeItem(at: directory)
+        super.tearDown()
+    }
+
+    private func installRecord() throws -> InstalledSourceRecord {
+        let store = RepositoryStore(directory: directory)
+        let record = InstalledSourceRecord(
+            qualifiedId: QualifiedSourceID(rawValue: targetID), repositoryID: repositoryID,
+            localId: localID, bundleId: "engine", declaration: .object([:]),
+            state: .registered, localAdultElevation: nil, installedAt: .now, updatedAt: .now)
+        try store.writeScript(Data("script".utf8), for: "engine", in: repositoryID)
+        try store.commit { snapshot in
+            snapshot.repositories[repositoryID] = RepositoryRecord(
+                id: repositoryID, indexURL: URL(string: "https://example.com/index.json")!,
+                name: "Reader repository", addedAt: .now, lastRefreshedAt: nil,
+                state: .active, format: 1)
+            snapshot.sources[record.qualifiedId] = record
+        }
+        return record
+    }
+
+    func testExplicitBindingRewritesSavedDataAndRetryIsInert() throws {
+        let record = try installRecord()
+        let work = directory.appendingPathComponent("works.json")
+        let original = #"{"listings":[{"sourceId":"mangadex","mangaId":"123","title":"mangadex"}],"value":0.07000000000000001}"#
+        try Data(original.utf8).write(to: work)
+        defaults.set(Data(#"[{"id":"123","title":"Old","sourceId":null},{"id":"456","title":"Old"}]"#.utf8),
+                     forKey: "library.items")
+        defaults.set(Data(#"[{"id":"789","title":"History"}]"#.utf8), forKey: "history.entries")
+        defaults.set(Data(#"{"mangadex:123":{"malId":7}}"#.utf8), forKey: "entityResolution.cache")
+        defaults.set("mangadex", forKey: "source.primaryID")
+
+        InstalledSourceIDMigration.request(legacyID: "mangadex", installed: record, defaults: defaults)
+        try InstalledSourceIDMigration.run(directory: directory, defaults: defaults)
+
+        let expected = original.replacingOccurrences(of: #""sourceId":"mangadex""#,
+                                                      with: #""sourceId":"\#(targetID)""#)
+        XCTAssertEqual(try String(contentsOf: work, encoding: .utf8), expected)
+        XCTAssertEqual(defaults.string(forKey: "source.primaryID"), targetID)
+        let library = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(defaults.data(forKey: "library.items"))) as? [[String: Any]])
+        XCTAssertEqual(library.compactMap { $0["sourceId"] as? String }, [targetID, targetID])
+        let history = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(defaults.data(forKey: "history.entries"))) as? [[String: Any]])
+        XCTAssertEqual(history.first?["sourceId"] as? String, targetID)
+        let cache = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(defaults.data(forKey: "entityResolution.cache"))) as? [String: Any])
+        XCTAssertNotNil(cache["\(targetID):123"])
+        let once = try Data(contentsOf: work)
+        try InstalledSourceIDMigration.run(directory: directory, defaults: defaults)
+        XCTAssertEqual(try Data(contentsOf: work), once)
+    }
+
+    func testAppCompositionAppliesBindingBeforeLoadingWorks() throws {
+        let record = try installRecord()
+        let manga = Manga(id: "123", sourceId: "mangadex", title: "Old title",
+                          description: "", status: "ongoing", year: nil, coverURL: nil,
+                          malId: nil, altTitles: [], contentRating: nil)
+        let works = WorkStore(directory: directory)
+        let workID = works.mint(from: manga)
+        works.flush()
+        let oldListing = ListingKey(sourceId: "mangadex", mangaId: "123")
+        let updates = UpdateStateStore(directory: directory, works: works)
+        _ = updates.absorb(workId: workID, listing: oldListing, rawNumbers: ["1"])
+        updates.flush()
+        SourcePreferenceStore(defaults: defaults).choose(oldListing, for: workID)
+        InstalledSourceIDMigration.request(legacyID: "mangadex", installed: record, defaults: defaults)
+
+        let composition = AppComposition(defaults: defaults, directory: directory,
+                                         registry: SourceRegistry(sources: [MangaDexSource()]))
+        let newListing = ListingKey(sourceId: targetID, mangaId: "123")
+
+        XCTAssertEqual(composition.works.workId(for: newListing), workID)
+        XCTAssertNotNil(UpdateStateStore(directory: directory).state(for: workID)?.listings[newListing])
+        XCTAssertEqual(SourcePreferenceStore(defaults: defaults).choice(for: workID), newListing)
+    }
+
+    func testNoBindingOrMissingInstallLeavesDataDormant() throws {
+        let work = directory.appendingPathComponent("works.json")
+        let original = Data(#"{"listings":[{"sourceId":"mangadex","mangaId":"123"}]}"#.utf8)
+        try original.write(to: work)
+        try InstalledSourceIDMigration.run(directory: directory, defaults: defaults)
+        XCTAssertEqual(try Data(contentsOf: work), original)
+
+        let uninstalled = InstalledSourceRecord(
+            qualifiedId: QualifiedSourceID(rawValue: targetID), repositoryID: repositoryID,
+            localId: localID, bundleId: "engine", declaration: .object([:]),
+            state: .uninstalled, localAdultElevation: nil, installedAt: .now, updatedAt: .now)
+        InstalledSourceIDMigration.request(legacyID: "mangadex", installed: uninstalled, defaults: defaults)
+        try InstalledSourceIDMigration.run(directory: directory, defaults: defaults)
+        XCTAssertEqual(try Data(contentsOf: work), original)
+    }
+
+    func testCollisionStopsBeforeWritingAnyData() throws {
+        let record = try installRecord()
+        let work = directory.appendingPathComponent("works.json")
+        let original = Data(#"{"listings":[{"sourceId":"mangadex","mangaId":"123"},{"sourceId":"\#(targetID)","mangaId":"123"}]}"#.utf8)
+        try original.write(to: work)
+        defaults.set("mangadex", forKey: "source.primaryID")
+        InstalledSourceIDMigration.request(legacyID: "mangadex", installed: record, defaults: defaults)
+
+        XCTAssertThrowsError(try InstalledSourceIDMigration.run(directory: directory, defaults: defaults))
+        XCTAssertEqual(try Data(contentsOf: work), original)
+        XCTAssertEqual(defaults.string(forKey: "source.primaryID"), "mangadex")
+    }
+
+    /// While the compiled Source still ships, it keeps recording under the old id. A spent
+    /// binding must not move that later data on the next launch without being offered.
+    func testAppliedBindingIsSpentSoLaterLegacyDataStaysAndIsOfferedAgain() throws {
+        let record = try installRecord()
+        let work = directory.appendingPathComponent("works.json")
+        try Data(#"{"listings":[{"sourceId":"mangadex","mangaId":"123"}]}"#.utf8).write(to: work)
+        InstalledSourceIDMigration.request(legacyID: "mangadex", installed: record, defaults: defaults)
+        try InstalledSourceIDMigration.run(directory: directory, defaults: defaults)
+
+        let later = Data(#"{"listings":[{"sourceId":"\#(targetID)","mangaId":"123"},{"sourceId":"mangadex","mangaId":"456"}]}"#.utf8)
+        try later.write(to: work)
+        try InstalledSourceIDMigration.run(directory: directory, defaults: defaults)
+
+        XCTAssertEqual(try Data(contentsOf: work), later)
+        XCTAssertTrue(InstalledSourceIDMigration.hasLegacyData("mangadex", directory: directory, defaults: defaults))
+    }
+
+    /// A collision cannot resolve itself, so it is reported once rather than on every launch.
+    func testCollisionIsReportedOnceAndLaterLaunchesProceed() throws {
+        let record = try installRecord()
+        let work = directory.appendingPathComponent("works.json")
+        let original = Data(#"{"listings":[{"sourceId":"mangadex","mangaId":"123"},{"sourceId":"\#(targetID)","mangaId":"123"}]}"#.utf8)
+        try original.write(to: work)
+        InstalledSourceIDMigration.request(legacyID: "mangadex", installed: record, defaults: defaults)
+
+        XCTAssertThrowsError(try InstalledSourceIDMigration.run(directory: directory, defaults: defaults))
+        XCTAssertNoThrow(try InstalledSourceIDMigration.run(directory: directory, defaults: defaults))
+        XCTAssertEqual(try Data(contentsOf: work), original)
+    }
+
+    func testUnattributedLibraryCollisionStopsBeforeWriting() throws {
+        let record = try installRecord()
+        let original = Data("[{\"id\":\"123\"},{\"id\":\"123\",\"sourceId\":\"\(targetID)\"}]".utf8)
+        defaults.set(original, forKey: "library.items")
+        InstalledSourceIDMigration.request(legacyID: "mangadex", installed: record, defaults: defaults)
+
+        XCTAssertThrowsError(try InstalledSourceIDMigration.run(directory: directory, defaults: defaults))
+        XCTAssertEqual(defaults.data(forKey: "library.items"), original)
+    }
+
+    func testUnrelatedTitleDoesNotOfferReconnectAndEmptyObjectCanGainSourceID() throws {
+        defaults.set(Data(#"[{"title":"mangadex","sourceId":"other"}]"#.utf8), forKey: "library.items")
+        XCTAssertFalse(InstalledSourceIDMigration.hasLegacyData("mangadex", directory: directory, defaults: defaults))
+        let rewritten = try InstalledSourceIDMigration.rewrite(Data("[{}]".utf8),
+                                                              oldID: "mangadex", newID: targetID,
+                                                              legacyNil: true)
+        XCTAssertEqual(String(data: rewritten, encoding: .utf8), "[{\"sourceId\":\"\(targetID)\"}]")
+    }
+
+    func testBundledWeebCentralIdentityRewritesOnlySourceFields() throws {
+        let oldID = WeebCentralIdentityMigration.qualifiedID
+        let newID = "\(UUID().uuidString.lowercased()):weebcentral"
+        let original = Data("[{\"sourceId\":\"\(oldID)\",\"title\":\"\(oldID)\",\"value\":0.07000000000000001}]".utf8)
+        let rewritten = try InstalledSourceIDMigration.rewrite(original, oldID: oldID, newID: newID)
+        XCTAssertEqual(String(data: rewritten, encoding: .utf8),
+                       "[{\"sourceId\":\"\(newID)\",\"title\":\"\(oldID)\",\"value\":0.07000000000000001}]")
+    }
+}
+
 final class BundledWeebCentralStructureTests: XCTestCase {
     private var repositoryRoot: URL {
         URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()

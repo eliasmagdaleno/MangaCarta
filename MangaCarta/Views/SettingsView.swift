@@ -378,8 +378,11 @@ private struct RepositorySettingsSection: View {
                             }
                             Spacer()
                             if source.state == .uninstalled {
-                                Button("Install") { model.run { _ = try await model.composition.installer.install(localId: source.localId, from: repository.id) } }
+                                Button("Install") { model.install(localId: source.localId, from: repository.id) }
                             } else {
+                                if model.canReconnect(source) {
+                                    Button("Reconnect prior data") { model.offerMigration(for: source) }
+                                }
                                 if let offered = model.composition.installer.listings[repository.id]?.availableUpdates[source.bundleId] {
                                     Button("Update") { model.run { try await model.composition.installer.updateBundle(source.bundleId, in: repository.id) } }
                                         .accessibilityLabel("Update to version \(offered)")
@@ -402,7 +405,7 @@ private struct RepositorySettingsSection: View {
                                 Spacer()
                                 if entry.declaration != nil {
                                     Button("Install") {
-                                        model.run { _ = try await model.composition.installer.install(localId: localId, from: repository.id) }
+                                        model.install(localId: localId, from: repository.id)
                                     }
                                     .accessibilityIdentifier("repositorySettings.install.\(localId)")
                                 } else {
@@ -433,6 +436,9 @@ private struct RepositorySettingsSection: View {
                 Text(error).font(.footnote).foregroundStyle(Ink.secondary)
                     .accessibilityIdentifier("repositorySettings.error")
             }
+            if let status = model.statusMessage {
+                Text(status).font(.footnote).foregroundStyle(Ink.secondary)
+            }
         }
         .task { model.refreshStoreStatus() }
         .sheet(item: Binding(get: { model.pendingAcknowledgement },
@@ -450,6 +456,16 @@ private struct RepositorySettingsSection: View {
                 }
                 Button("Cancel") { model.answerAgeGate(false) }
             }.padding(24).presentationDetents([.medium])
+        }
+        .alert("Reconnect previous library data?",
+               isPresented: Binding(get: { model.pendingMigration != nil },
+                                    set: { if !$0 { model.answerMigration(false) } })) {
+            Button("Reconnect next launch") { model.answerMigration(true) }
+            Button("Not now", role: .cancel) { model.answerMigration(false) }
+        } message: {
+            if let pending = model.pendingMigration {
+                Text("Move previous \(pending.record.localId) library, reading history and source choices to the Source installed from \(pending.repositoryName). Nothing is removed if you decline.")
+            }
         }
     }
 }
