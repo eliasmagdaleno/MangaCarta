@@ -47,7 +47,7 @@ private struct HomeScreen: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("settings.showAdultSources") private var showAdultSources = false
     @State private var showingImporter = false
-    @StateObject private var importer = LocalImportViewModel()
+    @EnvironmentObject private var importer: LocalImportViewModel
 
     var body: some View {
         // Capture the browse source as a value so the escaping "See all" fetch closures
@@ -255,7 +255,9 @@ private struct HomeScreen: View {
             title: "No sources installed",
             message: "Import CBZ, ZIP or PDF files from Files. MangaCarta does not provide or host content.",
             actionTitle: "Import from Files",
-            action: { importer.configure(registry: registry, library: library, works: works); showingImporter = true }
+            action: { showingImporter = true },
+            secondaryActionTitle: "Add a repository",
+            secondaryAction: { selectAppTab(.settings) }
         )
     }
 
@@ -386,6 +388,7 @@ struct InkNotice: View {
         .environmentObject(history)
         .environmentObject(taste)
         .environmentObject(works)
+        .environmentObject(LocalImportViewModel())
         .environmentObject(UpdateStateStore(works: works))
         .environmentObject(RecommendationEngine(history: history, library: library,
                                                 profileStore: taste, workStore: works,

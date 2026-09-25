@@ -170,6 +170,18 @@ final class ExtensionSourceTests: XCTestCase {
         }
     }
 
+    func testLegacyHostRejectsChapterGroupsAsInvalidResult() async throws {
+        let source = try echoSource(returnsGroups: true,
+                                    minimumHostAPI: "1.0",
+                                    maximumExclusiveHostAPI: "1.1")
+        do {
+            _ = try await source.chapters(mangaId: "series")
+            XCTFail("expected legacy Host API to reject groups")
+        } catch let error as ExtensionSourceError {
+            XCTAssertEqual(error, .invocation(.invalidResult))
+        }
+    }
+
     func testRegistryChoosesInstalledExternalIdSource() throws {
         let source = try echoSource(declareListing: true, declaresMAL: true)
         let registry = SourceRegistry(sources: [source])
@@ -345,6 +357,9 @@ final class ExtensionSourceTests: XCTestCase {
                             declaresMAL: Bool = false,
                             listingID: String? = nil,
                             listingNonObject: Bool = false,
+                            returnsGroups: Bool = false,
+                            minimumHostAPI: String = "1.0",
+                            maximumExclusiveHostAPI: String = "2.0",
                             failWith code: String? = nil,
                             message: String = "") throws -> ExtensionSource {
         let returnedListingID = listingID.map { "\"\($0)\"" } ?? "request.listingId"
@@ -360,6 +375,9 @@ final class ExtensionSourceTests: XCTestCase {
                 ? { ok: true, value: null }
               : { ok: true, value: \(returnedListing) };
             }
+            if (operation === "chapters" && \(returnsGroups ? "true" : "false")) {
+              return { ok: true, value: { items: [{ id: "chapter", groups: ["Alpha"] }], nextCursor: null, exhausted: true } };
+            }
             if (!request.page || typeof request.page !== "object") {
               return { ok: false, error: { code: "invalid_request", message: "nested page required" } };
             }
@@ -370,7 +388,7 @@ final class ExtensionSourceTests: XCTestCase {
             var exhausted = \(exhaustAt.map(String.init) ?? "null");
             var done = exhausted !== null && offset >= exhausted;
             return { ok: true, value: {
-              items: [{ id: id, title: "Echo", sourceId: "evil" }],
+              items: [{ id: id, title: "Echo", sourceId: "evil"\(returnsGroups ? ", groups: ['Alpha']" : "") }],
               nextCursor: done ? null : String(offset + request.page.limit),
               exhausted: done
             } };
@@ -387,7 +405,7 @@ final class ExtensionSourceTests: XCTestCase {
                             "chapters": true, "pages": true\(declareListing ? ", \"listing\": true" : "") },
           "languages": { "mode": "fixed", "values": ["en"] },
           "network": { "httpOrigins": [], "browserOrigins": [], "assetOrigins": [] },
-          "hostAPI": { "minimum": "1.0", "maximumExclusive": "2.0" },
+          "hostAPI": { "minimum": "\(minimumHostAPI)", "maximumExclusive": "\(maximumExclusiveHostAPI)" },
           "configuration": {}\(declaresMAL ? ", \"externalIds\": [\"mal\"]" : "")
         }
         """, qualifiedId: Self.echoID)

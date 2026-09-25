@@ -18,7 +18,8 @@ final class ExtensionDomainSchemaTests: XCTestCase {
         return ExtensionDomainValidator(
             currentDate: now,
             calendar: calendar,
-            assetOrigins: ["https://cdn.example.test"]
+            assetOrigins: ["https://cdn.example.test"],
+            hostAPIVersion: HostAPIVersion(major: 1, minor: 2)
         )
     }
 
@@ -254,6 +255,43 @@ final class ExtensionDomainSchemaTests: XCTestCase {
         XCTAssertNil(result.value[3].publishedAt)
         XCTAssertEqual(result.warnings.map(\.code), [.invalidField, .invalidField])
         XCTAssertEqual(result.warnings.first?.fieldPath, "items[1].publishedAt")
+    }
+
+    func testChapterGroupsAreTrimmedAndOptional() throws {
+        let result = try validator.validateChapters(["items": [
+            ["id": "with-groups", "groups": ["  Alpha  ", "Beta"]],
+            ["id": "without-groups"]
+        ]])
+
+        XCTAssertEqual(result.value[0].groups, ["Alpha", "Beta"])
+        XCTAssertEqual(result.value[0].toChapter().groups, ["Alpha", "Beta"])
+        XCTAssertNil(result.value[1].groups)
+        XCTAssertTrue(result.warnings.isEmpty)
+
+        let tenGroups = try validator.validateChapters(["items": [[
+            "id": "ten-groups", "groups": Array(repeating: "group", count: 10)
+        ]]])
+        XCTAssertEqual(tenGroups.value.first?.groups?.count, 10)
+    }
+
+    func testInvalidChapterGroupsAreIgnoredWithWarnings() throws {
+        let invalidValues: [Any] = [
+            "not-an-array",
+            ["valid", 7],
+            ["   "],
+            Array(repeating: "group", count: 11),
+            [String(repeating: "x", count: 201)]
+        ]
+
+        for value in invalidValues {
+            let result = try validator.validateChapters(["items": [[
+                "id": "chapter", "groups": value
+            ]]])
+            XCTAssertEqual(result.value.map(\.id), ["chapter"], "chapter should survive \(value)")
+            XCTAssertNil(result.value.first?.groups, "unexpectedly accepted \(value)")
+            XCTAssertEqual(result.warnings.count, 1)
+            XCTAssertTrue(result.warnings[0].fieldPath.hasPrefix("items[0].groups"))
+        }
     }
 
     func testChaptersDropInvalidItemsWithoutReorderingOrMerging() throws {

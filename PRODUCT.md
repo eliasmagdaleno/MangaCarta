@@ -32,6 +32,7 @@ The product unifies multiple chapter sources around source-independent Works whi
 
 - Public-release native SwiftUI app targeting iOS 17.5 and later, with selected iOS 18 behavior.
 - MangaDex and WeebCentral currently provide chapters through a shared, bridge-friendly source abstraction.
+- Open question: App Store positioning now that the release ships no content Sources and local file import is its first-run purpose (ADR-0003 Amendment 6; local import spec forthcoming).
 - Source-independent Work identity connects Listings, metadata, history signals, and recommendations without treating a provider identifier as the app's identity.
 - Recommendations are derived from reading activity and metadata, with conservative entity resolution that prefers an omission over linking the wrong manga.
 - Library state, reading history, and recommendation inputs are currently stored on-device. The intended public product may collect analytics by default to improve recommendations and understand feature usage, with a clear Settings toggle to opt out.

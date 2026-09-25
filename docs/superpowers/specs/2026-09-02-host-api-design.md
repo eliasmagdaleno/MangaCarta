@@ -216,15 +216,20 @@ as for Listings. A non-object detail result rejects the operation.
   "number": "12.5",
   "title": "Optional title",
   "publishedAt": "2026-09-01T12:34:56Z",
-  "language": "en"
+  "language": "en",
+  "groups": ["Example Scanlation"]
 }
 ```
 
 Required: nonempty `id`. `number`, `title`, `publishedAt`, and `language` are optional. Missing
 `number` becomes `?` in the Swift adapter. Dates must be RFC 3339 instants; invalid dates become
 absent with a warning rather than losing the chapter. Invalid chapter items are dropped with
-warnings. Ordering and duplicate policy belong to the operation result; the host does not reorder
-or merge chapters because source-specific chapter identity and split releases make that unsafe.
+warnings. `groups` is an optional Host API 1.2 field: when present it is an array of at most ten
+nonempty strings, each at most 200 Unicode scalars; names are trimmed. A malformed `groups` value
+is dropped, recorded as a warning, and leaves the chapter usable with groups unknown. An absent
+field likewise means the group is unknown. Ordering and duplicate policy belong to the operation
+result; the host does not reorder or merge chapters because source-specific chapter identity and
+split releases make that unsafe.
 
 ### 2.5 Page
 
@@ -457,6 +462,11 @@ removal slice 4)
 Leftmost-label wildcards in `network.assetOrigins` are an additive opt-in feature introduced by
 Host API 1.2; declarations selecting an older version must not use them. (added 2026-09-24, #230)
 
+Host API 1.2 is the additive release that introduces both leftmost-label asset-origin wildcards
+and the chapter `groups` result field. A Source using either feature should declare
+`hostAPI.minimum` as `1.2`; a host selecting an older version rejects the wildcard declaration or
+returns `invalid_result` when groups appears in an operation result.
+
 A Source using `listing` or `externalIds` should declare `hostAPI.minimum` as `1.1`, so a host
 older than 1.1 reports a version error rather than an unknown key. (added 2026-09-24, removal
 slice 4)
@@ -519,13 +529,41 @@ wildcard rules match one label and exception rules override wildcard rules. This
 because the platform has no public suffix list API, and rejects a wildcard whose one-label
 children are public suffixes. Wildcard-matched assets use the host image loader, which resolves
 the hostname and rejects private addresses before fetching, just like other remotely loaded
-covers and pages. This is a resolve-then-fetch check; DNS can rebind between those operations,
-so connect-time IP pinning remains an open hardening item tracked by #233. (added 2026-09-24, #230)
+covers and pages. This is a resolve-then-fetch check; DNS can rebind between those operations.
+The connected-peer check in §10.2 closes the response-acceptance gap for ImageCache.
+(added 2026-09-24, #230, #237)
 
-> **Amendment 4 (2026-09-04, contract gap 4).** The sentence above is superseded for the optional
-> cover field alone. A **policy-invalid optional cover URL now also drops the field with a
-> warning** and keeps the item, carrying the distinct warning code `policy_invalid_url`. As
-> written, one `http://` cover rejected the whole operation and erased an otherwise usable feed,
+### 10.1 Network transport hardening (#233)
+
+This section covers the guarded host HTTP and repository transports only. They keep `URLSession`
+(option 2 from #233). TLS validates the original hostname, so a
+rebound private host cannot complete the handshake with a valid certificate. The guarded
+sessions bypass system proxies (`connectionProxyDictionary = [:]`), because a proxy's connected
+peer is not the requested destination. Missing connect-time peer metrics fail closed with the
+same policy error as a private peer. The connected peer is still checked after the response, and
+all request and redirect URLs are HTTPS-only.
+
+This closes response-body exfiltration but does not make URLSession connect to a pinned IP: a
+rebound host may receive a TLS ClientHello, but no plaintext request body. A future transport may
+add IP pinning if that remaining exposure needs to be eliminated.
+
+Image loads have their own policy in §10.2. `WKWebView` traffic is outside this decision and
+cannot bypass system proxies.
+
+### 10.2 Image-load transport hardening (#244)
+
+On a network miss, `ImageCache` uses a dedicated `URLSessionDataFetcher` with system proxies
+bypassed and URLSession caching disabled. It rejects local-cache responses and missing or
+non-public connected peers before decoding or storing image bytes. The same destination-policy
+DNS check still runs before the fetch; redirects are not followed. ImageCache's own disk cache
+continues to serve previously loaded images offline, and local `file://` pages still bypass
+network transport.
+
+> **Amendment 4 (2026-09-04, contract gap 4).** The opening §10 rule for policy-invalid URLs is
+> superseded for the optional cover field alone. A **policy-invalid optional cover URL now also
+> drops the field with a warning** and keeps the item, carrying the distinct warning code
+> `policy_invalid_url`. As written, one `http://` cover rejected the whole operation and erased an
+> otherwise usable feed,
 > defeating Section 2.1's partial-success rule; the host never loads the rejected URL under either
 > reading, so nothing is weakened by keeping the rest of the feed. **Unchanged:** every page URL,
 > every browser `webURL`, and every network request URL still reject the operation. See
@@ -764,3 +802,19 @@ transition, the host also sends the same values as legacy top-level `request.cur
 only the nested value and still reject requests without a `page` object. Remove this compatibility
 shim once all published engines use the nested shape, and no later than no-built-in-sources
 slice 6 removes the bundled package.
+
+## Amendment 6 — chapter scanlation-group credits (2026-09-24)
+
+**Decision:** Host API 1.2's additive features are leftmost-label `network.assetOrigins` wildcards
+and an optional `groups` array on chapter results.
+The host trims each name, limits the array to ten names and each name to 200 Unicode scalars.
+A non-array, non-string element, empty name, or over-limit value drops only `groups`, records a
+warning, and keeps the chapter with groups unknown. Missing `groups` likewise remains unknown
+rather than an empty claim. The app preserves valid names in chapter values and shows them joined
+by `, ` in the chapter list, including the credit in the row's accessibility label. The Host API
+version gate is evaluated at result time: groups returned under a selected version below 1.2 are
+a real `invalid_result`, unlike #234's declaration-time `externalIds` gate, because groups is an
+optional field in an otherwise valid chapter result and can be safely degraded when malformed.
+
+This makes the scanlation-group credit required by MangaDex's acceptable-use policy available to
+configuration-backed Sources without inventing source-specific selection or deduplication policy.

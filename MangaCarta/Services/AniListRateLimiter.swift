@@ -41,8 +41,8 @@ actor AniListRateLimiter {
     /// Runs `operation` no earlier than its reserved slot. A cold limiter runs
     /// immediately — the first request is never delayed, because a user-initiated
     /// fetch must not pay for a budget nobody has spent.
-    func run<T>(_ operation: () async throws -> T) async throws -> T {
-        _ = try await limiter.acquire()
+    func run<T>(_ operation: () async throws -> T) async rethrows -> T {
+        _ = try? await limiter.acquire(ignoringCancellation: true)
         return try await operation()
     }
 }

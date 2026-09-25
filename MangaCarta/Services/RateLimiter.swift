@@ -27,6 +27,7 @@ actor RateLimiter {
     private let clock: any RateLimiterClock
     private let sleeper: any RateLimiterSleeper
     private var nextSlot: Date?
+    private var releasedSlots: [Date] = []
 
     init(minimumInterval: TimeInterval,
          clock: any RateLimiterClock = SystemRateLimiterClock(),
@@ -36,12 +37,22 @@ actor RateLimiter {
         self.sleeper = sleeper
     }
 
-    func acquire() async throws -> RateLimiterReservation {
+    func acquire(ignoringCancellation: Bool = false) async throws -> RateLimiterReservation {
         let now = clock.now()
-        let slot = max(now, nextSlot ?? now)
-        nextSlot = slot.addingTimeInterval(minimumInterval)
+        releasedSlots.removeAll { $0 < now }
+        let slot: Date
+        if !releasedSlots.isEmpty {
+            slot = releasedSlots.removeFirst()
+        } else {
+            slot = max(now, nextSlot ?? now)
+            nextSlot = slot.addingTimeInterval(minimumInterval)
+        }
         do {
             try await sleeper.sleep(until: slot)
+            return RateLimiterReservation(limiter: self, slot: slot)
+        } catch is CancellationError where ignoringCancellation {
+            // AniList historically ran the operation after a cancelled wait.
+            // Keep its reservation spent so a later caller is still spaced.
             return RateLimiterReservation(limiter: self, slot: slot)
         } catch {
             release(slot: slot)
@@ -50,11 +61,15 @@ actor RateLimiter {
     }
 
     fileprivate func release(slot: Date) {
-        // Only the final reservation can be removed without colliding with a later
-        // reservation that is already in flight.
         guard let nextSlot else { return }
-        guard slot.addingTimeInterval(minimumInterval) == nextSlot else { return }
-        self.nextSlot = max(clock.now(), slot)
+        if slot.addingTimeInterval(minimumInterval) == nextSlot {
+            self.nextSlot = max(clock.now(), slot)
+        } else if slot >= clock.now() {
+            // A queued waiter may be behind this one. Reuse the empty slot
+            // without moving that later waiter's reservation.
+            let insertionIndex = releasedSlots.firstIndex { $0 > slot } ?? releasedSlots.endIndex
+            releasedSlots.insert(slot, at: insertionIndex)
+        }
     }
 }
 

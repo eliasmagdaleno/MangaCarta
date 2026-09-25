@@ -60,12 +60,37 @@ protocol RepositoryTransport: Sendable {
 final class URLSessionRepositoryTransport: RepositoryTransport, @unchecked Sendable {
     private let fetcher: any URLSessionDataFetching
     private let destinations: HostDestinationPolicy
+    let sessionConfiguration: URLSessionConfiguration
 
-    init(configuration: URLSessionConfiguration = .default,
+    init(configuration: URLSessionConfiguration? = nil,
          resolver: any HostNameResolving = SystemHostResolver(),
          fetcher: (any URLSessionDataFetching)? = nil) {
         self.destinations = HostDestinationPolicy(resolver: resolver)
-        self.fetcher = fetcher ?? URLSessionDataFetcher(configuration: configuration) { _ in nil }
+        let base = configuration ?? Self.sessionConfiguration()
+        guard let sessionConfiguration = base.copy() as? URLSessionConfiguration else {
+            preconditionFailure("URLSessionConfiguration must be copyable")
+        }
+        sessionConfiguration.connectionProxyDictionary = [:]
+        sessionConfiguration.urlCache = nil
+        sessionConfiguration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        sessionConfiguration.httpShouldSetCookies = false
+        sessionConfiguration.httpCookieAcceptPolicy = .never
+        sessionConfiguration.httpCookieStorage = nil
+        self.sessionConfiguration = sessionConfiguration
+        self.fetcher = fetcher ?? URLSessionDataFetcher(
+            configuration: sessionConfiguration,
+            redirectHandler: URLSessionDataFetcher.httpsOnlyRedirectHandler)
+    }
+
+    static func sessionConfiguration() -> URLSessionConfiguration {
+        let configuration = URLSessionConfiguration.default
+        configuration.connectionProxyDictionary = [:]
+        configuration.urlCache = nil
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        configuration.httpShouldSetCookies = false
+        configuration.httpCookieAcceptPolicy = .never
+        configuration.httpCookieStorage = nil
+        return configuration
     }
 
     func fetchIndex(at url: URL) async throws -> RepositoryIndexFetchOutcome {
@@ -112,7 +137,11 @@ final class URLSessionRepositoryTransport: RepositoryTransport, @unchecked Senda
             guard let response = response as? HTTPURLResponse else {
                 throw RepositoryTransportError.invalidResponse
             }
-            if let peer = result.connectedPeerAddress, !HostIPAddress.isPublic(peer) {
+            if result.resourceFetchType == .localCache {
+                throw RepositoryTransportError.destinationRefused(
+                    "the response was served from the local cache")
+            }
+            guard let peer = result.connectedPeerAddress, HostIPAddress.isPublic(peer) else {
                 throw RepositoryTransportError.destinationRefused(
                     "the connected destination was non-public")
             }

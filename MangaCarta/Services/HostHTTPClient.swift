@@ -103,7 +103,7 @@ struct HostHTTPClient: Sendable {
                                           message: "the HTTP request was cancelled")
             }
             let response = try await send(request)
-            if let peer = response.connectedPeerAddress, !HostIPAddress.isPublic(peer) {
+            guard let peer = response.connectedPeerAddress, HostIPAddress.isPublic(peer) else {
                 throw HostCapabilityError(code: .policyDenied,
                                           message: "the connected destination was non-public")
             }
@@ -322,13 +322,21 @@ final class URLSessionHostHTTPTransport: NSObject, HostHTTPTransport,
     private let fetcher: any URLSessionDataFetching
 
     override init() {
+        let configuration = Self.sessionConfiguration()
+        fetcher = URLSessionDataFetcher(
+            configuration: configuration,
+            redirectHandler: URLSessionDataFetcher.httpsOnlyRedirectHandler)
+        super.init()
+    }
+
+    static func sessionConfiguration() -> URLSessionConfiguration {
         let configuration = URLSessionConfiguration.default
+        configuration.connectionProxyDictionary = [:]
         configuration.httpShouldSetCookies = false
         configuration.httpCookieAcceptPolicy = .never
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         configuration.urlCache = nil
-        fetcher = URLSessionDataFetcher(configuration: configuration) { _ in nil }
-        super.init()
+        return configuration
     }
 
     init(fetcher: any URLSessionDataFetching) {
@@ -337,7 +345,15 @@ final class URLSessionHostHTTPTransport: NSObject, HostHTTPTransport,
     }
 
     func send(_ request: URLRequest) async throws -> HostHTTPTransportResponse {
+        guard request.url?.scheme?.lowercased() == "https" else {
+            throw HostCapabilityError(code: .policyDenied,
+                                      message: "only HTTPS requests are allowed")
+        }
         let result = try await fetcher.fetch(request)
+        if result.resourceFetchType == .localCache {
+            throw HostCapabilityError(code: .policyDenied,
+                                      message: "the response was served from the local cache")
+        }
         let data = result.data
         let response = result.response
         guard let http = response as? HTTPURLResponse,
