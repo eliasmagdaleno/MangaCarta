@@ -1,5 +1,12 @@
 # MangaDex JSON-API engine: host fit and AUP obligations (2026-09-22)
 
+**Outcome (2026-09-25):** This is the pre-implementation research snapshot at `8e8f256`,
+not a current blocker list. Asset-origin hardening (#237), scanlation-group support (#241),
+the external-ID contract (#234), and host rate limiting (#242) landed before the JSON-API
+engine (#249). The engine uses full-quality pages and the host's existing User-Agent.
+At-home reporting remains open; `ExtensionSource.invoke` also drops the preserved
+`Retry-After` hint when mapping invocation errors.
+
 Research for slice 5 of the "no built-in Sources" plan: MangaDex as an extension engine
 (bundle script + `SourceDeclaration`, run by `ExtensionRuntime`, network via host `http`).
 Code references are to `main` at `8e8f256`. Primary sources:
