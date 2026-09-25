@@ -239,4 +239,60 @@ final class MangaDexEngineTests: XCTestCase {
 
         XCTAssertTrue(results.isEmpty)
     }
+
+    func testChaptersPageThroughEveryPageCreditGroupsAndCollapseDuplicateNumbers() async throws {
+        let api = MangaDexFixtures.api
+        for (offset, file) in [(0, "chapters-p0.json"), (100, "chapters-p1.json")] {
+            await host.transport.route(
+                "\(api)/chapter?manga=m-1&translatedLanguage[]=en&order[chapter]=asc&includes[]=scanlation_group&limit=100&offset=\(offset)",
+                to: file)
+        }
+        let source = try makeSource()
+
+        let chapters = try await source.chapters(mangaId: "m-1")
+
+        XCTAssertEqual(chapters.count, 101)                     // 102 minus the duplicate "1"
+        XCTAssertEqual(chapters.first?.id, "ch-001")            // first upload of "1" wins
+        XCTAssertEqual(chapters.first?.groups, ["Group A", "Group B"])
+        XCTAssertFalse(chapters.contains { $0.id == "ch-002" })
+        XCTAssertEqual(chapters.last?.number, "?")              // unknown numbers are never merged
+        XCTAssertNotNil(chapters.first?.date)
+    }
+
+    func testDetailCarriesAuthorsTagsAndRating() async throws {
+        await host.transport.route(
+            "\(MangaDexFixtures.api)/manga/\(MangaDexFixtures.mangaID)?includes[]=author&includes[]=artist",
+            to: "detail.json")
+        let source = try makeSource()
+
+        let detail = try await source.mangaDetail(id: MangaDexFixtures.mangaID)
+
+        XCTAssertFalse(detail.authors.isEmpty)
+        XCTAssertEqual(Set(detail.authors).count, detail.authors.count)   // author == artist listed once
+        XCTAssertFalse(detail.tags.isEmpty)
+        XCTAssertNotNil(detail.contentRating)
+    }
+
+    func testListingRefetchesOneMangaAndMissingIsNil() async throws {
+        let api = MangaDexFixtures.api
+        await host.transport.route("\(api)/manga/\(MangaDexFixtures.mangaID)?includes[]=cover_art",
+                                   to: "listing.json")
+        await host.transport.route("\(api)/manga/gone?includes[]=cover_art",
+                                   status: 404, headers: [:], file: nil)
+        let source = try makeSource()
+
+        let found = try await source.manga(id: MangaDexFixtures.mangaID)
+        let missing = try await source.manga(id: "gone")
+
+        XCTAssertEqual(found?.malId, MangaDexFixtures.malID)
+        XCTAssertNil(missing)
+    }
+
+    func testWebURLPointsAtTheTitlePage() async throws {
+        let source = try makeSource()
+
+        let url = try await source.webURL(forManga: MangaDexFixtures.mangaID)
+
+        XCTAssertEqual(url?.absoluteString, "https://mangadex.org/title/\(MangaDexFixtures.mangaID)")
+    }
 }

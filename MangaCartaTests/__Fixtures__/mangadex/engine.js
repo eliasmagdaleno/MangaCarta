@@ -214,6 +214,92 @@
     return await mangaPage(request, context, cfg, [["includedTags[]", match.id], ["order[rating]", "desc"]]);
   }
 
+  var MAX_CHAPTERS = 2000;      // the compiled Source's safety cap
+
+  function groupsOf(chapter) {
+    var names = [];
+    (chapter.relationships || []).forEach(function (rel) {
+      if (rel.type !== "scanlation_group" || !rel.attributes) { return; }
+      var name = typeof rel.attributes.name === "string" ? rel.attributes.name.trim() : "";
+      if (name !== "" && names.indexOf(name) < 0 && names.length < 10) { names.push(name); }
+    });
+    return names.length ? names : null;
+  }
+
+  function toChapter(chapter) {
+    var attributes = chapter.attributes || {};
+    return compact({
+      id: chapter.id,
+      number: attributes.chapter,
+      title: attributes.title,
+      publishedAt: attributes.publishAt || attributes.readableAt,
+      language: attributes.translatedLanguage,
+      groups: groupsOf(chapter)
+    });
+  }
+
+  async function chapters(request, context, cfg) {
+    var raw = [];
+    var offset = 0;
+    while (offset < MAX_CHAPTERS) {
+      var body = await getJSON(context, cfg, "/chapter", [
+        ["manga", request.listingId], ["translatedLanguage[]", request.language || "en"],
+        ["order[chapter]", "asc"], ["includes[]", "scanlation_group"],
+        ["limit", MAX_LIMIT], ["offset", offset]
+      ]);
+      if (!body) { return fail("http", "MangaDex has no such manga"); }
+      var data = body.data || [];
+      raw = raw.concat(data);
+      offset += MAX_LIMIT;
+      if (data.length === 0 || offset >= body.total) { break; }
+    }
+    // Several groups often upload the same number; keep the first. Unknown numbers
+    // are never merged. Same rule as MangaDexAPI.fetchChapters.
+    var seen = {};
+    var items = raw.map(toChapter).filter(function (chapter) {
+      if (chapter.number === undefined) { return true; }
+      if (seen[chapter.number]) { return false; }
+      seen[chapter.number] = true;
+      return true;
+    });
+    return { ok: true, value: { items: items } };
+  }
+
+  async function detail(request, context, cfg) {
+    var body = await getJSON(context, cfg, "/manga/" + encodeURIComponent(request.listingId),
+                             [["includes[]", "author"], ["includes[]", "artist"]]);
+    if (!body || !body.data) { return fail("http", "MangaDex has no such manga"); }
+    var attributes = body.data.attributes || {};
+    var authors = [];
+    (body.data.relationships || []).forEach(function (rel) {
+      if ((rel.type === "author" || rel.type === "artist") && rel.attributes &&
+          typeof rel.attributes.name === "string" && authors.indexOf(rel.attributes.name) < 0) {
+        authors.push(rel.attributes.name);
+      }
+    });
+    var tags = (attributes.tags || []).map(function (tag) {
+      var tagAttributes = tag.attributes || {};
+      return compact({ id: tag.id, name: (tagAttributes.name || {}).en, group: tagAttributes.group });
+    }).filter(function (tag) { return typeof tag.name === "string"; });
+    return { ok: true, value: compact({
+      description: attributes.description ? (attributes.description.en || "") : "",
+      authors: authors,
+      tags: tags,
+      contentRating: attributes.contentRating
+    }) };
+  }
+
+  async function listing(request, context, cfg) {
+    var body = await getJSON(context, cfg, "/manga/" + encodeURIComponent(request.listingId),
+                             [["includes[]", "cover_art"]]);
+    if (!body || !body.data) { return { ok: true, value: null }; }
+    return { ok: true, value: toListing(body.data, cfg) };
+  }
+
+  function webURL(request, cfg) {
+    return { ok: true, value: { url: cfg.siteBaseURL + "/title/" + encodeURIComponent(request.listingId) } };
+  }
+
   async function invoke(operation, request, context) {
     var cfg = context.source.configuration || {};
     try {
@@ -228,6 +314,14 @@
         return await updatesPage(request, context, cfg);
       case "tagBrowse":
         return await tagPage(request, context, cfg);
+      case "chapters":
+        return await chapters(request, context, cfg);
+      case "detail":
+        return await detail(request, context, cfg);
+      case "listing":
+        return await listing(request, context, cfg);
+      case "webURL":
+        return webURL(request, cfg);
       default:
         return fail("unsupported", operation + " is not implemented by this engine");
       }

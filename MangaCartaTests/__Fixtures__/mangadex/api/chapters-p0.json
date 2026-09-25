@@ -1,0 +1,2013 @@
+{
+  "result": "ok",
+  "total": 102,
+  "data": [
+    {
+      "id": "ch-001",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "1",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        },
+        {
+          "type": "scanlation_group",
+          "id": "g-b",
+          "attributes": {
+            "name": "Group B"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-002",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "1",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-003",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "3",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-004",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "4",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-005",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "5",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-006",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "6",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-007",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "7",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-008",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "8",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-009",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "9",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-010",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "10",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-011",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "11",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-012",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "12",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-013",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "13",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-014",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "14",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-015",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "15",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-016",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "16",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-017",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "17",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-018",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "18",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-019",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "19",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-020",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "20",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-021",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "21",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-022",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "22",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-023",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "23",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-024",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "24",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-025",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "25",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-026",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "26",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-027",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "27",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-028",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "28",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-029",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "29",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-030",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "30",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-031",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "31",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-032",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "32",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-033",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "33",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-034",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "34",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-035",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "35",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-036",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "36",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-037",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "37",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-038",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "38",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-039",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "39",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-040",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "40",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-041",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "41",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-042",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "42",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-043",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "43",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-044",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "44",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-045",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "45",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-046",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "46",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-047",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "47",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-048",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "48",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-049",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "49",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-050",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "50",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-051",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "51",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-052",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "52",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-053",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "53",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-054",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "54",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-055",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "55",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-056",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "56",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-057",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "57",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-058",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "58",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-059",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "59",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-060",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "60",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-061",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "61",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-062",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "62",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-063",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "63",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-064",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "64",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-065",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "65",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-066",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "66",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-067",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "67",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-068",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "68",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-069",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "69",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-070",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "70",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-071",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "71",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-072",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "72",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-073",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "73",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-074",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "74",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-075",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "75",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-076",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "76",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-077",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "77",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-078",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "78",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-079",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "79",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-080",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "80",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-081",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "81",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-082",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "82",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-083",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "83",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-084",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "84",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-085",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "85",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-086",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "86",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-087",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "87",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-088",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "88",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-089",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "89",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-090",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "90",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-091",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "91",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-092",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "92",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-093",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "93",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-094",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "94",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-095",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "95",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-096",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "96",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-097",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "97",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-098",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "98",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-099",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "99",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch-100",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "100",
+        "title": null,
+        "translatedLanguage": "en",
+        "publishAt": "2020-01-01T00:00:00+00:00",
+        "readableAt": "2020-01-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "type": "scanlation_group",
+          "id": "g-a",
+          "attributes": {
+            "name": "Group A"
+          }
+        }
+      ]
+    }
+  ]
+}
