@@ -25,6 +25,7 @@ Date: 2026-09-25. This is the one live handoff. The prior handoff was moved to `
 
 ## Operating notes
 
-- Shared checkout `/Users/eliasmagdaleno/Manga-Reader` has a pre-existing modified `MangaCarta.xcodeproj/project.pbxproj`. Do not discard, stage, or merge that change without checking its owner. Use isolated worktrees.
+- Shared checkout `/Users/eliasmagdaleno/Manga-Reader` is clean on current `main` (its `project.pbxproj` change was Xcode normalization only and was discarded with the owner's approval). Use isolated worktrees.
+- `MALAuthenticatedClientTests` "Concurrent 401s share one refresh" is order-dependent: the scripted transport serves responses in sequence, so if one task's retry runs before the other's first request it receives the second 401. It failed #254's first CI run unrelated to the change.
 - Local `xcodebuild` name-based destination selection saw duplicate iPhone 17 Pro clones. Simulator ID `ADDAB2F8-38C7-4D44-97EA-4E98281CF691` selected the required seeded device; keep `-parallel-testing-enabled YES`.
 - To replace this handoff, `git mv` it into `archive/` and carry every still-open item forward.

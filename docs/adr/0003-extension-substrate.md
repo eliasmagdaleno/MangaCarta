@@ -746,5 +746,7 @@ without a `sourceId`) and the fixed bundled WeebCentral qualified id are the two
 Only Source identities change; Work IDs, manga IDs, progress, and numerical JSON values survive.
 An absent or uninstalled replacement leaves the data dormant. A collision between old and new
 Listing keys stops migration for explicit resolution rather than choosing which record wins.
-Retries are idempotent. Removing the compiled and bundled Sources follows after this path is
-verified; the migration does not itself erase either Source or any reader data.
+Retries are idempotent. A binding is spent once it applies, or once it collides, so data the
+compiled or bundled Source records afterwards is offered again rather than moved silently.
+Removing the compiled and bundled Sources follows after this path is verified; the migration
+does not itself erase either Source or any reader data.

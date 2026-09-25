@@ -110,6 +110,15 @@ struct AppComposition {
             return legacyID
         }
 
+        /// The legacy identities that still have saved data. It reads and parses the
+        /// persisted stores, so callers compute it once rather than per view update.
+        func legacyIDsWithData() -> Set<String> {
+            Set(InstalledSourceIDMigration.legacyIDs.filter { legacyID in
+                InstalledSourceIDMigration.hasLegacyData(legacyID, directory: migrationDirectory,
+                                                         defaults: migrationDefaults)
+            })
+        }
+
         func requestLegacyDataMigration(for record: InstalledSourceRecord) {
             guard let legacyID = legacyDataID(for: record) else { return }
             InstalledSourceIDMigration.request(legacyID: legacyID, installed: record,
@@ -473,7 +482,7 @@ struct AppComposition {
                                                    registry: self.registry,
                                                    rateLimiters: self.hostRateLimiters)
         self.extensions = extensionResult.composition
-        self.extensionStorageError = identityMigrationError ?? extensionResult.error
+        self.extensionStorageError = extensionResult.error ?? identityMigrationError
     }
 
     /// The installed-Source subsystem (Phase 4). Restores every installed Source from

@@ -11,6 +11,9 @@ final class RepositorySettingsViewModel: ObservableObject {
         var id: String { record.qualifiedId.rawValue }
     }
     @Published var pendingMigration: PendingMigration?
+    /// Legacy identities with saved data. Finding them parses the persisted stores, so it
+    /// is computed on appear and after an install, never from the view's `body`.
+    @Published private(set) var legacyIDsWithData: Set<String> = []
     /// The sheet the installer is waiting on. It always appears for a `mixed` or
     /// `adultOnly` Source — a reader who has already confirmed their age still sees which
     /// Source is adult-classed and who says so (format design §7.1) — but only asks the
@@ -90,6 +93,12 @@ final class RepositorySettingsViewModel: ObservableObject {
             storeUnreadable = true
             errorMessage = "Installed Sources could not be read. Nothing was removed."
         }
+        legacyIDsWithData = composition.legacyIDsWithData()
+    }
+
+    func canReconnect(_ source: InstalledSourceRecord) -> Bool {
+        guard let legacyID = InstalledSourceIDMigration.legacyID(for: source.localId) else { return false }
+        return legacyID != source.qualifiedId.rawValue && legacyIDsWithData.contains(legacyID)
     }
 
     func answerAgeGate(_ confirmed: Bool) {
@@ -110,6 +119,7 @@ final class RepositorySettingsViewModel: ObservableObject {
     }
 
     func offerMigration(for record: InstalledSourceRecord) {
+        legacyIDsWithData = composition.legacyIDsWithData()
         guard let legacyID = composition.legacyDataID(for: record) else { return }
         let repositoryName = composition.repositories.repository(record.repositoryID)?.name ?? "this repository"
         pendingMigration = PendingMigration(record: record, legacyID: legacyID,

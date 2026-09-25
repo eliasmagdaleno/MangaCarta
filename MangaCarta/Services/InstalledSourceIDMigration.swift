@@ -29,6 +29,8 @@ enum InstalledSourceIDMigration {
         }
     }
 
+    static let legacyIDs = [LegacySourceID.unattributed, WeebCentralIdentityMigration.qualifiedID]
+
     static func request(legacyID oldID: String, installed: InstalledSourceRecord,
                         defaults: UserDefaults) {
         guard legacyID(for: installed.localId) == oldID else { return }
@@ -56,21 +58,39 @@ enum InstalledSourceIDMigration {
     }
 
     /// Runs after the former bare WeebCentral migration, before WorkStore and the
-    /// UserDefaults-backed stores are constructed. A stale or erased target is skipped.
+    /// UserDefaults-backed stores are constructed.
+    ///
+    /// A binding is one reader decision, spent once. It is cleared after it applies, and
+    /// after a collision (retrying cannot resolve one). Otherwise, while the compiled or
+    /// bundled Source still ships, data it records later would move on every launch
+    /// without being offered, and one later collision would fail every launch after it.
+    /// Only a failed write, or a target that may yet become usable, keeps it for retry.
     static func run(directory: URL, defaults: UserDefaults) throws {
-        let bindings = defaults.dictionary(forKey: bindingsKey) as? [String: String] ?? [:]
+        var bindings = defaults.dictionary(forKey: bindingsKey) as? [String: String] ?? [:]
         guard !bindings.isEmpty else { return }
         let repositories = RepositoryStore(directory: directory)
+        var firstError: Error?
         for (oldID, targetID) in bindings.sorted(by: { $0.key < $1.key }) {
             let qualified = QualifiedSourceID(rawValue: targetID)
             guard let installed = repositories.source(qualified),
                   installed.state != .uninstalled,
-                  legacyID(for: installed.localId) == oldID,
-                  repositories.repository(installed.repositoryID)?.state == .active,
+                  legacyID(for: installed.localId) == oldID else {
+                bindings[oldID] = nil
+                continue
+            }
+            guard repositories.repository(installed.repositoryID)?.state == .active,
                   repositories.scriptData(for: installed.bundleId, in: installed.repositoryID) != nil
             else { continue }
-            try rebind(oldID, to: targetID, directory: directory, defaults: defaults)
+            do {
+                try rebind(oldID, to: targetID, directory: directory, defaults: defaults)
+                bindings[oldID] = nil
+            } catch {
+                if case MigrationError.collision = error { bindings[oldID] = nil }
+                firstError = firstError ?? error
+            }
         }
+        defaults.set(bindings, forKey: bindingsKey)
+        if let firstError { throw firstError }
     }
 
     /// Rewrites only sourceId fields and the forward-resolution cache's qualified

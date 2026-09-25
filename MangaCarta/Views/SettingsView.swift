@@ -380,7 +380,7 @@ private struct RepositorySettingsSection: View {
                             if source.state == .uninstalled {
                                 Button("Install") { model.install(localId: source.localId, from: repository.id) }
                             } else {
-                                if model.composition.legacyDataID(for: source) != nil {
+                                if model.canReconnect(source) {
                                     Button("Reconnect prior data") { model.offerMigration(for: source) }
                                 }
                                 if let offered = model.composition.installer.listings[repository.id]?.availableUpdates[source.bundleId] {

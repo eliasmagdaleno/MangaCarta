@@ -483,6 +483,36 @@ final class InstalledSourceIDMigrationTests: XCTestCase {
         XCTAssertEqual(defaults.string(forKey: "source.primaryID"), "mangadex")
     }
 
+    /// While the compiled Source still ships, it keeps recording under the old id. A spent
+    /// binding must not move that later data on the next launch without being offered.
+    func testAppliedBindingIsSpentSoLaterLegacyDataStaysAndIsOfferedAgain() throws {
+        let record = try installRecord()
+        let work = directory.appendingPathComponent("works.json")
+        try Data(#"{"listings":[{"sourceId":"mangadex","mangaId":"123"}]}"#.utf8).write(to: work)
+        InstalledSourceIDMigration.request(legacyID: "mangadex", installed: record, defaults: defaults)
+        try InstalledSourceIDMigration.run(directory: directory, defaults: defaults)
+
+        let later = Data(#"{"listings":[{"sourceId":"\#(targetID)","mangaId":"123"},{"sourceId":"mangadex","mangaId":"456"}]}"#.utf8)
+        try later.write(to: work)
+        try InstalledSourceIDMigration.run(directory: directory, defaults: defaults)
+
+        XCTAssertEqual(try Data(contentsOf: work), later)
+        XCTAssertTrue(InstalledSourceIDMigration.hasLegacyData("mangadex", directory: directory, defaults: defaults))
+    }
+
+    /// A collision cannot resolve itself, so it is reported once rather than on every launch.
+    func testCollisionIsReportedOnceAndLaterLaunchesProceed() throws {
+        let record = try installRecord()
+        let work = directory.appendingPathComponent("works.json")
+        let original = Data(#"{"listings":[{"sourceId":"mangadex","mangaId":"123"},{"sourceId":"\#(targetID)","mangaId":"123"}]}"#.utf8)
+        try original.write(to: work)
+        InstalledSourceIDMigration.request(legacyID: "mangadex", installed: record, defaults: defaults)
+
+        XCTAssertThrowsError(try InstalledSourceIDMigration.run(directory: directory, defaults: defaults))
+        XCTAssertNoThrow(try InstalledSourceIDMigration.run(directory: directory, defaults: defaults))
+        XCTAssertEqual(try Data(contentsOf: work), original)
+    }
+
     func testUnattributedLibraryCollisionStopsBeforeWriting() throws {
         let record = try installRecord()
         let original = Data("[{\"id\":\"123\"},{\"id\":\"123\",\"sourceId\":\"\(targetID)\"}]".utf8)
