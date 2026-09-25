@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Home, minus one thing it cannot do for itself: a `@StateObject` is built in `init`,
 /// which runs before the environment exists, so `HomeScreen` below cannot read the graph's
@@ -16,6 +17,14 @@ struct HomeView: View {
 
     var body: some View {
         HomeScreen(registry: registry)
+    }
+}
+
+struct UnavailableSourceView: View {
+    var body: some View {
+        InkEmptyState(symbol: "externaldrive.badge.xmark", title: "Source unavailable",
+                      message: "This title's Source is not installed. Add its repository in Settings to read it.",
+                      actionTitle: "Open Settings", action: {})
     }
 }
 
@@ -37,12 +46,14 @@ private struct HomeScreen: View {
     @Environment(\.selectAppTab) private var selectAppTab
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("settings.showAdultSources") private var showAdultSources = false
+    @State private var showingImporter = false
+    @EnvironmentObject private var importer: LocalImportViewModel
 
     var body: some View {
         // Capture the browse source as a value so the escaping "See all" fetch closures
         // don't reach back into MainActor-isolated state.
-        let source = vm.source
         return NavigationStack {
+            if let source = vm.source {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: Gutter.section) {
 
@@ -213,7 +224,41 @@ private struct HomeScreen: View {
             .refreshable { await engine.refresh() }
             .navigationTitle("Read")
             .navigationBarTitleDisplayMode(.large)
+            .fileImporter(isPresented: $showingImporter,
+                          allowedContentTypes: [UTType.zip, UTType.mangaCartaCBZ, UTType.pdf],
+                          allowsMultipleSelection: true) { result in
+                if case .success(let urls) = result { importer.importFiles(urls) }
+            }
+            .overlay(alignment: .top) {
+                LocalImportBanner(model: importer, onCancel: importer.cancel).padding(.top, 8)
+            }
+            } else {
+                noSourcesState
+                    .navigationTitle("Read")
+                    .navigationBarTitleDisplayMode(.large)
+                    .fileImporter(isPresented: $showingImporter,
+                                  allowedContentTypes: [UTType.zip, UTType.mangaCartaCBZ, UTType.pdf],
+                                  allowsMultipleSelection: true) { result in
+                        if case .success(let urls) = result { importer.importFiles(urls) }
+                    }
+                    .overlay(alignment: .top) {
+                        LocalImportBanner(model: importer, onCancel: importer.cancel)
+                            .padding(.top, 8)
+                    }
+            }
         }
+    }
+
+    private var noSourcesState: some View {
+        InkEmptyState(
+            symbol: "books.vertical",
+            title: "No sources installed",
+            message: "Import CBZ, ZIP or PDF files from Files. MangaCarta does not provide or host content.",
+            actionTitle: "Import from Files",
+            action: { showingImporter = true },
+            secondaryActionTitle: "Add a repository",
+            secondaryAction: { selectAppTab(.settings) }
+        )
     }
 
     // A titled section: header + rail. Hidden until it has content.
@@ -295,7 +340,7 @@ private struct HomeScreen: View {
     // naming what is loading and from where.
     private var loadingRail: some View {
         VStack(alignment: .leading, spacing: 14) {
-            InkSectionHeader("Loading", eyebrow: vm.source.name)
+            InkSectionHeader("Loading", eyebrow: vm.source?.name ?? "Source")
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Gutter.rail) {
                     ForEach(0..<4, id: \.self) { _ in
@@ -307,7 +352,7 @@ private struct HomeScreen: View {
                 .padding(.horizontal, Gutter.page)
             }
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Loading titles from \(vm.source.name)")
+            .accessibilityLabel("Loading titles from \(vm.source?.name ?? "source")")
         }
     }
 }
@@ -343,7 +388,9 @@ struct InkNotice: View {
         .environmentObject(history)
         .environmentObject(taste)
         .environmentObject(works)
+        .environmentObject(LocalImportViewModel())
         .environmentObject(UpdateStateStore(works: works))
         .environmentObject(RecommendationEngine(history: history, library: library,
-                                                profileStore: taste, workStore: works))
+                                                profileStore: taste, workStore: works,
+                                                source: { SourceRegistry.shared.externalIdSource }))
 }

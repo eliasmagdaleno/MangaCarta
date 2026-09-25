@@ -1,0 +1,159 @@
+{
+  "result": "ok",
+  "response": "collection",
+  "data": [
+    {
+      "id": "c-1",
+      "type": "chapter",
+      "attributes": {
+        "volume": "1",
+        "chapter": "5",
+        "title": "Chapter 5",
+        "translatedLanguage": "en",
+        "publishAt": "2026-09-25T12:00:00+00:00",
+        "readableAt": "2026-09-25T12:00:00+00:00",
+        "createdAt": "2026-09-25T12:00:00+00:00",
+        "updatedAt": "2026-09-25T12:00:00+00:00",
+        "version": 1,
+        "pages": 20
+      },
+      "relationships": [
+        {
+          "id": "m-a",
+          "type": "manga",
+          "attributes": {
+            "title": {
+              "en": "Manga A"
+            },
+            "altTitles": [],
+            "description": {
+              "en": ""
+            },
+            "isLocked": false,
+            "links": {},
+            "originalLanguage": "ja",
+            "lastVolume": "1",
+            "lastChapter": "5",
+            "publicationDemographic": "shounen",
+            "status": "ongoing",
+            "year": 2020,
+            "contentRating": "safe",
+            "tags": [],
+            "state": "published",
+            "chapterNumbersResetOnNewVolume": false,
+            "createdAt": "2020-01-01T00:00:00+00:00",
+            "updatedAt": "2026-09-25T00:00:00+00:00",
+            "version": 1,
+            "availableTranslatedLanguages": [
+              "en"
+            ],
+            "latestUploadedChapter": "c-1"
+          }
+        }
+      ]
+    },
+    {
+      "id": "c-2",
+      "type": "chapter",
+      "attributes": {
+        "volume": "1",
+        "chapter": "4",
+        "title": "Chapter 4",
+        "translatedLanguage": "en",
+        "publishAt": "2026-09-25T11:00:00+00:00",
+        "readableAt": "2026-09-25T11:00:00+00:00",
+        "createdAt": "2026-09-25T11:00:00+00:00",
+        "updatedAt": "2026-09-25T11:00:00+00:00",
+        "version": 1,
+        "pages": 18
+      },
+      "relationships": [
+        {
+          "id": "m-a",
+          "type": "manga",
+          "attributes": {
+            "title": {
+              "en": "Manga A"
+            },
+            "altTitles": [],
+            "description": {
+              "en": ""
+            },
+            "isLocked": false,
+            "links": {},
+            "originalLanguage": "ja",
+            "lastVolume": "1",
+            "lastChapter": "5",
+            "publicationDemographic": "shounen",
+            "status": "ongoing",
+            "year": 2020,
+            "contentRating": "safe",
+            "tags": [],
+            "state": "published",
+            "chapterNumbersResetOnNewVolume": false,
+            "createdAt": "2020-01-01T00:00:00+00:00",
+            "updatedAt": "2026-09-25T00:00:00+00:00",
+            "version": 1,
+            "availableTranslatedLanguages": [
+              "en"
+            ],
+            "latestUploadedChapter": "c-1"
+          }
+        }
+      ]
+    },
+    {
+      "id": "c-3",
+      "type": "chapter",
+      "attributes": {
+        "volume": "2",
+        "chapter": "10",
+        "title": "Chapter 10",
+        "translatedLanguage": "en",
+        "publishAt": "2026-09-25T10:00:00+00:00",
+        "readableAt": "2026-09-25T10:00:00+00:00",
+        "createdAt": "2026-09-25T10:00:00+00:00",
+        "updatedAt": "2026-09-25T10:00:00+00:00",
+        "version": 1,
+        "pages": 22
+      },
+      "relationships": [
+        {
+          "id": "m-b",
+          "type": "manga",
+          "attributes": {
+            "title": {
+              "en": "Manga B"
+            },
+            "altTitles": [],
+            "description": {
+              "en": ""
+            },
+            "isLocked": false,
+            "links": {},
+            "originalLanguage": "ja",
+            "lastVolume": "2",
+            "lastChapter": "10",
+            "publicationDemographic": "shoujo",
+            "status": "ongoing",
+            "year": 2021,
+            "contentRating": "safe",
+            "tags": [],
+            "state": "published",
+            "chapterNumbersResetOnNewVolume": false,
+            "createdAt": "2021-01-01T00:00:00+00:00",
+            "updatedAt": "2026-09-25T00:00:00+00:00",
+            "version": 1,
+            "availableTranslatedLanguages": [
+              "en"
+            ],
+            "latestUploadedChapter": "c-3"
+          }
+        }
+      ]
+    }
+  ],
+  "limit": 40,
+  "offset": 0,
+  "total": 3
+}

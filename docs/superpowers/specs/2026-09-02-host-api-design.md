@@ -56,6 +56,7 @@ logical record:
   "engine": "madara",
   "configuration": {},
   "adult": "none",
+  "externalIds": ["mal"],
   "capabilities": {
     "search": true,
     "popular": true,
@@ -91,6 +92,13 @@ logical record:
 Unknown keys are ignored only inside `configuration`, which belongs to the engine. Unknown keys in
 the Host API-owned declaration fail installation so a misspelling cannot silently disable policy.
 The host validates declarations without evaluating Extension code.
+
+`externalIds` is an optional array of unique namespaces the Source publishes; `mal` is the only
+known namespace. Unknown namespaces and duplicates reject installation. (added 2026-09-24,
+removal slice 4)
+
+A non-empty `externalIds` declaration must also declare the optional `capabilities.listing`
+operation so the host can resolve a published id. (added 2026-09-24, removal slice 4)
 
 `localId` is lowercase ASCII letters, digits, `-`, and `.`, 1–64 characters, and cannot change in
 an update. The installed Source id is an opaque repository-qualified id derived by the installer;
@@ -166,6 +174,10 @@ them. Empty alternate titles are dropped and duplicates are removed with exact m
 `contentRating` is `safe`, `suggestive`, `erotica`, or `pornographic`; missing means unknown, not
 safe. The host may elevate but never reduce the Source-level adult classification.
 
+When present, `externalIds.mal` must be a positive decimal integer string. An invalid value is
+dropped and recorded as a validation warning; the Listing remains usable. (added 2026-09-24,
+removal slice 4)
+
 In Listing arrays, an item missing `id` or `title` is dropped and recorded as a validation warning;
 an item with a structurally wrong top-level type rejects the operation. This narrow partial-success
 rule prevents one damaged card from erasing an otherwise usable feed while keeping schema drift
@@ -204,15 +216,20 @@ as for Listings. A non-object detail result rejects the operation.
   "number": "12.5",
   "title": "Optional title",
   "publishedAt": "2026-09-01T12:34:56Z",
-  "language": "en"
+  "language": "en",
+  "groups": ["Example Scanlation"]
 }
 ```
 
 Required: nonempty `id`. `number`, `title`, `publishedAt`, and `language` are optional. Missing
 `number` becomes `?` in the Swift adapter. Dates must be RFC 3339 instants; invalid dates become
 absent with a warning rather than losing the chapter. Invalid chapter items are dropped with
-warnings. Ordering and duplicate policy belong to the operation result; the host does not reorder
-or merge chapters because source-specific chapter identity and split releases make that unsafe.
+warnings. `groups` is an optional Host API 1.2 field: when present it is an array of at most ten
+nonempty strings, each at most 200 Unicode scalars; names are trimmed. A malformed `groups` value
+is dropped, recorded as a warning, and leaves the chapter usable with groups unknown. An absent
+field likewise means the group is unknown. Ordering and duplicate policy belong to the operation
+result; the host does not reorder or merge chapters because source-specific chapter identity and
+split releases make that unsafe.
 
 ### 2.5 Page
 
@@ -241,11 +258,16 @@ The operation names and request/result values are:
 | `chapters` | `{listingId, language?}` | `{items: [Chapter]}` |
 | `pages` | `{chapterId, quality}` | `{items: [Page]}` |
 | `webURL` | `{listingId}` | `{url}` |
+| `listing` | `{listingId}` | `Listing` or `null` when not found |
 
 `quality` is `dataSaver` or `original`. The runtime calls only declared capabilities. `search`,
 `detail`, `chapters`, and `pages` are required for a browsable/readable Source; at least one of
 `popular`, `newTitles`, or `latestUpdates` is required for Home discovery. A configuration that
 does not meet these invariants is not registered.
+
+`listing` is optional and is not part of the reading or discovery requirements. Its declaration
+is opt-in; the host sends one `listingId` and validates one Listing, with JSON `null` meaning not
+found. (added 2026-09-24, removal slice 4)
 
 ### 3.1 Pagination
 
@@ -380,6 +402,7 @@ Stable error codes are:
 | `cancelled` | caller or host cancelled | no automatic retry |
 | `invalid_request` | host/runtime contract bug before invocation | never |
 | `invalid_response` | Extension output violates schema | after Extension fix |
+| `invalid_result` | host detected a well-formed result with an invalid meaning (for example, a Listing id that does not match the requested id); engines must not send this code | after Source fix |
 | `unsupported` | declared/implemented contract mismatch | after Extension fix |
 | `unsupported_language` | requested declared language is currently unavailable | after selection changes |
 | `network` | transport failed | caller policy |
@@ -432,6 +455,22 @@ Operation result readers ignore unknown fields, while required fields and enum c
 rules of the selected version. A new operation or capability is opt-in through declaration and
 feature negotiation, not inferred from an export.
 
+The optional `listing` operation and `externalIds` declaration key are additive opt-in features
+introduced by Host API 1.1; declarations selecting 1.0 must not use them. (added 2026-09-24,
+removal slice 4)
+
+Leftmost-label wildcards in `network.assetOrigins` are an additive opt-in feature introduced by
+Host API 1.2; declarations selecting an older version must not use them. (added 2026-09-24, #230)
+
+Host API 1.2 is the additive release that introduces both leftmost-label asset-origin wildcards
+and the chapter `groups` result field. A Source using either feature should declare
+`hostAPI.minimum` as `1.2`; a host selecting an older version rejects the wildcard declaration or
+returns `invalid_result` when groups appears in an operation result.
+
+A Source using `listing` or `externalIds` should declare `hostAPI.minimum` as `1.1`, so a host
+older than 1.1 reports a version error rather than an unknown key. (added 2026-09-24, removal
+slice 4)
+
 ## 8. Language contract
 
 Language tags are canonicalized BCP 47 strings. A declaration chooses one mode:
@@ -481,10 +520,50 @@ URLs drop that field with a warning; policy-invalid URLs and all invalid page or
 the operation. This distinction keeps cosmetic damage recoverable without silently weakening the
 reader or navigation boundary.
 
-> **Amendment 4 (2026-09-04, contract gap 4).** The sentence above is superseded for the optional
-> cover field alone. A **policy-invalid optional cover URL now also drops the field with a
-> warning** and keeps the item, carrying the distinct warning code `policy_invalid_url`. As
-> written, one `http://` cover rejected the whole operation and erased an otherwise usable feed,
+An asset origin may use exactly one wildcard in the leftmost label, for example
+`https://*.mangadex.network`. It matches exactly one additional host label (`a.mangadex.network`),
+never the apex or a deeper name. Wildcards are HTTPS-only, are rejected in `httpOrigins` and
+`browserOrigins`, and must contain at least two labels after `*.`. The host rejects suffixes in
+an embedded ICANN and PRIVATE Public Suffix List snapshot using the standard rule precedence:
+wildcard rules match one label and exception rules override wildcard rules. This is required
+because the platform has no public suffix list API, and rejects a wildcard whose one-label
+children are public suffixes. Wildcard-matched assets use the host image loader, which resolves
+the hostname and rejects private addresses before fetching, just like other remotely loaded
+covers and pages. This is a resolve-then-fetch check; DNS can rebind between those operations.
+The connected-peer check in §10.2 closes the response-acceptance gap for ImageCache.
+(added 2026-09-24, #230, #237)
+
+### 10.1 Network transport hardening (#233)
+
+This section covers the guarded host HTTP and repository transports only. They keep `URLSession`
+(option 2 from #233). TLS validates the original hostname, so a
+rebound private host cannot complete the handshake with a valid certificate. The guarded
+sessions bypass system proxies (`connectionProxyDictionary = [:]`), because a proxy's connected
+peer is not the requested destination. Missing connect-time peer metrics fail closed with the
+same policy error as a private peer. The connected peer is still checked after the response, and
+all request and redirect URLs are HTTPS-only.
+
+This closes response-body exfiltration but does not make URLSession connect to a pinned IP: a
+rebound host may receive a TLS ClientHello, but no plaintext request body. A future transport may
+add IP pinning if that remaining exposure needs to be eliminated.
+
+Image loads have their own policy in §10.2. `WKWebView` traffic is outside this decision and
+cannot bypass system proxies.
+
+### 10.2 Image-load transport hardening (#244)
+
+On a network miss, `ImageCache` uses a dedicated `URLSessionDataFetcher` with system proxies
+bypassed and URLSession caching disabled. It rejects local-cache responses and missing or
+non-public connected peers before decoding or storing image bytes. The same destination-policy
+DNS check still runs before the fetch; redirects are not followed. ImageCache's own disk cache
+continues to serve previously loaded images offline, and local `file://` pages still bypass
+network transport.
+
+> **Amendment 4 (2026-09-04, contract gap 4).** The opening §10 rule for policy-invalid URLs is
+> superseded for the optional cover field alone. A **policy-invalid optional cover URL now also
+> drops the field with a warning** and keeps the item, carrying the distinct warning code
+> `policy_invalid_url`. As written, one `http://` cover rejected the whole operation and erased an
+> otherwise usable feed,
 > defeating Section 2.1's partial-success rule; the host never loads the rejected URL under either
 > reading, so nothing is weakened by keeping the rest of the feed. **Unchanged:** every page URL,
 > every browser `webURL`, and every network request URL still reject the operation. See
@@ -698,3 +777,44 @@ open because the available evidence cannot settle them honestly:
 
 None changes the v1 semantic boundary. Each must be resolved before its dependent runtime or
 installer slice is called complete.
+
+## Amendment 5 — paged requests use a nested page value (2026-09-22)
+
+*Renumbered from "Amendment 3" on 2026-09-24: that number was already used by the Q10
+version-grammar amendment above, and 4 by the optional-operations one. "Flat" and "nested"
+describe engine request shapes, not Host API versions.*
+
+**Decision:** Option B from GitHub issue #186 is adopted. Every paged entry point sends its
+request with the designed nested shape: `{query, page: {cursor, limit}}` for `search`, and
+`{page: {cursor, limit}}` for `popular`, `newTitles`, and `latestUpdates` (with the additional
+fields shown in the Entry points table where applicable). A paged result continues to return
+`Page<T>` with its opaque `nextCursor` field.
+
+The repository system exists so third parties can write engines, and the request shape is
+cheapest to settle before any third-party engines exist. Nesting keeps paging opaque and uniform
+across feeds and leaves room for other paging styles without colliding with query fields. The
+host passes a returned cursor back unchanged; engines own the token's meaning.
+
+The shipped WeebCentral engine was migrated to read `request.page.cursor` and
+`request.page.limit` in the implementation accompanying this amendment. During the
+transition, the host also sends the same values as legacy top-level `request.cursor` and
+`request.limit`, allowing pre-#186 (flat-shape) engines to continue paging while nested-shape engines read
+only the nested value and still reject requests without a `page` object. Remove this compatibility
+shim once all published engines use the nested shape, and no later than no-built-in-sources
+slice 6 removes the bundled package.
+
+## Amendment 6 — chapter scanlation-group credits (2026-09-24)
+
+**Decision:** Host API 1.2's additive features are leftmost-label `network.assetOrigins` wildcards
+and an optional `groups` array on chapter results.
+The host trims each name, limits the array to ten names and each name to 200 Unicode scalars.
+A non-array, non-string element, empty name, or over-limit value drops only `groups`, records a
+warning, and keeps the chapter with groups unknown. Missing `groups` likewise remains unknown
+rather than an empty claim. The app preserves valid names in chapter values and shows them joined
+by `, ` in the chapter list, including the credit in the row's accessibility label. The Host API
+version gate is evaluated at result time: groups returned under a selected version below 1.2 are
+a real `invalid_result`, unlike #234's declaration-time `externalIds` gate, because groups is an
+optional field in an otherwise valid chapter result and can be safely degraded when malformed.
+
+This makes the scanlation-group credit required by MangaDex's acceptable-use policy available to
+configuration-backed Sources without inventing source-specific selection or deduplication policy.

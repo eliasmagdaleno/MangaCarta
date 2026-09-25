@@ -10,6 +10,7 @@
 import SwiftUI
 
 struct RecommendationRail: View {
+    @EnvironmentObject private var registry: SourceRegistry
     let items: [ScoredManga]
     let onNotInterested: (Manga) -> Void
     let onMoreLikeThis: (Manga) -> Void
@@ -18,7 +19,7 @@ struct RecommendationRail: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(alignment: .top, spacing: Gutter.rail) {
                 ForEach(items) { rec in
-                    NavigationLink(destination: MangaDetailView(manga: rec.manga)) {
+                    NavigationLink(destination: MangaDetailView(manga: rec.manga, registry: registry)) {
                         MangaCoverCard(
                             title: rec.manga.title,
                             coverURL: rec.manga.coverURL,

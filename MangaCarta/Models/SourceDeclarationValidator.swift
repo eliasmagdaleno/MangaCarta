@@ -43,6 +43,11 @@ enum SourceDeclarationError: Error, Equatable, Sendable {
     case invalidName(reason: TextRejectionReason)
     case invalidEngine(String)
     case invalidAdultClassification(String)
+    case featureRequiresHostAPIVersion(feature: String, minimum: HostAPIVersion,
+                                       selected: HostAPIVersion)
+    case externalIDsRequireListing
+    case unknownExternalIDNamespace(String)
+    case duplicateExternalIDNamespace(String)
     case missingRequiredCapabilities([String])
     case noDiscoveryCapability
     case invalidLanguageMode(String)
@@ -107,6 +112,15 @@ extension SourceDeclarationError {
         case .invalidAdultClassification(let value):
             return "adult classification '\(value)' is not one of none, mixed, adultOnly. "
                 + "The classification is required and is never assumed."
+        case .featureRequiresHostAPIVersion(let feature, let minimum, let selected):
+            return "\(feature) requires Host API \(minimum) or newer, but this declaration "
+                + "selects Host API \(selected)."
+        case .externalIDsRequireListing:
+            return "A Source that publishes externalIds must declare capabilities.listing."
+        case .unknownExternalIDNamespace(let value):
+            return "externalIds namespace '\(value)' is not supported."
+        case .duplicateExternalIDNamespace(let value):
+            return "externalIds namespace '\(value)' is listed more than once."
         case .missingRequiredCapabilities(let names):
             return "A browsable and readable Source must declare "
                 + "\(SourceOperation.requiredForReading.map(\.rawValue).joined(separator: ", "))"
@@ -179,7 +193,7 @@ enum SourceDeclarationValidator {
 
     private static let topLevelKeys: Set<String> = [
         "localId", "name", "engine", "configuration", "adult",
-        "capabilities", "languages", "network", "presentation", "hostAPI"
+        "capabilities", "languages", "network", "presentation", "hostAPI", "externalIds"
     ]
 
     /// Validates the declaration in `json`.
@@ -239,17 +253,30 @@ enum SourceDeclarationValidator {
         let engineName = try engine(from: root)
         let engineConfiguration = try configuration(from: root)
         let classification = try adult(from: root)
-        let declared = try capabilities(from: root)
-        let languagePolicy = try languages(from: root)
-        let networkPolicy = try network(from: root)
-        let presentationRecord = try presentation(from: root, capabilities: declared)
         let range = try hostAPIRange(from: root)
-
-        try checkRegistrationInvariants(declared)
         guard let selected = hostAPI.highestVersion(in: range) else {
             throw SourceDeclarationError.incompatibleHostAPI(declared: range,
                                                              hostSupported: hostAPI.installedVersions)
         }
+        let externalIds = try externalIDs(from: root)
+        let declared = try capabilities(from: root)
+        if selected < HostAPIVersion(major: 1, minor: 1) {
+            if !externalIds.isEmpty {
+                throw SourceDeclarationError.featureRequiresHostAPIVersion(
+                    feature: "externalIds", minimum: HostAPIVersion(major: 1, minor: 1), selected: selected)
+            }
+            if root["capabilities"].flatMap(\.objectValue)?[SourceOperation.listing.rawValue] != nil {
+                throw SourceDeclarationError.featureRequiresHostAPIVersion(
+                    feature: "capabilities.listing", minimum: HostAPIVersion(major: 1, minor: 1), selected: selected)
+            }
+        }
+        if !externalIds.isEmpty && !declared.supports(.listing) {
+            throw SourceDeclarationError.externalIDsRequireListing
+        }
+        let languagePolicy = try languages(from: root)
+        let networkPolicy = try network(from: root, selectedHostAPIVersion: selected)
+        let presentationRecord = try presentation(from: root, capabilities: declared)
+        try checkRegistrationInvariants(declared)
 
         return SourceDeclaration(qualifiedId: qualifiedId,
                                  localId: identifier,
@@ -257,6 +284,7 @@ enum SourceDeclarationValidator {
                                  engine: engineName,
                                  configuration: engineConfiguration,
                                  adult: classification,
+                                 externalIds: externalIds,
                                  capabilities: declared,
                                  languages: languagePolicy,
                                  network: networkPolicy,
@@ -321,6 +349,27 @@ enum SourceDeclarationValidator {
         return classification
     }
 
+    private static func externalIDs(from root: [String: JSONValue]) throws -> [String] {
+        guard let value = root["externalIds"] else { return [] }
+        guard let items = value.arrayValue else {
+            throw SourceDeclarationError.wrongType(path: "externalIds", expected: "array")
+        }
+        var namespaces: [String] = []
+        for item in items {
+            guard let namespace = item.stringValue else {
+                throw SourceDeclarationError.wrongType(path: "externalIds", expected: "string")
+            }
+            guard namespace == "mal" else {
+                throw SourceDeclarationError.unknownExternalIDNamespace(namespace)
+            }
+            guard !namespaces.contains(namespace) else {
+                throw SourceDeclarationError.duplicateExternalIDNamespace(namespace)
+            }
+            namespaces.append(namespace)
+        }
+        return namespaces
+    }
+
     // MARK: - Capabilities
 
     private static func capabilities(from root: [String: JSONValue]) throws -> SourceCapabilities {
@@ -383,19 +432,28 @@ enum SourceDeclarationValidator {
 
     // MARK: - Network
 
-    private static func network(from root: [String: JSONValue]) throws -> NetworkPolicy {
+    private static func network(from root: [String: JSONValue],
+                                selectedHostAPIVersion: HostAPIVersion) throws -> NetworkPolicy {
         let dictionary = try object(root, "network", at: "")
         try rejectUnknownKeys(in: dictionary,
                               allowed: ["httpOrigins", "browserOrigins", "assetOrigins"],
                               at: "network")
+        let assetOrigins = try origins(dictionary, "assetOrigins", allowWildcards: true)
+        if selectedHostAPIVersion < HostAPIVersion(major: 1, minor: 2),
+           assetOrigins.contains(where: { $0.contains("*") }) {
+            throw SourceDeclarationError.featureRequiresHostAPIVersion(
+                feature: "network.assetOrigins wildcard",
+                minimum: HostAPIVersion(major: 1, minor: 2), selected: selectedHostAPIVersion)
+        }
         return NetworkPolicy(httpOrigins: try origins(dictionary, "httpOrigins"),
                              browserOrigins: try origins(dictionary, "browserOrigins"),
-                             assetOrigins: try origins(dictionary, "assetOrigins"))
+                             assetOrigins: assetOrigins)
     }
 
     /// An omitted list denies that role. Silence is never permission here: a Source that
     /// never declared a browser origin cannot reach one.
-    private static func origins(_ dictionary: [String: JSONValue], _ key: String) throws -> [String] {
+    private static func origins(_ dictionary: [String: JSONValue], _ key: String,
+                                allowWildcards: Bool = false) throws -> [String] {
         guard let value = dictionary[key] else { return [] }
         let path = "network.\(key)"
         guard let items = value.arrayValue else {
@@ -407,7 +465,7 @@ enum SourceDeclarationValidator {
             guard let raw = item.stringValue else {
                 throw SourceDeclarationError.wrongType(path: path, expected: "string")
             }
-            switch DeclaredOrigin.canonicalized(raw) {
+            switch DeclaredOrigin.canonicalized(raw, allowWildcard: allowWildcards) {
             case .rejected(let reason):
                 throw SourceDeclarationError.invalidOrigin(path: path, value: raw, reason: reason)
             case .canonical(let origin):
@@ -605,7 +663,7 @@ enum DeclaredOrigin {
         case rejected(String)
     }
 
-    static func canonicalized(_ raw: String) -> Outcome {
+    static func canonicalized(_ raw: String, allowWildcard: Bool = false) -> Outcome {
         guard let components = URLComponents(string: raw) else {
             return .rejected("it is not a parsable URL")
         }
@@ -623,6 +681,27 @@ enum DeclaredOrigin {
         }
         guard let host = components.host?.lowercased(), !host.isEmpty else {
             return .rejected("it has no host")
+        }
+        guard !host.hasSuffix("."), !host.contains("..") else {
+            return .rejected("a host may not contain trailing dots or empty labels")
+        }
+        if host.contains("*") && !allowWildcard {
+            return .rejected("wildcards are allowed only in assetOrigins")
+        }
+        if host.hasPrefix("*.") {
+            let suffix = String(host.dropFirst(2))
+            let labels = suffix.split(separator: ".")
+            guard host == "*.\(suffix)", !suffix.contains("*"), labels.count >= 2 else {
+                return .rejected("wildcards must be one leftmost label over at least two host labels")
+            }
+            // The two-label minimum also models the implicit TLD rule: *.ck is rejected
+            // before PSL lookup because a one-label suffix is never an acceptable boundary.
+            guard !PublicSuffixList.isPublicSuffix(suffix),
+                  !PublicSuffixList.isPublicSuffix("x.\(suffix)") else {
+                return .rejected("wildcards may not cover a public or shared-hosting suffix")
+            }
+        } else if host.contains("*") {
+            return .rejected("wildcards must be exactly one leftmost label")
         }
         if let reason = unreachableHostReason(host) {
             return .rejected(reason)
@@ -782,6 +861,7 @@ struct SourceDeclaration: Equatable, Sendable {
     /// and nowhere else in the record.
     let configuration: JSONValue
     let adult: AdultClassification
+    let externalIds: [String]
     let capabilities: SourceCapabilities
     let languages: LanguagePolicy
     let network: NetworkPolicy
@@ -796,6 +876,7 @@ struct SourceDeclaration: Equatable, Sendable {
                      engine: String,
                      configuration: JSONValue,
                      adult: AdultClassification,
+                     externalIds: [String],
                      capabilities: SourceCapabilities,
                      languages: LanguagePolicy,
                      network: NetworkPolicy,
@@ -808,6 +889,7 @@ struct SourceDeclaration: Equatable, Sendable {
         self.engine = engine
         self.configuration = configuration
         self.adult = adult
+        self.externalIds = externalIds
         self.capabilities = capabilities
         self.languages = languages
         self.network = network

@@ -58,6 +58,7 @@ enum SourceOperation: String, CaseIterable, Hashable, Sendable {
     case chapters
     case pages
     case webURL
+    case listing
 
     /// "`search`, `detail`, `chapters`, and `pages` are required for a browsable/readable
     /// Source". Order is the reporting order when several are missing.

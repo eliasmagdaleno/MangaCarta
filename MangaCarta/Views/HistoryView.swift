@@ -69,12 +69,16 @@ struct HistoryView: View {
 
     private func row(_ entry: ReadingEntry) -> some View {
         NavigationLink {
-            ReaderView(manga: entry.asManga, chapter: entry.asChapter,
-                       source: registry.source(for: entry.asManga),
-                       initialPosition: entry.position)
+            if let source = registry.source(for: entry.asManga) {
+                ReaderView(manga: entry.asManga, chapter: entry.asChapter,
+                           source: source,
+                           initialPosition: entry.position)
+            } else {
+                UnavailableSourceView()
+            }
         } label: {
             HStack(spacing: 12) {
-                AsyncImage(url: entry.coverURL) { phase in
+                CachedAsyncImage(url: entry.coverURL) { phase in
                     switch phase {
                     case .success(let img): img.resizable().scaledToFill()
                     default: CoverPlaceholder()
@@ -105,7 +109,7 @@ struct HistoryView: View {
         .listRowBackground(Ink.background)
         .contextMenu {
             NavigationLink {
-                MangaDetailView(manga: entry.asManga)
+                MangaDetailView(manga: entry.asManga, registry: registry)
             } label: {
                 Label("View Manga Details", systemImage: "book")
             }
@@ -152,7 +156,7 @@ extension ReadingEntry {
     var asManga: Manga {
         Manga(
             id: mangaId,
-            sourceId: sourceId ?? MangaDexSource.sourceID,
+            sourceId: sourceId ?? LegacySourceID.unattributed,
             title: mangaTitle,
             description: "",
             status: "unknown",

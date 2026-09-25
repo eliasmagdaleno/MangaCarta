@@ -39,3 +39,18 @@ function_body_length:
 large_tuple:
   warning: 3
   error: 4
+
+# Project-specific checks for bugs that tests missed.
+custom_rules:
+  # A string literal containing `(camelCase)` or `(a.b)` is almost always an interpolation
+  # missing its backslash — "x-(storageID)" instead of "x-\(storageID)". It compiles and the
+  # tests stay green, so it slipped past review twice on 2026-09-24 (#236 shared UI-test
+  # storage across runs; #242 collapsed every per-site rate limiter into one global key).
+  # Parentheses right after an identifier (a call like `fmt(r.days)`) are not flagged.
+  missing_interpolation_backslash:
+    name: "Missing interpolation backslash"
+    regex: '(?<![\\\w])\((?=[^)]*[A-Z.])[a-z_]\w*(?:\.[A-Za-z_]\w*)*\)'
+    match_kinds:
+      - string
+    message: "Looks like a string interpolation missing its backslash: write \\(name), not (name)."
+    severity: error

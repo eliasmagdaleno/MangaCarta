@@ -211,6 +211,7 @@ final class WorkMintingTests: XCTestCase {
                                           library: LibraryStore(defaults: defaults, works: works),
                                           profileStore: TasteProfileStore(defaults: defaults),
                                           workStore: works,
+                                          source: { MockSource() },
                                           makeProvider: { _ in capture })
         await engine.refresh()
 
@@ -237,10 +238,23 @@ final class WorkMintingTests: XCTestCase {
                              library: LibraryStore(defaults: makeDefaults()),
                              profileStore: TasteProfileStore(defaults: makeDefaults()),
                              workStore: works,
+                             source: { MockSource() },
                              makeProvider: { _ in EmptyProvider() })
     }
 
     private struct EmptyProvider: CandidateProvider {
         func candidates(for profile: TasteProfile, excluding: Set<String>, limit: Int) async throws -> [ScoredManga] { [] }
+    }
+
+    private struct MockSource: MangaSource {
+        let id = "mock"
+        let name = "Mock"
+        func search(title: String, limit: Int, offset: Int) async throws -> [Manga] { [] }
+        func popular(limit: Int, offset: Int) async throws -> [Manga] { [] }
+        func mangaDetail(id: String) async throws -> MangaDetail {
+            MangaDetail(description: "", authors: [], tags: [], contentRating: nil)
+        }
+        func chapters(mangaId: String) async throws -> [Chapter] { [] }
+        func pageURLs(chapterId: String, preferDataSaver: Bool) async throws -> [URL] { [] }
     }
 }

@@ -15,6 +15,7 @@ struct MangaDetailView: View {
     @EnvironmentObject private var engine: RecommendationEngine
     @EnvironmentObject private var fulfillment: FulfillmentCoordinator
     @EnvironmentObject private var sourcePreferences: SourcePreferenceStore
+    @Environment(\.dismiss) private var dismiss
     /// The graph's registry, not the singleton. They are the same object in production and
     /// different ones under a UI-test fixture, and reading the wrong one made every source
     /// lookup on this page miss.
@@ -22,19 +23,24 @@ struct MangaDetailView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .title) private var coverWidth: CGFloat = 132
     @ScaledMetric(relativeTo: .title) private var coverHeight: CGFloat = 188
-    @StateObject private var moreLikeThis = MoreLikeThisViewModel()
+    @StateObject private var moreLikeThis: MoreLikeThisViewModel
     @State private var synopsisExpanded = false
     @State private var showingWebPage = false
+    @State private var showingLocalDeleteConfirmation = false
+    @State private var localSizeText = "calculating size…"
+    @State private var deletionError: String?
 
-    init(manga: Manga) {
+    init(manga: Manga, registry: SourceRegistry) {
         self.manga = manga
         _vm = StateObject(wrappedValue: MangaDetailViewModel(manga: manga))
+        _moreLikeThis = StateObject(wrappedValue: MoreLikeThisViewModel(registry: registry))
     }
 
     /// The registered source this manga came from (nil if its source was unregistered).
     private var mangaSource: MangaSource? {
         registry.source(id: manga.sourceId)
     }
+    private var isLocalManga: Bool { manga.sourceId == LocalSource.sourceID }
 
     @State private var mangaWebURL: URL?
 
@@ -160,6 +166,7 @@ struct MangaDetailView: View {
             vm.load()
         }
         .task { await reconcileListingCounts() }
+        .task { await loadLocalSize() }
         .task { mangaWebURL = try? await mangaSource?.webURL(forManga: manga.id) }
         .task { await moreLikeThis.load(for: manga) }
         .task { clearNewlyDiscovered() }
@@ -184,6 +191,30 @@ struct MangaDetailView: View {
                 }
             }
         }
+        .alert("Delete \(manga.title) from this iPhone?", isPresented: $showingLocalDeleteConfirmation) {
+            Button("Delete from Device", role: .destructive) {
+                guard let local = mangaSource as? LocalSource else { return }
+                Task {
+                    do {
+                        try await LocalLibraryDeletion(local: local.store, library: library, works: works)
+                            .delete(itemId: manga.id)
+                        dismiss()
+                    } catch {
+                        deletionError = error.localizedDescription
+                    }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("The imported file (\(formattedLocalSize)) is removed from MangaCarta and can't be recovered. Reading history is kept.")
+        }
+        .alert("Couldn't delete from device", isPresented: Binding(
+            get: { deletionError != nil }, set: { if !$0 { deletionError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(deletionError ?? "The imported file could not be removed.")
+        }
     }
 
     // MARK: Hero — cover plate on flat paper: title, authors, metadata stamps.
@@ -195,7 +226,7 @@ struct MangaDetailView: View {
 
         return layout {
             // Cover plate.
-            AsyncImage(url: manga.coverURL) { phase in
+            CachedAsyncImage(url: manga.coverURL) { phase in
                 switch phase {
                 case .success(let img): img.resizable().scaledToFill()
                 case .empty: CoverPlaceholder(showsSpinner: true)
@@ -281,11 +312,13 @@ struct MangaDetailView: View {
                 Menu {
                     Section {
                         Button {
-                            withAnimation(.snappy(duration: 0.2)) { library.toggle(manga) }
+                            if isLocalManga { showingLocalDeleteConfirmation = true } else {
+                                withAnimation(.snappy(duration: 0.2)) { library.toggle(manga) }
+                            }
                         } label: {
                             Label(
-                                inLibrary ? "Remove from Library" : "Quick Add to Library",
-                                systemImage: inLibrary ? "trash" : "bookmark"
+                                isLocalManga ? "Delete from Device" : (inLibrary ? "Remove from Library" : "Quick Add to Library"),
+                                systemImage: isLocalManga || inLibrary ? "trash" : "bookmark"
                             )
                         }
                     }
@@ -317,7 +350,9 @@ struct MangaDetailView: View {
                     .foregroundStyle(inLibrary ? Ink.seal : Color.white)
                     .background(RoundedRectangle(cornerRadius: 12).fill(inLibrary ? Ink.sealSoft : Ink.seal))
                 } primaryAction: {
-                    withAnimation(.snappy(duration: 0.2)) { library.toggle(manga) }
+                            if isLocalManga { showingLocalDeleteConfirmation = true } else {
+                                withAnimation(.snappy(duration: 0.2)) { library.toggle(manga) }
+                            }
                 }
                 .buttonStyle(.plain)
             }
@@ -327,9 +362,13 @@ struct MangaDetailView: View {
 
     private func continueLink(_ action: ResumeAction, progress: Double?) -> some View {
         NavigationLink {
-            ReaderView(manga: manga, chapter: action.chapter,
-                       source: registry.source(for: manga),
-                       initialPosition: action.startPosition, chapters: vm.chapters)
+            if let source = registry.source(for: manga) {
+                ReaderView(manga: manga, chapter: action.chapter,
+                           source: source,
+                           initialPosition: action.startPosition, chapters: vm.chapters)
+            } else {
+                UnavailableSourceView()
+            }
         } label: {
             ZStack {
                 RoundedRectangle(cornerRadius: 12).fill(Ink.seal)
@@ -380,11 +419,13 @@ struct MangaDetailView: View {
         return Menu {
             Section {
                 Button {
-                    withAnimation(.snappy(duration: 0.2)) { library.toggle(manga) }
+                    if isLocalManga { showingLocalDeleteConfirmation = true } else {
+                        withAnimation(.snappy(duration: 0.2)) { library.toggle(manga) }
+                    }
                 } label: {
                     Label(
-                        inLibrary ? "Remove from Library" : "Quick Add to Library",
-                        systemImage: inLibrary ? "trash" : "bookmark"
+                        isLocalManga ? "Delete from Device" : (inLibrary ? "Remove from Library" : "Quick Add to Library"),
+                        systemImage: isLocalManga || inLibrary ? "trash" : "bookmark"
                     )
                 }
             }
@@ -414,10 +455,22 @@ struct MangaDetailView: View {
                         .strokeBorder(inLibrary ? Ink.seal : Ink.hairline, lineWidth: inLibrary ? 1.5 : 1)
                 )
         } primaryAction: {
-            withAnimation(.snappy(duration: 0.2)) { library.toggle(manga) }
+            if isLocalManga { showingLocalDeleteConfirmation = true } else {
+                withAnimation(.snappy(duration: 0.2)) { library.toggle(manga) }
+            }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(inLibrary ? "Manage Library Collections" : "Add to Library")
+        .accessibilityLabel(isLocalManga ? "Delete from Device" : (inLibrary ? "Manage Library Collections" : "Add to Library"))
+    }
+
+    private var formattedLocalSize: String {
+        localSizeText
+    }
+
+    private func loadLocalSize() async {
+        guard isLocalManga, let source = mangaSource as? LocalSource else { return }
+        let megabytes = Double(await source.store.itemSize(itemId: manga.id)) / 1_048_576
+        localSizeText = String(format: "%.1f MB", megabytes)
     }
 
     // MARK: Tags
@@ -538,10 +591,14 @@ struct MangaDetailView: View {
                         NavigationLink {
                             // The row advertises a saved position (ChapterRow's resume marker),
                             // so tapping it has to honour one — ADR-0014 decision 11.
-                            ReaderView(manga: manga, chapter: chapter,
-                                       source: registry.source(for: manga),
-                                       initialPosition: history.entry(forChapter: chapter.id)?.position,
-                                       chapters: vm.chapters)
+                            if let source = registry.source(for: manga) {
+                                ReaderView(manga: manga, chapter: chapter,
+                                           source: source,
+                                           initialPosition: history.entry(forChapter: chapter.id)?.position,
+                                           chapters: vm.chapters)
+                            } else {
+                                UnavailableSourceView()
+                            }
                         } label: {
                             ChapterRow(chapter: chapter)
                         }

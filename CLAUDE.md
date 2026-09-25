@@ -143,6 +143,8 @@ resort; if you must, mirror an existing entry across all four sections.
 
 ## Current state
 
+- `LocalSource` and `LocalLibraryStore` provide the on-device CBZ/ZIP library; Local is always registered but excluded from browse and update surfaces.
+
 The app builds and the core reading loop is implemented.
 
 - **Reader:** R→L is implemented as **reversed page order — NOT a mirror transform.** A
@@ -200,6 +202,7 @@ The app builds and the core reading loop is implemented.
   `bundled.invalid`, which `AppRepositoryTransport` serves from the app bundle;
   `ExtensionComposition.installBundledSources()` installs on first launch, and
   `WeebCentralIdentityMigration` rewrites persisted bare `"weebcentral"` ids to the qualified id.
+  **This and the built-in MangaDex Source are reversed by ADR-0003 Amendment 6; removal in progress.**
 - Design/spec/plan for shipped work live in `docs/superpowers/{specs,plans}/`.
 
 Still minimal: no cross-device sync. Content refresh is no longer manual-only (see above);

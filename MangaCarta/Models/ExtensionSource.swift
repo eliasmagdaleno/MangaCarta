@@ -23,9 +23,10 @@
 //    scroll `PagedMangaLoader` performs lands on consecutive pages without this adapter
 //    ever guessing a cursor's shape.
 //
-//  The request shape sent to the engine is the one the shipped `bundled theme engine`
-//  reads — `cursor` and `limit` beside the operation's own fields — which is the only
-//  engine contract that exists on `main` today.
+//  Paged requests carry the nested `page` value and, during the transition from v1,
+//  duplicate its cursor and limit at the top level for engines that still read the old
+//  shape. Remove the duplicate once all published engines use nesting, and no later than
+//  the no-built-in-sources slice 6 removes the bundled package (Host API design Amendment 5).
 //
 
 import Foundation
@@ -70,7 +71,7 @@ enum ExtensionSourceError: LocalizedError, Equatable {
             return "The request was cancelled."
         case .invalidRequest, .unsupported, .incompatibleVersion:
             return "This source can't handle that request. An update to the source may fix it."
-        case .invalidResponse:
+        case .invalidResponse, .invalidResult:
             return "The source returned something the app couldn't read."
         case .unsupportedLanguage:
             return "This source doesn't serve that language."
@@ -129,7 +130,8 @@ final class ExtensionSource: MangaSource {
         self.isNSFW = isNSFW
         self.lifecycle = lifecycle
         self.host = host
-        validator = ExtensionDomainValidator(assetOrigins: declaration.network.assetOrigins)
+        validator = ExtensionDomainValidator(assetOrigins: declaration.network.assetOrigins,
+                                              hostAPIVersion: declaration.selectedHostAPIVersion)
     }
 
     // MARK: - Identity and presentation
@@ -138,6 +140,8 @@ final class ExtensionSource: MangaSource {
     var name: String { declaration.name }
 
     var supportsTagBrowse: Bool { declaration.capabilities.supports(.tagBrowse) }
+
+    var publishesExternalIds: Bool { declaration.externalIds.contains("mal") }
 
     var homeFeedCapabilities: Set<SourceOperation> {
         Set(SourceOperation.discoveryFeeds.filter { declaration.capabilities.supports($0) })
@@ -244,6 +248,17 @@ final class ExtensionSource: MangaSource {
         return try validated { try validator.validateDetail(value).value.toMangaDetail() }
     }
 
+    func manga(id: String) async throws -> Manga? {
+        guard declaration.capabilities.supports(.listing) else { return nil }
+        let value = try await invoke(.listing, request: ["listingId": id])
+        if value is NSNull { return nil }
+        let listing = try validated { try validator.validateListing(value).value }
+        guard listing.id == id else {
+            throw ExtensionSourceError.invocation(.invalidResult)
+        }
+        return listing.toManga(sourceID: self.id)
+    }
+
     func chapters(mangaId: String) async throws -> [Chapter] {
         let value = try await invoke(.chapters, request: ["listingId": mangaId])
         return try validated { try validator.validateChapters(value).value.map { $0.toChapter() } }
@@ -320,8 +335,13 @@ final class ExtensionSource: MangaSource {
                 return []
             case .page(let at, let cursor):
                 var request = fields
+                // Paging is a nested Host API value. The initial cursor is explicitly null;
+                // subsequent cursors are replayed byte-for-byte from the previous response.
+                let pageCursor: Any = cursor.map { $0 as Any } ?? (NSNull() as Any)
+                request["page"] = ["cursor": pageCursor, "limit": limit]
+                // Compatibility shim for pre-#186 flat-shape engines; keep these values identical to page.
+                request["cursor"] = pageCursor
                 request["limit"] = limit
-                if let cursor { request["cursor"] = cursor }
                 let value = try await invoke(operation, request: request)
                 let (items, next, exhausted) = try validated { try parse(value) }
                 cursors.record(key: key, after: at, limit: limit, next: next, exhausted: exhausted)

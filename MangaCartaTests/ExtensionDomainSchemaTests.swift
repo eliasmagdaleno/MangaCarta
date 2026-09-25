@@ -18,11 +18,35 @@ final class ExtensionDomainSchemaTests: XCTestCase {
         return ExtensionDomainValidator(
             currentDate: now,
             calendar: calendar,
-            assetOrigins: ["https://cdn.example.test"]
+            assetOrigins: ["https://cdn.example.test"],
+            hostAPIVersion: HostAPIVersion(major: 1, minor: 2)
         )
     }
 
     // MARK: - Listing
+
+    func testInvalidMALIdIsDroppedWithWarning() throws {
+        let result = try validator.validateListing(["id": "manga-1", "title": "A Title",
+                                                    "externalIds": ["mal": "0"]])
+        XCTAssertNil(result.value.externalIds["mal"])
+        XCTAssertEqual(result.warnings.map(\.fieldPath), ["listing.externalIds.mal"])
+        XCTAssertEqual(result.warnings.map(\.itemIndex), [nil])
+    }
+
+    func testMALIdsMustBePositiveDecimalIntegers() throws {
+        let invalidValues: [String] = ["0", "-1", "12a", " 12", String(repeating: "9", count: 100)]
+        for value in invalidValues {
+            let result = try validator.validateListing(["id": "manga-1", "title": "A Title",
+                                                         "externalIds": ["mal": value]])
+            XCTAssertNil(result.value.externalIds["mal"], "unexpectedly kept \(value)")
+            XCTAssertEqual(result.warnings.map(\.fieldPath), ["listing.externalIds.mal"])
+        }
+
+        let valid = try validator.validateListing(["id": "manga-1", "title": "A Title",
+                                                    "externalIds": ["mal": "123"]])
+        XCTAssertEqual(valid.value.externalIds["mal"], "123")
+        XCTAssertTrue(valid.warnings.isEmpty)
+    }
 
     func testSparseListingPreservesWireMetadataAndAdapterUsesInvokedSource() throws {
         let result = try validator.validateListingPage(exhaustedPage(items: [[
@@ -109,6 +133,19 @@ final class ExtensionDomainSchemaTests: XCTestCase {
         ]]))
         XCTAssertNil(malformed.items.first?.coverURL)
         XCTAssertEqual(malformed.warnings.map(\.code), [.malformedURL])
+    }
+
+    func testWildcardAssetOriginMatchesExactlyOneLabel() throws {
+        let wildcard = ExtensionDomainValidator(assetOrigins: ["https://*.mangadex.network"])
+        let accepted = try wildcard.validateListing(["id": "manga-1", "title": "Title",
+                                                     "coverURL": "https://a.mangadex.network/cover.jpg"])
+        XCTAssertNotNil(accepted.value.coverURL)
+        for host in ["mangadex.network", "a.b.mangadex.network", "evilmangadex.network"] {
+            let result = try wildcard.validateListing(["id": "manga-1", "title": "Title",
+                                                       "coverURL": "https://\(host)/cover.jpg"])
+            XCTAssertNil(result.value.coverURL, host)
+            XCTAssertEqual(result.warnings.map(\.code), [.policyInvalidURL], host)
+        }
     }
 
     /// ADR-0024: a cover is cosmetic on both readings, so a policy-invalid cover drops the
@@ -218,6 +255,43 @@ final class ExtensionDomainSchemaTests: XCTestCase {
         XCTAssertNil(result.value[3].publishedAt)
         XCTAssertEqual(result.warnings.map(\.code), [.invalidField, .invalidField])
         XCTAssertEqual(result.warnings.first?.fieldPath, "items[1].publishedAt")
+    }
+
+    func testChapterGroupsAreTrimmedAndOptional() throws {
+        let result = try validator.validateChapters(["items": [
+            ["id": "with-groups", "groups": ["  Alpha  ", "Beta"]],
+            ["id": "without-groups"]
+        ]])
+
+        XCTAssertEqual(result.value[0].groups, ["Alpha", "Beta"])
+        XCTAssertEqual(result.value[0].toChapter().groups, ["Alpha", "Beta"])
+        XCTAssertNil(result.value[1].groups)
+        XCTAssertTrue(result.warnings.isEmpty)
+
+        let tenGroups = try validator.validateChapters(["items": [[
+            "id": "ten-groups", "groups": Array(repeating: "group", count: 10)
+        ]]])
+        XCTAssertEqual(tenGroups.value.first?.groups?.count, 10)
+    }
+
+    func testInvalidChapterGroupsAreIgnoredWithWarnings() throws {
+        let invalidValues: [Any] = [
+            "not-an-array",
+            ["valid", 7],
+            ["   "],
+            Array(repeating: "group", count: 11),
+            [String(repeating: "x", count: 201)]
+        ]
+
+        for value in invalidValues {
+            let result = try validator.validateChapters(["items": [[
+                "id": "chapter", "groups": value
+            ]]])
+            XCTAssertEqual(result.value.map(\.id), ["chapter"], "chapter should survive \(value)")
+            XCTAssertNil(result.value.first?.groups, "unexpectedly accepted \(value)")
+            XCTAssertEqual(result.warnings.count, 1)
+            XCTAssertTrue(result.warnings[0].fieldPath.hasPrefix("items[0].groups"))
+        }
     }
 
     func testChaptersDropInvalidItemsWithoutReorderingOrMerging() throws {

@@ -59,6 +59,12 @@ final class ExtensionSourceRegistrar {
     /// order is install order, oldest first, so the ranking's last tiebreak (ADR-0004)
     /// is stable across launches.
     func sync(_ snapshot: RepositoryStore.Snapshot) {
+        // The lifecycle registry is intentionally in-memory. Retained records (notably
+        // uninstalled Sources, and Sources refused during launch validation) therefore
+        // still need to contribute their qualified ids from the persisted snapshot, or
+        // historical Listings will fall back to the active Source after a relaunch.
+        let persistedSourceIDs = Set(snapshot.sources.keys.map(\.rawValue))
+        registry.setKnownSourceIDs(persistedSourceIDs.union(lifecycle.knownSourceIDs))
         var next: [QualifiedSourceID: ExtensionSource] = [:]
         var sources: [ExtensionSource] = []
         let records = snapshot.sources.values.sorted {

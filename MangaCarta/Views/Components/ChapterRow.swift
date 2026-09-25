@@ -48,6 +48,13 @@ struct ChapterRow: View {
                     .foregroundStyle(dimmed ? Ink.tertiary : Ink.primary)
                     .lineLimit(1)
 
+                if let groupCredit = presentation.groupCredit {
+                    Text(groupCredit)
+                        .font(.inkMono(11, weight: .medium))
+                        .foregroundStyle(dimmed ? Ink.tertiary : Ink.secondary)
+                        .lineLimit(1)
+                }
+
                 if inProgress, let p = progress {
                     Text("Page: \(p.page + 1)")
                         .font(.inkMono(11, weight: .semibold))

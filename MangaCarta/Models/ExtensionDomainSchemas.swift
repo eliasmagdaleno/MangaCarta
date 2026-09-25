@@ -15,6 +15,7 @@ enum ExtensionHostErrorCode: String, Codable, Equatable {
     case cancelled
     case invalidRequest = "invalid_request"
     case invalidResponse = "invalid_response"
+    case invalidResult = "invalid_result"
     case unsupported
     case unsupportedLanguage = "unsupported_language"
     case network
@@ -37,8 +38,8 @@ struct ExtensionSchemaError: LocalizedError, Equatable {
     let fieldPath: String
     let reason: String
 
-    init(fieldPath: String, reason: String) {
-        code = .invalidResponse
+    init(fieldPath: String, reason: String, code: ExtensionHostErrorCode = .invalidResponse) {
+        self.code = code
         self.fieldPath = fieldPath
         self.reason = reason
     }
@@ -143,9 +144,10 @@ struct ExtensionChapter: Equatable {
     let title: String?
     let publishedAt: Date?
     let language: String?
+    let groups: [String]?
 
     func toChapter() -> Chapter {
-        Chapter(id: id, number: number ?? "?", title: title, date: publishedAt)
+        Chapter(id: id, number: number ?? "?", title: title, date: publishedAt, groups: groups)
     }
 }
 
@@ -164,13 +166,16 @@ struct ExtensionDomainValidator {
 
     private let currentYear: Int
     private let assetOrigins: Set<String>
+    private let hostAPIVersion: HostAPIVersion
 
     /// The clock is injected so the `current year + 1` wire bound remains stable in tests.
     init(currentDate: Date = Date(),
          calendar: Calendar = Calendar(identifier: .gregorian),
-         assetOrigins: [String]) {
+         assetOrigins: [String],
+         hostAPIVersion: HostAPIVersion = HostAPIVersion(major: 1, minor: 0)) {
         currentYear = calendar.component(.year, from: currentDate)
         self.assetOrigins = Set(assetOrigins.compactMap(Self.normalizedOrigin))
+        self.hostAPIVersion = hostAPIVersion
     }
 
     // MARK: - Operation validators
@@ -201,6 +206,14 @@ struct ExtensionDomainValidator {
                                       nextCursor: page.nextCursor,
                                       exhausted: page.exhausted,
                                       warnings: warnings)
+    }
+
+    func validateListing(_ value: Any) throws -> ExtensionValidatedResult<ExtensionListing> {
+        try validateJSON(value)
+        guard let object = value as? [String: Any] else {
+            throw invalid("listing", "expected an object")
+        }
+        return try listing(from: object, path: "listing", itemIndex: nil)
     }
 
     func validateUpdatePage(_ value: Any) throws -> ExtensionValidatedPage<ExtensionUpdate> {
@@ -295,6 +308,14 @@ struct ExtensionDomainValidator {
                 let number = try optionalString(object, key: "number", path: path)
                 let title = try optionalString(object, key: "title", path: path)
                 let language = try optionalString(object, key: "language", path: path)
+                let groups: [String]?
+                do {
+                    groups = try chapterGroups(object, path: path)
+                } catch let error as ExtensionSchemaError {
+                    if error.code == .invalidResult { throw error }
+                    groups = nil
+                    warnings.append(warning(.invalidField, index, error.fieldPath))
+                }
 
                 var publishedAt: Date?
                 if let rawDate = object["publishedAt"] {
@@ -310,8 +331,10 @@ struct ExtensionDomainValidator {
                                                   number: number,
                                                   title: title,
                                                   publishedAt: publishedAt,
-                                                  language: language))
-            } catch is ExtensionSchemaError {
+                                                  language: language,
+                                                  groups: groups))
+            } catch let error as ExtensionSchemaError {
+                if error.code == .invalidResult { throw error }
                 warnings.append(warning(.invalidField, index, path))
             }
         }
@@ -351,7 +374,7 @@ struct ExtensionDomainValidator {
 
     private func listing(from object: [String: Any],
                          path: String,
-                         itemIndex: Int) throws -> ExtensionValidatedResult<ExtensionListing> {
+                         itemIndex: Int?) throws -> ExtensionValidatedResult<ExtensionListing> {
         let id = try requiredNonemptyString(object, key: "id", path: path,
                                             maximumUTF8Bytes: 512)
         let title = try requiredNonemptyString(object, key: "title", path: path,
@@ -361,10 +384,18 @@ struct ExtensionDomainValidator {
         let contentRating = try enumString(object, key: "contentRating", path: path,
                                            allowed: Self.contentRatings)
         let year = try listingYear(object, path: path)
-        let externalIds = try stringDictionary(object, key: "externalIds", path: path) ?? [:]
+        var externalIds = try stringDictionary(object, key: "externalIds", path: path) ?? [:]
         let alternateTitles = try alternateTitles(object, path: path)
         var coverURL: URL?
         var warnings: [ExtensionValidationWarning] = []
+
+        if let mal = externalIds["mal"],
+           (mal.isEmpty
+            || mal.unicodeScalars.contains { $0.value < 48 || $0.value > 57 }
+            || Int(mal).map({ $0 > 0 }) != true) {
+            externalIds.removeValue(forKey: "mal")
+            warnings.append(warning(.invalidField, itemIndex, "\(path).externalIds.mal"))
+        }
 
         if let rawCover = try optionalString(object, key: "coverURL", path: path) {
             switch assetURL(rawCover) {
@@ -495,7 +526,7 @@ struct ExtensionDomainValidator {
         guard components.user == nil,
               components.password == nil,
               let origin = Self.normalizedOrigin(raw),
-              assetOrigins.contains(origin) else {
+              assetOrigins.contains(where: { Self.originMatches(origin, pattern: $0) }) else {
             return .policyInvalid
         }
         return .valid(url)
@@ -505,7 +536,7 @@ struct ExtensionDomainValidator {
         guard let components = URLComponents(string: raw),
               components.scheme?.lowercased() == "https",
               let host = components.host?.lowercased(),
-              !host.isEmpty,
+              !host.isEmpty, !host.hasSuffix("."), !host.contains(".."),
               components.user == nil,
               components.password == nil else {
             return nil
@@ -514,6 +545,18 @@ struct ExtensionDomainValidator {
             return "https://\(host):\(port)"
         }
         return "https://\(host)"
+    }
+
+    private static func originMatches(_ origin: String, pattern: String) -> Bool {
+        guard let actual = URL(string: origin), let allowed = URL(string: pattern),
+              actual.scheme == allowed.scheme,
+              (actual.port ?? 443) == (allowed.port ?? 443),
+              let actualHost = actual.host?.lowercased(), let allowedHost = allowed.host?.lowercased()
+        else { return false }
+        guard allowedHost.hasPrefix("*.") else { return actualHost == allowedHost }
+        let suffix = String(allowedHost.dropFirst(2))
+        return actualHost.hasSuffix(".\(suffix)")
+            && actualHost.split(separator: ".").count == suffix.split(separator: ".").count + 1
     }
 
     // MARK: - JSON and scalar validation
@@ -662,6 +705,29 @@ struct ExtensionDomainValidator {
         }
     }
 
+    private func chapterGroups(_ object: [String: Any], path: String) throws -> [String]? {
+        guard let array = try optionalArray(object, key: "groups", path: path) else { return nil }
+        guard hostAPIVersion >= HostAPIVersion(major: 1, minor: 2) else {
+            throw invalidResult("\(path).groups", "requires Host API 1.2")
+        }
+        guard array.count <= 10 else {
+            throw invalid("\(path).groups", "too many group names")
+        }
+        return try array.enumerated().map { index, value in
+            guard let string = value as? String else {
+                throw invalid("\(path).groups[\(index)]", "expected a string")
+            }
+            let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else {
+                throw invalid("\(path).groups[\(index)]", "expected a nonempty string")
+            }
+            guard trimmed.unicodeScalars.count <= 200 else {
+                throw invalid("\(path).groups[\(index)]", "string exceeds its Unicode scalar limit")
+            }
+            return trimmed
+        }
+    }
+
     private func stringDictionary(_ object: [String: Any],
                                   key: String,
                                   path: String) throws -> [String: String]? {
@@ -716,6 +782,10 @@ struct ExtensionDomainValidator {
 
     private func invalid(_ path: String, _ reason: String) -> ExtensionSchemaError {
         ExtensionSchemaError(fieldPath: path, reason: reason)
+    }
+
+    private func invalidResult(_ path: String, _ reason: String) -> ExtensionSchemaError {
+        ExtensionSchemaError(fieldPath: path, reason: reason, code: .invalidResult)
     }
 
     private func warning(_ code: ExtensionValidationWarningCode,

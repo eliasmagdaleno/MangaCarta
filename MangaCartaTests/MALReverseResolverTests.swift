@@ -19,6 +19,21 @@ import XCTest
 @MainActor
 final class MALReverseResolverTests: XCTestCase {
 
+    func testNoRegisteredExternalIdSourceDegradesToEmpty() async {
+        let defaults = UserDefaults(suiteName: "test.reverse.unavailable.\(UUID().uuidString)")!
+        var registered: MangaSource?
+        let resolver = MALReverseResolver(
+            store: EntityResolutionStore(defaults: defaults),
+            source: { registered })
+        let out = await resolver.resolve([.init(malId: 55, title: "Unavailable")])
+        XCTAssertTrue(out.isEmpty)
+        XCTAssertNil(EntityResolutionStore(defaults: defaults).reverseResolution(malId: 55))
+
+        registered = StubSource(results: [manga("md-1", title: "Unavailable", malId: 55)])
+        let recovered = await resolver.resolve([.init(malId: 55, title: "Unavailable")])
+        XCTAssertEqual(recovered[55]?.id, "md-1")
+    }
+
     // MARK: - Fixtures
 
     private func store() -> EntityResolutionStore {
@@ -417,6 +432,20 @@ private func manga(_ id: String, title: String, malId: Int? = nil) -> Manga {
 private func aniList(_ id: Int, malId: Int?) -> AniListWork {
     AniListWork(anilistId: id, malId: malId, knownTitles: ["Title \(id)"],
                 genres: [], tags: [], publicationStatus: .releasing, chapterTotal: nil)
+}
+
+private struct StubSource: MangaSource {
+    let id = "bridge"
+    let name = "Bridge"
+    let results: [Manga]
+
+    func search(title: String, limit: Int, offset: Int) async throws -> [Manga] { results }
+    func popular(limit: Int, offset: Int) async throws -> [Manga] { [] }
+    func mangaDetail(id: String) async throws -> MangaDetail {
+        MangaDetail(description: "", authors: [], tags: [], contentRating: nil)
+    }
+    func chapters(mangaId: String) async throws -> [Chapter] { [] }
+    func pageURLs(chapterId: String, preferDataSaver: Bool) async throws -> [URL] { [] }
 }
 
 private struct SearchFailed: Error {}

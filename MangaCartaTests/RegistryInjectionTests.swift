@@ -69,7 +69,7 @@ final class RegistryInjectionTests: XCTestCase {
         let registry = injectedRegistry(active: Self.injectedB)
         let vm = HomeViewModel(registry: registry)
 
-        XCTAssertEqual(vm.source.id, Self.injectedB)
+        XCTAssertEqual(vm.source?.id, Self.injectedB)
     }
 
     /// Read at access time, not captured at construction — a Settings switch has to
@@ -80,7 +80,7 @@ final class RegistryInjectionTests: XCTestCase {
 
         registry.activeSourceID = Self.injectedB
 
-        XCTAssertEqual(vm.source.id, Self.injectedB)
+        XCTAssertEqual(vm.source?.id, Self.injectedB)
     }
 
     // MARK: - Search
@@ -88,7 +88,7 @@ final class RegistryInjectionTests: XCTestCase {
     func testSearchFollowsTheInjectedRegistrysActiveSource() {
         let vm = SearchViewModel(registry: injectedRegistry(active: Self.injectedB))
 
-        XCTAssertEqual(vm.source.id, Self.injectedB)
+        XCTAssertEqual(vm.source?.id, Self.injectedB)
     }
 
     /// The chip bar scopes search without moving the app-wide active source, and the id it
@@ -98,7 +98,27 @@ final class RegistryInjectionTests: XCTestCase {
 
         vm.selectSource(id: Self.injectedB)
 
-        XCTAssertEqual(vm.source.id, Self.injectedB)
+        XCTAssertEqual(vm.source?.id, Self.injectedB)
+    }
+
+    func testEmptyRegistryHasNoActiveSourceAndDoesNotFallback() {
+        let registry = SourceRegistry(sources: [])
+        let manga = Manga(id: "x", sourceId: LegacySourceID.unattributed, title: "Title", description: "",
+                          status: "ongoing", year: nil, coverURL: nil, malId: nil)
+        XCTAssertNil(registry.active)
+        XCTAssertNil(registry.source(id: "mangadex"))
+        XCTAssertNil(registry.source(for: manga))
+        XCTAssertNil(registry.sourceForRefresh(sourceId: nil))
+    }
+
+    func testBrowseViewModelsDoNotReportAnErrorWithoutASource() async {
+        let registry = SourceRegistry(sources: [])
+        let home = HomeViewModel(registry: registry)
+        home.loadHome()
+        await Task.yield()
+        XCTAssertNil(home.errorMessage)
+        let search = SearchViewModel(registry: registry)
+        XCTAssertNil(search.source)
     }
 
     // MARK: - Detail
@@ -150,6 +170,22 @@ final class RegistryInjectionTests: XCTestCase {
         await vm.loadAsync()
 
         XCTAssertEqual(vm.chapters.count, 3)
+    }
+
+    func testDetailDoesNotFallbackForAnUninstalledSource() async {
+        let registry = injectedRegistry(active: Self.injectedB)
+        let uninstalledID = "historical-extension"
+        registry.setKnownSourceIDs([uninstalledID])
+        let manga = Manga(id: "x", sourceId: uninstalledID, title: "Title",
+                          description: "", status: "ongoing", year: nil, coverURL: nil,
+                          malId: nil)
+        let vm = MangaDetailViewModel(manga: manga)
+
+        vm.adopt(registry: registry)
+        await vm.loadAsync()
+
+        XCTAssertNotNil(vm.errorMessage)
+        XCTAssertTrue(vm.chapters.isEmpty)
     }
 
     /// Loading before the view has adopted a registry says so rather than showing an empty

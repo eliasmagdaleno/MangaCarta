@@ -536,6 +536,7 @@ final class MangaCartaTests: XCTestCase {
     private struct MockSource: MangaSource {
         let id: String
         let name: String
+        var publishesExternalIds = false
         var detail: MangaDetail = MangaDetail(description: "d", authors: ["A"], tags: [], contentRating: "safe")
         var stubChapters: [Chapter] = [Chapter(id: "c1", number: "1", title: nil)]
         var stubManga: [Manga] = []
@@ -568,18 +569,48 @@ final class MangaCartaTests: XCTestCase {
         let b = MockSource(id: "b", name: "B")
         let registry = SourceRegistry(sources: [a, b])
 
-        XCTAssertEqual(registry.active.id, "a")               // first source is active by default
+        XCTAssertEqual(registry.active?.id, "a")               // first source is active by default
         XCTAssertEqual(registry.source(id: "b")?.id, "b")     // lookup by id
         XCTAssertNil(registry.source(id: "nope"))             // unknown id → nil
 
         registry.activeSourceID = "b"
-        XCTAssertEqual(registry.active.id, "b")               // switching active source works
+        XCTAssertEqual(registry.active?.id, "b")               // switching active source works
     }
 
     @MainActor func testRegistryActiveFallsBackWhenActiveIDMissing() {
         let registry = SourceRegistry(sources: [MockSource(id: "only", name: "Only")])
         registry.activeSourceID = "ghost"                     // point at a non-existent source
-        XCTAssertEqual(registry.active.id, "only")            // still resolves to the first source
+        XCTAssertEqual(registry.active?.id, "only")            // still resolves to the first source
+    }
+
+    @MainActor func testExternalIdCapabilityDispatchesThroughExistential() {
+        let source: any MangaSource = MockSource(id: "bridge", name: "Bridge",
+                                                  publishesExternalIds: true)
+        XCTAssertTrue(source.publishesExternalIds)
+    }
+
+    @MainActor func testRegistryExternalIdSourcePrefersActiveThenRegisteredFallback() {
+        let ordinary = MockSource(id: "ordinary", name: "Ordinary")
+        let bridge = MockSource(id: "bridge", name: "Bridge", publishesExternalIds: true)
+        let anotherBridge = MockSource(id: "bridge-2", name: "Bridge 2", publishesExternalIds: true)
+        let registry = SourceRegistry(sources: [ordinary, bridge, anotherBridge])
+
+        XCTAssertEqual(registry.externalIdSource?.id, "bridge")
+        registry.activeSourceID = "bridge-2"
+        XCTAssertEqual(registry.externalIdSource?.id, "bridge-2")
+        registry.activeSourceID = "ordinary"
+        XCTAssertEqual(registry.externalIdSource?.id, "bridge")
+        let none = SourceRegistry(sources: [ordinary])
+        XCTAssertNil(none.externalIdSource)
+    }
+
+    @MainActor func testMoreLikeThisViewModelReceivesTheInjectedRegistry() {
+        let source = MockSource(id: "bridge", name: "Bridge", publishesExternalIds: true)
+        let registry = SourceRegistry(sources: [source])
+        let viewModel = MoreLikeThisViewModel(registry: registry)
+
+        XCTAssertEqual(registry.externalIdSource?.id, "bridge")
+        XCTAssertNotNil(viewModel)
     }
 
     @MainActor func testRegistrySourceForMangaUsesSourceId() {
@@ -587,7 +618,7 @@ final class MangaCartaTests: XCTestCase {
         let b = MockSource(id: "b", name: "B")
         let registry = SourceRegistry(sources: [a, b])
         let manga = Manga(id: "x", sourceId: "b", title: "T", description: "", status: "ongoing", year: nil, coverURL: nil, malId: nil)
-        XCTAssertEqual(registry.source(for: manga).id, "b")   // resolves to the manga's own source
+    XCTAssertEqual(registry.source(for: manga)?.id, "b")   // resolves to the manga's own source
     }
 
     @MainActor func testDetailViewModelLoadsThroughInjectedSource() async {
@@ -832,7 +863,7 @@ final class MangaCartaTests: XCTestCase {
     @MainActor func testLoadImageFetchesOnceThenServesFromMemory() async {
         let png = tinyPNG()
         let counter = SyncCallCounter()
-        let cache = ImageCache(directory: makeTempDir(), fetcher: { _ in counter.bump(); return png })
+        let cache = ImageCache(directory: makeTempDir(), resolver: PublicImageResolver(), fetcher: { _ in counter.bump(); return png })
         let url = URL(string: "https://example.com/p1.png")!
 
         let first = await cache.loadImage(for: url)        // network
@@ -849,12 +880,12 @@ final class MangaCartaTests: XCTestCase {
         let url = URL(string: "https://example.com/p2.png")!
 
         let c1 = SyncCallCounter()
-        let cache1 = ImageCache(directory: dir, fetcher: { _ in c1.bump(); return png })
+        let cache1 = ImageCache(directory: dir, resolver: PublicImageResolver(), fetcher: { _ in c1.bump(); return png })
         _ = await cache1.loadImage(for: url)               // network → disk
         XCTAssertEqual(c1.count, 1)
 
         let c2 = SyncCallCounter()
-        let cache2 = ImageCache(directory: dir, fetcher: { _ in c2.bump(); return png }) // fresh memory, same disk
+        let cache2 = ImageCache(directory: dir, resolver: PublicImageResolver(), fetcher: { _ in c2.bump(); return png }) // fresh memory, same disk
         let hit = await cache2.loadImage(for: url)         // disk hit
         XCTAssertNotNil(hit)
         XCTAssertEqual(c2.count, 0)                        // no network
@@ -892,7 +923,7 @@ final class MangaCartaTests: XCTestCase {
 
     @MainActor func testClearEmptiesMemory() async {
         let png = tinyPNG()
-        let cache = ImageCache(directory: makeTempDir(), fetcher: { _ in png })
+        let cache = ImageCache(directory: makeTempDir(), resolver: PublicImageResolver(), fetcher: { _ in png })
         let url = URL(string: "https://example.com/p3.png")!
         _ = await cache.loadImage(for: url)
         XCTAssertNotNil(cache.image(for: url))
@@ -903,7 +934,7 @@ final class MangaCartaTests: XCTestCase {
     @MainActor func testPrefetchWarmsAllURLsAndDedupes() async {
         let png = tinyPNG()
         let counter = SyncCallCounter()
-        let cache = ImageCache(directory: makeTempDir(), fetcher: { _ in counter.bump(); return png })
+        let cache = ImageCache(directory: makeTempDir(), resolver: PublicImageResolver(), fetcher: { _ in counter.bump(); return png })
         let urls = (0..<8).map { URL(string: "https://example.com/pf\($0).png")! }
 
         await cache.prefetchAwaitable(urls)
@@ -944,6 +975,7 @@ final class MangaCartaTests: XCTestCase {
         let png = onePixelPNGData()
         let counter = CallCounter()
         let cache = ImageCache(directory: tempCacheDir(), retryBaseDelay: 0, maxImageRetries: 2,
+                               resolver: PublicImageResolver(),
                                fetcher: { _ in
             let n = await counter.next()
             if n == 0 { throw ImageFetchError.rateLimited }
@@ -957,6 +989,7 @@ final class MangaCartaTests: XCTestCase {
 
     func testImageCacheGivesUpAfterMaxRetries() async {
         let cache = ImageCache(directory: tempCacheDir(), retryBaseDelay: 0, maxImageRetries: 2,
+                               resolver: PublicImageResolver(),
                                fetcher: { _ in throw ImageFetchError.rateLimited })
         let img = await cache.loadImage(for: URL(string: "https://i.example/2.jpg")!)
         XCTAssertNil(img)
@@ -977,7 +1010,7 @@ final class MangaCartaTests: XCTestCase {
     func testPrefetchWithConcurrencyCapStillLoadsEveryURL() async {
         let png = onePixelPNGData()
         let fetched = FetchedURLs()
-        let cache = ImageCache(directory: tempCacheDir(), fetcher: { url in
+        let cache = ImageCache(directory: tempCacheDir(), resolver: PublicImageResolver(), fetcher: { url in
             await fetched.add(url); return png
         })
         let urls = (1...6).map { URL(string: "https://i.example/\($0).jpg")! }
@@ -1063,7 +1096,8 @@ final class MangaCartaTests: XCTestCase {
 
     @MainActor func testDefaultRegistryContainsAllBuiltInSources() {
         let registry = SourceRegistry()
-        XCTAssertEqual(registry.sources.map(\.id), ["mangadex"])
+        XCTAssertEqual(registry.sources.map(\.id), ["mangadex", "local"])
+        XCTAssertEqual(registry.visibleSources(includeAdult: true).map(\.id), ["mangadex"])
         XCTAssertNil(registry.source(id: "weebcentral"))
     }
 
@@ -1092,7 +1126,7 @@ final class MangaCartaTests: XCTestCase {
 
     @MainActor func testHomeViewModelInjectedSourceWins() {
         let vm = HomeViewModel(source: MockSource(id: "mock", name: "Mock"))
-        XCTAssertEqual(vm.source.id, "mock")
+        XCTAssertEqual(vm.source?.id, "mock")
     }
 
     @MainActor func testHomeSkipsUndeclaredFeeds() async throws {
@@ -1788,7 +1822,8 @@ final class MangaCartaTests: XCTestCase {
                                        provider: CandidateProvider,
                                        workStore: WorkStore? = nil,
                                        library: LibraryStore? = nil,
-                                       mangaDexSource: MangaSource = CannedTagSource(lists: [:], failTags: []),
+                                       source: MangaSource = CannedTagSource(lists: [:], failTags: []),
+                                       sourceProvider: (() -> MangaSource?)? = nil,
                                        now: Date = Date(), seed: UInt64 = 1,
                                        pushPriority: @escaping RecommendationEngine.PriorityPush = { _ in },
                                        tagBlocked: @escaping RecommendationEngine.TagBlocked = { _ in false })
@@ -1798,7 +1833,7 @@ final class MangaCartaTests: XCTestCase {
             .appendingPathComponent("EngineTests-\(UUID().uuidString)"))
         return RecommendationEngine(history: history, library: lib, profileStore: tasteStore,
                                     workStore: works,
-                                    mangaDexSource: mangaDexSource,
+                                    source: sourceProvider ?? { source },
                                     makeProvider: { _ in provider }, now: { now }, seed: seed,
                                     pushPriority: pushPriority, tagBlocked: tagBlocked)
     }
@@ -1809,6 +1844,51 @@ final class MangaCartaTests: XCTestCase {
         func candidates(for profile: TasteProfile, excluding: Set<String>, limit: Int) async throws -> [ScoredManga] {
             Array(pool.filter { !excluding.contains($0.manga.id) }.prefix(limit))
         }
+    }
+
+    @MainActor
+    private final class RecordingProvider: CandidateProvider {
+        var called = false
+        func candidates(for profile: TasteProfile, excluding: Set<String>, limit: Int) async throws -> [ScoredManga] {
+            called = true
+            return []
+        }
+    }
+
+    @MainActor
+    func testRecommendationEngineWithNilSourceDoesNotCallProvider() async {
+        let defaults = UserDefaults(suiteName: "test.engine.nil-source.\(UUID().uuidString)")!
+        let history = HistoryStore(defaults: defaults)
+        let works = WorkStore(directory: URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("EngineNil-\(UUID().uuidString)"))
+        let taste = TasteProfileStore(defaults: defaults)
+        for id in ["a", "b", "c"] { tagRead(works, history, id, [Tag(id: "t", name: "Action", group: "genre")]) }
+        let provider = RecordingProvider()
+        let engine = makeEngine(history: history, tasteStore: taste, provider: provider,
+                                workStore: works, sourceProvider: { nil })
+
+        await engine.refresh()
+
+        XCTAssertFalse(provider.called)
+        XCTAssertTrue(engine.recommendations.isEmpty)
+    }
+
+    @MainActor
+    func testRecommendationEnginePassesRegisteredSourceToProvider() async {
+        let defaults = UserDefaults(suiteName: "test.engine.source.\(UUID().uuidString)")!
+        let history = HistoryStore(defaults: defaults)
+        let works = WorkStore(directory: URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("EngineSource-\(UUID().uuidString)"))
+        let taste = TasteProfileStore(defaults: defaults)
+        for id in ["a", "b", "c"] { tagRead(works, history, id, [Tag(id: "t", name: "Action", group: "genre")]) }
+        let provider = RecordingProvider()
+        let source = CannedTagSource(lists: [:], failTags: [])
+        let engine = makeEngine(history: history, tasteStore: taste, provider: provider,
+                                workStore: works, sourceProvider: { source })
+
+        await engine.refresh()
+
+        XCTAssertTrue(provider.called)
     }
 
     private func scored(_ id: String) -> ScoredManga {
@@ -2644,6 +2724,22 @@ final class MangaCartaTests: XCTestCase {
         Work(id: WorkID(), displayTitle: titles.first ?? "",
              knownTitles: titles, externalIds: ExternalIDs(mal: mal, anilist: nil),
              listings: listings, snapshot: nil)
+    }
+
+    @MainActor func testBridgeWithoutSourceReturnsNilWithoutCaching() async throws {
+        let defaults = UserDefaults(suiteName: "test.bridge.unavailable.\(UUID().uuidString)")!
+        let resolver = MALEntityResolver(
+            store: EntityResolutionStore(defaults: defaults),
+            search: { _ in [] },
+            source: { nil })
+
+        do {
+            _ = try await resolver.resolve(work(["No Source Yet"]))
+            XCTFail("an unavailable bridge must throw so it cannot be cached as a miss")
+        } catch {
+            // Expected transient failure; the cache assertion below is the behavior seam.
+        }
+        XCTAssertTrue(EntityResolutionStore(defaults: defaults).cache.isEmpty)
     }
 
     /// The payoff ADR-0007 built `knownTitles` for: only the *second* Listing's spelling

@@ -477,6 +477,10 @@ A **bundled repository** is a format-1 index (§2) and its scripts shipped as re
 bundle. Everything above applies unchanged except where this section says otherwise; the decision
 and its reasons are ADR-0003 Amendment 5's, and this section is only the shape.
 
+> **Withdrawn 2026-09-22 per ADR-0003 Amendment 6.** The App Store build ships no bundled
+> repository; every Source is installed from a repository the reader adds by URL. The section is
+> kept as the record of the shape that shipped in #201 and is being removed.
+
 - **Identity.** A fixed version-4 UUID compiled into the app, one per bundled repository, never
   minted (§5.1 does not apply). Qualified ids are `<that-uuid>:<localId>` as in §5.2. The
   WeebCentral package's UUID is declared once in code beside the installer and nowhere else.

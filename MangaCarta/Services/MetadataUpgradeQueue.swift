@@ -52,30 +52,28 @@ final class MetadataUpgradeQueue: ObservableObject {
     /// ids may merge two Works, and the caller needs the survivor. Default no-op: the queue
     /// owns metadata and must not grow a dependency on whoever is listening (ADR-0010).
     private let workMetadataChanged: (WorkID) -> Void
+    private let listingParticipates: (ListingKey) -> Bool
 
     init(works: WorkStore,
          anilist: AniListAPI = AniListAPI(),
          rateLimiter: AniListRateLimiter = AniListRateLimiter(),
-         // Nil-defaulted rather than defaulted to the real thing: both are `@MainActor`,
-         // and a default argument is evaluated in a nonisolated context.
-         resolver: MALEntityResolver? = nil,
+         resolver: MALEntityResolver,
          memory: UpgradeAttemptMemory? = nil,
          idleInterval: TimeInterval = 60,
          now: @escaping () -> Date = Date.init,
          sleep: @escaping Sleep = { try await Task.sleep(nanoseconds: UInt64($0 * 1_000_000_000)) },
-         workMetadataChanged: @escaping (WorkID) -> Void = { _ in }) {
+         workMetadataChanged: @escaping (WorkID) -> Void = { _ in },
+         listingParticipates: @escaping (ListingKey) -> Bool = { _ in true }) {
         self.works = works
         self.anilist = anilist
         self.rateLimiter = rateLimiter
-        // `.shared` is deliberate and load-bearing: `EntityResolutionStore` reads
-        // UserDefaults once in `init` and never reloads, so any other instance is frozen
-        // at launch and the resolver's free cache fast path silently dies (ADR-0010).
-        self.resolver = resolver ?? MALEntityResolver(store: .shared)
+        self.resolver = resolver
         self.memory = memory ?? UpgradeAttemptMemory()
         self.idleInterval = idleInterval
         self.now = now
         self.sleep = sleep
         self.workMetadataChanged = workMetadataChanged
+        self.listingParticipates = listingParticipates
     }
 
     /// The last engagement-weight map the recommender pushed (ADR-0009). **Replaces**
@@ -339,6 +337,7 @@ final class MetadataUpgradeQueue: ObservableObject {
         let eligible = all
             .filter { !failedThisPass.contains($0) }
             .compactMap { works.work($0) }
+            .filter { $0.listings.contains(where: listingParticipates) }
             // Staleness AND attempt memory. The store can only ever apply the first half,
             // which is why the whole predicate lives here (ADR-0009).
             .filter { $0.snapshot == nil || $0.snapshot?.isStale(now: now) == true }

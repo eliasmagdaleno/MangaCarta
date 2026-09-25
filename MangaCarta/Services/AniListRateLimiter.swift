@@ -30,29 +30,19 @@ actor AniListRateLimiter {
     /// to want the burst.
     static let defaultInterval: TimeInterval = 2.0
 
-    private let minimumInterval: TimeInterval
-    /// The earliest instant the *next* caller may start. Advanced on reservation,
-    /// never on completion, so a slow request doesn't push later ones back.
-    private var nextSlot: Date?
+    private let limiter: RateLimiter
 
-    init(minimumInterval: TimeInterval = AniListRateLimiter.defaultInterval) {
-        self.minimumInterval = minimumInterval
+    init(minimumInterval: TimeInterval = AniListRateLimiter.defaultInterval,
+         clock: any RateLimiterClock = SystemRateLimiterClock(),
+         sleeper: any RateLimiterSleeper = TaskRateLimiterSleeper()) {
+        limiter = RateLimiter(minimumInterval: minimumInterval, clock: clock, sleeper: sleeper)
     }
 
     /// Runs `operation` no earlier than its reserved slot. A cold limiter runs
     /// immediately — the first request is never delayed, because a user-initiated
     /// fetch must not pay for a budget nobody has spent.
     func run<T>(_ operation: () async throws -> T) async rethrows -> T {
-        let now = Date()
-        // Claim-then-advance, with no `await` in between: this is the critical
-        // section, and reentrancy would break it if one were introduced here.
-        let slot = max(now, nextSlot ?? now)
-        nextSlot = slot.addingTimeInterval(minimumInterval)
-
-        let delay = slot.timeIntervalSince(now)
-        if delay > 0 {
-            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-        }
+        _ = try? await limiter.acquire(ignoringCancellation: true)
         return try await operation()
     }
 }

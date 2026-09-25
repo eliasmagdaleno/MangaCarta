@@ -6,6 +6,19 @@
 	<array>
 		<string>Elias-Magdaleno.Manga-Reader.libraryRefresh</string>
 	</array>
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.mangacarta.cbz</string>
+			<key>UTTypeDescription</key>
+			<string>MangaCarta Comic Book ZIP</string>
+			<key>UTTypeConformsTo</key>
+			<array><string>public.zip-archive</string></array>
+			<key>UTTypeTagSpecification</key>
+			<dict><key>public.filename-extension</key><array><string>cbz</string></array></dict>
+		</dict>
+	</array>
 	<key>MALClientID</key>
 	<string>$(MAL_CLIENT_ID)</string>
 	<key>CFBundleURLTypes</key>

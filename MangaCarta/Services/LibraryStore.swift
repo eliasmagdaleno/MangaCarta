@@ -157,6 +157,13 @@ final class LibraryStore: ObservableObject {
         saveItems()
     }
 
+    /// Local imports know their chapter count without a network refresh.
+    func setChapterNumbers(_ numbers: [String], for mangaID: String) {
+        guard let index = items.firstIndex(where: { $0.id == mangaID }) else { return }
+        items[index].chapterNumbers = numbers
+        saveItems()
+    }
+
     /// Toggle a specific collection membership for a manga.
     func toggleCollection(for manga: Manga, collectionId: String) {
         if let idx = items.firstIndex(where: { $0.id == manga.id }) {
@@ -292,10 +299,12 @@ final class LibraryStore: ObservableObject {
         // Pair each item with the source it was saved from, up front on the main actor:
         // asking the active browse source for every id sends e.g. a WeebCentral slug to
         // MangaDex. A nil `sourceId` predates multi-source and means MangaDex (as everywhere
-        // else); only an unregistered source id falls through to the active source.
+        // else); an item whose source is not registered is skipped, not refreshed elsewhere.
         let registry = self.registry
-        let current: [(item: LibraryItem, source: MangaSource)] = items.map { item in
-            (item, registry.sourceForRefresh(sourceId: item.sourceId))
+        let current: [(item: LibraryItem, source: MangaSource)] = items.compactMap { item in
+            guard let source = registry.sourceForRefresh(sourceId: item.sourceId) else { return nil }
+            guard source.participatesInUpdates else { return nil }
+            return (item, source)
         }
         let maxConcurrent = 4
         let results: [(String, [String])] = await withTaskGroup(
@@ -334,7 +343,7 @@ final class LibraryStore: ObservableObject {
     func applyRefreshedChapterNumbers(_ numbers: [ListingKey: [String]]) {
         var updated = items
         for index in updated.indices {
-            let key = ListingKey(sourceId: updated[index].sourceId ?? MangaDexSource.sourceID,
+            let key = ListingKey(sourceId: updated[index].sourceId ?? LegacySourceID.unattributed,
                                  mangaId: updated[index].id)
             if let chapterNumbers = numbers[key] { updated[index].chapterNumbers = chapterNumbers }
         }

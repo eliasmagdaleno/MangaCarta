@@ -87,6 +87,21 @@ final class ExtensionSourceTests: XCTestCase {
                                host: host)
     }
 
+    /// The v1 engine shipped from `origin/main` before #186. Keep it as a fixture so
+    /// the host's transition shim is exercised against the real legacy reader.
+    private func legacyWeebCentral() throws -> ExtensionSource {
+        let declaration = try PortFixtures.declaration(PortFixtures.weebCentralJSON,
+                                                       qualifiedId: Self.qualifiedID)
+        try lifecycle.register(declaration)
+        let fixtureURL = FixtureSite.root.appendingPathComponent("weebcentral/engine-v1.js")
+        let script = try String(contentsOf: fixtureURL, encoding: .utf8)
+        return ExtensionSource(declaration: declaration,
+                               script: script,
+                               isNSFW: false,
+                               lifecycle: lifecycle,
+                               host: host)
+    }
+
     // MARK: Criterion 8, clause "with sourceId stamped"
 
     /// Host API design, "Envelope and value rules": the host stamps the Listing, and an
@@ -100,6 +115,77 @@ final class ExtensionSourceTests: XCTestCase {
         XCTAssertEqual(results.first?.sourceId, Self.echoID)
         XCTAssertEqual(results.first?.id, "cursor=null;limit=3;query=x",
                        "the runtime received the request the adapter built")
+    }
+
+    func testListingLookupUsesOptionalCapabilityAndReturnsMALId() async throws {
+        let source = try echoSource(declareListing: true, declaresMAL: true)
+        let value = try await (source as any MangaSource).manga(id: "lookup-1")
+        XCTAssertEqual(value?.id, "lookup-1")
+        XCTAssertEqual(value?.sourceId, Self.echoID)
+        XCTAssertEqual(value?.malId, 123)
+        XCTAssertEqual(host.invocations.map(\.0), [.listing])
+    }
+
+    func testListingLookupUndeclaredDoesNotInvokeRuntime() async throws {
+        let source = try echoSource()
+        let value = try await (source as any MangaSource).manga(id: "lookup-1")
+        XCTAssertNil(value)
+        XCTAssertTrue(host.invocations.isEmpty)
+    }
+
+    func testListingLookupNullReturnsNil() async throws {
+        let source = try echoSource(declareListing: true, declaresMAL: true)
+        let value = try await source.manga(id: "missing")
+        XCTAssertNil(value)
+        XCTAssertEqual(host.invocations.map(\.0), [.listing])
+    }
+
+    func testListingLookupPropagatesInvocationError() async throws {
+        let source = try echoSource(declareListing: true, declaresMAL: true, failWith: "network")
+        do {
+            _ = try await source.manga(id: "lookup-1")
+            XCTFail("expected invocation error")
+        } catch let error as ExtensionSourceError {
+            XCTAssertEqual(error, .invocation(.network))
+        }
+    }
+
+    func testListingLookupRejectsMismatchedReturnedID() async throws {
+        let source = try echoSource(declareListing: true, declaresMAL: true, listingID: "other")
+        do {
+            _ = try await source.manga(id: "lookup-1")
+            XCTFail("expected invalid result")
+        } catch let error as ExtensionSourceError {
+            XCTAssertEqual(error, .invocation(.invalidResult))
+        }
+    }
+
+    func testListingLookupRejectsNonObjectNonNullResult() async throws {
+        let source = try echoSource(declareListing: true, declaresMAL: true, listingNonObject: true)
+        do {
+            _ = try await source.manga(id: "lookup-1")
+            XCTFail("expected invalid response")
+        } catch let error as ExtensionSourceError {
+            XCTAssertEqual(error, .invocation(.invalidResponse))
+        }
+    }
+
+    func testLegacyHostRejectsChapterGroupsAsInvalidResult() async throws {
+        let source = try echoSource(returnsGroups: true,
+                                    minimumHostAPI: "1.0",
+                                    maximumExclusiveHostAPI: "1.1")
+        do {
+            _ = try await source.chapters(mangaId: "series")
+            XCTFail("expected legacy Host API to reject groups")
+        } catch let error as ExtensionSourceError {
+            XCTAssertEqual(error, .invocation(.invalidResult))
+        }
+    }
+
+    func testRegistryChoosesInstalledExternalIdSource() throws {
+        let source = try echoSource(declareListing: true, declaresMAL: true)
+        let registry = SourceRegistry(sources: [source])
+        XCTAssertEqual(registry.externalIdSource?.id, Self.echoID)
     }
 
     // MARK: Offset paging over a cursor contract
@@ -117,6 +203,19 @@ final class ExtensionSourceTests: XCTestCase {
         XCTAssertEqual(first.map(\.id), ["cursor=null;limit=5"])
         XCTAssertEqual(second.map(\.id), ["cursor=5;limit=5"])
         XCTAssertEqual(third.map(\.id), ["cursor=10;limit=5"])
+    }
+
+    /// Pre-#186 flat-shape engines read the legacy flat fields. The host must send those alongside the
+    /// nested page value until published engines have all migrated to the nested shape.
+    func testLegacyV1EngineContinuesToPageThroughTheHostShim() async throws {
+        let source = try legacyWeebCentral()
+
+        _ = try await source.search(title: "berserk", limit: 2, offset: 0)
+        _ = try await source.search(title: "berserk", limit: 2, offset: 2)
+
+        XCTAssertTrue(host.browser.requestedURLs.contains {
+            $0.query?.contains("offset=2") == true
+        }, "the v1 engine must receive the returned cursor through the legacy fields")
     }
 
     /// An offset the adapter has no cursor for is reached by walking from the last one it
@@ -254,21 +353,43 @@ final class ExtensionSourceTests: XCTestCase {
     /// what the adapter sent without a DOM. Cursors are decimal offsets, the shape the
     /// shipped theme engine uses too, but the adapter never assumes that.
     private func echoSource(exhaustAt: Int? = nil,
+                            declareListing: Bool = false,
+                            declaresMAL: Bool = false,
+                            listingID: String? = nil,
+                            listingNonObject: Bool = false,
+                            returnsGroups: Bool = false,
+                            minimumHostAPI: String = "1.0",
+                            maximumExclusiveHostAPI: String = "2.0",
                             failWith code: String? = nil,
                             message: String = "") throws -> ExtensionSource {
+        let returnedListingID = listingID.map { "\"\($0)\"" } ?? "request.listingId"
+        let returnedListing = listingNonObject
+            ? "[]"
+            : "{ id: \(returnedListingID), title: \"Lookup\", externalIds: { mal: \"123\" } }"
         let script = """
         registerEngine("echo", {
           invoke: function (operation, request, context) {
             \(code.map { "return { ok: false, error: { code: \"\($0)\", message: \"\(message)\" } };" } ?? "")
-            var cursor = request.cursor === null || request.cursor === undefined ? "null" : request.cursor;
-            var id = "cursor=" + cursor + ";limit=" + request.limit;
+            if (operation === "listing") {
+              return request.listingId === "missing"
+                ? { ok: true, value: null }
+              : { ok: true, value: \(returnedListing) };
+            }
+            if (operation === "chapters" && \(returnsGroups ? "true" : "false")) {
+              return { ok: true, value: { items: [{ id: "chapter", groups: ["Alpha"] }], nextCursor: null, exhausted: true } };
+            }
+            if (!request.page || typeof request.page !== "object") {
+              return { ok: false, error: { code: "invalid_request", message: "nested page required" } };
+            }
+            var cursor = request.page.cursor === null || request.page.cursor === undefined ? "null" : request.page.cursor;
+            var id = "cursor=" + cursor + ";limit=" + request.page.limit;
             if (request.query !== undefined) { id += ";query=" + request.query; }
             var offset = cursor === "null" ? 0 : parseInt(cursor, 10);
             var exhausted = \(exhaustAt.map(String.init) ?? "null");
             var done = exhausted !== null && offset >= exhausted;
             return { ok: true, value: {
-              items: [{ id: id, title: "Echo", sourceId: "evil" }],
-              nextCursor: done ? null : String(offset + request.limit),
+              items: [{ id: id, title: "Echo", sourceId: "evil"\(returnsGroups ? ", groups: ['Alpha']" : "") }],
+              nextCursor: done ? null : String(offset + request.page.limit),
               exhausted: done
             } };
           }
@@ -281,11 +402,11 @@ final class ExtensionSourceTests: XCTestCase {
           "engine": "echo",
           "adult": "none",
           "capabilities": { "search": true, "popular": true, "detail": true,
-                            "chapters": true, "pages": true },
+                            "chapters": true, "pages": true\(declareListing ? ", \"listing\": true" : "") },
           "languages": { "mode": "fixed", "values": ["en"] },
           "network": { "httpOrigins": [], "browserOrigins": [], "assetOrigins": [] },
-          "hostAPI": { "minimum": "1.0", "maximumExclusive": "2.0" },
-          "configuration": {}
+          "hostAPI": { "minimum": "\(minimumHostAPI)", "maximumExclusive": "\(maximumExclusiveHostAPI)" },
+          "configuration": {}\(declaresMAL ? ", \"externalIds\": [\"mal\"]" : "")
         }
         """, qualifiedId: Self.echoID)
         try lifecycle.register(declaration)
@@ -413,13 +534,13 @@ final class InstalledSourceRegistrationTests: XCTestCase {
         XCTAssertTrue(registry.visibleSources(includeAdult: false).contains { $0.id == id.rawValue },
                       "the picker offers it")
         registry.activeSourceID = id.rawValue
-        XCTAssertEqual(registry.active.id, id.rawValue)
+        XCTAssertEqual(registry.active?.id, id.rawValue)
 
         // Uninstalling the browse source moves browsing off it rather than leaving the
         // picker pointed at a Source that is no longer there.
         try installer.uninstall(id)
         XCTAssertEqual(registry.activeSourceID, MangaDexSource.sourceID)
-        XCTAssertEqual(registry.active.id, MangaDexSource.sourceID)
+        XCTAssertEqual(registry.active?.id, MangaDexSource.sourceID)
     }
 
     // MARK: Criterion 8, clause "serves … through ExtensionRuntime" — through the registry
@@ -443,8 +564,8 @@ final class InstalledSourceRegistrationTests: XCTestCase {
         let results = try await source.search(title: "berserk", limit: 8, offset: 0)
         let manga = try XCTUnwrap(results.first)
 
-        XCTAssertEqual(registry.source(for: manga).id, id.rawValue)
-        XCTAssertEqual(registry.sourceForRefresh(sourceId: manga.sourceId).id, id.rawValue)
+        XCTAssertEqual(registry.source(for: manga)?.id, id.rawValue)
+        XCTAssertEqual(registry.sourceForRefresh(sourceId: manga.sourceId)?.id, id.rawValue)
     }
 
     // MARK: Adult gating reaches installed Sources
@@ -501,6 +622,35 @@ final class InstalledSourceRegistrationTests: XCTestCase {
         let restored = try XCTUnwrap(relaunchedRegistry.source(id: id.rawValue))
         let chapters = try await restored.chapters(mangaId: PortFixtures.weebSeriesID)
         XCTAssertFalse(chapters.isEmpty, "served from the script the store kept")
+    }
+
+    func testUninstalledSourceRemainsUnavailableAfterRelaunch() async throws {
+        let id = try await installWeebCentral()
+        try installer.uninstall(id)
+
+        // A second launch has no in-memory lifecycle entries. The retained store record
+        // must still make this qualified id unavailable rather than falling back to the
+        // currently active Source.
+        let relaunchedStore = RepositoryStore(directory: directory)
+        let relaunchedLifecycle = SourceLifecycleRegistry()
+        let relaunchedInstaller = ExtensionInstaller(
+            store: relaunchedStore, registry: relaunchedLifecycle, transport: transport,
+            dataEraser: RecordingDataEraser(storage: storage), acknowledgeAdult: { _ in true })
+        let relaunchedRegistry = SourceRegistry(sources: [BuiltInStubSource(
+            id: MangaDexSource.sourceID, chapterNumbers: [])])
+        relaunchedInstaller.restoreInstalledSources()
+        _ = ExtensionSourceRegistrar(store: relaunchedStore, lifecycle: relaunchedLifecycle,
+                                     host: host, registry: relaunchedRegistry)
+
+        let uninstalledManga = Manga(id: "manga-from-uninstalled-source",
+                                     sourceId: id.rawValue, title: "Title", description: "",
+                                     status: "ongoing", year: nil, coverURL: nil, malId: nil)
+        XCTAssertNil(relaunchedRegistry.source(for: uninstalledManga))
+
+        let legacyManga = Manga(id: "legacy-manga", sourceId: MangaDexSource.sourceID,
+                                title: "Legacy", description: "", status: "ongoing", year: nil,
+                                coverURL: nil, malId: nil)
+        XCTAssertEqual(relaunchedRegistry.source(for: legacyManga)?.id, MangaDexSource.sourceID)
     }
 
     func testASourceRefusedAtLaunchIsNotServed() async throws {
@@ -689,7 +839,8 @@ final class InstalledSourceRegistrationTests: XCTestCase {
 
         let expectedPort = try PortFixtures.weebCentral()
         let expectedSearchPage = try await expectedPort.listings(.search,
-                                                                  request: ["query": "berserk", "limit": 8])
+                                                                  request: ["query": "berserk",
+                                                                           "page": ["cursor": NSNull(), "limit": 8]])
         let actualSearch = try await measured("search") {
             try await source.search(title: "berserk", limit: 8, offset: 0)
         }

@@ -8,6 +8,7 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct BookmarksView: View {
     static let updatesFilterID = "updates"
@@ -15,6 +16,7 @@ struct BookmarksView: View {
     @EnvironmentObject private var history: HistoryStore
     @EnvironmentObject private var works: WorkStore
     @EnvironmentObject private var updates: UpdateStateStore
+    @EnvironmentObject private var registry: SourceRegistry
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.selectAppTab) private var selectAppTab
 
@@ -22,6 +24,10 @@ struct BookmarksView: View {
     @State private var showingManagementSheet = false
     @State private var refreshBannerMessage: String? = nil
     @State private var showingRefreshBanner = false
+    @State private var showingImporter = false
+    @State private var localItemToDelete: LibraryItem?
+    @State private var deletionError: String?
+    @EnvironmentObject private var importer: LocalImportViewModel
 
     private let columns = [
         GridItem(.adaptive(minimum: 104, maximum: 180), spacing: Gutter.rail)
@@ -45,9 +51,11 @@ struct BookmarksView: View {
                         InkEmptyState(
                             symbol: "books.vertical",
                             title: "Your library is empty",
-                            message: "Save titles to keep them here and see which chapters are unread.",
-                            actionTitle: "Browse Titles",
-                            action: { selectAppTab(.home) }
+                            message: "Import CBZ, ZIP or PDF files from Files. MangaCarta does not provide or host content.",
+                            actionTitle: "Import from Files",
+                            action: { showingImporter = true },
+                            secondaryActionTitle: "Add a repository",
+                            secondaryAction: { selectAppTab(.settings) }
                         )
                     } else if displayedItems.isEmpty {
                         InkEmptyState(
@@ -62,7 +70,7 @@ struct BookmarksView: View {
                             LazyVGrid(columns: columns, alignment: .leading, spacing: Gutter.section) {
                                 ForEach(displayedItems) { item in
                                     let unread = item.unreadCount(readNumbers: history.readChapterNumbers(forManga: item.id))
-                                    NavigationLink(destination: MangaDetailView(manga: item.asManga)) {
+                                    NavigationLink(destination: MangaDetailView(manga: item.asManga, registry: registry)) {
                                         MangaCoverCard(
                                             title: item.title,
                                             coverURL: item.coverURL,
@@ -71,6 +79,15 @@ struct BookmarksView: View {
                                         )
                                     }
                                     .buttonStyle(.plain)
+                                    .contextMenu {
+                                        if item.sourceId == LocalSource.sourceID {
+                                            Button(role: .destructive) {
+                                                localItemToDelete = item
+                                            } label: {
+                                                Label("Delete from Device", systemImage: "trash")
+                                            }
+                                        }
+                                    }
                                     // The grid's only stable handle for UI tests; the label is
                                     // the title, which varies with whatever is in the library.
                                     .accessibilityIdentifier("libraryCoverCard")
@@ -125,6 +142,11 @@ struct BookmarksView: View {
             .navigationTitle("Library")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
+                    Button { showingImporter = true } label: {
+                        Label("Import", systemImage: "square.and.arrow.down")
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         Task { await refreshLibrary() }
                     } label: {
@@ -144,6 +166,50 @@ struct BookmarksView: View {
             }
             .sheet(isPresented: $showingManagementSheet) {
                 CollectionManagementView()
+            }
+            .fileImporter(isPresented: $showingImporter,
+                          allowedContentTypes: [UTType.zip, UTType.mangaCartaCBZ, UTType.pdf],
+                          allowsMultipleSelection: true) { result in
+                if case .success(let urls) = result { importer.importFiles(urls) }
+            }
+            .overlay(alignment: .top) {
+                LocalImportBanner(model: importer, onCancel: importer.cancel)
+                    .padding(.top, 8)
+            }
+            .confirmationDialog(
+                "Delete \(localItemToDelete?.title ?? "this title") from this iPhone?",
+                isPresented: Binding(
+                    get: { localItemToDelete != nil },
+                    set: { if !$0 { localItemToDelete = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                if let item = localItemToDelete {
+                    Button("Delete from Device", role: .destructive) { deleteLocalItem(item) }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("The imported pages are removed from MangaCarta and can't be recovered. Reading history is kept.")
+            }
+            .alert("Couldn't delete from device", isPresented: Binding(
+                get: { deletionError != nil },
+                set: { if !$0 { deletionError = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(deletionError ?? "The imported file could not be removed.")
+            }
+        }
+    }
+
+    private func deleteLocalItem(_ item: LibraryItem) {
+        guard let local = registry.source(id: LocalSource.sourceID) as? LocalSource else { return }
+        Task {
+            do {
+                try await LocalLibraryDeletion(local: local.store, library: library, works: works)
+                    .delete(itemId: item.id)
+            } catch {
+                deletionError = error.localizedDescription
             }
         }
     }
@@ -262,7 +328,7 @@ private extension LibraryItem {
         // `nil` because `LibraryItem` has no id to carry, not because one is being dropped —
         // ADR-0018's Scope excludes it deliberately (saved-but-unread items never reach the
         // taste profile). Contrast `ReadingEntry.asManga`, which does carry it.
-        Manga(id: id, sourceId: sourceId ?? MangaDexSource.sourceID, title: title,
+        Manga(id: id, sourceId: sourceId ?? LegacySourceID.unattributed, title: title,
               description: "", status: "unknown", year: nil, coverURL: coverURL, malId: nil)
     }
 }
@@ -273,5 +339,6 @@ private extension LibraryItem {
         .environmentObject(LibraryStore())
         .environmentObject(HistoryStore())
         .environmentObject(works)
+        .environmentObject(LocalImportViewModel())
         .environmentObject(UpdateStateStore(works: works))
 }

@@ -26,16 +26,31 @@ struct HostHTTPClient: Sendable {
     private let transport: any HostHTTPTransport
     private let cookies: HostHTTPCookieJar
     private let sourceID: QualifiedSourceID
+    private let rateLimiters: HostRateLimiterRegistry
 
     init(sourceID: QualifiedSourceID,
          allowedOrigins: [String],
          transport: any HostHTTPTransport = URLSessionHostHTTPTransport(),
-         resolver: any HostNameResolving = SystemHostResolver()) {
+         resolver: any HostNameResolving = SystemHostResolver(),
+         rateLimiters: HostRateLimiterRegistry) {
         self.init(sourceID: sourceID,
                   allowedOrigins: allowedOrigins,
                   transport: transport,
                   resolver: resolver,
-                  cookies: HostHTTPCookieJar(sourceID: sourceID))
+                  cookies: HostHTTPCookieJar(sourceID: sourceID),
+                  rateLimiters: rateLimiters)
+    }
+
+    // Test and standalone callers must opt into sharing explicitly through the designated
+    // initializer above; this convenience preserves the old isolated-client API only for
+    // existing policy tests that do not exercise rate limiting.
+    init(sourceID: QualifiedSourceID,
+         allowedOrigins: [String],
+         transport: any HostHTTPTransport = URLSessionHostHTTPTransport(),
+         resolver: any HostNameResolving = SystemHostResolver()) {
+        self.init(sourceID: sourceID, allowedOrigins: allowedOrigins,
+                  transport: transport, resolver: resolver,
+                  rateLimiters: HostRateLimiterRegistry())
     }
 
     /// Takes a jar rather than making one, so a caller serving several Sources can keep each
@@ -46,11 +61,13 @@ struct HostHTTPClient: Sendable {
          allowedOrigins: [String],
          transport: any HostHTTPTransport,
          resolver: any HostNameResolving,
-         cookies: HostHTTPCookieJar) {
+         cookies: HostHTTPCookieJar,
+         rateLimiters: HostRateLimiterRegistry) {
         policy = HostURLPolicy(allowedOrigins: allowedOrigins, resolver: resolver)
         self.transport = transport
         self.cookies = cookies
         self.sourceID = sourceID
+        self.rateLimiters = rateLimiters
     }
 
     func request(_ input: HostHTTPRequest) async throws -> HostHTTPResponse {
@@ -75,7 +92,21 @@ struct HostHTTPClient: Sendable {
                 request.setValue(cookie, forHTTPHeaderField: "Cookie")
             }
 
+            guard let origin = HostURLPolicy.canonicalOrigin(for: url) else {
+                throw HostCapabilityError(code: .policyDenied, message: "the destination origin is invalid")
+            }
+            do {
+                try await rateLimiters.reserve(sourceID: sourceID, origin: origin,
+                                               path: url.path.isEmpty ? "/" : url.path)
+            } catch is CancellationError {
+                throw HostCapabilityError(code: .cancelled,
+                                          message: "the HTTP request was cancelled")
+            }
             let response = try await send(request)
+            guard let peer = response.connectedPeerAddress, HostIPAddress.isPublic(peer) else {
+                throw HostCapabilityError(code: .policyDenied,
+                                          message: "the connected destination was non-public")
+            }
             try await policy.validate(response.url)
 
             guard response.body.count <= HostCapabilityLimits.responseBodyBytes else {
@@ -286,19 +317,45 @@ actor HostHTTPCookieJar {
     }
 }
 
-final class URLSessionHostHTTPTransport: NSObject, HostHTTPTransport, URLSessionTaskDelegate,
+final class URLSessionHostHTTPTransport: NSObject, HostHTTPTransport,
                                          @unchecked Sendable {
-    private lazy var session: URLSession = {
+    private let fetcher: any URLSessionDataFetching
+
+    override init() {
+        let configuration = Self.sessionConfiguration()
+        fetcher = URLSessionDataFetcher(
+            configuration: configuration,
+            redirectHandler: URLSessionDataFetcher.httpsOnlyRedirectHandler)
+        super.init()
+    }
+
+    static func sessionConfiguration() -> URLSessionConfiguration {
         let configuration = URLSessionConfiguration.default
+        configuration.connectionProxyDictionary = [:]
         configuration.httpShouldSetCookies = false
         configuration.httpCookieAcceptPolicy = .never
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         configuration.urlCache = nil
-        return URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
-    }()
+        return configuration
+    }
+
+    init(fetcher: any URLSessionDataFetching) {
+        self.fetcher = fetcher
+        super.init()
+    }
 
     func send(_ request: URLRequest) async throws -> HostHTTPTransportResponse {
-        let (data, response) = try await session.data(for: request)
+        guard request.url?.scheme?.lowercased() == "https" else {
+            throw HostCapabilityError(code: .policyDenied,
+                                      message: "only HTTPS requests are allowed")
+        }
+        let result = try await fetcher.fetch(request)
+        if result.resourceFetchType == .localCache {
+            throw HostCapabilityError(code: .policyDenied,
+                                      message: "the response was served from the local cache")
+        }
+        let data = result.data
+        let response = result.response
         guard let http = response as? HTTPURLResponse,
               let url = http.url else {
             throw HostCapabilityError(code: .network,
@@ -312,14 +369,7 @@ final class URLSessionHostHTTPTransport: NSObject, HostHTTPTransport, URLSession
         return HostHTTPTransportResponse(statusCode: http.statusCode,
                                          url: url,
                                          headers: headers,
-                                         body: data)
-    }
-
-    func urlSession(_ session: URLSession,
-                    task: URLSessionTask,
-                    willPerformHTTPRedirection response: HTTPURLResponse,
-                    newRequest request: URLRequest,
-                    completionHandler: @escaping (URLRequest?) -> Void) {
-        completionHandler(nil)
+                                         body: data,
+                                         connectedPeerAddress: result.connectedPeerAddress)
     }
 }

@@ -1,0 +1,991 @@
+{
+  "result": "ok",
+  "response": "collection",
+  "data": [
+    {
+      "id": "0d4b349e-b7a2-4d63-9ce0-f864e790c4a2",
+      "type": "manga",
+      "attributes": {
+        "title": {
+          "ja-ro": "Veil"
+        },
+        "altTitles": [
+          {
+            "ja": "ヴェール"
+          },
+          {
+            "pt-br": "Véu"
+          },
+          {
+            "en": "Veil"
+          }
+        ],
+        "description": {
+          "en": "\"He\", a police officer on his shift, happened to meet \"her\" on the streets, by chance.\n\nThrough its bold yet delicate brushwork and elegant prose, this stylish, full-colour comic\nillustrates the subtle air of intimacy between these two individuals.\n\n---\nA chance encounter. A handsome policeman. A beautiful woman. A tentative love affair smolders on the snowy cobblestone streets, \nout of sight from those that might keep them apart. \n\n*Veil* is a beautifully illustrated full-color romance manga, told in stylish short vignettes, beautiful illustrations, and secret moments.",
+          "pt-br": "*\"Ele\"*, um policial em serviço, acaba encontrando *\"ela\"* nas ruas, por acaso. Com traços ousados, porém delicados, e uma prosa elegante, este belíssimo mangá em cores ilustra a sutil atmosfera de intimidade entre esses dois indivíduos.  Um encontro fortuito. Um policial charmoso. Uma mulher encantadora. Um romance tímido começa a arder em meio às ruas de paralelepípedos cobertas de neve, longe dos olhos daqueles que poderiam separá-los. **Véu** é uma obra lindamente ilustrada, narrada por meio de pequenas vinhetas estilizadas, momentos secretos e cenas repletas de delicadeza."
+        },
+        "isLocked": false,
+        "links": {
+          "al": "116170",
+          "ap": "veil",
+          "bw": "series/227672/list",
+          "kt": "58427",
+          "mu": "l73ckc4",
+          "mal": "132678",
+          "raw": "https://comic.k-manga.jp/title/118143/pv"
+        },
+        "officialLinks": null,
+        "originalLanguage": "ja",
+        "lastVolume": "",
+        "lastChapter": "",
+        "publicationDemographic": "josei",
+        "status": "ongoing",
+        "year": 2019,
+        "contentRating": "safe",
+        "tags": [
+          {
+            "id": "33771934-028e-4cb3-8744-691e866a923e",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Historical"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "423e2eae-a7a2-4a8b-ac03-a8351462d71d",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Romance"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "b1e97889-25b4-4258-b28b-cd7f4d28ea9b",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Philosophical"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "df33b754-73a3-4c54-80e6-1a74a8058539",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Police"
+              },
+              "description": {},
+              "group": "theme",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "e5301a23-ebd9-49dd-a0cb-2add944c7fe9",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Slice of Life"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "f5ba408b-0e7a-484d-8d49-4e9125ac96de",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Full Color"
+              },
+              "description": {},
+              "group": "format",
+              "version": 1
+            },
+            "relationships": []
+          }
+        ],
+        "state": "published",
+        "chapterNumbersResetOnNewVolume": false,
+        "createdAt": "2020-05-16T11:33:16+00:00",
+        "updatedAt": "2026-07-27T04:08:32+00:00",
+        "version": 34,
+        "availableTranslatedLanguages": [
+          "pt-br",
+          "vi",
+          "tr",
+          "es-la",
+          "pl",
+          "en",
+          "ru",
+          "th",
+          "ar",
+          "fa"
+        ],
+        "latestUploadedChapter": "af4ef3de-b9d2-483d-b3e6-b09cd0b90e84"
+      },
+      "relationships": [
+        {
+          "id": "43c7a4d9-c608-43e8-ad3e-6f721133cf96",
+          "type": "author"
+        },
+        {
+          "id": "43c7a4d9-c608-43e8-ad3e-6f721133cf96",
+          "type": "artist"
+        },
+        {
+          "id": "231f3585-a189-4dc0-a807-739a1e8793c0",
+          "type": "cover_art",
+          "attributes": {
+            "description": "",
+            "volume": "7",
+            "fileName": "8299ead2-5d96-4f41-8ce5-b00c95505449.jpg",
+            "locale": "ja",
+            "createdAt": "2025-12-27T22:09:54+00:00",
+            "updatedAt": "2025-12-27T22:09:54+00:00",
+            "version": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "6ecc62e4-25ad-4102-b0d8-580a8023d2fb",
+      "type": "manga",
+      "attributes": {
+        "title": {
+          "ja-ro": "Kimi to Tsuzuru Utakata"
+        },
+        "altTitles": [
+          {
+            "ja": "君と綴るうたかた"
+          },
+          {
+            "en": "The Summer You Were There"
+          },
+          {
+            "en": "Ephemeral Spelling With You"
+          },
+          {
+            "zh": "共谱泡沫恋曲"
+          },
+          {
+            "zh-hk": "共譜泡沫戀曲"
+          },
+          {
+            "zh-ro": "Gòng pǔ pàomò liàn qū"
+          },
+          {
+            "pl": "Lato pisane Tobą"
+          },
+          {
+            "fr": "Notre été éphémère"
+          },
+          {
+            "ja-ro": "Kimitsuzu"
+          },
+          {
+            "ja": "きみつづ"
+          },
+          {
+            "th": "ร้อยเรียงรักไปกับเธอ"
+          },
+          {
+            "en": "Transient Spelling With You"
+          },
+          {
+            "tl": "Panandaliang pagsusulat kasama ka"
+          },
+          {
+            "es": "Un amor de tinta y espuma"
+          },
+          {
+            "en": "TSYWT"
+          },
+          {
+            "vi": "Áng phù du mùa hạ"
+          },
+          {
+            "id": "Kisah singkat yang Kurangkai Bersamamu"
+          },
+          {
+            "id": "Musim Panas Saat Kau Ada di Sana"
+          }
+        ],
+        "description": {
+          "en": "Shizuku Hoshikawa, a high school girl who lives avoiding contact with people, writes a novel which is accidentally read by her classmate Kaori Asaka.  \r\nShe loves it but finds out Hoshikawa wasn't planning to write anymore due to lack of ideas, to which she ends up saying:  \r\n\"Let's start going out, you and me… You can write a story about our own love.\"",
+          "id": "Shizuku Hoshikawa, seorang gadis SMA yang hidupnya dihindari kontak dengan orang lain, menulis novel yang secara tidak sengaja dibaca oleh teman sekelasnya Kaori Asaka.\nDia menyukainya tetapi mengetahui bahwa Hoshikawa tidak berencana menulis lagi karena kurangnya ide, sehingga dia akhirnya berkata:\n\"Ayo kita mulai berkencan, kau dan aku... Kau bisa menulis cerita tentang cinta kita sendiri.\"",
+          "tl": "Ang mahiyain na si Shizuku Hoshikawa ay patungo sa pagtatapon ng kanyang una at huling nobela. Ngunit bago niya ito magawa, nabangga siya ng karismatikong si Kaori Asaka at nauwi ang nobela sa bahay nito. Ang pangyayaring ito ay labis na nagdulot ng pagkabalisa kay Shizuku, dahil ayaw niyang mabasa ng kahit sino ang malungkot na kwentong isinulat niya para sa kanyang sariling kasiyahan.",
+          "vi": "Hoshikawa Shizuku, một nữ sinh tự ti và khép kín đang chuẩn bị vứt bỏ cuốn tiểu thuyết đầu tay và cũng là cuối cùng của mình thì bị cô bạn cùng lớp nổi tiếng Asaka Kaori vô tình va phải và mang về nhà đọc. \nShizuku sợ hãi vì nghĩ mình sẽ bị dè bỉu bởi câu chuyện buồn bã được viết ra chỉ để thỏa mãn bản thân, nhưng trước sự xúc động của Kaori khi nhận xét về cuốn tiểu thuyết, Shizuku cảm thấy hạnh phúc vì đã viết ra nó. \nKaori muốn đọc thêm câu chuyện của Shizuku, nhưng vì Shizuku chẳng còn ý tưởng gì và không có ý định viết thêm, Kaori đã đưa ra một đề nghị kì lạ \"Hãy hẹn hò với tớ và dệt nên câu chuyện tình yêu của hai ta nhé\".\nShizuku hoài nghi đề nghị đó và có phần bất an trước bí mật mà Kaori đang che giấu đằng sau những nụ cười. Nhưng rồi mùa hạ nơi hai cô gái theo đuổi câu chuyện tình yêu của mình bắt đầu.",
+          "zh-hk": "個性內向的少女星川雫，偷偷地在寫百合小說。原本她打算寫完這篇小說之後，就要結束自己的性命。但就在她把小說的草稿，拿到學校的垃圾場去丟掉時，遇到了同班的朝香夏織。夏織是一位跟她完全不同的少女，而那份小說的草稿，卻被夏織撿走了。原本她以為夏織看完自己寫的小說之後會嘲笑她，沒想到夏織卻說非常的感動，還說想看她寫戀愛小說。小雫原本是以沒有想寫的題材為藉口來推托掉，沒想到夏織卻提議兩個人交往，並且透過這個體驗，來寫下屬於她們的戀愛小說！"
+        },
+        "isLocked": false,
+        "links": {
+          "al": "117620",
+          "ap": "the-summer-you-were-there",
+          "bl": "899341",
+          "bw": "series/285422/list",
+          "kt": "60500",
+          "mu": "0n708d7",
+          "amz": "https://www.amazon.co.jp/dp/B09JNPGR34",
+          "cdj": "https://www.cdjapan.co.jp/product/NEOBK-2997897",
+          "ebj": "https://ebookjapan.yahoo.co.jp/books/621065",
+          "mal": "128365",
+          "raw": "https://comic.pixiv.net/works/7077",
+          "engtl": "https://sevenseasentertainment.com/series/the-summer-you-were-there"
+        },
+        "officialLinks": null,
+        "originalLanguage": "ja",
+        "lastVolume": "6",
+        "lastChapter": "32",
+        "publicationDemographic": null,
+        "status": "completed",
+        "year": 2020,
+        "contentRating": "safe",
+        "tags": [
+          {
+            "id": "0a39b5a1-b235-4886-a747-1d05d216532d",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Award Winning"
+              },
+              "description": {},
+              "group": "format",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "3b60b75c-a2d7-4860-ab56-05f391bb889c",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Psychological"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "423e2eae-a7a2-4a8b-ac03-a8351462d71d",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Romance"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "a3c67850-4684-404e-9b7f-c69850ee5da6",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Girls' Love"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "b9af3a63-f058-46de-a9a0-e0c13906197a",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Drama"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "c8cbe35b-1b2b-4a3f-9c37-db84c4514856",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Medical"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "caaa44eb-cd40-4177-b930-79d3ef2afe87",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "School Life"
+              },
+              "description": {},
+              "group": "theme",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "e5301a23-ebd9-49dd-a0cb-2add944c7fe9",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Slice of Life"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "f8f62932-27da-4fe4-8ee1-6779a8c5edba",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Tragedy"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          }
+        ],
+        "state": "published",
+        "chapterNumbersResetOnNewVolume": false,
+        "createdAt": "2020-07-22T18:47:29+00:00",
+        "updatedAt": "2026-09-16T15:00:13+00:00",
+        "version": 91,
+        "availableTranslatedLanguages": [
+          "en",
+          "id",
+          "es-la",
+          "pt-br",
+          "vi",
+          "hu"
+        ],
+        "latestUploadedChapter": "f0d6d021-347b-4345-96c9-c5eeaaa78f43"
+      },
+      "relationships": [
+        {
+          "id": "dda1bf5a-2d91-4cba-bfe8-6bae603a5091",
+          "type": "author"
+        },
+        {
+          "id": "dda1bf5a-2d91-4cba-bfe8-6bae603a5091",
+          "type": "artist"
+        },
+        {
+          "id": "390f1a5c-0808-4f2c-b763-3e5b7f73dc53",
+          "type": "cover_art",
+          "attributes": {
+            "description": "Volume 6 Cover from BookWalker",
+            "volume": "6",
+            "fileName": "571d1d00-9ab1-44ce-b6ab-aa72584ee2f9.jpg",
+            "locale": "ja",
+            "createdAt": "2024-06-09T00:23:46+00:00",
+            "updatedAt": "2024-06-09T00:23:46+00:00",
+            "version": 1
+          }
+        },
+        {
+          "id": "645ed5e1-9a81-4771-9088-8e8265c4bd42",
+          "type": "manga",
+          "related": "side_story"
+        }
+      ]
+    },
+    {
+      "id": "984df7d5-ae4c-43c6-aa65-737b9f37e5ef",
+      "type": "manga",
+      "attributes": {
+        "title": {
+          "ko-ro": "Nae Choeae neun Makcha reul Tanda"
+        },
+        "altTitles": [
+          {
+            "ko": "내 최애는 막차를 탄다"
+          },
+          {
+            "en": "My Bias Gets on the Last Train"
+          },
+          {
+            "fr": "My Bias Gets on the Last Train"
+          },
+          {
+            "ro": "Preferatul meu urcă în ultimul tren"
+          },
+          {
+            "pt-br": "Minha idola favorita pega o último trem"
+          },
+          {
+            "ru": "Моя биас садится на последний поезд"
+          },
+          {
+            "id": "My Bias Gets on the Last Train"
+          },
+          {
+            "id": "Biasku Naik Kereta Terakhir"
+          },
+          {
+            "vi": "Định mệnh đôi ta giao thoa nơi bến tàu"
+          },
+          {
+            "zh": "末班车上的Crush"
+          },
+          {
+            "zh-hk": "與本命的末班車"
+          }
+        ],
+        "description": {
+          "en": "“Meeting her on the last train again today, if only I could talk to her!”\nCollege student Lee Yeowoon works late and takes the last train every night.\nEach time, he runs into Shin Haein, a woman carrying a guitar. As if by chance, as if by fate, the two keep meeting and discover that their favorite artist is the indie musician “Long Afternoon.” They gradually grow closer and so the story began.\n\n---\nEvery night, Yeo-un takes the last train home—same route, same time, same routine. But one thing keeps catching his eye: a girl with a guitar and a presence that lingers in his mind. When a shared love for the indie band Long Afternoon sparks a conversation, their late-night encounters begin to turn into something more. But Hae-in isn’t just another fan—she’s the voice behind the band, a secret she can’t afford to reveal. As music draws them closer, the truth may threaten to pull them apart. When the final note plays, will their story end in harmony… or heartbreak?",
+          "fr": "«La croiser encore ce soir dans le dernier train... si seulement j’osais lui parler!»\nLee Yeowoon, un étudiant, travaille tard et prend le dernier train chaque nuit.\nÀ chaque trajet, il aperçoit Shin Haein, une femme portant une guitare. Par un curieux hasard, ou peut-être par un coup du destin, leurs chemins ne cessent de se croiser. Ils découvrent alors qu’ils partagent un même artiste préféré: le musicien indie Long Afternoon. Peu à peu, ils se rapprochent, et c’est ainsi que leur histoire commence.\n\n---\nÉtudiant à la fac et employé dans un café le soir, Lee Yeo-Woon rentre systématiquement chez lui avec le dernier métro. Pas un jour ne se passe sans que sa route ne croise celle de Shin Hae-In, la jeune fille à la guitare. Par le plus grand des hasards, tous deux s’avèrent être fans de Long Afternoon, artiste montante de la scène indé. Mais la tournure que va prendre leur relation sera de nature à semer le doute: et si leur rencontre n’avait rien de fortuit?",
+          "hu": "Minden éjjel Yeo-un az utolsó vonattal indul haza — ugyanaz az útvonal, ugyanaz az idő, ugyanaz a rutin. Csakhogy valami folyton megragadja a tekintetét: egy gitáros lány, aki nem megy ki a fejéből. Amikor kiderül, hogy mindketten rajonganak a Long Afternoon nevű indie zenekarért, beszélgetésbe elegyednek, és éjszakai összefutásaik lassan valami többé válnak. Csakhogy Hae-in nem csak egy rajongó — ő a zenekar hangja, egy titok, amit nem fedhet fel. Ahogy a zene egyre közelebb hozza őket egymáshoz, az igazság azzal fenyeget, hogy szétválasztja őket. Amikor az utolsó hang is elhallgat, vajon harmóniában ér véget a történetük… vagy összetört szívvel?",
+          "id": "Lee Yeowoon adalah seorang mahasiswa yang bekerja sampai larut malam hingga membuatnya selalu naik kereta terakhir. Saat menunggu kereta terakhir itu, dia selalu berpapasan dengan Shin Haein, wanita misterius yang membawa gitar. Mereka menjadi lebih dekat setelah percakapan pertama. Namun, tanpa Yeowoon sadari, wanita misterius itu ternyata musisi indie “Long Afternoon” yang merupakan idolanya. Apakah nantinya Yeowoon mengetahui bahwa Haein adalah musisi yang dia idolakan? Akankah Haein mengungkap identitasnya?",
+          "ko": "“오늘도 막차에서 만난 그녀, 그녀와 말할 수 있다면!” \n 대학생 이여운은 늦게까지 일하고 매일 막차를 탄다.  \n그때마다 마주치는 기타를 멘 여자 신해인. 우연인 듯 인연인 듯 만나는 두 사람은  \n서로의 최애가 인디 뮤지션 “긴 오후”라는 걸 알게 되고 점점 가까워지게 된다.",
+          "pl": "„Znowu spotkałem ją dziś w ostatnim pociągu... Gdybym tylko odważył się z nią porozmawiać!” Lee Yeowoon, student college’u, codziennie pracuje do późna i wraca do domu ostatnim pociągiem. Za każdym razem natrafia na Shin Haein – dziewczynę z gitarą. Jakby to był przypadek... a może przeznaczenie? Ich drogi ciągle się krzyżują, aż w końcu odkrywają, że oboje są fanami niezależnego muzyka o pseudonimie „Long Afternoon”. Zaczynają się do siebie zbliżać – i tak zaczyna się ich historia.",
+          "ro": "Întâlnind-o și astăzi în ultimul tren, de-aș putea doar să vorbesc cu ea! Studentul Lee Yeowoon lucrează până târziu și ia în fiecare noapte ultimul tren. De fiecare dată, o întâlnește pe Shin Haein, o fată care poartă o chitară. Ca și cum ar fi o întâmplare, ca și cum ar fi destin, cei doi continuă să se întâlnească și descoperă că artistul lor preferat este muzicianul indie „Long Afternoon”. Treptat, se apropie și așa a început povestea.",
+          "ru": "Про что манхва «Моя биас садится на последний поезд»:\n«Вот бы поговорить с девушкой, что я вновь встретил сегодня на последнем поезде!»\nСтудент Ли Ёвун работает допоздна и всегда садится на последний поезд.\nКаждый раз он встречает девушку с гитарой, Шин Хэин. Эти встречи кажутся не то совпадением, не то судьбой.\nУзнав, что у них один и тот же любимый инди-музыкант — «Долгий вечер», они становятся ближе друг к другу.",
+          "zh": "“今天也在末班车上遇见了她，如果能和她搭话该有多好!”\n大学生李厉云每天都工作到很晚，乘坐末班车回家。每当这时，他都会遇到背着吉他的女生，申海仁。\n两人看似偶然又如同命中注定般相遇了，在得知彼此最喜欢的独立音乐人都是“漫长午后”后，他们渐渐变得亲近起来。",
+          "pt-br": "\"Encontrá-la no último trem novamente hoje, se ao menos eu pudesse falar com ela!\"\n\nO estudante universitário Lee Yeowoon trabalha até tarde e pega o último trem todas as noites. A cada vez, ele encontra Shin Haein, uma mulher carregando um violão. Como obra do destino, os dois continuam se encontrando e descobrem que seu artista favorito é o músico indie \"Long Afternoon\". Eles se aproximam gradualmente e assim a história começa.",
+          "zh-hk": "「今天也在末班車上遇到她了...要是能跟她說話就好了><！」 大學生李如雲每天都工作到很晚，總是搭末班車，每次都會在月台上遇到背著吉他的女子申慧仁。看似偶然又像命中注定的兩人，發現彼此的本命都是獨立音樂家「漫長午後」，於是越走越近......"
+        },
+        "isLocked": false,
+        "links": {
+          "al": "187944",
+          "ap": "my-bias-gets-on-the-last-train",
+          "mu": "9t2tuko",
+          "mal": "178671",
+          "raw": "https://comic.naver.com/webtoon/list?titleId=834896",
+          "engtl": "https://www.webtoons.com/en/romance/my-bias-gets-on-the-last-train/list?title_no=7857"
+        },
+        "officialLinks": null,
+        "originalLanguage": "ko",
+        "lastVolume": "",
+        "lastChapter": "",
+        "publicationDemographic": null,
+        "status": "ongoing",
+        "year": 2024,
+        "contentRating": "safe",
+        "tags": [
+          {
+            "id": "3e2b8dae-350e-4ab8-a8ce-016e844b9f0d",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Long Strip"
+              },
+              "description": {},
+              "group": "format",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "423e2eae-a7a2-4a8b-ac03-a8351462d71d",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Romance"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "b9af3a63-f058-46de-a9a0-e0c13906197a",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Drama"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "f42fbf9e-188a-447b-9fdc-f19dc1e4d685",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Music"
+              },
+              "description": {},
+              "group": "theme",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "f5ba408b-0e7a-484d-8d49-4e9125ac96de",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Full Color"
+              },
+              "description": {},
+              "group": "format",
+              "version": 1
+            },
+            "relationships": []
+          }
+        ],
+        "state": "published",
+        "chapterNumbersResetOnNewVolume": false,
+        "createdAt": "2024-12-15T10:14:39+00:00",
+        "updatedAt": "2026-08-26T21:14:26+00:00",
+        "version": 19,
+        "availableTranslatedLanguages": [
+          "it",
+          "pt-br",
+          "fr",
+          "en",
+          "id",
+          "vi",
+          "pl"
+        ],
+        "latestUploadedChapter": "e1168036-5ac7-48b0-b418-f230d3f51167"
+      },
+      "relationships": [
+        {
+          "id": "299ca291-357a-4cc4-aa4d-1175da4c50a0",
+          "type": "author"
+        },
+        {
+          "id": "299ca291-357a-4cc4-aa4d-1175da4c50a0",
+          "type": "artist"
+        },
+        {
+          "id": "bcbd6178-bcba-4636-bdb3-c4d3b58e891f",
+          "type": "cover_art",
+          "attributes": {
+            "description": "",
+            "volume": "4",
+            "fileName": "290cb06d-6f0f-402d-b88c-9da893ec9b07.jpg",
+            "locale": "ko",
+            "createdAt": "2026-08-26T21:14:25+00:00",
+            "updatedAt": "2026-08-26T21:14:25+00:00",
+            "version": 1
+          }
+        },
+        {
+          "id": "49fdbc62-eeb4-46f3-8be5-71e265951d00",
+          "type": "creator"
+        }
+      ]
+    },
+    {
+      "id": "418791c0-35cf-4f87-936b-acd9cddf0989",
+      "type": "manga",
+      "attributes": {
+        "title": {
+          "ja-ro": "Kaoru Hana wa Rin to Saku"
+        },
+        "altTitles": [
+          {
+            "ja": "薫る花は凛と咲く"
+          },
+          {
+            "en": "The Fragrant Flower Blooms with Dignity"
+          },
+          {
+            "ko": "향기로운 꽃은 늠름하게 핀다"
+          },
+          {
+            "zh-hk": "薰香花朵凛然綻放"
+          },
+          {
+            "fr": "Bloom"
+          },
+          {
+            "de": "Kaoru und Rin"
+          },
+          {
+            "id": "Kesuma Harum Merekah Anggun"
+          },
+          {
+            "pl": "Kaoru i Rin. Rozkwitając z tobą"
+          },
+          {
+            "pt-br": "A Nobreza das Flores"
+          },
+          {
+            "ru": "Благоухающий цветок расцветает с достоинством"
+          },
+          {
+            "ru": "Очаровательный цветок расцветает с достоинством"
+          },
+          {
+            "es": "La nobleza de las flores"
+          },
+          {
+            "es-la": "La fragante flor florece con dignidad"
+          },
+          {
+            "es-la": "La elegante flor florece con dignidad"
+          },
+          {
+            "th": "ดอกรักผลิบานที่กลางใจ"
+          },
+          {
+            "tr": "Güzel Kokulu Çiçekler Zarafetle Açar"
+          },
+          {
+            "vi": "Hoa Thơm Kiêu Hãnh"
+          },
+          {
+            "vi": "Những đóa hoa thơm nở diễm kiều"
+          }
+        ],
+        "description": {
+          "en": "In a certain place, there are two neighboring high schools. Chidori High School, a bottom-feeder boys' school where idiots gather, and Kikyo Girls' School, a well-established girls' school. Rintaro Tsumugi, a strong and quiet second year student at Chidori High School, meets Kaoruko Waguri, a girl who comes as a customer while helping out at his family's cake shop. Rintaro feels comfortable spending time with Kaoruko, but she is a student at Kikyo Girls, a neighboring school that thoroughly dislikes Chidori High.\n___\n**Links:**\n- [Official Twitter (JP)](https://twitter.com/kaoruhana_mp)\n- Official English - [K MANGA](https://kmanga.kodansha.com/title/10023/episode/320130) (Simulpub)",
+          "fr": "Au cœur d'une banlieue japonaise, se dressent face à face deux établissements que tout oppose : Chidori, le lycée public pour garçons, réunit les pires cancres de la ville, tandis que le prestigieux Kikyô rassemble les esprits les plus brillants des filles de bonne famille.\n\nDonnant régulièrement un coup de main à la pâtisserie familiale, Rintarô Tsumugi, élève à Chidori, sympathise avec l'une de ses clientes régulières, Kaoruko Waguri. Alors qu'il sent peu à peu un lien se tisser entre eux, le lycéen apprend que la jeune fille fréquente Kikyô et que comme tous les élèves de ces établissements, ils sont supposés se haïr mutuellement ! La rivalité entre leurs lycées est-elle forcément signe de fatalité ?",
+          "ja": "とある場所に、隣接するふたつの高校がある。バカが集まる底辺男子校・千鳥高校と、由緒正しきお嬢様校・桔梗女子。強面で物静かな千鳥高校２年・紬 凛太郎は、実家のケーキ屋の手伝い中にお客として来ていた少女・和栗薫子と出会う。薫子との時間を心地よく感じる凛太郎だったが、彼女は徹底して千鳥を嫌う桔梗女子の生徒で……！？",
+          "vi": "Ở một nơi nào đó, có 2 trường cao trung lân cận. Cao trung Chidori, một trường nam sinh cấp thấp hội tụ đủ những thằng đần, trường nữ sinh Kikyo, một trường nữ sinh danh giá . Rintaro Tsugumi, một nam sinh năm 2 to khỏe và trầm tính tại trường Chidori, bắt gặp Kaoruko Waguri, một khách hàng khi cậu đang giúp việc tại cửa hàng bánh nhà mình . Rintaro cảm thấy thoải mái khi dành thời gian bên Kaoruko, nhưng cô lại là học sinh của trường Kikyo, ngôi trường hàng xóm cực kì căm ghét trường Chidori. Đây là câu chuyện về 2 con người ở rất gần nhưng lại rất xa",
+          "es-la": "En cierto lugar, hay dos escuelas secundarias vecinas. El instituto Chidori, una escuela masculina de mala muerte en la que se reúnen los idiotas, y el instituto femenino Kikyo, una escuela femenina bien establecida. Rintaro Tsumugi, un fuerte y tranquilo estudiante de segundo curso del instituto Chidori, conoce a Kaoruko Wakuri, una chica que llega como cliente mientras ayuda en la pastelería de su familia. Rintaro se siente cómodo pasando tiempo con Kaoruko, pero ella es alumna de las chicas de Kikyo, una escuela vecina a la que no le gusta nada el instituto Chidori. Esta es la historia de dos personas que están tan cerca y a la vez tan lejos.\n___\n- [Twitter Oficial (JA)](https://twitter.com/kaoruhana_mp)",
+          "pt-br": "Em um lugar específico, existem duas escolas secundárias vizinhas. A Escola Secundária Chidori, uma escola para rapazes considerada de nível inferior, onde se reúnem estudantes menos dedicados, e a Escola para Meninas Kikyo, uma instituição bem estabelecida. Rintaro Tsumugi, um estudante do segundo ano forte e tranquilo da Escola Secundária Chidori, conhece Kaoruko Waguri, uma garota que aparece como cliente enquanto ajuda na confeitaria da sua família. Rintaro se sente à vontade passando tempo com Kaoruko, mas ela é uma aluna da Escola para Meninas Kikyo, uma escola vizinha que tem aversão à Escola Secundária Chidori. Esta é a história de duas pessoas que estão tão próximas e, ao mesmo tempo, tão distantes."
+        },
+        "isLocked": false,
+        "links": {
+          "al": "140475",
+          "ap": "the-fragrant-flower-blooms-with-dignity",
+          "bl": "1094815",
+          "bw": "series/345527/list",
+          "kt": "63153",
+          "mu": "efg5tyb",
+          "mal": "144267",
+          "raw": "https://pocket.shonenmagazine.com/episode/3269754496548746310",
+          "engtl": "https://kodansha.us/series/the-fragrant-flower-blooms-with-dignity/"
+        },
+        "officialLinks": null,
+        "originalLanguage": "ja",
+        "lastVolume": "",
+        "lastChapter": "",
+        "publicationDemographic": "shounen",
+        "status": "ongoing",
+        "year": 2021,
+        "contentRating": "safe",
+        "tags": [
+          {
+            "id": "423e2eae-a7a2-4a8b-ac03-a8351462d71d",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Romance"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "4d32cc48-9f00-4cca-9b5a-a839f0764984",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Comedy"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "b9af3a63-f058-46de-a9a0-e0c13906197a",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Drama"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "caaa44eb-cd40-4177-b930-79d3ef2afe87",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "School Life"
+              },
+              "description": {},
+              "group": "theme",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "e5301a23-ebd9-49dd-a0cb-2add944c7fe9",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Slice of Life"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          }
+        ],
+        "state": "published",
+        "chapterNumbersResetOnNewVolume": false,
+        "createdAt": "2021-11-10T17:30:57+00:00",
+        "updatedAt": "2026-09-09T23:22:12+00:00",
+        "version": 103,
+        "availableTranslatedLanguages": [
+          "pt-br",
+          "ru",
+          "en",
+          "fr",
+          "vi",
+          "es-la",
+          "id",
+          "tr",
+          "he",
+          "ar",
+          "hi",
+          "sl"
+        ],
+        "latestUploadedChapter": "ee4188c1-0b53-49e9-a1e3-e4bade4cdd23"
+      },
+      "relationships": [
+        {
+          "id": "3d3ec54f-2eb7-4fb7-b2eb-0372c9f1b92e",
+          "type": "author"
+        },
+        {
+          "id": "3d3ec54f-2eb7-4fb7-b2eb-0372c9f1b92e",
+          "type": "artist"
+        },
+        {
+          "id": "1b13f1e7-6093-4a40-b760-a4687420f04a",
+          "type": "cover_art",
+          "attributes": {
+            "description": "",
+            "volume": "24",
+            "fileName": "6e823d0e-103a-4cf9-a312-a3a292ccb12d.jpg",
+            "locale": "ja",
+            "createdAt": "2026-08-28T12:38:06+00:00",
+            "updatedAt": "2026-08-28T12:38:06+00:00",
+            "version": 1
+          }
+        },
+        {
+          "id": "7deb02d0-a14a-431f-9310-180c282b81ba",
+          "type": "manga",
+          "related": "colored"
+        },
+        {
+          "id": "395fa758-f9b5-4dbd-ae30-69a1fe726841",
+          "type": "creator"
+        }
+      ]
+    },
+    {
+      "id": "c8a0426d-539b-4f6a-9537-fbccf4962529",
+      "type": "manga",
+      "attributes": {
+        "title": {
+          "ja-ro": "Amayo no Tsuki"
+        },
+        "altTitles": [
+          {
+            "ja": "雨夜の月"
+          },
+          {
+            "en": "The Moon on a Rainy Night"
+          },
+          {
+            "ko": "비 오는 밤의 달"
+          },
+          {
+            "fr": "The Moon on a Rainy Night (Meian)"
+          },
+          {
+            "de": "Der Mond in einer Regennacht"
+          },
+          {
+            "id": "Bulan di Malam Hujan”"
+          },
+          {
+            "pt-br": "A Lua em uma Noite Chuvosa"
+          },
+          {
+            "es-la": "La luna en una noche lluviosa"
+          },
+          {
+            "th": "จันทร์เร้นในคืนฝนพรำ"
+          },
+          {
+            "vi": "Vầng Trăng Đêm Mưa"
+          },
+          {
+            "vi": "Mặt Trăng Trong Đêm Mưa"
+          }
+        ],
+        "description": {
+          "en": "One rainy night, Saki is rushing to a piano lesson when she crashes into a beautiful, long-haired girl, dropping her sheet music in the process. Saki stutters an apology, but the girl simply hands back her sheet music and leaves without a word. Saki begins her first day of high school the following morning, only to find the stranger from the night before sitting at the desk next to hers. She learns that the girl's name is Kanon and that she is not quite completely deaf, but very hard of hearing. Though Kanon needs to be close to people to read their lips, she tends to push people away with her icy demeanor. Through one kind gesture, Saki slowly begins breaking down the walls around Kanon, even as she feels something new blossoming within her.",
+          "ja": "２人の少女の、目には見えないもの、かけがえのないこと。\n\n金田一咲希は高校入学直前のある日、ピアノレッスンに向かう途中で見知らぬ同世代の少女とぶつかり手を擦りむくが、相手から無言のまま真っすぐに見つめられた後、落とした楽譜を丁寧に拾われ絆創膏をもらう。咲希は印象的だったその少女とクラスメイトとして再会し、名前が及川奏音、そして耳が不自由だと知る。学校では障害を理由に周囲と距離を置く奏音に、淋しさを覚えた咲希はどうにか分かり合おうとし、そんな彼女の姿に奏音の態度も次第に変わっていき…。",
+          "ko": "고등학교에 입학한 사키와 귀가 불편한 반 친구 카논. 사람들과 거리를 두는 카논이 안고 있는 것과 겉으론 보이지 않는 것. 그것을 알고자 하는 사키에게 카논도 점차···. 두 소녀의 눈에는 보이지 않는 것, 둘도 없이 소중한 것.",
+          "pt-br": "Um dia, pouco antes de entrar no colégio, Kazuki Kaneda colide com uma garota estranha da mesma geração a caminho da aula de piano e machuca sua mão, mas a partitura que caiu silenciosamente, da outra parte é cuidadosamente recolhida e um curativo é recebido. Saki se reúne com a garota impressionante como colega de classe e descobre que seu nome é Oikawa Kanon e ela é surda. Na escola, Saki, que estava sozinha, tentou entender o som de Kanon, que manteve distância do ambiente por causa de sua deficiência, e sua atitude mudou gradualmente."
+        },
+        "isLocked": false,
+        "links": {
+          "al": "136109",
+          "ap": "the-moon-on-a-rainy-night",
+          "bl": "1021844",
+          "bw": "series/323029",
+          "kt": "60173",
+          "mu": "eets89n",
+          "amz": "https://www.amazon.co.jp/dp/B09V6ZSFC1",
+          "ebj": "https://ebookjapan.yahoo.co.jp/books/660331/",
+          "mal": "142310",
+          "raw": "https://yanmaga.jp/comics/雨夜の月",
+          "engtl": "https://kodansha.us/series/the-moon-on-a-rainy-night/"
+        },
+        "officialLinks": null,
+        "originalLanguage": "ja",
+        "lastVolume": "",
+        "lastChapter": "",
+        "publicationDemographic": "seinen",
+        "status": "ongoing",
+        "year": 2021,
+        "contentRating": "safe",
+        "tags": [
+          {
+            "id": "423e2eae-a7a2-4a8b-ac03-a8351462d71d",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Romance"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "a3c67850-4684-404e-9b7f-c69850ee5da6",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Girls' Love"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "b9af3a63-f058-46de-a9a0-e0c13906197a",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Drama"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "caaa44eb-cd40-4177-b930-79d3ef2afe87",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "School Life"
+              },
+              "description": {},
+              "group": "theme",
+              "version": 1
+            },
+            "relationships": []
+          }
+        ],
+        "state": "published",
+        "chapterNumbersResetOnNewVolume": false,
+        "createdAt": "2021-11-07T12:28:21+00:00",
+        "updatedAt": "2026-06-29T10:35:48+00:00",
+        "version": 48,
+        "availableTranslatedLanguages": [
+          "id",
+          "vi",
+          "pt-br",
+          "en",
+          "fr",
+          "ko",
+          "es-la"
+        ],
+        "latestUploadedChapter": "9d8654c5-ee71-4b78-a65d-f3c5ba518af2"
+      },
+      "relationships": [
+        {
+          "id": "21e59462-49ff-46e1-ba4f-73bc9ea0e77c",
+          "type": "author"
+        },
+        {
+          "id": "21e59462-49ff-46e1-ba4f-73bc9ea0e77c",
+          "type": "artist"
+        },
+        {
+          "id": "e0d943c2-900e-450d-8f21-409fc92bfb13",
+          "type": "cover_art",
+          "attributes": {
+            "description": "",
+            "volume": "12",
+            "fileName": "91044c8e-cb3c-45ed-871c-9993aaf134b6.jpg",
+            "locale": "ja",
+            "createdAt": "2026-06-10T18:30:14+00:00",
+            "updatedAt": "2026-06-10T18:30:14+00:00",
+            "version": 1
+          }
+        },
+        {
+          "id": "ba571cad-0d04-4151-aa6a-8abcd1291d16",
+          "type": "creator"
+        }
+      ]
+    }
+  ],
+  "limit": 5,
+  "offset": 0,
+  "total": 39553
+}

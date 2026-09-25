@@ -110,6 +110,57 @@ struct UpdateStateStoreTests {
     }
 
     @MainActor
+    @Test("A synthesized legacy updates blob loads without losing any state")
+    func synthesizedLegacyBlobLoadsWithoutLosingState() throws {
+        let directory = temporaryDirectory()
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let workID = UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!
+        let listing = ListingKey(sourceId: "mangadex", mangaId: "legacy")
+        let timestamp = Date(timeIntervalSinceReferenceDate: 1_700_000_000)
+        let blob = """
+        {
+          "records": [{
+            "workId": {"raw": "\(workID.uuidString)"},
+            "state": {
+              "frontier": {
+                "known": [{"value": 0.07000000000000001}],
+                "max": {"value": 0.07000000000000001},
+                "unnumbered": ["Extra"]
+              },
+              "hasBaseline": true,
+              "newlyDiscovered": [{"value": 0.07000000000000001}],
+              "newestDiscoveryAt": 1700000000,
+              "lastSuccessfulCheck": 1700000001,
+              "isMuted": true,
+              "listings": [
+                {"sourceId": "\(listing.sourceId)", "mangaId": "\(listing.mangaId)"},
+                {"lastSuccess": 1700000000, "lastFailure": 1700000002,
+                 "consecutiveFailures": 3, "blockedUntil": 1700000010}
+              ]
+            }
+          }],
+          "refreshCursor": {"raw": "\(workID.uuidString)"}
+        }
+        """
+        try Data(blob.utf8).write(to: directory.appendingPathComponent("updates.json"))
+
+        let store = UpdateStateStore(directory: directory)
+        let state = try #require(store.state(for: WorkID(raw: workID)))
+
+        #expect(state.frontier.known == [ordinal("0.07")])
+        #expect(state.frontier.max == ordinal("0.07"))
+        #expect(state.frontier.unnumbered == ["Extra"])
+        #expect(state.hasBaseline)
+        #expect(state.newlyDiscovered == [ordinal("0.07")])
+        #expect(state.newestDiscoveryAt == timestamp)
+        #expect(state.lastSuccessfulCheck == timestamp.addingTimeInterval(1))
+        #expect(state.isMuted)
+        #expect(state.listings[listing]?.consecutiveFailures == 3)
+        #expect(state.listings[listing]?.lastFailure == timestamp.addingTimeInterval(2))
+        #expect(store.refreshCursor == WorkID(raw: workID))
+    }
+
+    @MainActor
     @Test("Reconciliation unions a real WorkStore merge without emitting")
     func reconciliationUnionsMerge() throws {
         let directory = temporaryDirectory()

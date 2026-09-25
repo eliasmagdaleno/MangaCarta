@@ -250,6 +250,28 @@ index the app fetches over the network by default, or a bundled package that off
 `adultOnly` Source. The reversal Amendment 2 reserved for "if Review objects anyway" is now the
 next amendment, not this one.
 
+## Amendment 4 — the release ships no Sources at all (2026-09-22)
+
+Recorded per [ADR-0003 Amendment 6](0003-extension-substrate.md#amendment-6--the-app-store-build-ships-no-built-in-and-no-bundled-source-2026-09-22),
+the owner's decision of 2026-09-22 that the App Store build ships no built-in and no bundled content
+Source. The earlier text is left as written; this is what it now means.
+
+- **The Consequences line "The public release ships MangaDex and WeebCentral" no longer holds.**
+  The public release ships no Source. MangaDex and WeebCentral are installed by the reader from a
+  repository they add by URL, like any other Source.
+- **Amendment 3 is moot.** It clarified that a bundled WeebCentral package is not a default
+  repository; there is no bundled package any more, so there is nothing for it to clarify.
+- **Amendment 2's no-default-repository rule is reinforced, not reopened.** The app ships no
+  default, suggested or linked repository URL (ADR-0003 Amendment 6, decision 2). The condition
+  Amendment 3 restated as the one that would reopen Amendment 2 is further from firing than it was.
+- **The original decision holds trivially.** The release build registers no `isNSFW` source,
+  because it registers none; the "Show adult sources" toggle stays hidden until a reader installs
+  one, and the declared-age gate (Amendment 2) is unchanged.
+- **The App Store answers change with it.** Review notes and the age-rating questionnaire can no
+  longer be answered on "two content sources"; they are answered on an app that ships none and
+  lets the reader add repositories. Whoever prepares the submission rewrites them on that basis.
+
+
 ## Amendment 5 — the App Store answers move to one file, and the app targets 16+ (2026-09-24)
 
 Amendment 2's "App Store answers" were written for a build with two content sources. ADR-0003
@@ -267,7 +289,7 @@ Owner decisions recorded there, 2026-09-24:
    responsible for it. Content above 16+ stays behind the declared-age gate (4.7.5).
 2. **No test repository is given to App Review.** Reviewers test local import; a URL we hand out
    would contradict "no default, suggested or linked repository" (Amendment 2, ADR-0003 A6).
-3. **Subtitle states the formats** (`CBZ & ZIP comic reader`, adding PDF when it ships), and every
-   listing claim is checked against the shipped build before submission.
+3. **Subtitle states the formats** (`CBZ, ZIP & PDF comic reader`, since PDF import shipped in
+   #235), and every listing claim is checked against the release build before submission.
 
 Sample and screenshot art (original or public domain) remains the owner's, and open.
