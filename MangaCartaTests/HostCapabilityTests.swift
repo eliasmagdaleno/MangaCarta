@@ -1332,7 +1332,7 @@ struct HostRateLimiterTests {
         let limiter = RateLimiter(minimumInterval: 1, clock: FixedRateLimiterClock(), sleeper: sleeper)
         _ = try await limiter.acquire()
         let waiting = Task { try await limiter.acquire() }
-        for _ in 0..<10 { await Task.yield() }
+        await sleeper.waitForSecondSleep()
         waiting.cancel()
         _ = try? await waiting.value
         _ = try await limiter.acquire()
@@ -1369,11 +1369,22 @@ private actor RecordingRateLimiterSleeper: RateLimiterSleeper {
 
 private actor BlockingRateLimiterSleeper: RateLimiterSleeper {
     private var recorded: [Date] = []
+    private var secondSleepWaiter: CheckedContinuation<Void, Never>?
+
+    func waitForSecondSleep() async {
+        guard recorded.count < 2 else { return }
+        await withCheckedContinuation { secondSleepWaiter = $0 }
+    }
 
     func sleep(until date: Date) async throws {
         recorded.append(date)
-        guard date.timeIntervalSinceReferenceDate > 0 else { return }
-        try await Task.sleep(nanoseconds: 10_000_000)
+        if recorded.count == 2 {
+            secondSleepWaiter?.resume()
+            secondSleepWaiter = nil
+        }
+        if recorded.count == 2 {
+            try await Task.sleep(nanoseconds: 10_000_000_000)
+        }
     }
 
     func dates() -> [Date] { recorded }
