@@ -16,8 +16,9 @@
 		16120C8C8E8B95CA75E37B05 /* ExtensionSourceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88AEBBAAB25C6B09F0FE797B /* ExtensionSourceTests.swift */; };
 		17108277EB6973F9B4B661D3 /* ChapterRowPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D36FDBC6AC0513465888FAB /* ChapterRowPresentationTests.swift */; };
 		17FA23671CF27E9A1E73FF51 /* LocalChapterLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DA7A2282D50C237F0605C23 /* LocalChapterLayoutTests.swift */; };
-		1DADC3D8F98A2F4FDCDAF723 /* deflated.cbz in Resources */ = {isa = PBXBuildFile; fileRef = 1A92BCCCD451C064F6E4999D /* deflated.cbz */; };
+		1B380F1C8F244BA751725C9C /* MangaDexEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A53238F7135B4DDED8A7AE8 /* MangaDexEngineTests.swift */; };
 		1CF60955A3104D75DD57BB6C /* SimulatorSeedFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = E667FDCB0E51CEB963BB2E88 /* SimulatorSeedFixture.swift */; };
+		1DADC3D8F98A2F4FDCDAF723 /* deflated.cbz in Resources */ = {isa = PBXBuildFile; fileRef = 1A92BCCCD451C064F6E4999D /* deflated.cbz */; };
 		1E6BD3C44A1DC1892CB2C6E1 /* stored.zip in Resources */ = {isa = PBXBuildFile; fileRef = 0D0104DD48E269F67C2B7B33 /* stored.zip */; };
 		200B62F56A5666A27357B302 /* HostAPIVersionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D5499DDE8D85DAE91D84C84 /* HostAPIVersionTests.swift */; };
 		2A0F6FF3F55534C2C6A52D0B /* BundledWeebCentralCutoverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 318CB85638AEB7E5B966E92E /* BundledWeebCentralCutoverTests.swift */; };
@@ -145,6 +146,7 @@
 		318CB85638AEB7E5B966E92E /* BundledWeebCentralCutoverTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = BundledWeebCentralCutoverTests.swift; path = BundledWeebCentralCutoverTests.swift; sourceTree = "<group>"; };
 		3230EFD03B407AE9AF0906F2 /* MetadataUpgradeQueueTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; path = MetadataUpgradeQueueTests.swift; sourceTree = "<group>"; };
 		3A3F7D58DAF1DEBCD14D548D /* MALAuthenticatedClientTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = MALAuthenticatedClientTests.swift; path = MALAuthenticatedClientTests.swift; sourceTree = "<group>"; };
+		3A53238F7135B4DDED8A7AE8 /* MangaDexEngineTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = MangaDexEngineTests.swift; path = MangaDexEngineTests.swift; sourceTree = "<group>"; };
 		3AC3FBA0CCEE925AC3AA1038 /* UpdateStateStoreTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = UpdateStateStoreTests.swift; path = UpdateStateStoreTests.swift; sourceTree = "<group>"; };
 		3D5499DDE8D85DAE91D84C84 /* HostAPIVersionTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = HostAPIVersionTests.swift; path = HostAPIVersionTests.swift; sourceTree = "<group>"; };
 		3DA7A2282D50C237F0605C23 /* LocalChapterLayoutTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = LocalChapterLayoutTests.swift; path = LocalChapterLayoutTests.swift; sourceTree = "<group>"; };
@@ -425,6 +427,7 @@
 				B4D62FDA51410716093066F1 /* SourceRegistryTests.swift */,
 				110525E44AB9F4DEB9FA813B /* LocalLibraryDeletionTests.swift */,
 				4E407B24777AF4329D9F3990 /* PDFImportTests.swift */,
+				3A53238F7135B4DDED8A7AE8 /* MangaDexEngineTests.swift */,
 			);
 			path = MangaCartaTests;
 			sourceTree = "<group>";
@@ -694,6 +697,7 @@
 				F71909E2DE1998083100EF3D /* SourceRegistryTests.swift in Sources */,
 				3EFFDE697B4008BC4764E3E1 /* LocalLibraryDeletionTests.swift in Sources */,
 				478B2580616827759823D67B /* PDFImportTests.swift in Sources */,
+				1B380F1C8F244BA751725C9C /* MangaDexEngineTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
