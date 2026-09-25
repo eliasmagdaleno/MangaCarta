@@ -233,8 +233,8 @@ Unchanged, because the Listing key is ordinary:
 `LibraryRefreshCoordinator` must never fetch a `local` Listing. Recommended mechanism: add a
 protocol requirement `var participatesInUpdates: Bool { get }` (default `true`, `false` for
 `LocalSource`) and filter in `eligibleListings(for:workId:)` by looking the Source up in the
-registry — not by string-comparing `"local"`, and not by relying on `sourceForRefresh`'s MangaDex
-fallback. A Work whose only Listing is local therefore yields no eligible listings, is never
+registry — not by string-comparing `"local"`, and not by falling back to a different
+Source when the requested Source is unavailable. A Work whose only Listing is local therefore yields no eligible listings, is never
 enqueued for a fetch, and never produces an `UpdateEvent` or notification. `MetadataUpgradeQueue`
 likewise skips it: decided, v1 does no MAL/AniList/MangaDex matching for local Works, so the
 queue excludes `local` Listings (same capability-based check) and `MALProgressCoordinator` never
