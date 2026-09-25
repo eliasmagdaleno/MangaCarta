@@ -46,6 +46,11 @@ enum MangaDexFixtures {
     static func body(_ file: String) throws -> Data {
         try Data(contentsOf: directory.appendingPathComponent("api").appendingPathComponent(file))
     }
+
+    static let mangaID = "0a580438-bc72-4503-940b-12a5da881b56"
+    static let malID = 172247
+    static let chapterID = "93ea0d72-169d-4418-b48d-95091972a871"
+    static let api = "https://api.mangadex.org"
 }
 
 /// Serves captured MangaDex JSON by canonical URL (query order normalized). An unrouted
@@ -133,5 +138,66 @@ final class MangaDexEngineTests: XCTestCase {
         XCTAssertEqual(declaration.network.httpOrigins, ["https://api.mangadex.org"])
         XCTAssertEqual(declaration.network.assetOrigins,
                        ["https://uploads.mangadex.org", "https://*.mangadex.network"])
+    }
+
+    func testSearchMapsListingsWithCoverMalIdAndQualifiedSourceId() async throws {
+        await host.transport.route(
+            "\(MangaDexFixtures.api)/manga?title=Yotsuba&includes[]=cover_art&limit=5&offset=0",
+            to: "search-yotsuba.json")
+        let source = try makeSource()
+
+        let results = try await source.search(title: "Yotsuba", limit: 5, offset: 0)
+
+        let manga = try XCTUnwrap(results.first { $0.id == MangaDexFixtures.mangaID })
+        XCTAssertEqual(manga.sourceId, Self.qualifiedID)
+        XCTAssertEqual(manga.malId, MangaDexFixtures.malID)
+        let cover = try XCTUnwrap(manga.coverURL?.absoluteString)
+        XCTAssertTrue(cover.hasPrefix("https://uploads.mangadex.org/covers/\(MangaDexFixtures.mangaID)/"))
+        XCTAssertTrue(cover.hasSuffix(".512.jpg"))
+        XCTAssertFalse(manga.title.isEmpty)
+    }
+
+    func testPopularAndNewTitlesUseTheCompiledSourcesOrdering() async throws {
+        await host.transport.route(
+            "\(MangaDexFixtures.api)/manga?order[rating]=desc&includes[]=cover_art&limit=5&offset=0",
+            to: "popular.json")
+        await host.transport.route(
+            "\(MangaDexFixtures.api)/manga?order[createdAt]=desc&includes[]=cover_art&limit=5&offset=0",
+            to: "new-titles.json")
+        let source = try makeSource()
+
+        let popular = try await source.popular(limit: 5, offset: 0)
+        let newTitles = try await source.newTitles(limit: 5, offset: 0)
+
+        XCTAssertEqual(popular.count, 5)
+        XCTAssertEqual(newTitles.count, 5)
+    }
+
+    // Review Focus 4
+    func testNoEnglishTitleFallsBackAndASlugMalIdIsDroppedNotFatal() async throws {
+        await host.transport.route(
+            "\(MangaDexFixtures.api)/manga?title=Yotsuba&includes[]=cover_art&limit=5&offset=0",
+            to: "manga-no-english.json")
+        let source = try makeSource()
+
+        let results = try await source.search(title: "Yotsuba", limit: 5, offset: 0)
+
+        XCTAssertEqual(results.map(\.title), ["Yotsuba to!"])
+        XCTAssertNil(results.first?.malId)
+    }
+
+    // Review Focus 3
+    func testA429SurfacesAsRateLimited() async throws {
+        await host.transport.route(
+            "\(MangaDexFixtures.api)/manga?title=Yotsuba&includes[]=cover_art&limit=5&offset=0",
+            status: 429, headers: ["Retry-After": "7"], file: nil)
+        let source = try makeSource()
+
+        do {
+            _ = try await source.search(title: "Yotsuba", limit: 5, offset: 0)
+            XCTFail("expected rate_limited")
+        } catch let error as ExtensionSourceError {
+            XCTAssertEqual(error, .invocation(.rateLimited))
+        }
     }
 }

@@ -1,0 +1,711 @@
+{
+  "result": "ok",
+  "response": "collection",
+  "data": [
+    {
+      "id": "4e6ac4e8-628b-4f04-b157-a8008ceb3a06",
+      "type": "manga",
+      "attributes": {
+        "title": {
+          "ja-ro": "Monster ga Afureru Sekai ni Natta kedo, Tayoreru Neko ga Iru kara Daijoubu desu"
+        },
+        "altTitles": [
+          {
+            "ja": "モンスターがあふれる世界になったけど、頼れる猫がいるから大丈夫です"
+          },
+          {
+            "en": "The World is Full of Monsters, but With My Fluffy Feline Companion, I'll Be Okay"
+          }
+        ],
+        "description": {
+          "en": "The hit series \"The World Is Full of Monsters, So I Want to Live as I Wish\" is back with an official spin-off! \n\nThis time, the hero is the strongest cat around! Running parallel to the main story, the action moves to Kyushu with all-new boss monsters, skills, and mysteries waiting to be uncovered. If you love fantasy and post-apocalyptic survival, prepare for a purr-fectly wild new reverse-isekai adventure!"
+        },
+        "isLocked": false,
+        "links": {
+          "al": "151203",
+          "bw": "series/469298/list",
+          "mu": "5djf0gi",
+          "amz": "https://www.amazon.co.jp/dp/B0D8PRZH44",
+          "raw": "https://www.manga-up.com/titles/1195",
+          "engtl": "https://global.manga-up.com/manga/981"
+        },
+        "officialLinks": null,
+        "originalLanguage": "ja",
+        "lastVolume": "",
+        "lastChapter": "",
+        "publicationDemographic": null,
+        "status": "ongoing",
+        "year": 2023,
+        "contentRating": "safe",
+        "tags": [
+          {
+            "id": "3de8c75d-8ee3-48ff-98ee-e20a65c86451",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Animals"
+              },
+              "description": {},
+              "group": "theme",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "87cc87cd-a395-47af-b27a-93258283bbc6",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Adventure"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "ace04997-f6bd-436e-b261-779182193d3d",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Isekai"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "cdc58593-87dd-415e-bbc0-2ec27bf404cc",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Fantasy"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "e5301a23-ebd9-49dd-a0cb-2add944c7fe9",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Slice of Life"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "f4122d1c-3b44-44d0-9936-ff7502c39ad3",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Adaptation"
+              },
+              "description": {},
+              "group": "format",
+              "version": 1
+            },
+            "relationships": []
+          }
+        ],
+        "state": "published",
+        "chapterNumbersResetOnNewVolume": false,
+        "createdAt": "2026-09-25T15:14:28+00:00",
+        "updatedAt": "2026-09-25T15:37:11+00:00",
+        "version": 4,
+        "availableTranslatedLanguages": [],
+        "latestUploadedChapter": null
+      },
+      "relationships": [
+        {
+          "id": "2445c6b2-ed37-4e16-9fa3-ca8e95bd8e65",
+          "type": "author"
+        },
+        {
+          "id": "2ec5f3f4-e98a-4362-a329-83254120a04b",
+          "type": "author"
+        },
+        {
+          "id": "2ec5f3f4-e98a-4362-a329-83254120a04b",
+          "type": "artist"
+        },
+        {
+          "id": "f9f7cbd4-1f0c-49af-989f-d987bd522b63",
+          "type": "cover_art",
+          "attributes": {
+            "description": "",
+            "volume": "2",
+            "fileName": "052827d7-6b68-4499-ba3d-2ff44334cf01.jpg",
+            "locale": "ja",
+            "createdAt": "2026-09-25T15:14:30+00:00",
+            "updatedAt": "2026-09-25T15:14:30+00:00",
+            "version": 1
+          }
+        },
+        {
+          "id": "c7350fb7-ec94-4026-b021-eb50c9b103b2",
+          "type": "manga",
+          "related": "main_story"
+        },
+        {
+          "id": "fb03ae91-2304-4a1f-b9e2-6b5ba3313138",
+          "type": "creator"
+        }
+      ]
+    },
+    {
+      "id": "2bb8187b-8a25-42ce-a51f-645bd5595ce5",
+      "type": "manga",
+      "attributes": {
+        "title": {
+          "ja-ro": "Sono Proposal wa Kyakkadesu!"
+        },
+        "altTitles": [
+          {
+            "ja": "そのプロポーズは却下です！"
+          }
+        ],
+        "description": {
+          "ja": "薫坊ちゃんの専属メイド・高橋はクールで毒舌。そんな高橋の悩みは4年間坊ちゃんにプロポーズされていることで!?"
+        },
+        "isLocked": false,
+        "links": {},
+        "officialLinks": null,
+        "originalLanguage": "ja",
+        "lastVolume": "",
+        "lastChapter": "",
+        "publicationDemographic": "shoujo",
+        "status": "ongoing",
+        "year": 2026,
+        "contentRating": "safe",
+        "tags": [
+          {
+            "id": "423e2eae-a7a2-4a8b-ac03-a8351462d71d",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Romance"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "4d32cc48-9f00-4cca-9b5a-a839f0764984",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Comedy"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "cdc58593-87dd-415e-bbc0-2ec27bf404cc",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Fantasy"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "e5301a23-ebd9-49dd-a0cb-2add944c7fe9",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Slice of Life"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          }
+        ],
+        "state": "published",
+        "chapterNumbersResetOnNewVolume": false,
+        "createdAt": "2026-09-25T10:17:32+00:00",
+        "updatedAt": "2026-09-25T10:18:13+00:00",
+        "version": 2,
+        "availableTranslatedLanguages": [],
+        "latestUploadedChapter": null
+      },
+      "relationships": [
+        {
+          "id": "c40ef7fd-538a-4066-ac9c-6a0832c59b7e",
+          "type": "author"
+        },
+        {
+          "id": "c40ef7fd-538a-4066-ac9c-6a0832c59b7e",
+          "type": "artist"
+        },
+        {
+          "id": "722704eb-ab83-4af6-8847-5cd3feaf644d",
+          "type": "cover_art",
+          "attributes": {
+            "description": "",
+            "volume": "0",
+            "fileName": "51895364-9288-4a31-bdce-438ae264cde7.jpg",
+            "locale": "ja",
+            "createdAt": "2026-09-25T10:17:35+00:00",
+            "updatedAt": "2026-09-25T10:17:35+00:00",
+            "version": 1
+          }
+        },
+        {
+          "id": "cf326533-07d1-4596-ac9e-e8ec899277b7",
+          "type": "creator"
+        }
+      ]
+    },
+    {
+      "id": "d865362d-8bff-450e-ab6a-20e5a90d91a6",
+      "type": "manga",
+      "attributes": {
+        "title": {
+          "ja-ro": "Otsukare Gohan Sendai to Iku Kono Konbi ni Kakeawase Ryorijo"
+        },
+        "altTitles": [
+          {
+            "ja": "お憑かれごはん ～千代といくこのコンビにかけあわせ料理帖～"
+          }
+        ],
+        "description": {
+          "ja": "お疲れな体と心を満たす、幽霊と作るコンビニかけあわせごはん！\n\n毎日ヘトヘトで帰宅する会社員いくこ。\nそんな彼女を出迎えるのは、大正時代の女給の幽霊「千代」だった！\n\n《疲弊すると幽霊が見える》という特異体質＆限界寸前ないくこのため\n千代はその体に憑いて、「こんびにぐるめ」を組み合わせ新たなメニューを振る舞い、いくこを元気づけていくーー\n幽霊と社畜。ちょっと不思議でおいしい同居生活。\n\n「コンビニかけあわせグルメ」生みの親・ディスク百合おんが生み出す多彩なメニューもお楽しみに！"
+        },
+        "isLocked": false,
+        "links": {
+          "raw": "https://comic-walker.com/detail/KC_020259_S/episodes/KC_0202590000200011_E?episodeType=latest"
+        },
+        "officialLinks": null,
+        "originalLanguage": "ja",
+        "lastVolume": "",
+        "lastChapter": "",
+        "publicationDemographic": "seinen",
+        "status": "ongoing",
+        "year": 2026,
+        "contentRating": "safe",
+        "tags": [
+          {
+            "id": "3bb26d85-09d5-4d2e-880c-c34b974339e9",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Ghosts"
+              },
+              "description": {},
+              "group": "theme",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "92d6d951-ca5e-429c-ac78-451071cbf064",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Office Workers"
+              },
+              "description": {},
+              "group": "theme",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "e5301a23-ebd9-49dd-a0cb-2add944c7fe9",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Slice of Life"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "ea2bc92d-1c26-4930-9b7c-d5c0dc1b6869",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Cooking"
+              },
+              "description": {},
+              "group": "theme",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "eabc5b4c-6aff-42f3-b657-3e90cbd00b75",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Supernatural"
+              },
+              "description": {},
+              "group": "theme",
+              "version": 1
+            },
+            "relationships": []
+          }
+        ],
+        "state": "published",
+        "chapterNumbersResetOnNewVolume": false,
+        "createdAt": "2026-09-25T10:07:37+00:00",
+        "updatedAt": "2026-09-25T10:14:34+00:00",
+        "version": 3,
+        "availableTranslatedLanguages": [],
+        "latestUploadedChapter": null
+      },
+      "relationships": [
+        {
+          "id": "f08fa4b9-e9e9-4e7e-9db9-506a0bb0e61d",
+          "type": "author"
+        },
+        {
+          "id": "f08fa4b9-e9e9-4e7e-9db9-506a0bb0e61d",
+          "type": "artist"
+        },
+        {
+          "id": "27bcf91c-aa13-4541-a9b2-b2f80927e3fb",
+          "type": "cover_art",
+          "attributes": {
+            "description": "",
+            "volume": "0",
+            "fileName": "8f427bb7-e770-4068-afaf-7be52de309ff.jpg",
+            "locale": "ja",
+            "createdAt": "2026-09-25T10:07:40+00:00",
+            "updatedAt": "2026-09-25T10:07:40+00:00",
+            "version": 1
+          }
+        },
+        {
+          "id": "cf326533-07d1-4596-ac9e-e8ec899277b7",
+          "type": "creator"
+        }
+      ]
+    },
+    {
+      "id": "e0f5576d-931d-4630-b02b-ca03ccfbe379",
+      "type": "manga",
+      "attributes": {
+        "title": {
+          "ja-ro": "Sore wa, Furitsumoru Yuki no You na."
+        },
+        "altTitles": [
+          {
+            "en": "​Like Softly Falling Snow"
+          },
+          {
+            "ja": "それは、降り積もる雪のような。"
+          },
+          {
+            "id": "Semua Ini Seperti Salju yang Turun Bertumpuk"
+          },
+          {
+            "es-la": "Como la nieve que se acumula"
+          },
+          {
+            "vi": "Như Tuyết Rơi Đọng Lại"
+          }
+        ],
+        "description": {
+          "en": "​\"Life is as bitter as coffee.\"\n​High school student Seiichiro Watari lives his life by a simple motto: keep things quiet, pragmatic, and moderate. Due to certain circumstances, he lives and works as a live-in employee at a traditional coffee shop (kissaten) owned by an acquaintance's family.\n​He aims to get through his school years without stirring up trouble, but one day on his way home, Seiichiro discovers that his classmate, Sumika Sumikano, holds feelings for him.\n​However, Seiichiro finds himself in a position where he cannot simply accept her affection.\n​The reason? Sumika is the only daughter of the Sumikano family—the very family hosting him at their coffee shop. In other words, she is someone living under the same roof, practically like family to him.\n​\"Hey, Seiichiro-kun... are you avoiding me by any chance?\"\n​Feelings accumulate quietly and steadily. The curtain rises on a heartwarming youth romance about two clumsy souls, unfolding inside a cozy coffee shop in the dead of winter—much like snow falling softly over the city."
+        },
+        "isLocked": false,
+        "links": {},
+        "officialLinks": null,
+        "originalLanguage": "ja",
+        "lastVolume": "",
+        "lastChapter": "",
+        "publicationDemographic": null,
+        "status": "ongoing",
+        "year": 2026,
+        "contentRating": "safe",
+        "tags": [
+          {
+            "id": "423e2eae-a7a2-4a8b-ac03-a8351462d71d",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Romance"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "b9af3a63-f058-46de-a9a0-e0c13906197a",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Drama"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "caaa44eb-cd40-4177-b930-79d3ef2afe87",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "School Life"
+              },
+              "description": {},
+              "group": "theme",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "e197df38-d0e7-43b5-9b09-2842d0c326dd",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Web Comic"
+              },
+              "description": {},
+              "group": "format",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "e5301a23-ebd9-49dd-a0cb-2add944c7fe9",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Slice of Life"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "f4122d1c-3b44-44d0-9936-ff7502c39ad3",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Adaptation"
+              },
+              "description": {},
+              "group": "format",
+              "version": 1
+            },
+            "relationships": []
+          }
+        ],
+        "state": "published",
+        "chapterNumbersResetOnNewVolume": false,
+        "createdAt": "2026-09-25T01:45:01+00:00",
+        "updatedAt": "2026-09-25T01:53:05+00:00",
+        "version": 4,
+        "availableTranslatedLanguages": [],
+        "latestUploadedChapter": null
+      },
+      "relationships": [
+        {
+          "id": "96730fea-af2a-4ec3-afb2-1c5d15f6e8ef",
+          "type": "author"
+        },
+        {
+          "id": "d18671ab-0534-447d-b0a2-f4fce4c02b59",
+          "type": "artist"
+        },
+        {
+          "id": "34292211-1d4e-4939-a3c2-17a39b5d0309",
+          "type": "cover_art",
+          "attributes": {
+            "description": "",
+            "volume": "1",
+            "fileName": "ff54de6b-4ce5-48b7-b950-ec964df97245.jpg",
+            "locale": "ja",
+            "createdAt": "2026-09-25T01:45:02+00:00",
+            "updatedAt": "2026-09-25T01:45:02+00:00",
+            "version": 1
+          }
+        },
+        {
+          "id": "c2942fa7-5d15-43c5-badd-b00a18323161",
+          "type": "creator"
+        }
+      ]
+    },
+    {
+      "id": "af6667a4-ae4c-4baa-9283-a01f56d7f489",
+      "type": "manga",
+      "attributes": {
+        "title": {
+          "ja-ro": "Kimi no Kami ga Ki ni Naru nda"
+        },
+        "altTitles": [
+          {
+            "ja": "君の髪が気になるんだ"
+          },
+          {
+            "en": "Since I'm Interested In Your Hair"
+          }
+        ],
+        "description": {
+          "en": "I can't stop thinking about you, the person sitting next to me, who changes your hairstyle every day!",
+          "ja": "髪型を毎日変える隣の席の君が気になってしょうがない！"
+        },
+        "isLocked": false,
+        "links": {
+          "raw": "https://comic-days.com/search?q=%E5%90%9B%E3%81%AE%E9%AB%AA%E3%81%8C%E6%B0%97%E3%81%AB%E3%81%AA%E3%82%8B%E3%82%93%E3%81%A0"
+        },
+        "officialLinks": null,
+        "originalLanguage": "ja",
+        "lastVolume": "",
+        "lastChapter": "",
+        "publicationDemographic": "seinen",
+        "status": "ongoing",
+        "year": 2026,
+        "contentRating": "safe",
+        "tags": [
+          {
+            "id": "423e2eae-a7a2-4a8b-ac03-a8351462d71d",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Romance"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "69964a64-2f90-4d33-beeb-f3ed2875eb4c",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Sports"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "caaa44eb-cd40-4177-b930-79d3ef2afe87",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "School Life"
+              },
+              "description": {},
+              "group": "theme",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "e197df38-d0e7-43b5-9b09-2842d0c326dd",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Web Comic"
+              },
+              "description": {},
+              "group": "format",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "e5301a23-ebd9-49dd-a0cb-2add944c7fe9",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Slice of Life"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          }
+        ],
+        "state": "published",
+        "chapterNumbersResetOnNewVolume": false,
+        "createdAt": "2026-09-25T00:20:33+00:00",
+        "updatedAt": "2026-09-25T00:23:39+00:00",
+        "version": 3,
+        "availableTranslatedLanguages": [],
+        "latestUploadedChapter": null
+      },
+      "relationships": [
+        {
+          "id": "dfeb69f7-4e88-4478-a552-86a20cfc0a19",
+          "type": "author"
+        },
+        {
+          "id": "dfeb69f7-4e88-4478-a552-86a20cfc0a19",
+          "type": "artist"
+        },
+        {
+          "id": "a9a29ed1-9b4d-41a8-a657-67bb5536d584",
+          "type": "cover_art",
+          "attributes": {
+            "description": "",
+            "volume": "0.0",
+            "fileName": "287868e3-e415-45bb-b950-027fd9a6d554.jpg",
+            "locale": "ja",
+            "createdAt": "2026-09-25T00:23:22+00:00",
+            "updatedAt": "2026-09-25T00:23:22+00:00",
+            "version": 1
+          }
+        },
+        {
+          "id": "0fbb8907-c84e-4ef4-958a-794b19c76797",
+          "type": "manga",
+          "related": "preserialization"
+        },
+        {
+          "id": "e6c3b0dd-7362-4108-879e-fd606ebfeb14",
+          "type": "manga",
+          "related": "preserialization"
+        },
+        {
+          "id": "4bf80b7d-a82e-4e0d-9dc2-108ca51bddf1",
+          "type": "creator"
+        }
+      ]
+    }
+  ],
+  "limit": 5,
+  "offset": 0,
+  "total": 94768
+}
