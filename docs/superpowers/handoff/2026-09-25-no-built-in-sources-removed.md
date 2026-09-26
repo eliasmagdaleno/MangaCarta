@@ -26,6 +26,15 @@ this one was written. Recheck GitHub and working trees before acting.
   - The fallback browse Source now prefers a non-adult one, because no browsable built-in comes
     first any more (ADR-0022).
   - `CLAUDE.md` current state and the glossary were updated.
+  - The WeebCentral engine and index moved to `MangaCartaTests/__Fixtures__/weebcentral/` for the
+    port tests (engine SHA-256 `88ad0627…`, identical to the published copy).
+  - **Verified:** full `MangaCartaTests` run on commit `f137700` — 1,226 tests, 1,221 passed,
+    0 failed, 5 skipped. **Not done:** mutation checks for the new tests (the #254 fix's two tests
+    were mutation-checked; this slice's were not), the hermetic UI suites locally, and CI (no PR
+    yet).
+- **Where this handoff lives:** until this branch merges, `main` still carries the older
+  `2026-09-25-weebcentral-published.md` handoff. This file, on `feat/no-built-in-sources`, is the
+  current one.
 
 ## Next
 
