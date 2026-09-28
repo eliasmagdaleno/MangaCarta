@@ -69,8 +69,14 @@ Recheck GitHub and working trees before acting.
 2. **Flaky tests:**
    - `MALAuthenticatedClientTests` "Concurrent 401s share one refresh" depends on order: the
      scripted transport serves responses in sequence.
-   - **New:** `LocalImportUITests.testImportReadAndDelete` failed once on #259's CI at line 18
-     (the empty-Library copy, after about 55s) and passed on a re-run with no change.
+   - **New:** `LocalImportUITests.testImportReadAndDelete` failed twice on 2026-09-27, both times
+     passing on a re-run with no change:
+     - on #259, at line 18 (the empty-Library copy, after about 55s);
+     - on #260, with "Timed out while launching application via Xcode" at line 15.
+     
+     It is the first hermetic UI test to launch the app, so the likely cause is a cold-start
+     timeout on the CI simulator rather than the test itself. A warm-up launch, or a longer launch
+     timeout for the first test, is the probable fix.
 3. **Adult fallback edge:** with only adult-classed Sources installed and "Show adult sources"
    off, `SourceRegistry.active` still falls back to one. Decide this together with Next 2.
 4. **README is stale:** its Features line still says "MangaDex plus a Cloudflare-protected,
