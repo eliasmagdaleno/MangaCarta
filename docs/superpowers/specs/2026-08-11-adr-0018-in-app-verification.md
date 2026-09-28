@@ -41,6 +41,9 @@ distinct works sharing a title exactly — the collision ADR-0008's ambiguity gu
 `MangaCartaUITests/MangaCartaUITests.testADR0018WindBreakerAcquiresMalIdThroughSearch`, run
 once by hand. Not a CI test: it asserts against one simulator's seeded state and stops being
 meaningful when the refusals age out of their fourteen-day TTL (~2026-08-23).
+**Retired 2026-09-28:** the test is deleted from `MangaCartaUITests.swift`. The seeded simulator
+has since added Wind Breaker to its library, so the run cannot be repeated there; recover it from
+`git show 62301f9:MangaCartaUITests/MangaCartaUITests.swift`.
 
 The run goes through **Search**, not History. A search result's `Manga` came straight off the API
 and carries `links.mal`; a pre-amendment history entry carries `malId: nil`, so the History route
