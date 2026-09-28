@@ -205,8 +205,10 @@ final class SourceRegistry: ObservableObject {
 
     /// Enforce adult gating: if adult sources are now hidden but the active browse source is
     /// adult, fall back to the first non-adult source. Call when the "show adult" flag changes.
+    /// Checks the stored choice, not `active`: by the time this runs the switch is already off,
+    /// so `active` has skipped the hidden Source while `activeSourceID` still names it.
     func enforceAdultGating(includeAdult: Bool) {
-        guard !includeAdult, active?.isNSFW == true,
+        guard !includeAdult, source(id: activeSourceID)?.isNSFW == true,
               let fallback = visibleSources(includeAdult: false).first else { return }
         activeSourceID = fallback.id
     }

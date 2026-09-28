@@ -1139,10 +1139,15 @@ final class MangaCartaTests: XCTestCase {
             func chapters(mangaId: String) async throws -> [Chapter] { [] }
             func pageURLs(chapterId: String, preferDataSaver: Bool) async throws -> [URL] { [] }
         }
-        let registry = SourceRegistry(sources: [MangaDexSource(), AdultMock()])
+        // The switch is read, not the device's setting: in the app it has already changed by the
+        // time the gate runs. This passed on a device with the switch on and failed on CI.
+        var showAdult = false
+        let registry = SourceRegistry(sources: [MangaDexSource(), AdultMock()],
+                                      showAdultContent: { showAdult })
         registry.activeSourceID = "adult"
         registry.enforceAdultGating(includeAdult: false)
         XCTAssertEqual(registry.activeSourceID, "mangadex")   // fell back to the non-adult source
+        showAdult = true
         registry.activeSourceID = "adult"
         registry.enforceAdultGating(includeAdult: true)
         XCTAssertEqual(registry.activeSourceID, "adult")      // no change while adult shown
