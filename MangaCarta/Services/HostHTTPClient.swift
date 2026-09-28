@@ -108,6 +108,7 @@ struct HostHTTPClient: Sendable {
                                           message: "the connected destination was non-public")
             }
             try await policy.validate(response.url)
+            await pauseIfRateLimited(response, origin: origin)
 
             guard response.body.count <= HostCapabilityLimits.responseBodyBytes else {
                 throw HostCapabilityError(code: .resourceLimit,
@@ -247,15 +248,27 @@ struct HostHTTPClient: Sendable {
     }
 
     private func retryAfter(from headers: [String: String]) -> Double? {
-        guard let raw = header("retry-after", in: headers) else { return nil }
-        if let seconds = Double(raw), seconds >= 0 { return seconds }
+        guard let raw = header("retry-after", in: headers),
+              let retryAfter = HostRetryAfter(headerValue: raw) else { return nil }
+        switch retryAfter {
+        case .delay(let seconds): return seconds
+        case .instant(let date): return max(0, date.timeIntervalSinceNow)
+        }
+    }
 
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(secondsFromGMT: 0)
-        formatter.dateFormat = "EEE',' dd MMM yyyy HH':'mm':'ss z"
-        guard let date = formatter.date(from: raw) else { return nil }
-        return max(0, date.timeIntervalSinceNow)
+    /// A 429 pauses this Source's budgets for the origin, so background refresh and matching
+    /// stop sending too, not only the caller that saw it. The standard `Retry-After` wins;
+    /// MangaDex's `X-RateLimit-Retry-After` (the end of the current window, sent on every
+    /// response) is the fallback. A 429 carrying neither leaves ordinary spacing in charge.
+    private func pauseIfRateLimited(_ response: HostHTTPTransportResponse, origin: String) async {
+        guard response.statusCode == 429 else { return }
+        for name in ["retry-after", "x-ratelimit-retry-after"] {
+            if let raw = header(name, in: response.headers),
+               let retryAfter = HostRetryAfter(headerValue: raw) {
+                await rateLimiters.pause(sourceID: sourceID, origin: origin, retryAfter: retryAfter)
+                return
+            }
+        }
     }
 
     private func header(_ name: String, in headers: [String: String]) -> String? {
