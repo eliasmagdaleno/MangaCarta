@@ -218,6 +218,15 @@ jobs:
           echo "Chosen simulator: $name"
           echo "name=$name" >> "$GITHUB_OUTPUT"
 
+      # Boot before testing. Left to xcodebuild, the cold boot lands on whichever test
+      # runs first: LocalImportUITests timed out launching the app, and then setting the
+      # orientation, on #259 and twice on #260, with every later test passing.
+      - name: Boot the simulator
+        if: needs.changes.outputs.code == 'true'
+        run: |
+          xcrun simctl boot "${{ steps.sim.outputs.name }}" || true
+          xcrun simctl bootstatus "${{ steps.sim.outputs.name }}" -b
+
       - name: Run the hermetic UI suites
         if: needs.changes.outputs.code == 'true'
         run: |
