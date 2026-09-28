@@ -30,6 +30,17 @@ final class RepositorySettingsViewModelTests: XCTestCase {
         XCTAssertEqual(model.errorMessage, "Enter a valid HTTPS repository URL.")
     }
 
+    /// A URL pasted with a stray space or newline is the same URL; rejecting it showed an
+    /// error the reader could not see behind the keyboard.
+    func testAddTrimsSurroundingWhitespaceFromAPastedURL() async throws {
+        let model = try makeModel()
+        model.addRepository("  https://fixture.invalid/index.json\n")
+        let url = URL(string: "https://fixture.invalid/index.json")!
+        for _ in 0..<200 where model.composition.repositories.repository(at: url) == nil { await Task.yield() }
+        XCTAssertNil(model.errorMessage)
+        XCTAssertEqual(model.composition.repositories.repository(at: url)?.state, .active)
+    }
+
     func testIndexRejectionIsAReaderFacingSentence() throws {
         let model = try makeModel()
         let message = model.sentence(for: RepositoryIndexError.unsupportedFormat(path: "format", value: 2))

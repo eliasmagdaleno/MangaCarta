@@ -34,6 +34,16 @@ import XCTest
 
 final class MangaCartaUITests: XCTestCase {
 
+    /// No remote Source ships in the app (ADR-0003 Amendment 6), so every test here that
+    /// browses installs the published repository first, through the real installer
+    /// (`LiveUITestRepositoryInstall`). Idempotent: on a device that already has it, the
+    /// launch refreshes it and installs nothing. `-uitest-source mangadex` then names the
+    /// installed Source by its `localId`.
+    static let liveRepositoryArguments = [
+        "-uitest-install-repository",
+        "https://raw.githubusercontent.com/proxy-link/mangacarta-sources/main/index.json",
+    ]
+
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.
 
@@ -59,6 +69,7 @@ final class MangaCartaUITests: XCTestCase {
     /// the source chip bar (Home) and the action row (Detail).
     func testHomeAndDetailScreenshots() throws {
         let app = XCUIApplication()
+        app.launchArguments += Self.liveRepositoryArguments
         app.launch()
 
         // Home: the source chip bar must be present and MangaDex active.
@@ -221,6 +232,7 @@ final class MangaCartaUITests: XCTestCase {
                           "live MAL write: set TEST_RUNNER_MAL_LIVE_WRITE=1 to run, and restore the entry after")
 
         let app = XCUIApplication()
+        app.launchArguments += Self.liveRepositoryArguments
         app.launchArguments += ["-uitest-source", "mangadex"]
         XCUIDevice.shared.orientation = .portrait
         app.launch()
@@ -374,6 +386,7 @@ final class MangaCartaUITests: XCTestCase {
     /// appear — end-to-end against the real MAL + MangaDex APIs.
     func testMoreLikeThisDetailRailLiveVerification() throws {
         let app = XCUIApplication()
+        app.launchArguments += Self.liveRepositoryArguments
         app.launch()
 
         // Home: wait for the first cover card, then open it (retry once — a LazyVStack
@@ -426,6 +439,7 @@ final class MangaCartaUITests: XCTestCase {
     /// appears within a small number of swipes.
     func testChapterPreviewKeepsRailReachable() throws {
         let app = XCUIApplication()
+        app.launchArguments += Self.liveRepositoryArguments
         app.launch()
 
         let firstCard = app.buttons.matching(identifier: "mangaCoverCard").firstMatch
@@ -466,6 +480,7 @@ final class MangaCartaUITests: XCTestCase {
     /// live. Taps through, toggles sort, then marks a chapter read via select mode.
     func testShowAllChaptersOpensFullListWithSortAndSelect() throws {
         let app = XCUIApplication()
+        app.launchArguments += Self.liveRepositoryArguments
         // Two things this test must establish rather than inherit. The browse source is
         // persisted (`SourceRegistry`), so a previous WeebCentral run would otherwise
         // decide which catalog this searches.
@@ -567,6 +582,7 @@ final class MangaCartaUITests: XCTestCase {
     /// `.background`, so a run that just ends loses the entry it was verifying.
     func testADR0018WindBreakerAcquiresMalIdThroughSearch() throws {
         let app = XCUIApplication()
+        app.launchArguments += Self.liveRepositoryArguments
         app.launch()
 
         app.buttons["Search"].tap()
@@ -620,6 +636,7 @@ final class MangaCartaUITests: XCTestCase {
     /// Asserts nothing about resolution. Its output is the file the app writes.
     func testMintOneWeebCentralWorkThroughTheRealPath() throws {
         let app = XCUIApplication()
+        app.launchArguments += Self.liveRepositoryArguments
         app.launch()
 
         let weeb = app.buttons["Browse WeebCentral"]
@@ -685,6 +702,7 @@ final class MangaCartaUITests: XCTestCase {
     /// the same `mangaId`, so the before-state is on record rather than asserted.
     func testADR0018Decision1MangaDexReadWritesThePublishedId() throws {
         let app = XCUIApplication()
+        app.launchArguments += Self.liveRepositoryArguments
         app.launch()
 
         app.buttons["Search"].tap()
@@ -728,6 +746,7 @@ final class MangaCartaUITests: XCTestCase {
     /// the fixture rather than against a name.
     func testADR0018Decision1ResumeFromHistoryKeepsTheId() throws {
         let app = XCUIApplication()
+        app.launchArguments += Self.liveRepositoryArguments
         app.launch()
 
         // --- displacement, not the measurement ---
@@ -871,6 +890,7 @@ final class MangaCartaUITests: XCTestCase {
 
     func testForYouRailPopulatesWithCompositeProvider() throws {
         let app = XCUIApplication()
+        app.launchArguments += Self.liveRepositoryArguments
         app.launch()
         // Home must load content at all (proves the composite provider didn't break Home).
         let anyCard = app.buttons.matching(identifier: "mangaCoverCard").firstMatch
@@ -950,6 +970,7 @@ final class MangaCartaUITests: XCTestCase {
     /// third of the set is not ordering drift.
     func testADR0020WidenedCardsAppearInTheRail() throws {
         let app = XCUIApplication()
+        app.launchArguments += Self.liveRepositoryArguments
         app.launch()
 
         var seedsMissed: [String] = []
@@ -1064,6 +1085,7 @@ final class MangaCartaUITests: XCTestCase {
     /// tests only.
     func testForYouRailReachesTheScreenWithCards() throws {
         let app = XCUIApplication()
+        app.launchArguments += Self.liveRepositoryArguments
         app.launch()
 
         // The rail is built from a live AniList query plus up to 12 MangaDex searches, so
@@ -1156,6 +1178,7 @@ extension MangaCartaUITests {
     /// cannot see the app's container.
     func testSignedOutReadingIsUnchanged() throws {
         let app = XCUIApplication()
+        app.launchArguments += Self.liveRepositoryArguments
         app.launchArguments += ["-uitest-mal-signed-out", "-uitest-mal-reset-outbox",
                                 "-uitest-source", "mangadex"]
         XCUIDevice.shared.orientation = .portrait
@@ -1182,7 +1205,7 @@ extension MangaCartaUITests {
     func testOfflineCompletionQueuesAndSurvivesRelaunch() throws {
         let arguments = ["-uitest-mal-state", "signed-in",
                          "-uitest-mal-offline",
-                         "-uitest-source", "mangadex"]
+                         "-uitest-source", "mangadex"] + Self.liveRepositoryArguments
 
         let app = XCUIApplication()
         app.launchArguments += ["-uitest-mal-reset-outbox"] + arguments
@@ -1231,6 +1254,7 @@ extension MangaCartaUITests {
     /// "not queued" from "queued but not shown".
     func testDisablingSyncStopsQueueingAndReenablingResumes() throws {
         let app = XCUIApplication()
+        app.launchArguments += Self.liveRepositoryArguments
         app.launchArguments += ["-uitest-mal-state", "signed-in",
                                 "-uitest-mal-offline",
                                 "-uitest-mal-reset-outbox",
@@ -1287,6 +1311,7 @@ extension MangaCartaUITests {
     /// exists.
     func testSignOutClearsTheAccountAndItsQueue() throws {
         let app = XCUIApplication()
+        app.launchArguments += Self.liveRepositoryArguments
         app.launchArguments += ["-uitest-mal-state", "signed-in",
                                 "-uitest-mal-offline",
                                 "-uitest-mal-reset-outbox",
@@ -1333,6 +1358,7 @@ extension MangaCartaUITests {
     /// a stand-in and cannot deliver by construction.
     func testForegroundingRetriesQueuedWork() throws {
         let app = XCUIApplication()
+        app.launchArguments += Self.liveRepositoryArguments
         app.launchArguments += ["-uitest-mal-state", "signed-in",
                                 "-uitest-mal-offline",
                                 "-uitest-mal-reset-outbox",

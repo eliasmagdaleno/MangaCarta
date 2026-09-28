@@ -339,6 +339,8 @@ private struct RepositorySettingsSection: View {
     @StateObject private var model: RepositorySettingsViewModel
     @ObservedObject private var repositories: RepositoryStore
     @State private var repositoryURL = ""
+    /// Add's result and any error render below the field, so a keyboard left up hides them.
+    @FocusState private var urlFieldFocused: Bool
 
     init(composition: AppComposition.ExtensionComposition) {
         _model = StateObject(wrappedValue: RepositorySettingsViewModel(composition: composition))
@@ -352,8 +354,12 @@ private struct RepositorySettingsSection: View {
                 TextField("https://example.org/index.json", text: $repositoryURL)
                     .textInputAutocapitalization(.never)
                     .keyboardType(.URL)
+                    .focused($urlFieldFocused)
                     .accessibilityIdentifier("repositorySettings.url")
-                Button("Add") { model.addRepository(repositoryURL) }
+                Button("Add") {
+                    urlFieldFocused = false
+                    model.addRepository(repositoryURL)
+                }
                     .accessibilityIdentifier("repositorySettings.add")
             }
             .padding(.horizontal, Gutter.page)
