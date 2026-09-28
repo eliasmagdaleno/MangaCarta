@@ -99,14 +99,13 @@ Recheck GitHub and the working trees before acting.
 
 ## Operating notes
 
-- **Orca orchestration does not work from a session that is not in an Orca terminal.**
-  `run-create` fails with `no_active_sender_terminal`, and the only open terminal belonged to another
-  project, so it was not borrowed. Luna ran through the plain CLI instead:
-  `codex exec -m gpt-5.6-luna -c model_reasoning_effort=medium -s workspace-write --add-dir <worktree> -C <worktree> - < prompt.md`.
-- **Luna's `workspace-write` sandbox cannot reach CoreSimulatorService**, so it cannot build or
-  test (Task 1 once got through on an escalation; Tasks 2–6 did not). The controller runs every
-  test and a mutation check per task. This caught a missing `import Foundation`, a dropped fallback
-  preference, and a test that never reached the path it claimed to test.
+- **Use Orca for Luna, not raw `codex exec`.** From a session that is not in an Orca terminal,
+  `run-create` fails with `no_active_sender_terminal`. The fix is `orca terminal create` in the
+  worktree, then passing that handle as `--from`. Never borrow another pane's handle. This session
+  wrongly fell back to `codex exec -s workspace-write`, whose sandbox cannot reach
+  CoreSimulatorService, so Luna committed Tasks 2–6 untested and the controller ran every suite and
+  a mutation check itself. That caught a missing `import Foundation`, a dropped fallback preference,
+  and a test that never reached the path it claimed to test.
 - **Luna force-adds `.superpowers/` report files** despite the ignore rule. The dispatch rules
   now forbid it; check `git ls-files .superpowers` before pushing.
 - **Seeded-simulator defaults:** unit tests that set `SourceRegistry.activeSourceID` write the real
