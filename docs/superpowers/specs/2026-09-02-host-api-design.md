@@ -803,6 +803,10 @@ only the nested value and still reject requests without a `page` object. Remove 
 shim once all published engines use the nested shape, and no later than no-built-in-sources
 slice 6 removes the bundled package.
 
+**Shim removed 2026-09-27.** Both published engines (MangaDex and WeebCentral in
+`proxy-link/mangacarta-sources`) read only `request.page`, and the bundled v1 WeebCentral install is
+retired at launch (ADR-0003 Amendment 6). The host now sends paging only as the nested `page` value.
+
 ## Amendment 6 — chapter scanlation-group credits (2026-09-24)
 
 **Decision:** Host API 1.2's additive features are leftmost-label `network.assetOrigins` wildcards

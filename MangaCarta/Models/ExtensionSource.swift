@@ -339,9 +339,6 @@ final class ExtensionSource: MangaSource {
                 // subsequent cursors are replayed byte-for-byte from the previous response.
                 let pageCursor: Any = cursor.map { $0 as Any } ?? (NSNull() as Any)
                 request["page"] = ["cursor": pageCursor, "limit": limit]
-                // Compatibility shim for pre-#186 flat-shape engines; keep these values identical to page.
-                request["cursor"] = pageCursor
-                request["limit"] = limit
                 let value = try await invoke(operation, request: request)
                 let (items, next, exhausted) = try validated { try parse(value) }
                 cursors.record(key: key, after: at, limit: limit, next: next, exhausted: exhausted)
