@@ -547,7 +547,10 @@ struct ExtensionDomainValidator {
         return "https://\(host)"
     }
 
-    private static func originMatches(_ origin: String, pattern: String) -> Bool {
+    /// The one image-origin matcher. The declaration validator reuses it to check that a
+    /// reported origin is covered by `assetOrigins` (ADR-0003 Amendment 9), so the two can
+    /// never disagree about what a wildcard covers.
+    static func originMatches(_ origin: String, pattern: String) -> Bool {
         guard let actual = URL(string: origin), let allowed = URL(string: pattern),
               actual.scheme == allowed.scheme,
               (actual.port ?? 443) == (allowed.port ?? 443),

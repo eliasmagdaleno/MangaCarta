@@ -123,6 +123,15 @@ struct NetworkPolicy: Equatable, Sendable {
     let httpOrigins: [String]
     let browserOrigins: [String]
     let assetOrigins: [String]
+    /// `nil` means the Source sends no image-load reports (ADR-0003 Amendment 9).
+    let imageLoadReports: ImageLoadReportPolicy?
+}
+
+/// A Source's opt-in to image-load reports. Validated: `endpoint` is inside `httpOrigins`,
+/// and every entry of `origins` is covered by `assetOrigins`.
+struct ImageLoadReportPolicy: Equatable, Sendable {
+    let endpoint: URL
+    let origins: [String]
 }
 
 /// The design's "Source-authored presentation" badge enum.

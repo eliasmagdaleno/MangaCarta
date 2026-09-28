@@ -53,6 +53,7 @@ enum SourceDeclarationError: Error, Equatable, Sendable {
     case invalidLanguageMode(String)
     case invalidLanguageTag(String)
     case emptyLanguageValues
+    case emptyImageLoadReportOrigins
     case duplicateLanguageTag(String)
     case invalidOrigin(path: String, value: String, reason: String)
     case duplicateOrigin(path: String, value: String)
@@ -133,6 +134,9 @@ extension SourceDeclarationError {
             return "languages.mode '\(value)' is not one of fixed, selectable, mixed."
         case .invalidLanguageTag(let value):
             return "'\(value)' is not a well-formed BCP 47 language tag."
+        case .emptyImageLoadReportOrigins:
+            return "network.imageLoadReports.origins must list at least one image origin; "
+                + "omit imageLoadReports entirely to send no reports."
         case .emptyLanguageValues:
             return "languages.values must list at least one language; the host never "
                 + "passes a language outside the declaration."
@@ -436,7 +440,8 @@ enum SourceDeclarationValidator {
                                 selectedHostAPIVersion: HostAPIVersion) throws -> NetworkPolicy {
         let dictionary = try object(root, "network", at: "")
         try rejectUnknownKeys(in: dictionary,
-                              allowed: ["httpOrigins", "browserOrigins", "assetOrigins"],
+                              allowed: ["httpOrigins", "browserOrigins", "assetOrigins",
+                                        "imageLoadReports"],
                               at: "network")
         let assetOrigins = try origins(dictionary, "assetOrigins", allowWildcards: true)
         if selectedHostAPIVersion < HostAPIVersion(major: 1, minor: 2),
@@ -445,9 +450,79 @@ enum SourceDeclarationValidator {
                 feature: "network.assetOrigins wildcard",
                 minimum: HostAPIVersion(major: 1, minor: 2), selected: selectedHostAPIVersion)
         }
-        return NetworkPolicy(httpOrigins: try origins(dictionary, "httpOrigins"),
+        let httpOrigins = try origins(dictionary, "httpOrigins")
+        var reports: ImageLoadReportPolicy?
+        if dictionary["imageLoadReports"] != nil {
+            if selectedHostAPIVersion < HostAPIVersion(major: 1, minor: 3) {
+                throw SourceDeclarationError.featureRequiresHostAPIVersion(
+                    feature: "network.imageLoadReports",
+                    minimum: HostAPIVersion(major: 1, minor: 3), selected: selectedHostAPIVersion)
+            }
+            reports = try imageLoadReports(dictionary, httpOrigins: httpOrigins,
+                                           assetOrigins: assetOrigins)
+        }
+        return NetworkPolicy(httpOrigins: httpOrigins,
                              browserOrigins: try origins(dictionary, "browserOrigins"),
-                             assetOrigins: assetOrigins)
+                             assetOrigins: assetOrigins,
+                             imageLoadReports: reports)
+    }
+
+    /// ADR-0003 Amendment 9. The feature may add no new party and no new reach: the endpoint
+    /// must be an origin the Source already calls, and every reported origin must be one it
+    /// may already load images from.
+    private static func imageLoadReports(_ network: [String: JSONValue],
+                                         httpOrigins: [String],
+                                         assetOrigins: [String]) throws -> ImageLoadReportPolicy {
+        let path = "network.imageLoadReports"
+        let dictionary = try object(network, "imageLoadReports", at: "network")
+        try rejectUnknownKeys(in: dictionary, allowed: ["endpoint", "origins"], at: path)
+
+        let rawEndpoint = try string(dictionary, "endpoint", at: path)
+        let endpointPath = "\(path).endpoint"
+        guard let components = URLComponents(string: rawEndpoint),
+              components.scheme?.lowercased() == "https",
+              components.user == nil, components.password == nil, components.fragment == nil,
+              let host = components.host, !host.isEmpty,
+              let endpoint = components.url else {
+            throw SourceDeclarationError.invalidOrigin(
+                path: endpointPath, value: rawEndpoint,
+                reason: "the endpoint must be an absolute https URL without credentials or fragment")
+        }
+        let rawOrigin = "https://\(host)" + (components.port.map { ":\($0)" } ?? "")
+        guard case .canonical(let endpointOrigin) = DeclaredOrigin.canonicalized(rawOrigin),
+              httpOrigins.contains(endpointOrigin) else {
+            throw SourceDeclarationError.invalidOrigin(
+                path: endpointPath, value: rawEndpoint,
+                reason: "the endpoint's origin must be listed in network.httpOrigins")
+        }
+
+        let originsPath = "\(path).origins"
+        let items = try array(dictionary, "origins", at: path)
+        guard !items.isEmpty else { throw SourceDeclarationError.emptyImageLoadReportOrigins }
+        var origins: [String] = []
+        for item in items {
+            guard let raw = item.stringValue else {
+                throw SourceDeclarationError.wrongType(path: originsPath, expected: "string")
+            }
+            guard case .canonical(let origin) = DeclaredOrigin.canonicalized(raw, allowWildcard: true) else {
+                throw SourceDeclarationError.invalidOrigin(
+                    path: originsPath, value: raw, reason: "it is not a valid image origin")
+            }
+            guard !origins.contains(origin) else {
+                throw SourceDeclarationError.duplicateOrigin(path: originsPath, value: origin)
+            }
+            // Covered means declared verbatim, or a literal origin one declared wildcard matches.
+            // A wildcard is never "covered" by a different wildcard.
+            let covered = assetOrigins.contains(origin) || (!origin.contains("*") &&
+                assetOrigins.contains { ExtensionDomainValidator.originMatches(origin, pattern: $0) })
+            guard covered else {
+                throw SourceDeclarationError.invalidOrigin(
+                    path: originsPath, value: raw,
+                    reason: "a reported origin must be covered by network.assetOrigins")
+            }
+            origins.append(origin)
+        }
+        return ImageLoadReportPolicy(endpoint: endpoint, origins: origins)
     }
 
     /// An omitted list denies that role. Silence is never permission here: a Source that
