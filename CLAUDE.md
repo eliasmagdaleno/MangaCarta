@@ -191,7 +191,8 @@ The app builds and the core reading loop is implemented.
   refresh, change URL, remove; install/update/disable/enable/uninstall) over the production
   `URLSessionRepositoryTransport`, and a `mixed`/`adultOnly` install always shows the declared-age
   sheet (ADR-0022 A2; format design §7.1 — a confirmed reader sees the class named but is not asked
-  again).
+  again); a `mixed` Source is then visible and the "Show adult content" switch filters its adult
+  titles (ADR-0022 A6).
   **No remote content Source ships in the app** (ADR-0003 Amendment 6, removed 2026-09-25).
   `builtInSources()` is Local alone; MangaDex and WeebCentral are engines in a separate public
   repository that the reader adds by URL, and the app links to none. `MangaDexSource` and

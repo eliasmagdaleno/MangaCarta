@@ -51,8 +51,10 @@ final class SourceRegistry: ObservableObject {
 
     /// - Parameter sources: Sources to register, or `nil` for the built-in set (Local only).
     ///   Injectable so tests can supply mock sources.
-    init(sources: [MangaSource]? = nil) {
+    init(sources: [MangaSource]? = nil,
+         showAdultContent: @escaping () -> Bool = AdultContentSetting.current) {
         let sources = sources ?? Self.builtInSources()
+        self.showAdultContent = showAdultContent
         self.builtIn = sources
         self.sources = sources
         // Restore the persisted active source if it still exists; otherwise fall back to the first.
@@ -70,9 +72,16 @@ final class SourceRegistry: ObservableObject {
 #else
         stored = UserDefaults.standard.string(forKey: Self.activeKey)
 #endif
-        self.activeSourceID = sources.contains(where: { $0.id == stored && $0.isBrowsable }) ? stored! : (sources.first(where: { $0.isBrowsable })?.id ?? stored ?? "")
+        let isBrowsableNow: (MangaSource) -> Bool = {
+            $0.isBrowsable && (!$0.isNSFW || showAdultContent())
+        }
+        self.activeSourceID = sources.first(where: {
+            $0.id == stored && isBrowsableNow($0)
+        })?.id ?? sources.first(where: isBrowsableNow)?.id ?? stored ?? ""
         self.chosenSourceID = stored
     }
+
+    private let showAdultContent: () -> Bool
 
     /// The app's compiled-in sources. No remote content Source ships in the binary
     /// (ADR-0003 Amendment 6): MangaDex and WeebCentral are installed from a repository the
@@ -102,7 +111,7 @@ final class SourceRegistry: ObservableObject {
 
     /// The currently-active browsing source, or nil when no source is installed.
     var active: MangaSource? {
-        source(id: activeSourceID).flatMap { $0.isBrowsable ? $0 : nil } ?? firstBrowsable
+        source(id: activeSourceID).flatMap { isBrowsableNow($0) ? $0 : nil } ?? firstBrowsable
     }
 
     /// The registered source that can bridge external catalogue ids. Prefer the active
@@ -113,16 +122,46 @@ final class SourceRegistry: ObservableObject {
         return sources.first(where: \.publishesExternalIds)
     }
 
+    /// `externalIdSource` without adult filtering, for resolving titles the reader already
+    /// has. Discovery must keep using the filtered one.
+    var externalIdResolutionSource: MangaSource? {
+        guard let source = externalIdSource else { return nil }
+        return (source as? ExtensionSource)?.unfilteredForResolution() ?? source
+    }
+
+    /// Browsable, and not hidden whole by the adult switch (ADR-0022 A6).
+    private func isBrowsableNow(_ source: MangaSource) -> Bool {
+        source.isBrowsable && (!source.isNSFW || showAdultContent())
+    }
+
     /// The fallback browse source. It prefers a non-adult one: no built-in is browsable any
     /// more (ADR-0003 Amendment 6), so registration order alone no longer keeps an adult
-    /// Source from becoming the default the way the compiled MangaDex did (ADR-0022).
+    /// Source from becoming the default the way the compiled MangaDex did (ADR-0022). It
+    /// falls back to a hidden adult one only while the switch is on (ADR-0022 A6, point 7;
+    /// Amendment 7, point 2).
     private var firstBrowsable: MangaSource? {
-        sources.first(where: { $0.isBrowsable && !$0.isNSFW }) ?? sources.first(where: { $0.isBrowsable })
+        sources.first(where: { $0.isBrowsable && !$0.isNSFW }) ?? sources.first(where: isBrowsableNow)
     }
 
     /// Look up a source by its stable id (e.g. a manga's `sourceId`). Nil if not registered.
     func source(id: String) -> MangaSource? {
         sources.first { $0.id == id }
+    }
+
+    /// Whether a title may appear in a discovery surface that did not come through a
+    /// Source's own filtered listing: recommendations resolve through `manga(id:)` and
+    /// persisted pools. An unknown Source fails closed (ADR-0022 A6).
+    func admitsForDiscovery(_ manga: Manga) -> Bool {
+        let show = showAdultContent()
+        guard let source = source(id: manga.sourceId) else {
+            return AdultContentFilter.admits(rating: manga.contentRating,
+                                             sourceDeclaresAdultTitles: true,
+                                             showAdultContent: show)
+        }
+        if source.isNSFW && !show { return false }
+        return AdultContentFilter.admits(rating: manga.contentRating,
+                                         sourceDeclaresAdultTitles: source.declaresAdultTitles,
+                                         showAdultContent: show)
     }
 
     /// The source a given manga came from. Legacy records with an unknown id retain the
@@ -148,7 +187,7 @@ final class SourceRegistry: ObservableObject {
         return source(id: resolvedID)
     }
 
-    /// Sources eligible to show in the picker: adult sources only when opted in.
+    /// Sources eligible to show in the picker: whole-source adult Sources only when opted in.
     func visibleSources(includeAdult: Bool) -> [MangaSource] {
         sources.filter { $0.isBrowsable && (includeAdult || !$0.isNSFW) }
     }
@@ -158,16 +197,18 @@ final class SourceRegistry: ObservableObject {
     /// Whether any registered source serves adult content, and therefore whether the
     /// "show adult sources" control has anything to gate. False for the built-in set, which
     /// is Local only — which is what hides that control;
-    /// true the moment a reader installs a `mixed` or `adultOnly` Source (ADR-0022
-    /// Amendment 1), which is what shows it again.
+    /// true the moment a reader installs a Source that declares adult titles, including a
+    /// `mixed` Source (ADR-0022 A6), which is what shows the title filter again.
     var hasAdultSource: Bool {
-        sources.contains(where: \.isNSFW)
+        sources.contains { $0.isNSFW || $0.declaresAdultTitles }
     }
 
     /// Enforce adult gating: if adult sources are now hidden but the active browse source is
     /// adult, fall back to the first non-adult source. Call when the "show adult" flag changes.
+    /// Checks the stored choice, not `active`: by the time this runs the switch is already off,
+    /// so `active` has skipped the hidden Source while `activeSourceID` still names it.
     func enforceAdultGating(includeAdult: Bool) {
-        guard !includeAdult, active?.isNSFW == true,
+        guard !includeAdult, source(id: activeSourceID)?.isNSFW == true,
               let fallback = visibleSources(includeAdult: false).first else { return }
         activeSourceID = fallback.id
     }

@@ -141,7 +141,10 @@ final class MangaDexEngineTests: XCTestCase {
                                script: MangaDexFixtures.script,
                                isNSFW: false,
                                lifecycle: lifecycle,
-                               host: host)
+                               host: host,
+                               // These tests check the engine's mapping, not the adult filter,
+                               // so they must not depend on the device's setting.
+                               showAdultContent: { true })
     }
 
     func testTheDeclarationValidatesUnderHostAPI12() throws {

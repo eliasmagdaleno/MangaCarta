@@ -21,7 +21,7 @@ final class RepositorySettingsUITests: XCTestCase {
         app.tabBars.buttons["Settings"].tap()
         let field = app.textFields["repositorySettings.url"]
         XCTAssertTrue(field.waitForExistence(timeout: 10))
-        XCTAssertFalse(app.switches["Show adult sources"].exists)
+        XCTAssertFalse(app.switches["Show adult content"].exists)
         field.tap()
         field.typeText("https://fixture.invalid/index.json")
         app.buttons["repositorySettings.add"].tap()
@@ -39,7 +39,7 @@ final class RepositorySettingsUITests: XCTestCase {
         XCTAssertFalse(ageCopy.label.localizedCaseInsensitiveContains("moderated"))
         app.buttons["repositorySettings.confirmAge"].tap()
         XCTAssertTrue(app.buttons["Uninstall"].waitForExistence(timeout: 5))
-        let adultToggle = app.switches["Show adult sources"]
+        let adultToggle = app.switches["Show adult content"]
         XCTAssertTrue(adultToggle.waitForExistence(timeout: 5))
         // Depending on the device, the navigation bar or the keyboard left up by the URL field
         // covers the toggle after the scroll to Uninstall, and `isHittable` still reports true

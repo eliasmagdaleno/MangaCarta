@@ -49,7 +49,7 @@ final class RepositorySettingsViewModel: ObservableObject {
     }
 
     static let declaredAgeKey = "settings.declaredAgeOver18"
-    static let showAdultSourcesKey = "settings.showAdultSources"
+    static let showAdultSourcesKey = AdultContentSetting.key
     /// Names the maintainer as the one classifying, and never the developer: the class is
     /// what the repository attests by serving the declaration (format design §7.2), and
     /// ADR-0022 Amendment 2's copy rule is that nothing here reads as moderated by us.

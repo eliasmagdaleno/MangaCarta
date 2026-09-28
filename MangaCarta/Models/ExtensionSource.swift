@@ -111,9 +111,13 @@ final class ExtensionSource: MangaSource {
 
     let declaration: SourceDeclaration
     let script: String
-    /// Effective class ≠ `none`: the declared class, or the reader's local elevation
-    /// (repository format design §7.2). Decided by the registrar, which can read both.
+    /// Hidden whole while the adult switch is off: `adultOnly`, or the reader's local
+    /// elevation (ADR-0022 A6). A `mixed` Source is visible and only its titles filter.
     let isNSFW: Bool
+    /// Effective class ≠ `none` (repository format design §7.2).
+    let declaresAdultTitles: Bool
+    /// Read at call time, so flipping the switch takes effect on the next fetch.
+    private let showAdultContent: @Sendable () -> Bool
 
     private let lifecycle: SourceLifecycleRegistry
     private let host: any ExtensionSourceHosting
@@ -124,10 +128,14 @@ final class ExtensionSource: MangaSource {
          script: String,
          isNSFW: Bool,
          lifecycle: SourceLifecycleRegistry,
-         host: any ExtensionSourceHosting) {
+         host: any ExtensionSourceHosting,
+         declaresAdultTitles: Bool = false,
+         showAdultContent: @escaping @Sendable () -> Bool = AdultContentSetting.current) {
         self.declaration = declaration
         self.script = script
         self.isNSFW = isNSFW
+        self.declaresAdultTitles = declaresAdultTitles
+        self.showAdultContent = showAdultContent
         self.lifecycle = lifecycle
         self.host = host
         validator = ExtensionDomainValidator(assetOrigins: declaration.network.assetOrigins,
@@ -225,7 +233,7 @@ final class ExtensionSource: MangaSource {
             let page = try self.validator.validateUpdatePage(value)
             return (page.items, page.nextCursor, page.exhausted)
         }
-        return page.map { $0.toMangaUpdate(sourceID: id) }
+        return page.map { $0.toMangaUpdate(sourceID: id) }.filter { admits($0.manga) }
     }
 
     private func listings(_ operation: SourceOperation,
@@ -238,7 +246,23 @@ final class ExtensionSource: MangaSource {
             let page = try self.validator.validateListingPage(value)
             return (page.items, page.nextCursor, page.exhausted)
         }
-        return page.map { $0.toManga(sourceID: id) }
+        return page.map { $0.toManga(sourceID: id) }.filter(admits)
+    }
+
+    /// Discovery only (ADR-0022 A6). `manga(id:)`, detail, chapters and pages are never
+    /// filtered: a saved title must open whatever the switch says.
+    private func admits(_ manga: Manga) -> Bool {
+        AdultContentFilter.admits(rating: manga.contentRating,
+                                  sourceDeclaresAdultTitles: declaresAdultTitles,
+                                  showAdultContent: showAdultContent())
+    }
+
+    /// The same Source with filtering off, for matching a saved title against the catalogue
+    /// (`MALEntityResolver`). Hiding an adult match there would cache a false miss.
+    func unfilteredForResolution() -> ExtensionSource {
+        ExtensionSource(declaration: declaration, script: script, isNSFW: isNSFW,
+                        lifecycle: lifecycle, host: host,
+                        declaresAdultTitles: declaresAdultTitles, showAdultContent: { true })
     }
 
     // MARK: - Detail, chapters, pages

@@ -183,10 +183,11 @@ struct SettingsView: View {
                         // changes nothing invites a hunt for the behaviour it is supposed to
                         // control. The stored preference is left alone, so this reappears
                         // with its previous value if an adult source is ever registered.
-                        // See ADR-0022.
+                        // The switch filters adult titles, and hides whole Sources only when
+                        // they are adult throughout. See ADR-0022 Amendment 6.
                         if RepositorySettingsViewModel.shouldShowAdultSourcesToggle(
                             isConfirmed: declaredAge, hasRegisteredAdultSource: registry.hasAdultSource) {
-                            Toggle("Show adult sources", isOn: $showAdultSources)
+                            Toggle("Show adult content", isOn: $showAdultSources)
                                 .font(.subheadline)
                                 .tint(Ink.seal)
                                 .padding(.horizontal, Gutter.page)

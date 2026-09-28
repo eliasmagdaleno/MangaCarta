@@ -259,7 +259,7 @@ struct AppComposition {
         let resolvedRegistry = registry ?? .shared
         let resolvedMALResolver = malResolver ?? MALEntityResolver(
             store: .shared,
-            source: { resolvedRegistry.externalIdSource })
+            source: { resolvedRegistry.externalIdResolutionSource })
         // Built first: the three commitment paths below (read, save, feedback) all
         // mint into it, so they must share this one instance (ADR-0007).
         let wk = WorkStore(directory: directory)
@@ -431,7 +431,8 @@ struct AppComposition {
             // separates "not tagged yet" from "cannot be tagged". Passed the whole `Work`
             // rather than an id so the `.unmatched(knownTitlesCount:)` comparison stays
             // paired with the Work it was recorded for.
-            tagBlocked: { memory.suppresses($0) })
+            tagBlocked: { memory.suppresses($0) },
+            admits: { resolvedRegistry.admitsForDiscovery($0) })
 
         self.works = wk
         self.library = lib

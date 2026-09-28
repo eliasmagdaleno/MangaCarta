@@ -76,18 +76,22 @@ final class ExtensionSourceRegistrar {
             guard let declaration = lifecycle.declaration(for: record.qualifiedId),
                   let data = store.scriptData(for: record.bundleId, in: record.repositoryID),
                   let script = String(data: data, encoding: .utf8) else { continue }
-            // Effective class = max(declared, local elevation) (design §7.2). The
-            // elevation is only ever `mixed`, so any elevation at all means adult.
-            let isNSFW = declaration.adult != .none || record.localAdultElevation != nil
+            // ADR-0022 A6: `mixed` is visible and filters its titles; `adultOnly`, or the
+            // reader's elevation, hides the Source whole.
+            let elevated = record.localAdultElevation != nil
+            let isNSFW = declaration.adult == .adultOnly || elevated
+            let declaresAdultTitles = declaration.adult != .none || elevated
             let source: ExtensionSource
             if let existing = built[record.qualifiedId],
                existing.declaration == declaration,
                existing.script == script,
-               existing.isNSFW == isNSFW {
+               existing.isNSFW == isNSFW,
+               existing.declaresAdultTitles == declaresAdultTitles {
                 source = existing
             } else {
                 source = ExtensionSource(declaration: declaration, script: script, isNSFW: isNSFW,
-                                         lifecycle: lifecycle, host: host)
+                                         lifecycle: lifecycle, host: host,
+                                         declaresAdultTitles: declaresAdultTitles)
             }
             next[record.qualifiedId] = source
             sources.append(source)

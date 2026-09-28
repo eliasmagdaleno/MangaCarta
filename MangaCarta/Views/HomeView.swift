@@ -222,6 +222,11 @@ private struct HomeScreen: View {
             // reading signal — the only way a cold-start rail surfaces (or reshuffles)
             // without relaunching, since the Home tab stays alive so `.task` fires once.
             .refreshable { await engine.refresh() }
+            .onChange(of: showAdultSources) { _, _ in
+                // ADR-0022 A6: the switch changes which titles discovery may show.
+                vm.refresh()
+                Task { await engine.refresh() }
+            }
             .navigationTitle("Read")
             .navigationBarTitleDisplayMode(.large)
             .fileImporter(isPresented: $showingImporter,

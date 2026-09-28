@@ -85,6 +85,7 @@ final class RecommendationEngine: ObservableObject {
     private let now: () -> Date
     private let pushPriority: PriorityPush
     private let tagBlocked: TagBlocked
+    private let admits: (Manga) -> Bool
 
     private let minTaggedManga = 3
     private let poolLimit = 40
@@ -111,7 +112,8 @@ final class RecommendationEngine: ObservableObject {
          pushPriority: @escaping PriorityPush = { _ in },
          // Same defaulting rule as `pushPriority`: no existing construction site changes,
          // and an engine without the queue simply never reports `noTaggableSignal`.
-         tagBlocked: @escaping TagBlocked = { _ in false }) {
+         tagBlocked: @escaping TagBlocked = { _ in false },
+         admits: @escaping (Manga) -> Bool = { _ in true }) {
         self.history = history
         self.library = library
         self.profileStore = profileStore
@@ -121,6 +123,7 @@ final class RecommendationEngine: ObservableObject {
         self.now = now
         self.pushPriority = pushPriority
         self.tagBlocked = tagBlocked
+        self.admits = admits
         self.seed = seed ?? UInt64.random(in: .min ... .max)
     }
 
@@ -171,7 +174,7 @@ final class RecommendationEngine: ObservableObject {
             return
         }
         let pool = (try? await makeProvider(source)
-            .candidates(for: profile, excluding: excluding, limit: poolLimit)) ?? []
+            .candidates(for: profile, excluding: excluding, limit: poolLimit))?.filter { admits($0.manga) } ?? []
         guard !Task.isCancelled else { return }
         recommendations = compose(pool: pool)
     }
@@ -185,7 +188,7 @@ final class RecommendationEngine: ObservableObject {
         guard case .ready(let profile, let excluding, _) = profileAndExclusions() else { return [] }
         guard let source = source() else { return [] }
         let pool = (try? await makeProvider(source)
-            .candidates(for: profile, excluding: excluding, limit: limit)) ?? []
+            .candidates(for: profile, excluding: excluding, limit: limit))?.filter { admits($0.manga) } ?? []
         return pool.map(\.manga)
     }
 

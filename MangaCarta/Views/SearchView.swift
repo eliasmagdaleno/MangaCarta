@@ -77,6 +77,7 @@ private struct SearchScreen: View {
                 if !visible.contains(where: { $0.id == current }) {
                     vm.selectSource(id: registry.activeSourceID)
                 }
+                vm.retry()
             }
             } else {
                 InkEmptyState(

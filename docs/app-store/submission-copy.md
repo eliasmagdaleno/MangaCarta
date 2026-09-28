@@ -40,7 +40,7 @@ Placeholders are in `[[double brackets]]`.
 > in a sandboxed JavaScriptCore context with a fixed host API and cannot change the app's features.
 > The app ships with no repository and no repository URL, and neither our App Store page nor our
 > website lists one. Each plug-in declares a content class. Plug-ins declared as containing adult
-> content are hidden by default. Installing one requires the user to confirm they are 18 or older
+> adult-rated titles, and Sources that are adult throughout, are hidden by default and require the reader's declared age. Installing one requires the user to confirm they are 18 or older
 > (a declared-age gate); if they decline, nothing is installed.
 >
 > No account is needed to import and read local files. There are no purchases or ads. Contact:
@@ -146,6 +146,6 @@ recognisable series.
 | **4.2 Minimum Functionality** ("not particularly useful … adequate utility"); **4.2.2** (not a "content aggregator") | An empty reader looks like a shell whose only use is loading third-party sites. | Local import is the first-run purpose and the path reviewers test. The review notes lead with it and ship a sample file. The description leads with files, not plug-ins. Empty states point to import (ADR-0003 A6 consequences). |
 | **5.2.3** ("should not facilitate illegal file sharing or … download media from third-party sources … without explicit authorization") | Plug-ins that fetch and cache chapters from third-party sites can read as facilitating infringement. An offline-download feature would make this worse. | No bundled or built-in Source, and no default or linked repository (A6). No site names and no "free manga" anywhere. The first-run screen and description both state the app provides no content. No sharing or export of plug-in content. Takedown requests are honoured promptly. |
 | **5.2.1** (no protected third-party material without permission) | Copyrighted art in screenshots, the sample file or metadata. | Only owner-supplied original or public-domain art. Keywords avoid series titles and trademarks (also required by 2.3.7). |
-| **1.1.4** (overtly sexual or pornographic material) | Adult plug-ins can be reached from the app. | The declared-age gate hides adult Sources by default, and the app never lists or recommends them (ADR-0022 A2). This meets 4.7.5's "age restriction mechanism based on verified or declared age". |
+| **1.1.4** (overtly sexual or pornographic material) | Adult plug-ins can be reached from the app. | Adult-rated titles, and Sources that are adult throughout, are hidden by default (ADR-0022 A6). This meets 4.7.5's "age restriction mechanism based on verified or declared age". |
 | **1.2 User-Generated Content** | A reviewer classifies repositories as user-generated content and asks for filtering, reporting and blocking. | ADR-0022 A2 judged 1.2 a poor fit because users cannot post or share anything with each other. Answer UGC "No". If Review raises it anyway, the fallback is a report/contact link, and then having the installer refuse adult classes (ADR-0022 A2 consequences). |
 | **4.7 / 2.5.2** (plug-ins; downloaded code must not change features) | Plug-ins read as downloaded code. | Plug-ins run in a JavaScriptCore sandbox with a fixed host API; they supply data, not features. 4.7.4's index requirement has nothing to apply to while the app offers no repository. |

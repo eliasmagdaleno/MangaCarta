@@ -467,6 +467,17 @@ final class InstalledSourceRegistrationTests: XCTestCase {
         return try await installer.install(localId: "weebcentral", from: repository.id).qualifiedId
     }
 
+    private func installedSource(adult: String = "none",
+                                 elevated: Bool = false) async throws -> MangaSource {
+        let id = try await installWeebCentral(adult: adult)
+        if elevated {
+            try installer.treatAsAdult(id)
+        }
+        registrar.sync(store.snapshot)
+        await Task.yield()
+        return try XCTUnwrap(registry.source(id: id.rawValue))
+    }
+
     // MARK: Criterion 8, clause "an installed Source appears in SourceRegistry"
 
     func testAnInstalledSourceAppearsInTheRegistryAndAnUninstalledOneLeaves() async throws {
@@ -542,19 +553,44 @@ final class InstalledSourceRegistrationTests: XCTestCase {
 
     // MARK: Adult gating reaches installed Sources
 
-    func testAMixedSourceIsGatedBehindTheAdultToggle() async throws {
+    func testAMixedSourceIsVisibleButHasAdultContent() async throws {
         XCTAssertFalse(registry.hasAdultSource)
         let id = try await installWeebCentral(adult: "mixed")
         registrar.sync(store.snapshot)
         await Task.yield()
 
         XCTAssertTrue(registry.hasAdultSource, "the toggle has something to gate")
-        XCTAssertFalse(registry.visibleSources(includeAdult: false).contains { $0.id == id.rawValue })
+        // ADR-0022 A6: a mixed Source is visible; only its adult titles are filtered.
+        XCTAssertTrue(registry.visibleSources(includeAdult: false).contains { $0.id == id.rawValue })
         XCTAssertTrue(registry.visibleSources(includeAdult: true).contains { $0.id == id.rawValue })
 
         registry.activeSourceID = id.rawValue
         registry.enforceAdultGating(includeAdult: false)
-        XCTAssertEqual(registry.activeSourceID, MangaDexSource.sourceID)
+        // ADR-0022 A6: a visible mixed Source remains active when adult content is hidden.
+        XCTAssertEqual(registry.activeSourceID, id.rawValue)
+    }
+
+    /// ADR-0022 A6: a `mixed` Source is visible; only its adult titles are filtered.
+    func testAMixedInstallIsNotHiddenWholeButDeclaresAdultTitles() async throws {
+        let source = try await installedSource(adult: "mixed")
+        XCTAssertFalse(source.isNSFW)
+        XCTAssertTrue(source.declaresAdultTitles)
+        XCTAssertTrue(registry.hasAdultSource)
+        XCTAssertTrue(registry.visibleSources(includeAdult: false).contains { $0.id == source.id })
+    }
+
+    func testAnAdultOnlyInstallIsHiddenWhole() async throws {
+        let source = try await installedSource(adult: "adultOnly")
+        XCTAssertTrue(source.isNSFW)
+        XCTAssertTrue(source.declaresAdultTitles)
+        XCTAssertFalse(registry.visibleSources(includeAdult: false).contains { $0.id == source.id })
+    }
+
+    /// "Treat as adult" is the reader calling the Source adult; it still hides it whole.
+    func testALocalElevationHidesTheSourceWhole() async throws {
+        let source = try await installedSource(adult: "none", elevated: true)
+        XCTAssertTrue(source.isNSFW)
+        XCTAssertTrue(source.declaresAdultTitles)
     }
 
     /// "Treat as adult" (design §6.9) changes the record, not the lifecycle registry;

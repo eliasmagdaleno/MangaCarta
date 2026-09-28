@@ -208,7 +208,7 @@ the term remains for the shape that shipped in #201 and was removed on 2026-09-2
 
 **Declared-age gate** — the one-time, per-device confirmation that the reader is 18 or over,
 asked the first time a `mixed` or `adultOnly` Extension is installed and required before the "Show
-adult sources" toggle appears. Declared, not verified; stored beside the adult-sources preference
+adult content" toggle appears. Declared, not verified; stored beside the adult-sources preference
 and cleared with it. Why it is a declaration and not a plain acknowledgement is ADR-0022
 Amendment 2.
 
