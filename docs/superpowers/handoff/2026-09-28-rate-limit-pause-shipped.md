@@ -20,7 +20,7 @@ Recheck GitHub and the working trees before acting.
 
 ## Next
 
-1. **Image-load reports: the decision is recorded, the design is next.** ADR-0003 Amendment 9
+1. **Image-load reports: decision and design are written; implementation is next.** ADR-0003 Amendment 9
    (#273) settles it:
    - an opt-in `network.imageLoadReports {endpoint, origins}`;
    - an explicit origin list, never an exclusion rule;
@@ -29,10 +29,13 @@ Recheck GitHub and the working trees before acting.
    - a fixed host payload of MangaDex's five fields;
    - fire-and-forget, with no reader switch.
 
-   **Still owed before any code: a design doc** covering how `ImageCache` learns which Source a
-   page came from (it loads by URL alone today) and how `X-Cache` and timing get out of its fetch
-   closure. The engine in `proxy-link/mangacarta-sources` then needs `api.mangadex.network` in
-   `httpOrigins`, plus the new key, raising its `hostAPI` minimum to 1.3.
+   **The design is written:** `docs/superpowers/specs/2026-09-28-image-load-reports-design.md`.
+   The caller passes an `ImageLoadReportTarget`; covers are never reported; every attempt is
+   reported; a fire-and-forget `ImageLoadReporter` sends with no cookies and caps its backlog.
+   **Next is implementation, in the design's §8 order, one PR per step, test-first.** The engine
+   change in `proxy-link/mangacarta-sources` waits until the app build that supports Host API
+   1.3 ships.
+
 2. **Rate-limit pause leftovers (small, optional):**
    - The rate-limited error copy could say how long to wait. `ExtensionSource.invoke` still drops
      `retryAfterSeconds`, so this means carrying it through.
