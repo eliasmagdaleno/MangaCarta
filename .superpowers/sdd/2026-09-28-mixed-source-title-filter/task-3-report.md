@@ -96,3 +96,14 @@ Failed to initialize simulator device set.
 ```
 
 The controller should run the focused tests.
+
+## Fix round 2
+
+- Restored `firstBrowsable`'s preference for a non-adult Source, falling back to
+  an adult Source only while the switch is on, per ADR-0022 A6 point 7.
+- Added `fallbackPrefersANonAdultSourceEvenWithTheSwitchOn` to pin the behavior
+  with the switch enabled.
+- `git diff --check` passed.
+
+The requested simulator tests were not run because the prior CoreSimulatorService
+failure already prevented simulator access; no retry was made.

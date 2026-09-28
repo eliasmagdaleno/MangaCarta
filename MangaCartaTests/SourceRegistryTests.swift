@@ -40,6 +40,12 @@ struct SourceRegistryTests {
                                       showAdultContent: { false })
         #expect(registry.active?.id == "m")
     }
+
+    @Test func fallbackPrefersANonAdultSourceEvenWithTheSwitchOn() {
+        let registry = SourceRegistry(sources: [LocalSource(), StubSource(id: "a", isNSFW: true), StubSource(id: "safe")],
+                                      showAdultContent: { true })
+        #expect(registry.active?.id == "safe")
+    }
 }
 
 private struct StubSource: MangaSource {

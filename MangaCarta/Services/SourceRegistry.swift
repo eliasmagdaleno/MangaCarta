@@ -129,10 +129,10 @@ final class SourceRegistry: ObservableObject {
         source.isBrowsable && (!source.isNSFW || showAdultContent())
     }
 
-    /// The fallback browse Source. It never picks one that is hidden whole while the switch
-    /// is off; if nothing else is eligible there is no active Source (ADR-0022 A6, point 7).
+    /// The fallback browse Source prefers one that is not hidden, and falls back to a hidden
+    /// adult one only while the switch is on (ADR-0022 A6, point 7).
     private var firstBrowsable: MangaSource? {
-        sources.first(where: isBrowsableNow)
+        sources.first(where: { $0.isBrowsable && !$0.isNSFW }) ?? sources.first(where: isBrowsableNow)
     }
 
     /// Look up a source by its stable id (e.g. a manga's `sourceId`). Nil if not registered.
