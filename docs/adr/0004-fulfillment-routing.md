@@ -146,3 +146,44 @@ ranking rather than tiebreaking within it.
 - **The learned-reliability idea in the original consequences is now cheaper to build, not
   harder.** Per-Work pins are exactly the "switch events" that section wanted to learn from, and
   they are now durable rather than lost at dismissal. Still unbuilt, still optional.
+
+## Amendment 2 — no built-in favourite: without a primary source, install order settles ties (2026-09-27)
+
+Amendment 1 stands except for its default. Where it and the original say "prefer MangaDex" or
+"MangaDex remains the default until a reader chooses", read: **with no primary source chosen, a tie
+goes to the Source installed first.** Completeness ranking, the primary source, and per-Work pins
+are unchanged.
+
+### What prompted it
+
+ADR-0003 Amendment 6 removed every compiled-in remote Source. MangaDex is now an engine a reader
+installs from a repository, and its id is minted at install (`<repository UUID>:mangadex`). The
+router's default still looked for the legacy id `mangadex`, which no installed Source carries, so
+the default had silently become registration order, while Settings still labelled "No preference"
+as "Prefer MangaDex". The code and the label disagreed, and the label was the one that was wrong.
+
+### Decision
+
+**Drop the default rather than restore it.** Two ways to make the label true again were weighed:
+
+1. **Match an installed MangaDex by its `localId`.** Rejected. A `localId` is the repository's to
+   choose, so any repository could name its Source `mangadex` and inherit the app's preference. A
+   default keyed on a name the app does not control is a preference for sale.
+2. **No built-in favourite.** Chosen. Every Source is now the reader's own install, and the app has
+   no scans of its own to vouch for. The original rationale — MangaDex's better scans and metadata —
+   is still available to any reader who agrees with it: choosing MangaDex as the primary source
+   restores exactly the old behaviour.
+
+The tiebreak is now: the reader's primary source, then registration order, which for installed
+Sources is install order, oldest first (`ExtensionSourceRegistrar`).
+
+### Consequences
+
+- **"No preference" says what it does:** Settings describes it as "The first installed source wins
+  ties".
+- **No migration.** Nothing stored the old default — Amendment 1 kept it out of the store on purpose
+  — so there is nothing to rewrite. A reader who wants MangaDex to win ties picks it once.
+- **A reinstall keeps its place.** Reinstalling reuses the record's original `installedAt`
+  (`ExtensionInstaller.install`), and the registrar orders by it, so uninstalling and reinstalling a
+  Source does not quietly change which one wins ties.
+

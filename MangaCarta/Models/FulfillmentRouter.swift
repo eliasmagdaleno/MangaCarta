@@ -4,7 +4,7 @@
 //
 //  ADR-0004 — once a Work has several Listings (ADR-0001), opening it must choose
 //  one. Rank by English chapter completeness; the reader's primary source breaks
-//  ties, and MangaDex is that default until they choose one.
+//  ties, and without one the Source installed first does (Amendment 2).
 //
 //  Pure and synchronous on purpose: the counts it ranks on are fetched and cached
 //  elsewhere, so first paint never blocks on N sources.
@@ -27,7 +27,7 @@ enum FulfillmentRouter {
 
     /// Ranks a Work's Listings best-first.
     /// - Parameter preferredSourceId: the reader's chosen primary source. `nil`
-    ///   means they have not chosen one, and MangaDex's built-in preference stands.
+    ///   means they have not chosen one, and registration order settles ties.
     static func rank(_ candidates: [ListingCandidate],
                      referenceTotal: Int?,
                      preferredSourceId: String? = nil) -> [ListingCandidate] {
@@ -44,7 +44,8 @@ enum FulfillmentRouter {
     ///
     /// 1. **Counted, non-empty** — real evidence, ordered by the count itself.
     /// 2. **Uncounted** — no evidence either way. Ranked on the preference order
-    ///    alone, which is what makes the cold-start pick MangaDex.
+    ///    alone, which is what makes the cold-start pick the primary source, else
+    ///    the Source installed first.
     /// 3. **Counted and empty** — the only tier we have positive evidence *against*.
     ///
     /// Tier 2 sitting above tier 3 is ADR-0007's "a missing count means unknown,
@@ -91,8 +92,8 @@ enum FulfillmentRouter {
         return frontier.known.count
     }
 
-    /// The tiebreak at equal completeness: the reader's primary source, else
-    /// MangaDex, then registration order.
+    /// The tiebreak at equal completeness: the reader's primary source, then
+    /// registration order.
     ///
     /// This is a **quality** preference (better scans, better metadata, no ads),
     /// not an availability one — which is why it never outranks a source that
@@ -100,12 +101,12 @@ enum FulfillmentRouter {
     /// a primary source says which scans they prefer, not that it carries chapters
     /// it does not have.
     ///
-    /// MangaDex is the default rather than the rule. A reader who has chosen has
-    /// said something more specific than the app's built-in guess.
+    /// There is no built-in favourite (ADR-0004 Amendment 2). Every Source is a reader's
+    /// install, and its id is its repository's to choose, so a default keyed on a name
+    /// would be a preference any repository could claim.
     private static func preferenceRank(_ candidate: ListingCandidate,
                                        _ preferredSourceId: String?) -> (Int, Int) {
-        let preferred = preferredSourceId ?? LegacySourceID.unattributed
-        return (candidate.key.sourceId == preferred ? 0 : 1,
-                candidate.registrationIndex)
+        (candidate.key.sourceId == preferredSourceId ? 0 : 1,
+         candidate.registrationIndex)
     }
 }

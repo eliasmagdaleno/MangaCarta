@@ -497,7 +497,7 @@ private struct PreferredSourcePicker: View {
                 // "No preference" is a real row rather than an absent selection. Without it
                 // there is no way back to the automatic behaviour once a source is picked,
                 // and the default would be indistinguishable from a deliberate choice.
-                row(title: "No preference", detail: "Prefer MangaDex", isSelected: preferences.primarySourceId == nil) {
+                row(title: "No preference", detail: "The first installed source wins ties", isSelected: preferences.primarySourceId == nil) {
                     preferences.primarySourceId = nil
                 }
                 ForEach(sources, id: \.id) { source in
