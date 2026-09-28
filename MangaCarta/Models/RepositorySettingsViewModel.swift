@@ -150,7 +150,9 @@ final class RepositorySettingsViewModel: ObservableObject {
     }
 
     func addRepository(_ rawURL: String) {
-        guard let url = URL(string: rawURL), url.scheme?.lowercased() == "https", url.host != nil else {
+        // A paste often carries a trailing newline or space; it is still the same address.
+        let trimmed = rawURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let url = URL(string: trimmed), url.scheme?.lowercased() == "https", url.host != nil else {
             errorMessage = "Enter a valid HTTPS repository URL."
             return
         }
