@@ -77,6 +77,9 @@ struct LibraryUpdatesPresentationTests {
     func activeSourceIndependence() throws {
         let first = StubSource(id: "first", name: "First")
         let second = StubSource(id: "second", name: "Second")
+        // Setting `activeSourceID` writes the real `source.activeID`; put it back.
+        let saved = UserDefaults.standard.object(forKey: "source.activeID")
+        defer { UserDefaults.standard.set(saved, forKey: "source.activeID") }
         let registry = SourceRegistry(sources: [first, second])
         let fixture = try Fixture(registry: registry)
         _ = fixture.save("m1", title: "Alpha", sourceId: first.id)

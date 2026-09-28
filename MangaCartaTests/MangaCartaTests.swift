@@ -14,12 +14,21 @@ import UIKit
 // swiftlint:disable:next type_body_length
 final class MangaCartaTests: XCTestCase {
 
+    /// `SourceRegistry.activeSourceID` persists to the real `source.activeID`, and several tests
+    /// here set it to a mock's id. Put it back, so a run on the seeded simulator cannot leave the
+    /// app browsing a Source that does not exist.
+    private var savedActiveSourceID: Any?
+
     override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
+        savedActiveSourceID = UserDefaults.standard.object(forKey: "source.activeID")
     }
 
     override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
+        if let savedActiveSourceID {
+            UserDefaults.standard.set(savedActiveSourceID, forKey: "source.activeID")
+        } else {
+            UserDefaults.standard.removeObject(forKey: "source.activeID")
+        }
     }
 
     func testExample() throws {
