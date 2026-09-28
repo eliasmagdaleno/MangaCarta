@@ -25,6 +25,10 @@ final class RepositorySettingsUITests: XCTestCase {
         field.tap()
         field.typeText("https://fixture.invalid/index.json")
         app.buttons["repositorySettings.add"].tap()
+        // Add's result renders below the field; a keyboard left up would hide it.
+        let keyboardGone = expectation(for: NSPredicate(format: "exists == false"),
+                                       evaluatedWith: app.keyboards.firstMatch)
+        wait(for: [keyboardGone], timeout: 3)
         let install = app.buttons["repositorySettings.install.fixture"]
         XCTAssertTrue(install.waitForExistence(timeout: 5))
         install.tap()
