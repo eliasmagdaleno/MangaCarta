@@ -131,11 +131,13 @@ final class UpdateNotifier {
     }
 
     private func hidesAdultDetails(for workId: WorkID) -> Bool {
-        guard defaults.bool(forKey: "settings.showAdultSources") == false,
+        guard defaults.bool(forKey: AdultContentSetting.key) == false,
               let work = works.work(workId) else { return false }
         // Deliberately over-suppress when any linked Listing belongs to an adult source.
         return work.listings.contains { listing in
-            registry.source(id: listing.sourceId)?.isNSFW == true
+            registry.source(id: listing.sourceId).map {
+                $0.isNSFW || $0.declaresAdultTitles
+            } == true
         }
     }
 }

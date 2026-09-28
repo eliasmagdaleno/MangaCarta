@@ -175,10 +175,12 @@ final class LibraryRefreshCoordinator {
                 guard let (listing, source) = iterator.next() else { return }
                 group.addTask {
                     do {
-                        return FetchResult(listing: listing, sourceIsAdult: source.isNSFW,
+                        return FetchResult(listing: listing,
+                                           sourceIsAdult: source.isNSFW || source.declaresAdultTitles,
                                            result: .success(try await source.chapters(mangaId: listing.mangaId)))
                     } catch {
-                        return FetchResult(listing: listing, sourceIsAdult: source.isNSFW,
+                        return FetchResult(listing: listing,
+                                           sourceIsAdult: source.isNSFW || source.declaresAdultTitles,
                                            result: .failure(error))
                     }
                 }

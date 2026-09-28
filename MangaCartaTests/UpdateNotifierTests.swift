@@ -34,6 +34,20 @@ struct UpdateNotifierTests {
         #expect(request.content.body.contains("Public title") == false)
     }
 
+    @MainActor
+    @Test("Mixed Sources hide notification details while adult content is off")
+    func mixedSourceHidesCopyWhenAdultContentIsOff() async throws {
+        let mixed = NoticeSource(id: "mixed", isNSFW: false, declaresAdultTitles: true)
+        let fixture = Fixture(sources: [mixed])
+        let workId = fixture.mint("Mixed title", source: "mixed")
+
+        await fixture.notifier.schedule([fixture.event(workId, count: 1)])
+
+        let request = try #require(fixture.notifications.requests.first)
+        #expect(request.content.body == "A followed title has new chapters")
+        #expect(request.content.body.contains("Mixed title") == false)
+    }
+
     @Test("Copy pluralizes one and three chapters and degrades capped events")
     func notificationCopy() {
         let workId = WorkID()
@@ -207,7 +221,15 @@ private final class FakeNotificationCenter: NotificationScheduling {
 private struct NoticeSource: MangaSource {
     let id: String
     let isNSFW: Bool
+    let declaresAdultTitles: Bool
     var name: String { id }
+
+    init(id: String, isNSFW: Bool, declaresAdultTitles: Bool = false) {
+        self.id = id
+        self.isNSFW = isNSFW
+        self.declaresAdultTitles = declaresAdultTitles
+    }
+
     func search(title: String, limit: Int, offset: Int) async throws -> [Manga] { [] }
     func popular(limit: Int, offset: Int) async throws -> [Manga] { [] }
     func mangaDetail(id: String) async throws -> MangaDetail {
