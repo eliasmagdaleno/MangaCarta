@@ -27,6 +27,13 @@ enum ImageFetchError: Error {
     case invalidResponse
 }
 
+/// One network retrieval's bytes, plus what an image-load report needs from its response.
+struct ImageFetchOutcome: Sendable {
+    let data: Data
+    /// The response's `X-Cache` starts with `HIT` (MangaDex's definition of `cached`).
+    let cacheHit: Bool
+}
+
 // MARK: - Disk tier
 
 /// Persistent on-disk byte cache with a size cap. Keys are opaque strings
@@ -115,7 +122,10 @@ final class ImageCache: @unchecked Sendable {
     private let memory = NSCache<NSURL, UIImage>()
     private let disk: ImageDiskCache
     private let destinationPolicy: HostDestinationPolicy
-    private let fetch: @Sendable (URL) async throws -> Data
+    private let fetch: @Sendable (URL) async throws -> ImageFetchOutcome
+    private let reporter: any ImageLoadReporting
+    /// Monotonic seconds, injected so a report's duration is testable.
+    private let uptime: @Sendable () -> TimeInterval
     private let decode: @Sendable (Data) -> UIImage?
     private let maxConcurrentPrefetch = 5
     private let retryBaseDelay: TimeInterval
@@ -129,6 +139,8 @@ final class ImageCache: @unchecked Sendable {
     ///   - maxImageRetries: Maximum number of retries on rate-limit errors.
     ///   - fetcher: Raw network fetch override for existing tests.
     ///   - sessionFetcher: URLSession transport override for peer-policy tests.
+    ///   - reporter: Receives image-load reports (ADR-0003 Amendment 9).
+    ///   - uptime: Monotonic clock for report durations.
     init(directory: URL? = nil,
          memoryLimitBytes: Int = 100 * 1024 * 1024,
          diskLimitBytes: Int = 500 * 1024 * 1024,
@@ -137,6 +149,8 @@ final class ImageCache: @unchecked Sendable {
          resolver: any HostNameResolving = SystemHostResolver(),
          fetcher: (@Sendable (URL) async throws -> Data)? = nil,
          sessionFetcher: (any URLSessionDataFetching)? = nil,
+         reporter: any ImageLoadReporting = NoImageLoadReports(),
+         uptime: @escaping @Sendable () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
          decoder: @escaping @Sendable (Data) -> UIImage? = { UIImage(data: $0) }) {
         let dir = directory ?? FileManager.default
             .urls(for: .cachesDirectory, in: .userDomainMask)[0]
@@ -147,26 +161,35 @@ final class ImageCache: @unchecked Sendable {
         self.retryBaseDelay = retryBaseDelay
         self.maxImageRetries = maxImageRetries
         self.decode = decoder
+        self.reporter = reporter
+        self.uptime = uptime
         let guardedFetcher = sessionFetcher ?? URLSessionDataFetcher(
             configuration: Self.sessionConfiguration(),
             redirectHandler: URLSessionDataFetcher.httpsOnlyRedirectHandler)
-        self.fetch = fetcher ?? { url in
-            let result = try await guardedFetcher.fetch(URLRequest(url: url))
-            guard result.resourceFetchType != .localCache,
-                  let peer = result.connectedPeerAddress,
-                  HostIPAddress.isPublic(peer) else {
-                throw ImageFetchError.destinationRefused
+        if let fetcher {
+            // The raw-bytes test seam carries no response headers, so nothing it returns is a hit.
+            self.fetch = { ImageFetchOutcome(data: try await fetcher($0), cacheHit: false) }
+        } else {
+            self.fetch = { url in
+                let result = try await guardedFetcher.fetch(URLRequest(url: url))
+                guard result.resourceFetchType != .localCache,
+                      let peer = result.connectedPeerAddress,
+                      HostIPAddress.isPublic(peer) else {
+                    throw ImageFetchError.destinationRefused
+                }
+                guard let http = result.response as? HTTPURLResponse, http.url == url else {
+                    throw ImageFetchError.invalidResponse
+                }
+                if http.statusCode == 429 || http.statusCode == 503 {
+                    throw ImageFetchError.rateLimited
+                }
+                guard (200..<300).contains(http.statusCode) else {
+                    throw ImageFetchError.invalidResponse
+                }
+                let xCache = http.value(forHTTPHeaderField: "X-Cache") ?? ""
+                return ImageFetchOutcome(data: result.data,
+                                         cacheHit: xCache.uppercased().hasPrefix("HIT"))
             }
-            guard let http = result.response as? HTTPURLResponse, http.url == url else {
-                throw ImageFetchError.invalidResponse
-            }
-            if http.statusCode == 429 || http.statusCode == 503 {
-                throw ImageFetchError.rateLimited
-            }
-            guard (200..<300).contains(http.statusCode) else {
-                throw ImageFetchError.invalidResponse
-            }
-            return result.data
         }
         Task { await disk.trim() }   // enforce the cap on startup
     }
@@ -196,7 +219,9 @@ final class ImageCache: @unchecked Sendable {
     }
 
     /// Full resolve: memory → disk → network, populating the faster tiers.
-    func loadImage(for url: URL) async -> UIImage? {
+    /// - Parameter reportTarget: the Source this load is for, when it wants image-load
+    ///   reports. Only network retrievals of a URL the target covers are reported.
+    func loadImage(for url: URL, reportTarget: ImageLoadReportTarget? = nil) async -> UIImage? {
         if let img = memory.object(forKey: url as NSURL) { return img }
         if url.isFileURL {
             guard let data = try? Data(contentsOf: url), let img = decode(data) else { return nil }
@@ -214,31 +239,62 @@ final class ImageCache: @unchecked Sendable {
 #endif
             return nil
         }
+        let reportTarget = reportTarget.flatMap { $0.covers(url) ? $0 : nil }
         var attempt = 0
         while true {
+            let started = uptime()
             do {
-                let data = try await fetch(url)
-                guard let img = decode(data) else { return nil }
-                memory.setObject(img, forKey: url as NSURL, cost: data.count)
-                await disk.store(data, for: key)
+                let outcome = try await fetch(url)
+                // Reported before decoding: `success` is the retrieval, not the image.
+                report(url, to: reportTarget, outcome: outcome, started: started)
+                guard let img = decode(outcome.data) else { return nil }
+                memory.setObject(img, forKey: url as NSURL, cost: outcome.data.count)
+                await disk.store(outcome.data, for: key)
                 return img
             } catch ImageFetchError.rateLimited where attempt < maxImageRetries {
+                report(url, to: reportTarget, outcome: nil, started: started)
                 try? await Task.sleep(for: .seconds(Self.imageBackoffDelay(attempt: attempt, base: retryBaseDelay)))
                 attempt += 1
             } catch {
+                if Self.isNodeFailure(error) {
+                    report(url, to: reportTarget, outcome: nil, started: started)
+                }
                 return nil
             }
         }
     }
 
-    func prefetch(_ urls: [URL], maxConcurrent: Int? = nil) {
+    /// `outcome` is the retrieval's result, or `nil` when the attempt failed.
+    private func report(_ url: URL, to target: ImageLoadReportTarget?,
+                        outcome: ImageFetchOutcome?, started: TimeInterval) {
+        guard let target else { return }
+        let milliseconds = Int(((uptime() - started) * 1000).rounded())
+        reporter.report(ImageLoadReport(url: url, success: outcome != nil,
+                                        cached: outcome?.cacheHit ?? false,
+                                        bytes: outcome?.data.count ?? 0,
+                                        durationMilliseconds: max(0, milliseconds)),
+                        to: target)
+    }
+
+    /// A failure that says something about the image server. Cancellation is the reader
+    /// moving on, and a refused peer is the host's own policy firing; neither is the node's.
+    private static func isNodeFailure(_ error: Error) -> Bool {
+        if error is CancellationError { return false }
+        if let urlError = error as? URLError, urlError.code == .cancelled { return false }
+        if case ImageFetchError.destinationRefused = error { return false }
+        return true
+    }
+
+    func prefetch(_ urls: [URL], maxConcurrent: Int? = nil,
+                  reportTarget: ImageLoadReportTarget? = nil) {
         Task.detached(priority: .utility) { [self] in
-            await prefetchAwaitable(urls, maxConcurrent: maxConcurrent)
+            await prefetchAwaitable(urls, maxConcurrent: maxConcurrent, reportTarget: reportTarget)
         }
     }
 
     /// Awaitable form of `prefetch` (used by tests). `maxConcurrent` nil → default width.
-    func prefetchAwaitable(_ urls: [URL], maxConcurrent: Int? = nil) async {
+    func prefetchAwaitable(_ urls: [URL], maxConcurrent: Int? = nil,
+                           reportTarget: ImageLoadReportTarget? = nil) async {
         let width = max(1, maxConcurrent ?? maxConcurrentPrefetch)
         await withTaskGroup(of: Void.self) { group in
             var iterator = urls.makeIterator()
@@ -246,7 +302,7 @@ final class ImageCache: @unchecked Sendable {
                 guard let url = iterator.next() else { return }
                 group.addTask { [self] in
                     if memory.object(forKey: url as NSURL) != nil { return }
-                    _ = await loadImage(for: url)
+                    _ = await loadImage(for: url, reportTarget: reportTarget)
                 }
             }
             for _ in 0..<width { addNext() }
