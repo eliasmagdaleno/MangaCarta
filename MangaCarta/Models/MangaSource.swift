@@ -20,8 +20,11 @@ protocol MangaSource {
     var id: String { get }
     /// Human-readable name for pickers/UI (e.g. "MangaDex").
     var name: String { get }
-    /// Whether this source serves adult content. Gated behind a Settings toggle.
+    /// Whether this source is hidden whole while adult content is off.
     var isNSFW: Bool { get }
+    /// The Source declared that some of its titles are adult (`mixed`, `adultOnly`, or a
+    /// reader's elevation). Decides how an unrated title is treated (ADR-0022 A6).
+    var declaresAdultTitles: Bool { get }
     /// Whether this source publishes external ids (for example MAL ids) that can be
     /// used by cross-catalogue resolution.
     var publishesExternalIds: Bool { get }
@@ -123,6 +126,7 @@ extension MangaSource {
     var isBrowsable: Bool { true }
     var participatesInUpdates: Bool { true }
     var isNSFW: Bool { false }
+    var declaresAdultTitles: Bool { false }
     var publishesExternalIds: Bool { false }
 
     func manga(id: String) async throws -> Manga? { nil }

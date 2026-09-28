@@ -148,7 +148,7 @@ final class SourceRegistry: ObservableObject {
         return source(id: resolvedID)
     }
 
-    /// Sources eligible to show in the picker: adult sources only when opted in.
+    /// Sources eligible to show in the picker: whole-source adult Sources only when opted in.
     func visibleSources(includeAdult: Bool) -> [MangaSource] {
         sources.filter { $0.isBrowsable && (includeAdult || !$0.isNSFW) }
     }
@@ -158,10 +158,10 @@ final class SourceRegistry: ObservableObject {
     /// Whether any registered source serves adult content, and therefore whether the
     /// "show adult sources" control has anything to gate. False for the built-in set, which
     /// is Local only — which is what hides that control;
-    /// true the moment a reader installs a `mixed` or `adultOnly` Source (ADR-0022
-    /// Amendment 1), which is what shows it again.
+    /// true the moment a reader installs a Source that declares adult titles, including a
+    /// `mixed` Source (ADR-0022 A6), which is what shows the title filter again.
     var hasAdultSource: Bool {
-        sources.contains(where: \.isNSFW)
+        sources.contains { $0.isNSFW || $0.declaresAdultTitles }
     }
 
     /// Enforce adult gating: if adult sources are now hidden but the active browse source is

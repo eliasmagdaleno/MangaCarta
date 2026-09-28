@@ -111,9 +111,13 @@ final class ExtensionSource: MangaSource {
 
     let declaration: SourceDeclaration
     let script: String
-    /// Effective class ≠ `none`: the declared class, or the reader's local elevation
-    /// (repository format design §7.2). Decided by the registrar, which can read both.
+    /// Hidden whole while the adult switch is off: `adultOnly`, or the reader's local
+    /// elevation (ADR-0022 A6). A `mixed` Source is visible and only its titles filter.
     let isNSFW: Bool
+    /// Effective class ≠ `none` (repository format design §7.2).
+    let declaresAdultTitles: Bool
+    /// Read at call time, so flipping the switch takes effect on the next fetch.
+    private let showAdultContent: @Sendable () -> Bool
 
     private let lifecycle: SourceLifecycleRegistry
     private let host: any ExtensionSourceHosting
@@ -124,10 +128,14 @@ final class ExtensionSource: MangaSource {
          script: String,
          isNSFW: Bool,
          lifecycle: SourceLifecycleRegistry,
-         host: any ExtensionSourceHosting) {
+         host: any ExtensionSourceHosting,
+         declaresAdultTitles: Bool = false,
+         showAdultContent: @escaping @Sendable () -> Bool = AdultContentSetting.current) {
         self.declaration = declaration
         self.script = script
         self.isNSFW = isNSFW
+        self.declaresAdultTitles = declaresAdultTitles
+        self.showAdultContent = showAdultContent
         self.lifecycle = lifecycle
         self.host = host
         validator = ExtensionDomainValidator(assetOrigins: declaration.network.assetOrigins,
