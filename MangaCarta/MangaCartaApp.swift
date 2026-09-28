@@ -118,6 +118,10 @@ struct MangaCartaApp: App {
         if let updateState = UpdatesUITestFixture.state {
             UpdatesUITestFixture.seed(updateState, in: composed)
         }
+        if let url = LiveUITestRepositoryInstall.requestedURL, let extensions = composed.extensions {
+            let registry = composed.registry
+            Task { await LiveUITestRepositoryInstall.run(url: url, extensions: extensions, registry: registry) }
+        }
 #endif
         self.vocabularyStore = composed.vocabularyStore
         self.poolStore = composed.poolStore
