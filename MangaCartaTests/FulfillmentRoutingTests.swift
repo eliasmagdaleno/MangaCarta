@@ -3,7 +3,8 @@
 //  MangaCartaTests
 //
 //  ADR-0004: a Work with several Listings must choose one to open. Rank by
-//  English chapter completeness, MangaDex breaks ties.
+//  English chapter completeness; the reader's primary source breaks ties, and
+//  without one, the Source installed first does (Amendment 2).
 //
 
 import XCTest
@@ -19,9 +20,8 @@ final class FulfillmentRoutingTests: XCTestCase {
                          registrationIndex: order)
     }
 
-    /// The ADR's step 2. A source with materially more chapters wins, and it wins
-    /// even over MangaDex — MangaDex-first is a quality preference that only
-    /// applies at equal completeness.
+    /// The ADR's step 2. A source with materially more chapters wins, whatever its
+    /// place in registration order.
     func testRanksByChapterCountDescending() {
         let ranked = FulfillmentRouter.rank([
             candidate("mangadex", count: 40, order: 0),
@@ -31,22 +31,32 @@ final class FulfillmentRoutingTests: XCTestCase {
         XCTAssertEqual(ranked.map(\.key.sourceId), ["weebcentral", "mangadex"])
     }
 
-    /// The ADR's step 3, first clause. Equal completeness is where the quality
-    /// preference applies — better scans, better metadata, no ads — so MangaDex
-    /// wins a tie regardless of where it sits in registration order.
-    func testMangaDexWinsAtEqualChapterCount() {
+    /// Amendment 2: with no primary source chosen, a tie goes to the Source installed
+    /// first. No Source is compiled in, so none is the app's to favour.
+    func testWithNoPrimarySourceTheFirstInstalledWinsATie() {
         let ranked = FulfillmentRouter.rank([
             candidate("weebcentral", count: 120, order: 0),
             candidate("mangadex", count: 120, order: 1)
         ], referenceTotal: nil)
 
-        XCTAssertEqual(ranked.map(\.key.sourceId), ["mangadex", "weebcentral"])
+        XCTAssertEqual(ranked.map(\.key.sourceId), ["weebcentral", "mangadex"])
+    }
+
+    /// The name is the repository's to choose, so it cannot buy a preference: a Source
+    /// whose id is the legacy `mangadex` is ranked like any other.
+    func testTheLegacyMangaDexIdEarnsNoPreference() {
+        let ranked = FulfillmentRouter.rank([
+            candidate("installed-first", count: nil, order: 0),
+            candidate(LegacySourceID.unattributed, count: nil, order: 1)
+        ], referenceTotal: nil)
+
+        XCTAssertEqual(ranked.map(\.key.sourceId), ["installed-first", LegacySourceID.unattributed])
     }
 
     /// ADR-0007's rule, and the one a `?? 0` quietly breaks: a missing count means
     /// **unknown**, never zero. A Listing nobody has counted yet is a better bet
     /// than one counted and found empty, so it outranks it — even though the empty
-    /// one is MangaDex and would win any tie.
+    /// one was installed first and would win any tie.
     func testUncountedListingOutranksOneCountedEmpty() {
         let ranked = FulfillmentRouter.rank([
             candidate("mangadex", count: 0, order: 0),
@@ -56,16 +66,15 @@ final class FulfillmentRoutingTests: XCTestCase {
         XCTAssertEqual(ranked.map(\.key.sourceId), ["weebcentral", "mangadex"])
     }
 
-    /// The cold-start case the ADR calls out by name: "the MangaDex-first default
-    /// when nothing is cached." With no evidence at all, ranking falls back
-    /// entirely to the preference order.
-    func testNothingCachedFallsBackToMangaDexFirst() {
+    /// The cold start: with no evidence at all, ranking falls back entirely to the
+    /// preference order, which without a primary source is install order.
+    func testNothingCachedFallsBackToInstallOrder() {
         let ranked = FulfillmentRouter.rank([
-            candidate("weebcentral", count: nil, order: 1),
-            candidate("mangadex", count: nil, order: 0)
+            candidate("mangadex", count: nil, order: 1),
+            candidate("weebcentral", count: nil, order: 0)
         ], referenceTotal: nil)
 
-        XCTAssertEqual(ranked.map(\.key.sourceId), ["mangadex", "weebcentral"])
+        XCTAssertEqual(ranked.map(\.key.sourceId), ["weebcentral", "mangadex"])
     }
 
     /// When the reference total is known, completeness — not raw count — is the
@@ -94,10 +103,9 @@ final class FulfillmentRoutingTests: XCTestCase {
         XCTAssertEqual(ranked.map(\.key.sourceId), ["weebcentral", "mangadex"])
     }
 
-    /// MangaDex-first is a *default*, not a law. A reader who has chosen a primary
-    /// source has told us which scans they prefer, and that preference decides ties
-    /// in place of the built-in one.
-    func testTheChosenPrimarySourceBreaksTiesInsteadOfMangaDex() {
+    /// A reader who has chosen a primary source has told us which scans they prefer,
+    /// and that preference decides ties in place of install order.
+    func testTheChosenPrimarySourceBreaksTiesInsteadOfInstallOrder() {
         let ranked = FulfillmentRouter.rank([
             candidate("mangadex", count: 120, order: 0),
             candidate("weebcentral", count: 120, order: 1)
