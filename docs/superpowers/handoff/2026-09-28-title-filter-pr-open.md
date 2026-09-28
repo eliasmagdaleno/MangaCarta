@@ -34,11 +34,10 @@ Recheck GitHub and the working trees before acting.
 1. **Owner: merge #265, then #266.** Both are green on every CI job. Use `gh pr merge <n> --squash` without
    `--delete-branch`. They touch different lines of `MangaCartaTests.swift`; if the second one
    reports a conflict, run `gh pr update-branch`.
-2. **Cleanup the agent could not do (classifier-blocked again):** delete the merged branches
-   `fix/no-preference-means-install-order` (#260), `docs/handoff-2026-09-28` (#264) and
-   `docs/adr-0022-mixed-title-filter` (#262), locally and on origin. After #265 and #266 merge, also
-   remove the worktrees `/private/tmp/mangacarta-mixed-titles` and `/private/tmp/mangacarta-test-leak`
-   and their branches.
+2. **Cleanup after #265, #266 and this handoff's PR merge:** remove the worktrees
+   `/private/tmp/mangacarta-mixed-titles`, `/private/tmp/mangacarta-test-leak` and
+   `/private/tmp/mangacarta-handoff-pm`, and delete their branches locally and on origin. The
+   branches from #260, #262 and #264 were deleted on 2026-09-28 with the owner's approval.
 3. **The remaining live UI tests.** Only 3 of the 16 that browse were run after #258. Run the rest by
    name, sort failures into "the catalog moved" and "real regression", and retire the ones that only
    proved the compiled Source.
@@ -113,7 +112,7 @@ Recheck GitHub and the working trees before acting.
 - A new worktree needs `Secrets.xcconfig` copied from the main checkout. Under `/private/tmp`,
   `xcp` needs the `/tmp/...` spelling of the path. `/private/tmp` can be wiped (it was, between
   sessions), so push work before ending a session.
-- The classifier blocks `gh pr merge`, force pushes and branch deletion for the agent. The owner
+- The classifier blocks `gh pr merge`, force pushes, and branch deletion unless the owner approves it in chat. The owner
   merges without `--delete-branch`. `gh pr update-branch <n>` is allowed.
 - `SettingsView.swift` has three pre-existing `swiftlint --strict` violations. CI lints without
   `--strict` and passes.
