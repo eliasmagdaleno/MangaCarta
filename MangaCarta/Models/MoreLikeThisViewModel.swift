@@ -14,6 +14,7 @@ final class MoreLikeThisViewModel: ObservableObject {
     @Published private(set) var items: [Manga] = []
     @Published private(set) var isLoading = false
 
+    private let registry: SourceRegistry
     private let provider: MoreLikeThisProvider
     private var loadedFor: String?
 
@@ -22,6 +23,7 @@ final class MoreLikeThisViewModel: ObservableObject {
     // @MainActor `MoreLikeThisProvider` initializer. Production passes the graph registry;
     // tests may pass a provider explicitly.
     init(registry: SourceRegistry, provider: MoreLikeThisProvider? = nil) {
+        self.registry = registry
         self.provider = provider ?? MoreLikeThisProvider(
             source: { registry.externalIdSource })
     }
@@ -33,6 +35,9 @@ final class MoreLikeThisViewModel: ObservableObject {
         loadedFor = manga.id
         isLoading = true
         defer { isLoading = false }
-        items = await provider.recommendations(for: manga)
+        let recommendations = await provider.recommendations(for: manga)
+        items = recommendations.filter {
+            registry.admitsForDiscovery($0)
+        }
     }
 }

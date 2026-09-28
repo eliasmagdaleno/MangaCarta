@@ -147,6 +147,22 @@ final class SourceRegistry: ObservableObject {
         sources.first { $0.id == id }
     }
 
+    /// Whether a title may appear in a discovery surface that did not come through a
+    /// Source's own filtered listing: recommendations resolve through `manga(id:)` and
+    /// persisted pools. An unknown Source fails closed (ADR-0022 A6).
+    func admitsForDiscovery(_ manga: Manga) -> Bool {
+        let show = showAdultContent()
+        guard let source = source(id: manga.sourceId) else {
+            return AdultContentFilter.admits(rating: manga.contentRating,
+                                             sourceDeclaresAdultTitles: true,
+                                             showAdultContent: show)
+        }
+        if source.isNSFW && !show { return false }
+        return AdultContentFilter.admits(rating: manga.contentRating,
+                                         sourceDeclaresAdultTitles: source.declaresAdultTitles,
+                                         showAdultContent: show)
+    }
+
     /// The source a given manga came from. Legacy records with an unknown id retain the
     /// active-source fallback; ids known to the extension lifecycle but no longer
     /// registered return nil so callers cannot ask another Source for their listing.

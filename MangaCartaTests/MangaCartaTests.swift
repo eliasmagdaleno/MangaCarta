@@ -1865,7 +1865,8 @@ final class MangaCartaTests: XCTestCase {
                                        sourceProvider: (() -> MangaSource?)? = nil,
                                        now: Date = Date(), seed: UInt64 = 1,
                                        pushPriority: @escaping RecommendationEngine.PriorityPush = { _ in },
-                                       tagBlocked: @escaping RecommendationEngine.TagBlocked = { _ in false })
+                                       tagBlocked: @escaping RecommendationEngine.TagBlocked = { _ in false },
+                                       admits: @escaping (Manga) -> Bool = { _ in true })
         -> RecommendationEngine {
         let lib = library ?? LibraryStore(defaults: UserDefaults(suiteName: "test.lib.\(UUID().uuidString)")!)
         let works = workStore ?? WorkStore(directory: URL(fileURLWithPath: NSTemporaryDirectory())
@@ -1874,7 +1875,8 @@ final class MangaCartaTests: XCTestCase {
                                     workStore: works,
                                     source: sourceProvider ?? { source },
                                     makeProvider: { _ in provider }, now: { now }, seed: seed,
-                                    pushPriority: pushPriority, tagBlocked: tagBlocked)
+                                    pushPriority: pushPriority, tagBlocked: tagBlocked,
+                                    admits: admits)
     }
 
     /// A provider returning a fixed ranked pool, ignoring the profile.
@@ -1998,6 +2000,31 @@ final class MangaCartaTests: XCTestCase {
         await engine.refresh()
         // rec2 = not interested, m1 = already read → both excluded.
         XCTAssertEqual(engine.recommendations.map(\.manga.id), ["rec1"])
+    }
+
+    @MainActor func testEngineFiltersAdultRecommendationsFromRailAndRankedResults() async throws {
+        let history = makeHistoryStore()
+        let taste = makeTasteStore()
+        let works = makeWorkStore()
+        for i in 1...3 {
+            tagRead(works, history, "m\(i)", [Tag(id: "a", name: "Action", group: "genre")])
+        }
+
+        var adult = sampleManga("adult")
+        adult.contentRating = "erotica"
+        let safe = sampleManga("safe")
+        let pool = [ScoredManga(manga: adult, score: 2, reason: "More Action"),
+                    ScoredManga(manga: safe, score: 1, reason: "More Action")]
+        let engine = makeEngine(history: history, tasteStore: taste,
+                                provider: FixedPoolProvider(pool: pool),
+                                workStore: works,
+                                admits: { $0.contentRating != "erotica" })
+
+        await engine.refresh()
+
+        XCTAssertEqual(engine.recommendations.map(\.manga.id), ["safe"])
+        let ranked = await engine.rankedRecommendations()
+        XCTAssertEqual(ranked.map(\.id), ["safe"])
     }
 
     // MARK: - Rail state (ADR-0015)

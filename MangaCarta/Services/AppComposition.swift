@@ -431,7 +431,8 @@ struct AppComposition {
             // separates "not tagged yet" from "cannot be tagged". Passed the whole `Work`
             // rather than an id so the `.unmatched(knownTitlesCount:)` comparison stays
             // paired with the Work it was recorded for.
-            tagBlocked: { memory.suppresses($0) })
+            tagBlocked: { memory.suppresses($0) },
+            admits: { resolvedRegistry.admitsForDiscovery($0) })
 
         self.works = wk
         self.library = lib

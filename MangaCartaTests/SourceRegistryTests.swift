@@ -53,6 +53,26 @@ struct SourceRegistryTests {
         registry.activeSourceID = "gone"
         #expect(registry.active?.id == "safe")
     }
+
+    @Test func discoveryRejectsAdultTitlesAndUnknownOrHiddenSources() {
+        let registry = SourceRegistry(sources: [LocalSource(),
+                                                StubSource(id: "m", declaresAdultTitles: true),
+                                                StubSource(id: "a", isNSFW: true, declaresAdultTitles: true)],
+                                      showAdultContent: { false })
+        #expect(registry.admitsForDiscovery(manga("1", source: "m", rating: "safe")))
+        #expect(!registry.admitsForDiscovery(manga("2", source: "m", rating: "erotica")))
+        #expect(!registry.admitsForDiscovery(manga("3", source: "m", rating: nil)))
+        #expect(!registry.admitsForDiscovery(manga("4", source: "a", rating: "safe")))
+        #expect(!registry.admitsForDiscovery(manga("5", source: "gone", rating: nil)))
+        #expect(registry.admitsForDiscovery(manga("6", source: "gone", rating: "safe")))
+    }
+}
+
+private func manga(_ id: String, source: String, rating: String?) -> Manga {
+    var value = Manga(id: id, sourceId: source, title: id, description: "",
+                      status: "unknown", year: nil, coverURL: nil, malId: nil)
+    value.contentRating = rating
+    return value
 }
 
 private struct StubSource: MangaSource {
