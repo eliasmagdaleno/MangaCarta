@@ -1369,6 +1369,19 @@ final class MangaCartaTests: XCTestCase {
         XCTAssertTrue(loader.items.isEmpty)
     }
 
+    // ADR-0022 A6: a feed page whose every title is adult arrives empty while the switch is
+    // off, and an empty page ends the feed. Accepted: such a feed is mostly hidden anyway.
+    // If this ever changes, the loader needs a raw-vs-filtered signal, not a looser rule here.
+    @MainActor func testAFullyFilteredPageEndsTheFeed_acceptedByADR0022A6() async throws {
+        let loader = PagedMangaLoader(pageSize: 24)
+        loader.load { _, offset in
+            XCTAssertEqual(offset, 0)
+            return []
+        }
+        try await waitUntil("fully filtered page") { !loader.isLoading }
+        XCTAssertFalse(loader.hasMore)
+    }
+
     /// A page of nothing but already-seen ids means the source is cycling — also the end.
     @MainActor func testLoaderAllDuplicatePageEndsFeed() async throws {
         let loader = PagedMangaLoader(pageSize: 4)

@@ -122,6 +122,13 @@ final class SourceRegistry: ObservableObject {
         return sources.first(where: \.publishesExternalIds)
     }
 
+    /// `externalIdSource` without adult filtering, for resolving titles the reader already
+    /// has. Discovery must keep using the filtered one.
+    var externalIdResolutionSource: MangaSource? {
+        guard let source = externalIdSource else { return nil }
+        return (source as? ExtensionSource)?.unfilteredForResolution() ?? source
+    }
+
     /// The fallback browse source. It prefers a non-adult one: no built-in is browsable any
     /// more (ADR-0003 Amendment 6), so registration order alone no longer keeps an adult
     /// Source from becoming the default the way the compiled MangaDex did (ADR-0022).

@@ -233,7 +233,7 @@ final class ExtensionSource: MangaSource {
             let page = try self.validator.validateUpdatePage(value)
             return (page.items, page.nextCursor, page.exhausted)
         }
-        return page.map { $0.toMangaUpdate(sourceID: id) }
+        return page.map { $0.toMangaUpdate(sourceID: id) }.filter { admits($0.manga) }
     }
 
     private func listings(_ operation: SourceOperation,
@@ -246,7 +246,23 @@ final class ExtensionSource: MangaSource {
             let page = try self.validator.validateListingPage(value)
             return (page.items, page.nextCursor, page.exhausted)
         }
-        return page.map { $0.toManga(sourceID: id) }
+        return page.map { $0.toManga(sourceID: id) }.filter(admits)
+    }
+
+    /// Discovery only (ADR-0022 A6). `manga(id:)`, detail, chapters and pages are never
+    /// filtered: a saved title must open whatever the switch says.
+    private func admits(_ manga: Manga) -> Bool {
+        AdultContentFilter.admits(rating: manga.contentRating,
+                                  sourceDeclaresAdultTitles: declaresAdultTitles,
+                                  showAdultContent: showAdultContent())
+    }
+
+    /// The same Source with filtering off, for matching a saved title against the catalogue
+    /// (`MALEntityResolver`). Hiding an adult match there would cache a false miss.
+    func unfilteredForResolution() -> ExtensionSource {
+        ExtensionSource(declaration: declaration, script: script, isNSFW: isNSFW,
+                        lifecycle: lifecycle, host: host,
+                        declaresAdultTitles: declaresAdultTitles, showAdultContent: { true })
     }
 
     // MARK: - Detail, chapters, pages

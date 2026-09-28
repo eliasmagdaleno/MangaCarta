@@ -259,7 +259,7 @@ struct AppComposition {
         let resolvedRegistry = registry ?? .shared
         let resolvedMALResolver = malResolver ?? MALEntityResolver(
             store: .shared,
-            source: { resolvedRegistry.externalIdSource })
+            source: { resolvedRegistry.externalIdResolutionSource })
         // Built first: the three commitment paths below (read, save, feedback) all
         // mint into it, so they must share this one instance (ADR-0007).
         let wk = WorkStore(directory: directory)
