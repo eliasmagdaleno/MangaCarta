@@ -750,3 +750,37 @@ Retries are idempotent. A binding is spent once it applies, or once it collides,
 compiled or bundled Source records afterwards is offered again rather than moved silently.
 Removing the compiled and bundled Sources follows after this path is verified; the migration
 does not itself erase either Source or any reader data.
+
+## Amendment 8 — the host owns rate limits, and a 429 pauses a Source's origin (2026-09-28)
+
+The Host API design (§4.1, §6) keeps retries away from the engine: "the host does not
+automatically retry", and `retryAfterSeconds` "is only advisory and the host scheduler remains
+authoritative". Two changes build that scheduler. Neither was recorded here when it shipped, so
+this amendment records both.
+
+**Spacing (#242).** Every host HTTP request reserves a slot from a limiter keyed by
+**Source and origin**, so two Sources never share a budget and one Source's calls to two sites
+never block each other. The default spacing is 0.2 s per origin. A host-owned path rule can add a
+second, stricter budget. The only one today is MangaDex `/at-home/server` at 40 requests per
+minute, MangaDex's published limit for that endpoint. The rules are host constants, not
+declaration fields. A Source cannot loosen them.
+
+**Pause on 429 (#271).** Spacing alone learns nothing from a 429, and background refresh and
+matching would keep sending into the limit. So a 429 now **pauses every budget that Source has
+for that origin** until the server's retry time. Every caller waits, not only the one that saw
+the 429. The rules:
+
+- **Only a 429 acts.** MangaDex sends `X-RateLimit-Retry-After` on every response as the end of
+  the current window, so acting on the header alone would stall healthy traffic.
+- **Header order:** RFC 9110 `Retry-After` first, then `X-RateLimit-Retry-After`. A 429 with
+  neither keeps ordinary spacing. There is no default pause, because a guessed value is still a
+  guess.
+- **Site-neutral parsing.** A bare number above 10⁹ is a Unix instant; a smaller one is seconds.
+  No plausible delay is 31 years, and every Unix time since 2001 is above the line, so no host
+  code names MangaDex. An HTTP date is an instant. Negative and non-finite values are ignored.
+- **Capped at 5 minutes,** so a malformed or hostile header cannot lock a Source out.
+- **No burst at the end.** A request already waiting when the pause begins takes a new, spaced
+  slot after it, so the queue drains at the normal rate.
+
+This refines the no-automatic-retry rule; it does not break it. The host still never re-sends a
+request. It only delays the next one, which is the scheduling the design already assigned to it.
