@@ -731,3 +731,22 @@ Constraints the release must keep, because each one undoes part of the above if 
 - ADR-0022's "the public release ships MangaDex and WeebCentral" and its Amendment 3 no longer
   describe the release, and ADR-0016's bridge is no longer guaranteed present; those ADRs are
   amended on their own side.
+
+## Amendment 7 — reconnect persisted Source data by reader choice (2026-09-25)
+
+Amendment 6 removes the two remote Sources that earlier builds supplied. Their persisted Listing
+identities cannot be replaced at launch: a repository added by the reader receives a new UUID,
+and two repositories may offer the same local Source id. Guessing from the local id would let an
+unrelated repository inherit a reader's library, history, and source choices.
+
+When a reader installs a matching Source, MangaCarta offers to reconnect the older data to that
+specific installed Source. The reader may decline. The binding is saved and applied on the next
+launch, before persisted stores load. Bare `mangadex` (including older library and history entries
+without a `sourceId`) and the fixed bundled WeebCentral qualified id are the two legacy identities.
+Only Source identities change; Work IDs, manga IDs, progress, and numerical JSON values survive.
+An absent or uninstalled replacement leaves the data dormant. A collision between old and new
+Listing keys stops migration for explicit resolution rather than choosing which record wins.
+Retries are idempotent. A binding is spent once it applies, or once it collides, so data the
+compiled or bundled Source records afterwards is offered again rather than moved silently.
+Removing the compiled and bundled Sources follows after this path is verified; the migration
+does not itself erase either Source or any reader data.

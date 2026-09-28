@@ -98,6 +98,32 @@ struct AppComposition {
         /// Where S5's acknowledgement sheet plugs in. Declines until then.
         let adultAcknowledgement: AdultInstallAcknowledgementHandle
         let usesBundledTransport: Bool
+        let migrationDirectory: URL
+        let migrationDefaults: UserDefaults
+
+        func legacyDataID(for record: InstalledSourceRecord) -> String? {
+            guard let legacyID = InstalledSourceIDMigration.legacyID(for: record.localId),
+                  legacyID != record.qualifiedId.rawValue,
+                  InstalledSourceIDMigration.hasLegacyData(legacyID,
+                                                           directory: migrationDirectory,
+                                                           defaults: migrationDefaults) else { return nil }
+            return legacyID
+        }
+
+        /// The legacy identities that still have saved data. It reads and parses the
+        /// persisted stores, so callers compute it once rather than per view update.
+        func legacyIDsWithData() -> Set<String> {
+            Set(InstalledSourceIDMigration.legacyIDs.filter { legacyID in
+                InstalledSourceIDMigration.hasLegacyData(legacyID, directory: migrationDirectory,
+                                                         defaults: migrationDefaults)
+            })
+        }
+
+        func requestLegacyDataMigration(for record: InstalledSourceRecord) {
+            guard let legacyID = legacyDataID(for: record) else { return }
+            InstalledSourceIDMigration.request(legacyID: legacyID, installed: record,
+                                               defaults: migrationDefaults)
+        }
 
         /// First-launch install of the bundled WeebCentral package (ADR-0003 Amendment 5),
         /// and on every later launch the refresh that surfaces an app-update's new bundle
@@ -246,6 +272,13 @@ struct AppComposition {
          registry: SourceRegistry? = nil,
          repositoryTransport: (any RepositoryTransport)? = nil) {
         WeebCentralIdentityMigration.run(directory: directory, defaults: defaults)
+        let identityMigrationError: String?
+        do {
+            try InstalledSourceIDMigration.run(directory: directory, defaults: defaults)
+            identityMigrationError = nil
+        } catch {
+            identityMigrationError = error.localizedDescription
+        }
         let resolvedRegistry = registry ?? .shared
         let resolvedMALResolver = malResolver ?? MALEntityResolver(
             store: .shared,
@@ -444,11 +477,12 @@ struct AppComposition {
         (self.listingCounts, self.sourcePreferences, self.fulfillment) =
             Self.makeFulfillment(works: wk, registry: self.registry, defaults: defaults)
         let extensionResult = Self.makeExtensions(directory: directory,
+                                                   defaults: defaults,
                                                    transport: repositoryTransport,
                                                    registry: self.registry,
                                                    rateLimiters: self.hostRateLimiters)
         self.extensions = extensionResult.composition
-        self.extensionStorageError = extensionResult.error
+        self.extensionStorageError = extensionResult.error ?? identityMigrationError
     }
 
     /// The installed-Source subsystem (Phase 4). Restores every installed Source from
@@ -458,6 +492,7 @@ struct AppComposition {
     /// which run at launch.
     private static func makeExtensions(
         directory: URL,
+        defaults: UserDefaults,
         transport: (any RepositoryTransport)?,
         registry: SourceRegistry,
         rateLimiters: HostRateLimiterRegistry
@@ -482,7 +517,8 @@ struct AppComposition {
                                                  host: host, registry: registry)
         return (ExtensionComposition(repositories: repositories, installer: installer, host: host,
                                      registrar: registrar, adultAcknowledgement: acknowledgement,
-                                     usesBundledTransport: transport == nil), nil)
+                                     usesBundledTransport: transport == nil,
+                                     migrationDirectory: directory, migrationDefaults: defaults), nil)
     }
 
     /// Fulfillment's three pieces (ADR-0004). Extracted from `init` only because it had
