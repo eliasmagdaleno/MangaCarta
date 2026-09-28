@@ -1,6 +1,6 @@
 # MangaCarta
 
-A native iOS manga reader built with SwiftUI, powered by the [MangaDex](https://mangadex.org) API. No third-party dependencies — pure SwiftUI and Foundation.
+A native iOS manga reader built with SwiftUI. It ships with no content of its own: you install Sources from repositories you choose, or import your own files. No third-party dependencies — pure SwiftUI and Foundation.
 
 <p align="center">
   <img src="docs/screenshots/home-light.png" width="45%" alt="Home screen, light mode" />
@@ -9,7 +9,10 @@ A native iOS manga reader built with SwiftUI, powered by the [MangaDex](https://
 
 ## Features
 
-- **Multi-source** — browse and read across more than one source (MangaDex plus a Cloudflare-protected, HTML-scraped site) through a common source abstraction. A title carried by several sources is one entry with a chosen source behind it: the app ranks them, and you can set a primary source or pin one title to one source
+- **Sources you install** — the app ships with none. Add a repository by URL in Settings, then install, update, disable or uninstall the Sources it lists. Each Source runs sandboxed from a small script plus a declaration of what it may reach
+- **Multi-source** — a title carried by several Sources is one entry with a chosen Source behind it: the app ranks them, and you can set a primary Source or pin one title to one Source
+- **Local library** — import CBZ, ZIP and PDF files and read them on-device, no Source needed
+- **Adult content, gated** — installing a Source that carries adult titles asks you to confirm your age, and adult-rated titles stay hidden until you turn on **Show adult content**
 - **Browse** popular titles, recently updated chapters, and newly added manga, with a personalized **"For You"** recommendation rail built on-device from your reading history
 - **Search** — debounced, source-scoped title search with infinite scroll
 - **Read** chapters in three modes — left-to-right, right-to-left (manga order), and webtoon-style continuous vertical scroll — with pinch-to-zoom and double-tap-to-zoom on paged pages
