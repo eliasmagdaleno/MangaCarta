@@ -784,3 +784,58 @@ the 429. The rules:
 
 This refines the no-automatic-retry rule; it does not break it. The host still never re-sends a
 request. It only delays the next one, which is the scheduling the design already assigned to it.
+
+## Amendment 9 — a Source may ask the host to report its image loads (2026-09-28)
+
+MangaDex asks every client to report each page image fetched from a MangaDex@Home node: a `POST`
+to `https://api.mangadex.network/report` carrying the image `url`, `success`, `cached` (the
+response's `X-Cache` starts with `HIT`), `bytes`, and `duration` in milliseconds. Its rule is
+"for each image you retrieve (successfully or not) from a base url that doesn't contain
+`mangadex.org`". The operator uses the reports to track node health.
+
+The engine cannot do this, because the engine never loads images. It returns page URLs, and the
+host downloads them. The host cannot do it by knowing about MangaDex either (Amendment 6: the
+app ships no Source, and the host names no site). So **a Source's declaration may opt in to image-load
+reports, and the host sends them.**
+
+**The declaration names what is reported, and nothing else is.** A new optional
+`network.imageLoadReports` has two fields. `endpoint` is the report URL. `origins` is a list of
+image-origin patterns in the same syntax as `assetOrigins`. The host reports only a load whose
+origin matches one of those patterns. An absent key means no reports. An exclusion rule ("report
+everything except `mangadex.org`") was rejected. It reports by default whatever origin nobody
+thought of, and this ADR's rule is that silence is never permission. For MangaDex, `origins` is
+`["https://*.mangadex.network"]`. The `uploads.mangadex.org` fallback that `/at-home/server`
+sometimes returns is then correctly left out.
+
+**The validator keeps the feature from adding a new party or a new reach:**
+
+- `endpoint` must be HTTPS, and its origin must be one of the Source's `httpOrigins`. The report
+  goes only to an operator the Source already talks to.
+- Every `origins` pattern must also be covered by `assetOrigins`. A Source can ask for reports
+  only on images it is already allowed to load.
+- The key requires **Host API 1.3**. An older app rejects the declaration instead of silently
+  skipping the reports.
+
+**The host fixes the payload. Engine code never builds it.** It is exactly MangaDex's five
+fields. A per-image JavaScript hook was rejected. It would start a `JSContext` for every page, a
+cost the reader pays on every turn, and it would serve a flexibility no second site has asked for.
+If one does, a new payload version is an amendment, not a patch.
+
+**Behaviour:**
+
+- **Only network retrievals are reported.** A page served from the app's memory or disk cache
+  downloaded nothing and is not reported. A download the host never attempted, because the
+  destination policy refused the URL, is not reported either. A download that was attempted and
+  failed is reported with `success: false`, as MangaDex asks.
+- **Reports never slow reading.** Each one is fire-and-forget. It never delays showing a page or
+  the next fetch. It is never retried, and a failed report is dropped. Reports go through the
+  host HTTP client, so the report origin's per-Source rate limit and 429 pause (Amendment 8)
+  apply to them.
+- **Prefetched pages count.** A prefetch is a retrieval.
+- **The reader has no switch.** A report tells the image operator how its own delivery went,
+  and that operator already served the image. The App Store privacy label and the in-app
+  privacy text must still describe it as data sent off the device.
+
+**Consequence.** The image loader has to know which Source a page came from, and today it
+loads by URL alone. That wiring, and carrying the `X-Cache` header and timing out of the fetch,
+belong to the design, not this decision.
