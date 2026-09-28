@@ -107,3 +107,16 @@ The controller should run the focused tests.
 
 The requested simulator tests were not run because the prior CoreSimulatorService
 failure already prevented simulator access; no retry was made.
+
+## Fix round 3
+
+- Made `fallbackPrefersANonAdultSourceEvenWithTheSwitchOn` exercise the fallback
+  path by setting `registry.activeSourceID = "gone"` before asserting the safe
+  Source.
+- Saved and restored `UserDefaults.standard["source.activeID"]` in both tests
+  that assign `activeSourceID`, preserving the seeded simulator fixture.
+- `git diff --check` passed.
+
+The focused `SourceRegistryTests` command was attempted once but did not reach
+compilation because CoreSimulatorService returned `Connection refused` while
+initializing the requested simulator. No retry was made.

@@ -27,6 +27,9 @@ struct SourceRegistryTests {
     }
 
     @Test func aStoredAdultOnlyChoiceIsNotHonouredWhileTheSwitchIsOff() {
+        let saved = UserDefaults.standard.object(forKey: "source.activeID")
+        defer { UserDefaults.standard.set(saved, forKey: "source.activeID") }
+
         var show = true
         let registry = SourceRegistry(sources: [LocalSource(), StubSource(id: "safe"), StubSource(id: "a", isNSFW: true)],
                                       showAdultContent: { show })
@@ -42,8 +45,12 @@ struct SourceRegistryTests {
     }
 
     @Test func fallbackPrefersANonAdultSourceEvenWithTheSwitchOn() {
+        let saved = UserDefaults.standard.object(forKey: "source.activeID")
+        defer { UserDefaults.standard.set(saved, forKey: "source.activeID") }
+
         let registry = SourceRegistry(sources: [LocalSource(), StubSource(id: "a", isNSFW: true), StubSource(id: "safe")],
                                       showAdultContent: { true })
+        registry.activeSourceID = "gone"
         #expect(registry.active?.id == "safe")
     }
 }
