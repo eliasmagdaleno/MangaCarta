@@ -116,7 +116,7 @@ final class SourceDeclarationValidatorTests: XCTestCase {
         XCTAssertEqual(declaration.presentation.feeds[.popular]?.title, "Popular")
         XCTAssertEqual(declaration.presentation.feeds[.latestUpdates]?.badge, .new)
         XCTAssertEqual(declaration.presentation.imagePrefetchConcurrencyHint, 4)
-        XCTAssertEqual(declaration.selectedHostAPIVersion, HostAPIVersion(major: 1, minor: 2))
+        XCTAssertEqual(declaration.selectedHostAPIVersion, HostAPIVersion(major: 1, minor: 3))
         XCTAssertEqual(declaration.configuration,
                        .object(["baseURL": .string("https://example.test")]))
         XCTAssertEqual(declaration.externalIds, [])
@@ -166,7 +166,7 @@ final class SourceDeclarationValidatorTests: XCTestCase {
         currentCapabilities["listing"] = true
         current["capabilities"] = currentCapabilities
         let acceptedCurrent = try accepted(current)
-        XCTAssertEqual(acceptedCurrent.selectedHostAPIVersion, HostAPIVersion(major: 1, minor: 2))
+        XCTAssertEqual(acceptedCurrent.selectedHostAPIVersion, HostAPIVersion(major: 1, minor: 3))
 
         var legacyNoFeature = legacy
         legacyNoFeature.removeValue(forKey: "externalIds")
@@ -693,7 +693,8 @@ final class SourceDeclarationValidatorTests: XCTestCase {
         XCTAssertEqual(declared.maximumExclusive, HostAPIVersion(major: 3, minor: 0))
         XCTAssertEqual(supported, [HostAPIVersion(major: 1, minor: 0),
                                    HostAPIVersion(major: 1, minor: 1),
-                                   HostAPIVersion(major: 1, minor: 2)])
+                                   HostAPIVersion(major: 1, minor: 2),
+                                   HostAPIVersion(major: 1, minor: 3)])
     }
 
     func testWildcardAssetOriginIsScopedAndShapeChecked() throws {
@@ -747,6 +748,114 @@ final class SourceDeclarationValidatorTests: XCTestCase {
                        .featureRequiresHostAPIVersion(feature: "network.assetOrigins wildcard",
                                                       minimum: HostAPIVersion(major: 1, minor: 2),
                                                       selected: HostAPIVersion(major: 1, minor: 1)))
+    }
+
+    // MARK: - Image-load reports (ADR-0003 Amendment 9)
+
+    /// A declaration that may use `imageLoadReports`: MangaDex's shape, on the fixture's hosts.
+    private func reportingDeclaration(_ reports: Any?) throws -> [String: Any] {
+        var json = baseDeclaration()
+        var network = try XCTUnwrap(json["network"] as? [String: Any])
+        network["httpOrigins"] = ["https://example.test", "https://api.mangadex.network"]
+        network["assetOrigins"] = ["https://uploads.mangadex.org", "https://*.mangadex.network"]
+        network["imageLoadReports"] = reports
+        json["network"] = network
+        return json
+    }
+
+    func testImageLoadReportsAreAbsentUnlessDeclared() throws {
+        XCTAssertNil(try accepted(baseDeclaration()).network.imageLoadReports)
+    }
+
+    func testImageLoadReportsParseEndpointAndOrigins() throws {
+        let declaration = try accepted(reportingDeclaration([
+            "endpoint": "https://api.mangadex.network/report",
+            "origins": ["https://*.mangadex.network"]
+        ]))
+        XCTAssertEqual(declaration.network.imageLoadReports,
+                       ImageLoadReportPolicy(endpoint: URL(string: "https://api.mangadex.network/report")!,
+                                             origins: ["https://*.mangadex.network"]))
+    }
+
+    func testImageLoadReportsRequireHostAPI13() throws {
+        var json = try reportingDeclaration([
+            "endpoint": "https://api.mangadex.network/report",
+            "origins": ["https://*.mangadex.network"]
+        ])
+        json["hostAPI"] = ["minimum": "1.0", "maximumExclusive": "1.3"]
+        XCTAssertEqual(try rejected(json),
+                       .featureRequiresHostAPIVersion(feature: "network.imageLoadReports",
+                                                      minimum: HostAPIVersion(major: 1, minor: 3),
+                                                      selected: HostAPIVersion(major: 1, minor: 2)))
+    }
+
+    /// The report goes only to an operator the Source already talks to.
+    func testImageLoadReportEndpointMustBeAnHTTPSURLInsideHTTPOrigins() throws {
+        for endpoint in ["https://elsewhere.example/report",       // not an httpOrigin
+                         "http://api.mangadex.network/report",     // not https
+                         "https://api.mangadex.network:8443/report", // different origin by port
+                         "https://user@api.mangadex.network/report",
+                         "not a url"] {
+            let json = try reportingDeclaration(["endpoint": endpoint,
+                                                 "origins": ["https://*.mangadex.network"]])
+            guard case .invalidOrigin(let path, _, _) = try rejected(json) else {
+                return XCTFail("endpoint unexpectedly accepted: \(endpoint)")
+            }
+            XCTAssertEqual(path, "network.imageLoadReports.endpoint", endpoint)
+        }
+    }
+
+    /// A Source may ask for reports only on images it is already allowed to load.
+    func testImageLoadReportOriginsMustBeCoveredByAssetOrigins() throws {
+        let covered = try accepted(reportingDeclaration([
+            "endpoint": "https://api.mangadex.network/report",
+            "origins": ["https://node1.mangadex.network", "https://uploads.mangadex.org"]
+        ]))
+        XCTAssertEqual(covered.network.imageLoadReports?.origins,
+                       ["https://node1.mangadex.network", "https://uploads.mangadex.org"])
+
+        for origin in ["https://cdn.elsewhere.example",   // outside assetOrigins
+                       "https://a.b.mangadex.network",     // the wildcard covers one label only
+                       "https://*.mangadex.org",           // a wildcard assetOrigins never declared
+                       "http://node1.mangadex.network"] {  // not https
+            let json = try reportingDeclaration(["endpoint": "https://api.mangadex.network/report",
+                                                 "origins": [origin]])
+            guard case .invalidOrigin(let path, _, _) = try rejected(json) else {
+                return XCTFail("origin unexpectedly accepted: \(origin)")
+            }
+            XCTAssertEqual(path, "network.imageLoadReports.origins", origin)
+        }
+
+        let duplicate = try reportingDeclaration([
+            "endpoint": "https://api.mangadex.network/report",
+            "origins": ["https://*.mangadex.network", "https://*.MANGADEX.network"]
+        ])
+        XCTAssertEqual(try rejected(duplicate),
+                       .duplicateOrigin(path: "network.imageLoadReports.origins",
+                                        value: "https://*.mangadex.network"))
+    }
+
+    /// Silence is never permission: an empty list would opt in to reporting nothing, which
+    /// is a declaration mistake, not a meaningful setting.
+    func testImageLoadReportOriginsMustNotBeEmpty() throws {
+        let json = try reportingDeclaration(["endpoint": "https://api.mangadex.network/report",
+                                             "origins": []])
+        XCTAssertEqual(try rejected(json), .emptyImageLoadReportOrigins)
+    }
+
+    func testImageLoadReportsRejectUnknownKeysAndWrongShapes() throws {
+        XCTAssertEqual(try rejected(reportingDeclaration([
+            "endpoint": "https://api.mangadex.network/report",
+            "origins": ["https://*.mangadex.network"],
+            "payload": "custom"
+        ])), .unknownKey(path: "network.imageLoadReports", key: "payload"))
+
+        XCTAssertEqual(try rejected(reportingDeclaration(["https://api.mangadex.network/report"])),
+                       .wrongType(path: "network.imageLoadReports", expected: "object"))
+        XCTAssertEqual(try rejected(reportingDeclaration(["origins": ["https://*.mangadex.network"]])),
+                       .missingKey(path: "network.imageLoadReports.endpoint"))
+        XCTAssertEqual(try rejected(reportingDeclaration(["endpoint": "https://api.mangadex.network/report"])),
+                       .missingKey(path: "network.imageLoadReports.origins"))
     }
 
     /// Criterion 9's "actionable": the message must name the declared range and what the
