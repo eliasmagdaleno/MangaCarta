@@ -293,3 +293,67 @@ Owner decisions recorded there, 2026-09-24:
    #235), and every listing claim is checked against the release build before submission.
 
 Sample and screenshot art (original or public domain) remains the owner's, and open.
+
+
+## Amendment 6 — a `mixed` Source is visible; the gate hides adult *titles*, not the Source (2026-09-28)
+
+### Context
+
+Amendments 1 and 2 were written when a `mixed` Source was an edge case. Since ADR-0003 Amendment 6
+the app ships no Source, and the one nearly every reader installs first, MangaDex, declares
+`mixed`. `ExtensionSourceRegistrar` counts any `adult != none` as `isNSFW`, so a reader who
+installs MangaDex and passes the declared-age gate still sees an empty Home until they find "Show
+adult sources". The owner hit exactly this in the 2026-09-27 smoke test. The switch was guarding a
+reader who had just confirmed their age, and it hid a catalogue whose titles are mostly `safe`.
+
+### Decision
+
+Owner's decision, 2026-09-28. **The switch filters adult-rated titles; it hides a whole Source only
+when that Source is adult throughout.**
+
+1. **Whole-Source hiding (`isNSFW`) means `adultOnly`, or a reader's "Treat as adult" elevation.**
+   A `mixed` Source is visible whatever the switch says. An elevation is the reader explicitly
+   calling the Source adult, so it keeps hiding the whole Source as before.
+2. **With the switch off, `erotica` and `pornographic` titles are hidden, from every Source.** This
+   applies to a `none` Source too, since a `none` Source may label one Listing `erotica` (the Host
+   API's per-Listing elevation, which Amendment 2 defended). `safe` and `suggestive` titles show by
+   default: MangaDex treats `suggestive` as general-audience, and hiding it would empty much
+   ordinary shonen.
+3. **A title with no rating is hidden when it comes from a `mixed` Source, and shown when it comes
+   from a `none` Source.** "Missing means unknown, never safe" (`Manga.contentRating`); what settles
+   an unknown is the Source's own declaration. A `mixed` Source has said it carries adult titles,
+   so an unrated one might be one. A `none` Source has vouched for all of its titles.
+4. **The filter covers discovery, not what the reader already has.** Home rails, search, tag
+   browse, Latest Updates and recommendations are filtered. The Library, history, and new-chapter
+   notifications for saved Works are not: turning the switch off never hides something the reader
+   saved.
+5. **One seam, not one check per view.** The filter is applied where titles leave the registry for
+   discovery, so a new discovery surface is filtered without anyone remembering to do it. A
+   per-view check is the failure this rules out: one forgotten view leaks.
+6. **The switch is renamed "Show adult content".** Its visibility rule is unchanged: it stays
+   hidden until a reader who passed the declared-age gate has a `mixed` or `adultOnly` Source
+   installed. The declared-age gate at install is unchanged.
+7. **The fallback browse Source never picks a whole-Source-hidden Source while the switch is off.**
+   If nothing else is eligible, there is no active browse Source. This closes the edge where, with
+   only adult Sources installed and the switch off, `SourceRegistry.active` fell back to one anyway.
+
+### Alternatives considered
+
+**Keep hiding every `mixed` Source (Amendments 1–2 as written).** This is the most cautious answer
+for App Review, but it makes the app's main Source invisible by default. It also misdescribes a
+Source whose titles are mostly `safe`, and the switch adds nothing for a reader who has just
+declared their age.
+
+**Ask per Source at install ("show adult titles from this Source?").** This would be the same title
+filter with the setting moved to each Source. It adds a stored setting per Source and a harder
+install sheet, and gives nothing a v1 reader needs.
+
+### Consequences
+
+- Review notes in `docs/app-store/submission-copy.md` change from "any adult class is hidden by
+  default" to "adult-rated titles, and Sources that are adult throughout, are hidden by default".
+  Whoever prepares the submission rewrites that answer.
+- The filter depends on engines rating their titles honestly. The Host API validator already
+  rejects any value outside the four ratings. A `mixed` engine that omits a rating loses that
+  title from discovery (point 3), which pushes maintainers to rate titles rather than leave them
+  unrated.
