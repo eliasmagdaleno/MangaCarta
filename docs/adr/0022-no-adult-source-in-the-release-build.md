@@ -357,3 +357,28 @@ install sheet, and gives nothing a v1 reader needs.
   rejects any value outside the four ratings. A `mixed` engine that omits a rating loses that
   title from discovery (point 3), which pushes maintainers to rate titles rather than leave them
   unrated.
+
+
+## Amendment 7 — three rulings made while building Amendment 6 (2026-09-28)
+
+Amendment 6 left three questions open that came up during implementation. The rulings made there
+are recorded here so they do not live only in a handoff:
+
+1. **Notification redaction keeps its pre-A6 meaning.** While the switch is off, a new-chapter
+   notification for a saved Work hides its title and details if any of the Work's Listings belongs
+   to a `mixed` or `adultOnly` Source (`UpdateNotifier.hidesAdultDetails`, and
+   `LibraryRefreshCoordinator`'s `sourceIsAdult`, both test `isNSFW || declaresAdultTitles`). This
+   does not contradict A6 point 4. That point says notifications are never *filtered*, and a
+   redacted notification is still posted. A notification appears on the lock screen, outside the
+   app, so redacting is the cautious default there.
+2. **When the switch is on, the fallback browse Source still prefers one that is not hidden.**
+   A6 point 7 only rules out picking a hidden Source while the switch is off. It says nothing about
+   preferring one when the switch is on. The fallback therefore takes the first browsable Source
+   that is not `isNSFW`, and only if there is none does it take a hidden one (`SourceRegistry`,
+   `firstBrowsable`). Turning the switch on should reveal more, not change what opens by default.
+3. **A feed page that the filter empties ends that feed.** `PagedMangaLoader` treats an empty page
+   as the end, so if every title on a page is adult-rated and the switch is off, paging stops there
+   even if later pages have titles that would show. This is accepted rather than fixed: fetching
+   further pages until one passes the filter has no upper bound against a Source whose catalogue
+   is mostly adult. The limit is pinned by `testAFullyFilteredPageEndsTheFeed_acceptedByADR0022A6`,
+   so a change to it has to be deliberate.
