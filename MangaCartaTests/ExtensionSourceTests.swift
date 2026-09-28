@@ -898,3 +898,83 @@ final class InstalledSourceRegistrationTests: XCTestCase {
               + "package=\(packageBytes?.intValue ?? -1) index=\(indexBytes.count) script=\(scriptBytes.count)")
     }
 }
+
+// MARK: - Image-load report target (ADR-0003 Amendment 9, design §2)
+
+@MainActor
+final class ImageLoadReportTargetTests: XCTestCase {
+
+    private static let qualifiedID = "6f1d9c2e-4b7a-4c1e-9e3d-2a8b5c7d1f00:reporting"
+
+    private func source(imageLoadReports: String?) throws -> ExtensionSource {
+        let reports = imageLoadReports.map { ", \"imageLoadReports\": \($0)" } ?? ""
+        let declaration = try PortFixtures.declaration("""
+        {
+          "localId": "reporting",
+          "name": "Reporting",
+          "engine": "echo",
+          "adult": "none",
+          "capabilities": { "search": true, "popular": true, "detail": true,
+                            "chapters": true, "pages": true },
+          "languages": { "mode": "fixed", "values": ["en"] },
+          "network": { "httpOrigins": ["https://api.example.test", "https://report.example.test"],
+                       "browserOrigins": [],
+                       "assetOrigins": ["https://uploads.example.test", "https://*.nodes.example.test"]\(reports) },
+          "hostAPI": { "minimum": "1.3", "maximumExclusive": "2.0" },
+          "configuration": {}
+        }
+        """, qualifiedId: Self.qualifiedID)
+        let lifecycle = SourceLifecycleRegistry()
+        try lifecycle.register(declaration)
+        return ExtensionSource(declaration: declaration, script: PortFixtures.bundleScript,
+                               isNSFW: false, lifecycle: lifecycle,
+                               host: FixtureSourceHost(site: PortFixtures.weebCentralSite))
+    }
+
+    func testASourceThatDoesNotOptInHasNoTarget() throws {
+        let source: any MangaSource = try source(imageLoadReports: nil)
+        XCTAssertNil(source.imageLoadReportTarget)
+    }
+
+    /// Read through `any MangaSource`: an extension-only member would dispatch statically
+    /// and always return the protocol default, which is the bug this pins.
+    func testAnOptedInSourceExposesItsTargetThroughTheProtocol() throws {
+        let source: any MangaSource = try source(imageLoadReports: """
+        { "endpoint": "https://report.example.test/report", "origins": ["https://*.nodes.example.test"] }
+        """)
+        XCTAssertEqual(source.imageLoadReportTarget,
+                       ImageLoadReportTarget(sourceID: QualifiedSourceID(rawValue: Self.qualifiedID),
+                                             endpoint: URL(string: "https://report.example.test/report")!,
+                                             origins: ["https://*.nodes.example.test"]))
+    }
+
+    func testSourcesWithoutADeclarationHaveNoTarget() {
+        let local: any MangaSource = LocalSource(store: LocalLibraryStore(
+            root: FileManager.default.temporaryDirectory
+                .appendingPathComponent("ImageLoadReportTarget-\(UUID().uuidString)")))
+        XCTAssertNil(local.imageLoadReportTarget)
+    }
+
+    func testCoversMatchesOnlyTheListedOriginsWithTheAssetOriginMatcher() {
+        let target = ImageLoadReportTarget(sourceID: QualifiedSourceID(rawValue: Self.qualifiedID),
+                                           endpoint: URL(string: "https://report.example.test/report")!,
+                                           origins: ["https://*.nodes.example.test",
+                                                     "https://uploads.example.test"])
+        let covered = ["https://a1.nodes.example.test/data/hash/1.png",
+                       "https://A1.NODES.example.test/data/hash/1.png",
+                       "https://a1.nodes.example.test:443/data/hash/1.png",
+                       "https://uploads.example.test/covers/1.jpg"]
+        let notCovered = ["https://a.b.nodes.example.test/data/hash/1.png",  // one label only
+                          "https://nodes.example.test/data/hash/1.png",      // the bare suffix
+                          "http://a1.nodes.example.test/data/hash/1.png",    // not https
+                          "https://a1.nodes.example.test:8443/data/1.png",   // another origin
+                          "https://api.example.test/data/1.png",
+                          "file:///tmp/1.png"]
+        for url in covered {
+            XCTAssertTrue(target.covers(URL(string: url)!), url)
+        }
+        for url in notCovered {
+            XCTAssertFalse(target.covers(URL(string: url)!), url)
+        }
+    }
+}
