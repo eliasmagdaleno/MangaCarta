@@ -51,8 +51,10 @@ final class SourceRegistry: ObservableObject {
 
     /// - Parameter sources: Sources to register, or `nil` for the built-in set (Local only).
     ///   Injectable so tests can supply mock sources.
-    init(sources: [MangaSource]? = nil) {
+    init(sources: [MangaSource]? = nil,
+         showAdultContent: @escaping () -> Bool = AdultContentSetting.current) {
         let sources = sources ?? Self.builtInSources()
+        self.showAdultContent = showAdultContent
         self.builtIn = sources
         self.sources = sources
         // Restore the persisted active source if it still exists; otherwise fall back to the first.
@@ -70,9 +72,16 @@ final class SourceRegistry: ObservableObject {
 #else
         stored = UserDefaults.standard.string(forKey: Self.activeKey)
 #endif
-        self.activeSourceID = sources.contains(where: { $0.id == stored && $0.isBrowsable }) ? stored! : (sources.first(where: { $0.isBrowsable })?.id ?? stored ?? "")
+        let isBrowsableNow: (MangaSource) -> Bool = {
+            $0.isBrowsable && (!$0.isNSFW || showAdultContent())
+        }
+        self.activeSourceID = sources.first(where: {
+            $0.id == stored && isBrowsableNow($0)
+        })?.id ?? sources.first(where: isBrowsableNow)?.id ?? stored ?? ""
         self.chosenSourceID = stored
     }
+
+    private let showAdultContent: () -> Bool
 
     /// The app's compiled-in sources. No remote content Source ships in the binary
     /// (ADR-0003 Amendment 6): MangaDex and WeebCentral are installed from a repository the
@@ -102,7 +111,7 @@ final class SourceRegistry: ObservableObject {
 
     /// The currently-active browsing source, or nil when no source is installed.
     var active: MangaSource? {
-        source(id: activeSourceID).flatMap { $0.isBrowsable ? $0 : nil } ?? firstBrowsable
+        source(id: activeSourceID).flatMap { isBrowsableNow($0) ? $0 : nil } ?? firstBrowsable
     }
 
     /// The registered source that can bridge external catalogue ids. Prefer the active
@@ -116,8 +125,14 @@ final class SourceRegistry: ObservableObject {
     /// The fallback browse source. It prefers a non-adult one: no built-in is browsable any
     /// more (ADR-0003 Amendment 6), so registration order alone no longer keeps an adult
     /// Source from becoming the default the way the compiled MangaDex did (ADR-0022).
+    private func isBrowsableNow(_ source: MangaSource) -> Bool {
+        source.isBrowsable && (!source.isNSFW || showAdultContent())
+    }
+
+    /// The fallback browse Source. It never picks one that is hidden whole while the switch
+    /// is off; if nothing else is eligible there is no active Source (ADR-0022 A6, point 7).
     private var firstBrowsable: MangaSource? {
-        sources.first(where: { $0.isBrowsable && !$0.isNSFW }) ?? sources.first(where: { $0.isBrowsable })
+        sources.first(where: isBrowsableNow)
     }
 
     /// Look up a source by its stable id (e.g. a manga's `sourceId`). Nil if not registered.
