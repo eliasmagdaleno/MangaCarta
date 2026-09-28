@@ -1094,11 +1094,37 @@ final class MangaCartaTests: XCTestCase {
 
     // MARK: - Default source registration (Phase 2)
 
-    @MainActor func testDefaultRegistryContainsAllBuiltInSources() {
+    /// ADR-0003 Amendment 6: no remote content Source is compiled in, so nothing is browsable
+    /// until the reader installs one.
+    @MainActor func testDefaultRegistryContainsOnlyTheLocalLibrary() {
         let registry = SourceRegistry()
-        XCTAssertEqual(registry.sources.map(\.id), ["mangadex", "local"])
-        XCTAssertEqual(registry.visibleSources(includeAdult: true).map(\.id), ["mangadex"])
+        XCTAssertEqual(registry.sources.map(\.id), ["local"])
+        XCTAssertEqual(registry.visibleSources(includeAdult: true).map(\.id), [])
+        XCTAssertNil(registry.active)
+        XCTAssertNil(registry.source(id: "mangadex"))
         XCTAssertNil(registry.source(id: "weebcentral"))
+    }
+
+    /// With no browsable built-in, registration order no longer puts a non-adult Source
+    /// first; the fallback must still prefer one (ADR-0022).
+    @MainActor func testFallbackBrowseSourcePrefersANonAdultInstalledSource() {
+        struct AdultMock: MangaSource {
+            let id = "adult"; let name = "Adult"
+            var isNSFW: Bool { true }
+            func search(title: String, limit: Int, offset: Int) async throws -> [Manga] { [] }
+            func popular(limit: Int, offset: Int) async throws -> [Manga] { [] }
+            func mangaDetail(id: String) async throws -> MangaDetail {
+                MangaDetail(description: "", authors: [], tags: [], contentRating: nil)
+            }
+            func chapters(mangaId: String) async throws -> [Chapter] { [] }
+            func pageURLs(chapterId: String, preferDataSaver: Bool) async throws -> [URL] { [] }
+        }
+        let saved = UserDefaults.standard.object(forKey: "source.activeID")
+        defer { UserDefaults.standard.set(saved, forKey: "source.activeID") }
+        let registry = SourceRegistry(sources: [])
+        registry.activeSourceID = "gone"
+        registry.setInstalledSources([AdultMock(), UpdatesUITestSource()])
+        XCTAssertEqual(registry.active?.id, UpdatesUITestSource().id)
     }
 
     @MainActor func testDisablingAdultToggleReSourcesAwayFromActiveAdultSource() {

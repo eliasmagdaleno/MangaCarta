@@ -204,7 +204,7 @@ when the app updates, and neither removable nor re-pointable by the reader — t
 disable/uninstall/erase-able like any other. WeebCentral ships this way since ADR-0003 Amendment
 5. Not a default repository in ADR-0022 Amendment 2's sense (see its Amendment 3).
 **Withdrawn 2026-09-22 (ADR-0003 Amendment 6):** the App Store build ships no bundled package;
-the term remains for the shape that shipped in #201 and is being removed.
+the term remains for the shape that shipped in #201 and was removed on 2026-09-25.
 
 **Declared-age gate** — the one-time, per-device confirmation that the reader is 18 or over,
 asked the first time a `mixed` or `adultOnly` Extension is installed and required before the "Show
