@@ -129,15 +129,16 @@ final class SourceRegistry: ObservableObject {
         return (source as? ExtensionSource)?.unfilteredForResolution() ?? source
     }
 
-    /// The fallback browse source. It prefers a non-adult one: no built-in is browsable any
-    /// more (ADR-0003 Amendment 6), so registration order alone no longer keeps an adult
-    /// Source from becoming the default the way the compiled MangaDex did (ADR-0022).
+    /// Browsable, and not hidden whole by the adult switch (ADR-0022 A6).
     private func isBrowsableNow(_ source: MangaSource) -> Bool {
         source.isBrowsable && (!source.isNSFW || showAdultContent())
     }
 
-    /// The fallback browse Source prefers one that is not hidden, and falls back to a hidden
-    /// adult one only while the switch is on (ADR-0022 A6, point 7).
+    /// The fallback browse source. It prefers a non-adult one: no built-in is browsable any
+    /// more (ADR-0003 Amendment 6), so registration order alone no longer keeps an adult
+    /// Source from becoming the default the way the compiled MangaDex did (ADR-0022). It
+    /// falls back to a hidden adult one only while the switch is on (ADR-0022 A6, point 7;
+    /// Amendment 7, point 2).
     private var firstBrowsable: MangaSource? {
         sources.first(where: { $0.isBrowsable && !$0.isNSFW }) ?? sources.first(where: isBrowsableNow)
     }
