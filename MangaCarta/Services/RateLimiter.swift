@@ -22,12 +22,14 @@ struct TaskRateLimiterSleeper: RateLimiterSleeper {
 
 /// A spacing limiter whose reservations are made before the first suspension point.
 /// A reservation that is cancelled while waiting can be returned to the budget.
+/// A pause holds every slot until it ends, including slots already handed to sleeping waiters.
 actor RateLimiter {
     private let minimumInterval: TimeInterval
     private let clock: any RateLimiterClock
     private let sleeper: any RateLimiterSleeper
     private var nextSlot: Date?
     private var releasedSlots: [Date] = []
+    private var pausedUntil: Date?
 
     init(minimumInterval: TimeInterval,
          clock: any RateLimiterClock = SystemRateLimiterClock(),
@@ -38,17 +40,15 @@ actor RateLimiter {
     }
 
     func acquire(ignoringCancellation: Bool = false) async throws -> RateLimiterReservation {
-        let now = clock.now()
-        releasedSlots.removeAll { $0 < now }
-        let slot: Date
-        if !releasedSlots.isEmpty {
-            slot = releasedSlots.removeFirst()
-        } else {
-            slot = max(now, nextSlot ?? now)
-            nextSlot = slot.addingTimeInterval(minimumInterval)
-        }
+        var slot = reserveSlot()
         do {
             try await sleeper.sleep(until: slot)
+            while let pausedUntil, slot < pausedUntil {
+                // A pause began while this waiter slept. Take a fresh slot after it, so the
+                // waiters it held are still spaced rather than released together.
+                slot = reserveSlot()
+                try await sleeper.sleep(until: slot)
+            }
             return RateLimiterReservation(limiter: self, slot: slot)
         } catch is CancellationError where ignoringCancellation {
             // AniList historically ran the operation after a cancelled wait.
@@ -60,11 +60,32 @@ actor RateLimiter {
         }
     }
 
+    /// Holds every reservation until `date`. A later pause extends an earlier one; an earlier
+    /// one never shortens it.
+    func pause(until date: Date) {
+        guard date > (pausedUntil ?? .distantPast) else { return }
+        pausedUntil = date
+        nextSlot = max(nextSlot ?? date, date)
+        releasedSlots.removeAll { $0 < date }
+    }
+
+    private func reserveSlot() -> Date {
+        let earliest = max(clock.now(), pausedUntil ?? .distantPast)
+        releasedSlots.removeAll { $0 < earliest }
+        if !releasedSlots.isEmpty {
+            return releasedSlots.removeFirst()
+        }
+        let slot = max(earliest, nextSlot ?? earliest)
+        nextSlot = slot.addingTimeInterval(minimumInterval)
+        return slot
+    }
+
     fileprivate func release(slot: Date) {
         guard let nextSlot else { return }
+        let earliest = max(clock.now(), pausedUntil ?? .distantPast)
         if slot.addingTimeInterval(minimumInterval) == nextSlot {
-            self.nextSlot = max(clock.now(), slot)
-        } else if slot >= clock.now() {
+            self.nextSlot = max(earliest, slot)
+        } else if slot >= earliest {
             // A queued waiter may be behind this one. Reuse the empty slot
             // without moving that later waiter's reservation.
             let insertionIndex = releasedSlots.firstIndex { $0 > slot } ?? releasedSlots.endIndex

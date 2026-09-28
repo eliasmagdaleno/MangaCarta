@@ -1350,10 +1350,138 @@ struct HostRateLimiterTests {
         _ = try await limiter.acquire()
         #expect((await sleeper.dates()).map(\.timeIntervalSinceReferenceDate) == [0, 1, 2, 1])
     }
+
+    @Test("a pause delays the next reservation until it ends")
+    func pauseDelaysNextReservation() async throws {
+        let sleeper = RecordingRateLimiterSleeper()
+        let limiter = RateLimiter(minimumInterval: 1, clock: FixedRateLimiterClock(), sleeper: sleeper)
+        _ = try await limiter.acquire()
+        await limiter.pause(until: Date(timeIntervalSinceReferenceDate: 30))
+        _ = try await limiter.acquire()
+        _ = try await limiter.acquire()
+        #expect((await sleeper.dates()).map(\.timeIntervalSinceReferenceDate) == [0, 30, 31])
+    }
+
+    @Test("a released slot inside a pause is not reused")
+    func pauseDropsReleasedSlots() async throws {
+        let sleeper = RecordingRateLimiterSleeper()
+        let limiter = RateLimiter(minimumInterval: 1, clock: FixedRateLimiterClock(), sleeper: sleeper)
+        _ = try await limiter.acquire()
+        let middle = try await limiter.acquire()
+        _ = try await limiter.acquire()
+        await middle.cancel()
+        await limiter.pause(until: Date(timeIntervalSinceReferenceDate: 30))
+        _ = try await limiter.acquire()
+        #expect((await sleeper.dates()).map(\.timeIntervalSinceReferenceDate) == [0, 1, 2, 30])
+    }
+
+    @Test("waiters asleep when a pause begins re-reserve spaced slots after it")
+    func sleepingWaitersRespacedAfterPause() async throws {
+        let sleeper = GatedRateLimiterSleeper(blocking: [Date(timeIntervalSinceReferenceDate: 1),
+                                                         Date(timeIntervalSinceReferenceDate: 2)])
+        let limiter = RateLimiter(minimumInterval: 1, clock: FixedRateLimiterClock(), sleeper: sleeper)
+        _ = try await limiter.acquire()
+        let first = Task { try await limiter.acquire() }
+        let second = Task { try await limiter.acquire() }
+        await sleeper.waitForBlockedSleepers(2)
+        await limiter.pause(until: Date(timeIntervalSinceReferenceDate: 30))
+        await sleeper.open()
+        _ = try await first.value
+        _ = try await second.value
+        #expect((await sleeper.dates()).map(\.timeIntervalSinceReferenceDate).sorted() == [0, 1, 2, 30, 31])
+    }
+
+    @Test("a registry pause holds one Source's origin, not other Sources")
+    func registryPauseIsScopedToSourceAndOrigin() async throws {
+        let sleeper = RecordingRateLimiterSleeper()
+        let registry = HostRateLimiterRegistry(defaultInterval: 1,
+                                                rules: [HostRateLimitRule(origin: "https://api.example.com",
+                                                                          pathPrefix: "/slow",
+                                                                          requestsPerMinute: 60)],
+                                                clock: FixedRateLimiterClock(), sleeper: sleeper)
+        let paused = QualifiedSourceID(rawValue: "a")
+        try await registry.reserve(sourceID: paused, origin: "https://api.example.com", path: "/slow/1")
+        await registry.pause(sourceID: paused, origin: "https://api.example.com", retryAfter: .delay(30))
+        try await registry.reserve(sourceID: paused, origin: "https://api.example.com", path: "/slow/2")
+        try await registry.reserve(sourceID: QualifiedSourceID(rawValue: "b"),
+                                   origin: "https://api.example.com", path: "/other")
+        // a: path 0, origin 0; a again: path 30, origin 30; b: origin 0.
+        #expect((await sleeper.dates()).map(\.timeIntervalSinceReferenceDate) == [0, 0, 30, 30, 0])
+    }
+
+    @Test("a registry pause honours an instant and is capped at five minutes")
+    func registryPauseInstantAndCap() async throws {
+        let sleeper = RecordingRateLimiterSleeper()
+        let registry = HostRateLimiterRegistry(defaultInterval: 1, rules: [],
+                                                clock: FixedRateLimiterClock(), sleeper: sleeper)
+        let instant = QualifiedSourceID(rawValue: "instant")
+        let capped = QualifiedSourceID(rawValue: "capped")
+        await registry.pause(sourceID: instant, origin: "https://example.com",
+                             retryAfter: .instant(Date(timeIntervalSinceReferenceDate: 45)))
+        await registry.pause(sourceID: capped, origin: "https://example.com", retryAfter: .delay(3600))
+        try await registry.reserve(sourceID: instant, origin: "https://example.com", path: "/")
+        try await registry.reserve(sourceID: capped, origin: "https://example.com", path: "/")
+        #expect((await sleeper.dates()).map(\.timeIntervalSinceReferenceDate) == [45, 300])
+    }
+
+    @Test("Retry-After values parse as seconds, epoch instants and HTTP dates")
+    func retryAfterParsing() {
+        #expect(HostRetryAfter(headerValue: "45") == .delay(45))
+        #expect(HostRetryAfter(headerValue: "1800000020") ==
+                    .instant(Date(timeIntervalSince1970: 1_800_000_020)))
+        #expect(HostRetryAfter(headerValue: "Wed, 21 Oct 2015 07:28:00 GMT") ==
+                    .instant(Date(timeIntervalSince1970: 1_445_412_480)))
+        #expect(HostRetryAfter(headerValue: "-5") == nil)
+        #expect(HostRetryAfter(headerValue: "soon") == nil)
+    }
+
+    @Test("a 429 pauses the Source's origin until X-RateLimit-Retry-After")
+    func tooManyRequestsPausesOrigin() async throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let sleeper = RecordingRateLimiterSleeper()
+        let registry = HostRateLimiterRegistry(defaultInterval: 1, rules: [],
+                                                clock: FixedRateLimiterClock(date: now), sleeper: sleeper)
+        let transport = ScriptedHostHTTPTransport { request, index in
+            HostHTTPTransportResponse(statusCode: index == 1 ? 429 : 200, url: request.url!,
+                                      headers: ["X-RateLimit-Retry-After": "1800000020"],
+                                      body: Data("ok".utf8))
+        }
+        let client = HostHTTPClient(sourceID: QualifiedSourceID(rawValue: "repo/source"),
+                                    allowedOrigins: ["https://example.com"], transport: transport,
+                                    resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
+                                    rateLimiters: registry)
+        let limited = try await client.request(HostHTTPRequest(url: URL(string: "https://example.com/a")!))
+        _ = try await client.request(HostHTTPRequest(url: URL(string: "https://example.com/b")!))
+        _ = try await client.request(HostHTTPRequest(url: URL(string: "https://example.com/c")!))
+        #expect(limited.status == 429)
+        #expect((await sleeper.dates()).map { $0.timeIntervalSince(now) } == [0, 20, 21])
+    }
+
+    @Test("only a 429 pauses; other statuses with rate-limit headers do not")
+    func nonTooManyRequestsDoesNotPause() async throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let sleeper = RecordingRateLimiterSleeper()
+        let registry = HostRateLimiterRegistry(defaultInterval: 1, rules: [],
+                                                clock: FixedRateLimiterClock(date: now), sleeper: sleeper)
+        let transport = ScriptedHostHTTPTransport { request, _ in
+            HostHTTPTransportResponse(statusCode: 503, url: request.url!,
+                                      headers: ["Retry-After": "45",
+                                                "X-RateLimit-Retry-After": "1800000060"],
+                                      body: Data())
+        }
+        let client = HostHTTPClient(sourceID: QualifiedSourceID(rawValue: "repo/source"),
+                                    allowedOrigins: ["https://example.com"], transport: transport,
+                                    resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
+                                    rateLimiters: registry)
+        _ = try await client.request(HostHTTPRequest(url: URL(string: "https://example.com/a")!))
+        _ = try await client.request(HostHTTPRequest(url: URL(string: "https://example.com/b")!))
+        #expect((await sleeper.dates()).map { $0.timeIntervalSince(now) } == [0, 1])
+    }
 }
 
 private struct FixedRateLimiterClock: RateLimiterClock {
-    func now() -> Date { Date(timeIntervalSinceReferenceDate: 0) }
+    var date = Date(timeIntervalSinceReferenceDate: 0)
+    func now() -> Date { date }
 }
 
 private actor RecordingRateLimiterSleeper: RateLimiterSleeper {
@@ -1362,6 +1490,42 @@ private actor RecordingRateLimiterSleeper: RateLimiterSleeper {
     func sleep(until date: Date) async throws {
         try Task.checkCancellation()
         recorded.append(date)
+    }
+
+    func dates() -> [Date] { recorded }
+}
+
+/// Holds sleeps for the listed dates until `open()`; every other sleep returns at once.
+private actor GatedRateLimiterSleeper: RateLimiterSleeper {
+    private let blocking: Set<Date>
+    private var recorded: [Date] = []
+    private var isOpen = false
+    private var blocked: [CheckedContinuation<Void, Never>] = []
+    private var countWaiter: (count: Int, continuation: CheckedContinuation<Void, Never>)?
+
+    init(blocking: Set<Date>) { self.blocking = blocking }
+
+    func sleep(until date: Date) async throws {
+        recorded.append(date)
+        guard blocking.contains(date), !isOpen else { return }
+        await withCheckedContinuation { continuation in
+            blocked.append(continuation)
+            if let waiter = countWaiter, blocked.count >= waiter.count {
+                countWaiter = nil
+                waiter.continuation.resume()
+            }
+        }
+    }
+
+    func waitForBlockedSleepers(_ count: Int) async {
+        guard blocked.count < count else { return }
+        await withCheckedContinuation { countWaiter = (count, $0) }
+    }
+
+    func open() {
+        isOpen = true
+        blocked.forEach { $0.resume() }
+        blocked = []
     }
 
     func dates() -> [Date] { recorded }
