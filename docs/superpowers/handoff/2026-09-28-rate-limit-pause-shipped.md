@@ -20,15 +20,19 @@ Recheck GitHub and the working trees before acting.
 
 ## Next
 
-1. **At-home image-fetch reporting: the owner chose option (a), a generic host hook.** MangaDex
-   asks clients to report each page-image load (success, bytes, duration, cached) to
-   `https://api.mangadex.network/report`. The host loads images itself and must stay site-neutral,
-   so the plan is for a Source's declaration to opt in to "report image loads to this URL" and for
-   the host to post the reports. **This is a new Host API feature. Write an ADR (or an ADR-0003
-   amendment) and a design before any code.** The research is
-   `docs/research/2026-09-22-mangadex-engine.md` §Blocker 3. Check MangaDex's current report
-   payload spec first. The engines live in `proxy-link/mangacarta-sources`, and the MangaDex
-   declaration there would need to opt in.
+1. **Image-load reports: the decision is recorded, the design is next.** ADR-0003 Amendment 9
+   (#273) settles it:
+   - an opt-in `network.imageLoadReports {endpoint, origins}`;
+   - an explicit origin list, never an exclusion rule;
+   - `endpoint` must be in `httpOrigins`, and `origins` must be covered by `assetOrigins`;
+   - Host API 1.3;
+   - a fixed host payload of MangaDex's five fields;
+   - fire-and-forget, with no reader switch.
+
+   **Still owed before any code: a design doc** covering how `ImageCache` learns which Source a
+   page came from (it loads by URL alone today) and how `X-Cache` and timing get out of its fetch
+   closure. The engine in `proxy-link/mangacarta-sources` then needs `api.mangadex.network` in
+   `httpOrigins`, plus the new key, raising its `hostAPI` minimum to 1.3.
 2. **Rate-limit pause leftovers (small, optional):**
    - The rate-limited error copy could say how long to wait. `ExtensionSource.invoke` still drops
      `retryAfterSeconds`, so this means carrying it through.

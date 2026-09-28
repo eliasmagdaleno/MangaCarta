@@ -218,6 +218,13 @@ WebAssembly VM. Not the extension, and not the API — just what executes it.
 **Host API** — the functions the app exposes *to* an Extension (fetch, fetch-via-WebView, log,
 storage). A forever-contract: once extensions exist in the wild, breaking it breaks them all.
 
+**Image-load report** — a note the host sends to a Source's operator after downloading one of that
+Source's page images: which image, whether the download worked, its size, how long it took, and
+whether the server had it cached. Sent only when the Source's declaration opts in, and only for the
+image origins it names. A page served from the app's own cache is not a download and gets no report.
+See [ADR-0003 Amendment 9](adr/0003-extension-substrate.md).
+_Avoid_: at-home report (MangaDex's name for its own instance), analytics, telemetry.
+
 **Fulfillment** — choosing *which* Listing to actually read a Work from, when several sources
 have it. Ranked by English chapter completeness; ties go to the reader's **primary source** — see
 [ADR-0004](adr/0004-fulfillment-routing.md) for the full order.
