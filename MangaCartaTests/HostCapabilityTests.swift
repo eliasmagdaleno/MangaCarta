@@ -618,7 +618,8 @@ struct ImageCacheNetworkTests {
                     configuration: ImageCache.sessionConfiguration(),
                     redirectHandler: URLSessionDataFetcher.httpsOnlyRedirectHandler),
                 port: port))
-        let observed = try await fetcher.fetch(URLRequest(url: url))
+        let observed = try await fetchRetryingLostConnection(fetcher, URLRequest(url: url),
+                                                             server: server)
         #expect(observed.response.url == url)
         let peer = try #require(observed.connectedPeerAddress)
         #expect(!HostIPAddress.isPublic(peer))
@@ -1376,6 +1377,9 @@ private final class LoopbackHTTPServer {
     private let queue = DispatchQueue(label: "HostCapabilityTests.loopback")
     private let respondsImmediately: Bool
     private var connections: [NWConnection] = []
+    /// What the server saw, in order. Read on `queue`; printed when a fetch loses its
+    /// connection, so a rare flake says whether this side accepted, read, and answered.
+    private var log: [String] = []
 
     init(respondsImmediately: Bool = true) throws {
         let parameters = NWParameters.tcp
@@ -1388,6 +1392,11 @@ private final class LoopbackHTTPServer {
         listener.newConnectionHandler = { [weak self] connection in
             guard let self else { return }
             self.connections.append(connection)
+            let endpoint = connection.endpoint
+            self.log.append("accepted \(endpoint)")
+            connection.stateUpdateHandler = { [weak self] state in
+                self?.log.append("\(endpoint) \(state)")
+            }
             connection.start(queue: self.queue)
             if self.respondsImmediately { self.respond(connection) }
         }
@@ -1412,11 +1421,17 @@ private final class LoopbackHTTPServer {
         connections.removeAll()
     }
 
+    func events() -> [String] {
+        queue.sync { log }
+    }
+
     private func respond(_ connection: NWConnection) {
         let body = "ok"
         let response = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n\(body)"
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 8192) { [weak self] _, _, _, _ in
-            connection.send(content: Data(response.utf8), completion: .contentProcessed { _ in
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 8192) { [weak self] data, _, isComplete, error in
+            self?.log.append("received \(data?.count ?? 0) bytes, complete \(isComplete), error \(String(describing: error))")
+            connection.send(content: Data(response.utf8), completion: .contentProcessed { error in
+                self?.log.append("sent, error \(String(describing: error))")
                 self?.connections.removeAll { $0 === connection }
                 connection.cancel()
             })
@@ -1565,6 +1580,23 @@ private struct FixedHTTPMetricsFetcher: URLSessionDataFetching {
     let result: URLSessionFetchResult
 
     func fetch(_ request: URLRequest) async throws -> URLSessionFetchResult { result }
+}
+
+/// `realURLSessionLoopbackPeerNeverDecodes` lost its loopback connection once (-1005, 2026-09-28,
+/// one failure in a full run), and thousands of fetches under stress would not reproduce it.
+/// URLSession already makes three connection attempts before it reports -1005, so that failure
+/// means three were lost in a row (or one mid-response). The fetch only sets up that test's
+/// subject, so a lost connection is retried once — and what the server saw is printed, so the
+/// next occurrence shows whether this side accepted, read and answered.
+private func fetchRetryingLostConnection(_ fetcher: some URLSessionDataFetching,
+                                         _ request: URLRequest,
+                                         server: LoopbackHTTPServer) async throws -> URLSessionFetchResult {
+    do {
+        return try await fetcher.fetch(request)
+    } catch let error as URLError where error.code == .networkConnectionLost {
+        print("[loopback-flake] \(error); server saw: \(server.events())")
+        return try await fetcher.fetch(request)
+    }
 }
 
 private struct LoopbackRedirectingFetcher: URLSessionDataFetching {
