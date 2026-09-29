@@ -95,6 +95,8 @@ jobs:
     name: SwiftLint
     runs-on: ${{ needs.changes.outputs.code == 'true' && 'macos-15' || 'ubuntu-latest' }}
     needs: changes
+    # Seconds normally; the cap only catches a hung brew install.
+    timeout-minutes: 10
     steps:
       - name: Check out the code
         uses: actions/checkout@v5
@@ -126,6 +128,10 @@ jobs:
     # A docs-only change drops to Linux: macOS minutes bill at roughly ten times
     # the rate, and the only step left to run is an `echo`.
     runs-on: ${{ needs.changes.outputs.code == 'true' && 'macos-15' || 'ubuntu-latest' }}
+    # Without a cap a hung simulator holds a macOS runner for GitHub's 6-hour
+    # default. Green runs take 6–20 min (30 runs to 2026-09-29); 45 is about
+    # twice the slowest.
+    timeout-minutes: 45
     steps:
       # 1. Copy the repository onto the runner.
       - name: Check out the code
@@ -200,6 +206,8 @@ jobs:
     name: Hermetic UI tests
     runs-on: ${{ needs.changes.outputs.code == 'true' && 'macos-15' || 'ubuntu-latest' }}
     needs: changes
+    # Same reasoning as unit-tests: green runs take 8–14 min, one outlier 27.
+    timeout-minutes: 45
     steps:
       - name: Check out the code
         if: needs.changes.outputs.code == 'true'
