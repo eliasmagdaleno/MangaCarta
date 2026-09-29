@@ -135,6 +135,22 @@ final class ExtensionSourceTests: XCTestCase {
         }
     }
 
+    func testRateLimitedCopyNamesTheWaitWhenTheSiteGivesOne() {
+        func copy(_ seconds: Double?) -> String? {
+            ExtensionSourceError.rateLimited(retryAfterSeconds: seconds).errorDescription
+        }
+        let prefix = "The site is asking for a pause. "
+        XCTAssertEqual(copy(nil), prefix + "Try again in a moment.")
+        XCTAssertEqual(copy(0), prefix + "Try again in a moment.")
+        XCTAssertEqual(copy(1), prefix + "Try again in about 1 second.")
+        XCTAssertEqual(copy(6.2), prefix + "Try again in about 7 seconds.")
+        XCTAssertEqual(copy(59), prefix + "Try again in about 59 seconds.")
+        XCTAssertEqual(copy(60), prefix + "Try again in about 1 minute.")
+        XCTAssertEqual(copy(61), prefix + "Try again in about 2 minutes.")
+        XCTAssertEqual(copy(3600), prefix + "Try again in about 60 minutes.")
+        XCTAssertEqual(copy(3601), prefix + "Try again later.")
+    }
+
     func testListingLookupRejectsMismatchedReturnedID() async throws {
         let source = try echoSource(declareListing: true, declaresMAL: true, listingID: "other")
         do {

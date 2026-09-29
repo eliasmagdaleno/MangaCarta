@@ -49,15 +49,14 @@ session.
    Delivery is not, and cannot be tested locally: `HostURLPolicy` refuses non-public addresses,
    loopback included, so the endpoint must be public HTTPS. Check it with the real engine against
    MangaDex once the engine change above ships.
-3. **Rate-limit pause leftovers (small, optional):**
-   - The rate-limited error copy could say how long to wait. `ExtensionSource.invoke` still drops
-     `retryAfterSeconds`, so this means carrying it through.
-   - A 429 with no retry header does not pause. Amendment 8 chose that on purpose. Revisit it
-     only with evidence of a Source that sends bare 429s.
-4. **Tests that read the real adult setting.** Any test that builds an `ExtensionSource` or
-   `SourceRegistry` without passing `showAdultContent:` reads `UserDefaults.standard`. The full
-   target is green with the switch off, so no known failure remains. The cleaner fix is a pinned
-   test default, possibly alongside Other 3.
+3. **Bare 429s (optional):** a 429 with no retry header does not pause. Amendment 8 chose that
+   on purpose. Revisit it only with evidence of a Source that sends bare 429s. (The rate-limited
+   copy now names the wait when the site gives one.)
+4. **Tests that read the real adult setting: checked, nothing depends on it.** On 2026-09-28 the
+   full unit target passed with `AdultContentSetting.current` forced to `true`, so no test's result
+   rests on the device's switch. The owner declined the guard (removing the initializer defaults so
+   every caller passes the flag) as not worth ~40 call sites. Revisit only if a test turns out to
+   pass or fail by the switch.
 
 ## Other outstanding work
 

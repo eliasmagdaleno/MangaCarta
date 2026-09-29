@@ -212,7 +212,9 @@ final class MangaDexEngineTests: XCTestCase {
             _ = try await source.search(title: "Yotsuba", limit: 5, offset: 0)
             XCTFail("expected rate_limited")
         } catch let error as ExtensionSourceError {
-            XCTAssertEqual(error, .invocation(.rateLimited))
+            XCTAssertEqual(error, .rateLimited(retryAfterSeconds: 7))
+            XCTAssertEqual(error.errorDescription,
+                           "The site is asking for a pause. Try again in about 7 seconds.")
         }
     }
 
