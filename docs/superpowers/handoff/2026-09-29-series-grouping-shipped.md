@@ -11,9 +11,8 @@ here. Recheck GitHub and the working tree before acting.
   moves. `LocalLibraryPaths.relocated(_:root:)` re-roots a saved local cover URL onto the current
   `LocalLibrary` directory, and the `LibraryItem` and `ReadingEntry` decoders apply it, so covers
   already saved on devices repair themselves the next time they load. Merged.
-- **#299, local-import slice 6, Series grouping.** **Auto-merge is queued; when this was written its
-  build & unit tests job was still pending.** Check that it is `MERGED` before building on it (see
-  Next 1). Decisions 15–17 and a "Slice 6 design" section were added to
+- **#299, local-import slice 6, Series grouping,** merged with four green checks (`75e3607`). Its
+  worktree and branch are removed. Decisions 15–17 and a "Slice 6 design" section were added to
   `docs/superpowers/specs/2026-09-22-local-import-design.md`:
   - a series is `series-<32 hex>` from the normalised ComicInfo `Series`, even with one member;
   - chapter numbers are stable (`Number`, else `Volume`, else filename digits, else position;
@@ -29,26 +28,21 @@ With #299 merged, **all six local-import slices have shipped.** Per-volume delet
 and split, filename grouping, and matching local series against MAL or AniList are recorded out
 of scope in the spec.
 
-**Working tree:** `main` at `a63fd2c` plus this handoff. One extra worktree remains,
-`~/orca/workspaces/Manga-Reader/feat-local-series-grouping` (#299's). `stash@{0}` is still the
+**Working tree:** `main` at `75e3607` plus this handoff; no other worktrees or open PRs besides
+this one. `stash@{0}` is still the
 Xcode `project.pbxproj` churn from before #291. It is noise: `git stash drop` is fine, and
 `git stash pop` would conflict.
 
 ## Next
 
-1. **Close out #299.** Once `gh pr view 299 --json state -q .state` prints `MERGED`, remove its
-   worktree (`orca worktree rm --worktree path:<wt> --json`) and delete the branch
-   `eliasmagdaleno/feat-local-series-grouping`, locally and on origin. If CI failed instead, the PR
-   is still open: read the failing job before changing anything, since flaky live-network UI
-   tests exist (see Other outstanding work 3).
-2. **#294's unchecked cases.** Opening in place hands over the reader's original file, not a copy:
+1. **#294's unchecked cases.** Opening in place hands over the reader's original file, not a copy:
    - an iCloud `.cbz` that has not been downloaded yet (may need a coordinated read);
    - a real device, ideally with another comic app that also claims `.cbz` at `Owner`.
-3. **#296: unit tests leave their `UserDefaults(suiteName:)` plists behind.** 15,467 files (61 MB)
+2. **#296: unit tests leave their `UserDefaults(suiteName:)` plists behind.** 15,467 files (61 MB)
    sit in the seeded simulator's `Library/Preferences`, in the same container as the fixture.
    Remove each suite when its test ends; a helper returning a suite plus its cleanup covers most
    prefixes. This is not a leak into the real `library.items`; that was checked.
-4. **The engine change, only after an App Store build with Host API 1.3 ships.** It is made in
+3. **The engine change, only after an App Store build with Host API 1.3 ships.** It is made in
    `proxy-link/mangacarta-sources`. Push it through the SSH alias only, and never commit as Elias.
    - Add `https://api.mangadex.network` to `httpOrigins`.
    - Add
@@ -56,10 +50,10 @@ Xcode `project.pbxproj` churn from before #291. It is noise: `git stash drop` is
    - Raise `hostAPI.minimum` to `1.3`.
    - If it ships too early, current builds see no version intersection and refuse the update.
    - Existing readers will see the update sheet (Amendment 10) the first time they update.
-5. **A real report reaching an endpoint.** Only the sheet is covered (#284). Delivery cannot be
+4. **A real report reaching an endpoint.** Only the sheet is covered (#284). Delivery cannot be
    tested locally (`HostURLPolicy` refuses non-public addresses, loopback included). Check it with
-   the real engine against MangaDex once item 4 ships.
-6. **Bare 429s (optional):** a 429 with no retry header does not pause. Amendment 8 chose that on
+   the real engine against MangaDex once item 3 ships.
+5. **Bare 429s (optional):** a 429 with no retry header does not pause. Amendment 8 chose that on
    purpose. Revisit only with evidence of a Source that sends bare 429s.
 
 ## Other outstanding work
@@ -174,7 +168,7 @@ Xcode `project.pbxproj` churn from before #291. It is noise: `git stash drop` is
     and "In Place Check", which the slice-6 migration moved to `series-…` ids.
   - Files holds `open-in-check.cbz`, `in-place-check.cbz`, `trilogy-v1…3.cbz`,
     `plain-archive.zip` and `plain-document.pdf`.
-  - The installed app is #299's branch build.
+  - The installed app is #299's branch build, which is what merged.
   - Backups: `~/Manga-Reader-sim-backup-2026-09-29-pre-openin/` (before today's checks, so before
     any test books or migration) and `~/Manga-Reader-sim-backup-2026-09-27-post-smoke/`.
 - **The app's data container moves on every reinstall, and every test run reinstalls.** Look it up
