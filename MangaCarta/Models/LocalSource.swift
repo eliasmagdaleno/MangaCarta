@@ -18,7 +18,16 @@ struct LocalSource: MangaSource {
         let records = await store.allRecords()
         var ids = Set<String>()
         var mangas: [(String, LocalItemRecord)] = []
-        for record in records.sorted(by: { $0.sourceFilename.localizedStandardCompare($1.sourceFilename) == .orderedAscending }) {
+        let sortedRecords = records.sorted {
+            $0.sourceFilename.localizedStandardCompare($1.sourceFilename) == .orderedAscending
+        }
+        var recordsByID: [String: [LocalItemRecord]] = [:]
+        for record in sortedRecords {
+            let id = LocalSeriesIdentity.normalizedSeries(record.comicInfo?.series)
+                .map(LocalSeriesIdentity.seriesID) ?? record.itemId
+            recordsByID[id, default: []].append(record)
+        }
+        for record in sortedRecords {
             let id: String
             if let series = LocalSeriesIdentity.normalizedSeries(record.comicInfo?.series) {
                 id = LocalSeriesIdentity.seriesID(for: series)
@@ -26,7 +35,7 @@ struct LocalSource: MangaSource {
             } else {
                 id = record.itemId
             }
-            mangas.append((id, await store.seriesMetadata(for: id) ?? record))
+            mangas.append((id, recordsByID[id]?.sorted { LocalLibraryStore.seriesRecordBefore($0, $1) }.first ?? record))
         }
         return await mangas.filter { query.isEmpty || $0.1.title.lowercased().contains(query) }
             .dropFirst(offset).prefix(limit).asyncMap { id, record in

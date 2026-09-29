@@ -189,6 +189,8 @@ struct MangaCartaApp: App {
                 // own start. `start()` is idempotent, so the `.active` case below
                 // arriving first, later, or not at all is all the same.
                 .task {
+                    let local = (registry.source(id: LocalSource.sourceID) as? LocalSource)?.store ?? .shared
+                    await LocalSeriesMigration.run(local: local, library: library, history: history, works: works)
 #if DEBUG
                     await Self.importUITestFixtureIfRequested(library: library, works: works, registry: registry)
                     if UpdatesUITestFixture.state == nil {

@@ -2,10 +2,10 @@ import Foundation
 
 @MainActor
 enum LocalSeriesMigration {
-    static func schedule(directory: URL, library: LibraryStore, history: HistoryStore, works: WorkStore) {
+    static func schedule(local: LocalLibraryStore = .shared, library: LibraryStore,
+                         history: HistoryStore, works: WorkStore) {
         Task { @MainActor in
-            await run(local: LocalLibraryStore(root: directory.appendingPathComponent("LocalLibrary")),
-                      library: library, history: history, works: works)
+            await run(local: local, library: library, history: history, works: works)
         }
     }
 

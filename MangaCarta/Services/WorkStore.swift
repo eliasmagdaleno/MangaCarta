@@ -99,6 +99,10 @@ final class WorkStore: ObservableObject {
         loadIfNeeded()
         guard let id = listingIndex[old], var work = works[resolve(id) ?? id] else { return }
         let resolved = resolve(id) ?? id
+        if listingIndex[new] != nil {
+            removeListing(old)
+            return
+        }
         work.listings.removeAll { $0 == old }
         if !work.listings.contains(new) { work.listings.append(new) }
         works[resolved] = work
