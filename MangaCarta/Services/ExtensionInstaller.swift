@@ -40,12 +40,23 @@ protocol SourceDataErasing: Sendable {
     func eraseData(for id: QualifiedSourceID) async throws
 }
 
-/// What the one-time acknowledgement sheet shows for a `mixed` or `adultOnly` install
-/// (design §7.1, ADR-0022 Amendment 1). Declining ends the install with nothing persisted.
+/// What the acknowledgement sheet shows for an adult or image-reporting install/update
+/// (design §7.1, ADR-0022 Amendment 1). Declining ends the operation with nothing persisted.
 struct AdultInstallAcknowledgement: Equatable, Sendable {
     let sourceName: String
     let repositoryName: String
     let classification: AdultClassification
+    let sendsImageLoadReports: Bool
+    let isUpdate: Bool
+
+    init(sourceName: String, repositoryName: String, classification: AdultClassification,
+         sendsImageLoadReports: Bool = false, isUpdate: Bool = false) {
+        self.sourceName = sourceName
+        self.repositoryName = repositoryName
+        self.classification = classification
+        self.sendsImageLoadReports = sendsImageLoadReports
+        self.isUpdate = isUpdate
+    }
 }
 
 // MARK: - Results
@@ -107,6 +118,7 @@ enum ExtensionInstallError: Error, Equatable {
     case bundleUpdatePending(bundleId: String, installed: Int, offered: Int)
     case scriptDigestMismatch(expected: String, actual: String)
     case adultAcknowledgementDeclined(localId: String)
+    case imageLoadReportsDeclined(localId: String)
     case noUpdateAvailable(bundleId: String)
     /// `validateUpdate` refused; the installed Source is intact.
     case updateRefused(localId: String, SourceDeclarationError)
@@ -147,6 +159,8 @@ enum ExtensionInstallError: Error, Equatable {
                 + "(expected SHA-256 \(expected), received \(actual))."
         case .adultAcknowledgementDeclined:
             return "The install was cancelled. Nothing was added."
+        case .imageLoadReportsDeclined:
+            return "The Source was not installed or updated."
         case .noUpdateAvailable(let bundleId):
             return "There is no update for '\(bundleId)'."
         case .updateRefused(let localId, let error):
@@ -357,12 +371,16 @@ final class ExtensionInstaller {
         let declaration = try validated(entry.rawDeclaration, localId: localId, as: qualifiedId)
 
         // §7.1: the acknowledgement comes before anything is persisted or registered.
-        if declaration.adult != .none {
+        if declaration.adult != .none || declaration.network.imageLoadReports != nil {
             let acknowledgement = AdultInstallAcknowledgement(sourceName: declaration.name,
                                                               repositoryName: repository.name,
-                                                              classification: declaration.adult)
+                                                              classification: declaration.adult,
+                                                              sendsImageLoadReports: declaration.network.imageLoadReports != nil)
             guard await acknowledgeAdult(acknowledgement) else {
-                throw ExtensionInstallError.adultAcknowledgementDeclined(localId: localId)
+                if declaration.adult != .none {
+                    throw ExtensionInstallError.adultAcknowledgementDeclined(localId: localId)
+                }
+                throw ExtensionInstallError.imageLoadReportsDeclined(localId: localId)
             }
         }
 
@@ -465,6 +483,18 @@ final class ExtensionInstaller {
 
         // Step 2: nothing is touched until every installed Source has passed.
         let staged = try stagedUpdates(from: listing, bundleId: bundleId, repositoryID: repositoryID)
+
+        for item in staged where registry.declaration(for: item.record.qualifiedId)?.network.imageLoadReports == nil
+            && item.declaration.network.imageLoadReports != nil {
+            let acknowledgement = AdultInstallAcknowledgement(sourceName: item.declaration.name,
+                                                              repositoryName: try activeRepository(repositoryID).name,
+                                                              classification: item.declaration.adult,
+                                                              sendsImageLoadReports: true,
+                                                              isUpdate: true)
+            guard await acknowledgeAdult(acknowledgement) else {
+                throw ExtensionInstallError.imageLoadReportsDeclined(localId: item.record.localId)
+            }
+        }
 
         // Step 3: persist, then reconnect each through the registry.
         let previousScript = store.scriptData(for: bundleId, in: repositoryID)
