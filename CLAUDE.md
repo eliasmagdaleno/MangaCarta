@@ -203,6 +203,14 @@ The app builds and the core reading loop is implemented.
   Source — until the reader installs a matching Source and accepts the reconnect prompt
   (`InstalledSourceIDMigration`, Amendment 7). `WeebCentralIdentityMigration` still rewrites bare
   `"weebcentral"` ids from before the bundle.
+- **Image-load reports** shipped 2026-09-28 (#275–#281, ADR-0003 Amendments 9 and 10). A Source
+  whose declaration has `network.imageLoadReports` (Host API 1.3) has the host report each
+  network page-image load to that Source's endpoint. `ImageCache` measures the load and
+  `ImageLoadReporter` sends the report. The reader passes the Source's target; covers never do.
+  **Views must use the `\.imageCache` environment value, not `ImageCache.shared`**, which has no
+  reporter and survives only as that key's default for previews. The install sheet discloses
+  reports on install and on the update that adds them, and the privacy label declares them.
+  No published Source declares them yet.
 - Design/spec/plan for shipped work live in `docs/superpowers/{specs,plans}/`.
 
 Still minimal: no cross-device sync. Content refresh is no longer manual-only (see above);
