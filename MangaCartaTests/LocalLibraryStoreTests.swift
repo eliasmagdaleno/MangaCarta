@@ -112,8 +112,10 @@ struct LocalLibraryStoreTests {
 
     @Test func coverPageHelperFallsBackWhenIndexIsInvalid() {
         let first = URL(fileURLWithPath: "/first"), second = URL(fileURLWithPath: "/second")
-        #expect(LocalLibraryStore.coverPage(candidates: [(first, false), (second, true)], frontCoverPageIndex: 8) == second)
-        #expect(LocalLibraryStore.coverPage(candidates: [(first, true), (second, true)], frontCoverPageIndex: 1) == second)
+        #expect(LocalLibraryStore.coverPage(pageURLs: [first, second], frontCoverPageIndex: 8,
+                                            isDecodable: { $0 == second }) == second)
+        #expect(LocalLibraryStore.coverPage(pageURLs: [first, second], frontCoverPageIndex: 1,
+                                            isDecodable: { $0 == second }) == second)
     }
 
     @Test func duplicateImportIsSkippedAndRecordRemainsUnchanged() async throws {

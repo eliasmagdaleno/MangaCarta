@@ -15,6 +15,7 @@ final class LocalImportViewModel: ObservableObject {
     @Published private(set) var errors: [String] = []
 
     private var task: Task<Void, Never>?
+    private var runID = 0
     private var pendingURLs: [URL] = []
     private var openedURLs: Set<URL> = []
     private var local: LocalLibraryStore = .shared
@@ -35,63 +36,72 @@ final class LocalImportViewModel: ObservableObject {
         self.works = works
     }
 
-    // Each branch keeps one file's outcome adjacent to its cleanup and progress update.
-    // swiftlint:disable:next cyclomatic_complexity
     func importFiles(_ urls: [URL]) {
         guard !urls.isEmpty else { return }
         pendingURLs.append(contentsOf: urls)
         if isImporting { totalFiles += urls.count; return }
+        startImporting()
+    }
+
+    private func startImporting() {
         isImporting = true
         current = nil
         errors = []
         completedFiles = 0
         totalFiles = pendingURLs.count
         let local = self.local
+        runID += 1
+        let runID = self.runID
         task = Task { [weak self] in
             while true {
                 guard let self else { break }
-                guard !self.pendingURLs.isEmpty else { break }
+                guard !Task.isCancelled, !self.pendingURLs.isEmpty else { break }
                 let url = self.pendingURLs.removeFirst()
                 let shouldDelete = self.openedURLs.remove(url.standardizedFileURL) != nil
-                if Task.isCancelled {
-                    if shouldDelete { Self.deleteIfOwned(url, by: self.containerRoot) }
-                    break
-                }
-                let accessing = url.startAccessingSecurityScopedResource()
-                do {
-                    let result = try await local.importArchive(at: url) { [weak self] progress in
-                        Task { @MainActor [weak self] in self?.current = progress }
-                    }
-                    if accessing { url.stopAccessingSecurityScopedResource() }
-                    if case .imported(let record) = result {
-                        let cover = await local.coverURL(itemId: record.itemId)
-                        await MainActor.run {
-                            guard let library = self.library else { return }
-                            let manga = Manga(id: record.itemId, sourceId: LocalSource.sourceID,
-                                              title: record.title, description: record.comicInfo?.summary ?? "", status: "completed",
-                                              year: nil, coverURL: cover, malId: nil)
-                            library.toggle(manga)
-                            library.setChapterNumbers(record.chapters.map { "\($0.number)" }, for: record.itemId)
-                        }
-                    } else if case .duplicate = result {
-                        await MainActor.run { self.errors.append("\(url.lastPathComponent): Already in your library") }
-                    }
-                } catch {
-                    if accessing { url.stopAccessingSecurityScopedResource() }
-                    if case LocalImportError.cancelled = error {
-                        // User cancellation is intentionally silent.
-                    } else {
-                        await MainActor.run { self.errors.append("\(url.lastPathComponent): \(Self.message(for: error))") }
-                    }
-                }
-                if shouldDelete { Self.deleteIfOwned(url, by: self.containerRoot) }
-                await MainActor.run { self.completedFiles += 1 }
+                await self.importOne(url, local: local, shouldDelete: shouldDelete)
             }
             await MainActor.run {
-                self?.isImporting = false
-                self?.current = nil
+                guard let self, self.runID == runID else { return }
+                if self.pendingURLs.isEmpty {
+                    self.isImporting = false
+                    self.current = nil
+                } else {
+                    self.startImporting()
+                }
             }
         }
+    }
+
+    private func importOne(_ url: URL, local: LocalLibraryStore, shouldDelete: Bool) async {
+        let accessing = url.startAccessingSecurityScopedResource()
+        do {
+            let result = try await local.importArchive(at: url) { [weak self] progress in
+                Task { @MainActor [weak self] in self?.current = progress }
+            }
+            if accessing { url.stopAccessingSecurityScopedResource() }
+            if case .imported(let record) = result {
+                let cover = await local.coverURL(itemId: record.itemId)
+                await MainActor.run {
+                    guard let library = self.library else { return }
+                    let manga = Manga(id: record.itemId, sourceId: LocalSource.sourceID,
+                                      title: record.title, description: record.comicInfo?.summary ?? "", status: "completed",
+                                      year: nil, coverURL: cover, malId: nil)
+                    library.toggle(manga)
+                    library.setChapterNumbers(record.chapters.map { "\($0.number)" }, for: record.itemId)
+                }
+            } else if case .duplicate = result {
+                errors.append("\(url.lastPathComponent): Already in your library")
+            }
+        } catch {
+            if accessing { url.stopAccessingSecurityScopedResource() }
+            if case LocalImportError.cancelled = error {
+                // User cancellation is intentionally silent.
+            } else {
+                errors.append("\(url.lastPathComponent): \(Self.message(for: error))")
+            }
+        }
+        if shouldDelete { Self.deleteIfOwned(url, by: containerRoot) }
+        completedFiles += 1
     }
 
     func importOpenedURL(_ url: URL) {
@@ -112,7 +122,9 @@ final class LocalImportViewModel: ObservableObject {
     /// asynchronous importer used by the Files picker and waits for every result.
     func importFilesAndWait(_ urls: [URL]) async {
         importFiles(urls)
-        await task?.value
+        while isImporting {
+            await task?.value
+        }
     }
 
     func cancel() {

@@ -231,6 +231,29 @@ private struct LocalFixture {
     #expect(!FileManager.default.fileExists(atPath: second.path))
 }
 
+@MainActor @Test func localImportViewModelAcceptsFileSharedAfterCancel() async throws {
+    let fixture = try LocalFixture(); defer { fixture.cleanup() }
+    let slow = fixture.root.appendingPathComponent("slow.cbz")
+    let second = fixture.root.appendingPathComponent("second.cbz")
+    let pages = (0..<400).map { (String(format: "%04d.png", $0), LocalTestZip.png) }
+    try LocalTestZip.write(pages, to: slow)
+    try LocalTestZip.write([("001.png", LocalTestZip.png)], to: second)
+    let store = LocalLibraryStore(root: fixture.root.appendingPathComponent("library"))
+    let works = WorkStore(directory: fixture.root.appendingPathComponent("works"))
+    let defaults = UserDefaults(suiteName: "local-import-post-cancel-\(UUID().uuidString)")!
+    let registry = SourceRegistry(sources: [LocalSource(store: store)])
+    let library = LibraryStore(defaults: defaults, works: works, registry: registry)
+    let importer = LocalImportViewModel(containerRoot: fixture.root)
+    importer.configure(registry: registry, library: library, works: works)
+    importer.importOpenedURL(slow)
+    await Task.yield()
+    importer.cancel()
+    importer.importOpenedURL(second)
+    await importer.importFilesAndWait([])
+    #expect((await store.allRecords()).contains { $0.sourceFilename == "second.cbz" })
+    #expect(!FileManager.default.fileExists(atPath: second.path))
+}
+
 @Suite("LocalImportSlice2Tests")
 struct LocalImportSlice2Tests {
     @Test func importWritesRealPagesAndRecord() async throws { try await localImportWritesRealPagesAndRecord() }
