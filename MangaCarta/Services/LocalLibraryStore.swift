@@ -2,6 +2,9 @@ import CryptoKit
 import Foundation
 import UIKit
 
+/// A saved local cover URL is absolute, and the app's container moves on reinstall and on a
+/// restore from backup (#295). `relocated` re-roots anything under a `LocalLibrary` directory
+/// onto the current one; decoders apply it, so data already saved repairs itself on load.
 enum LocalLibraryPaths {
     static let defaultRoot = WorkStore.applicationSupportDirectory().appendingPathComponent("LocalLibrary")
 
