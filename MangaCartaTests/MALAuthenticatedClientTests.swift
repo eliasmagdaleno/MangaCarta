@@ -47,6 +47,41 @@ private actor ScriptedAPITransport: MALHTTPTransport {
     }
 }
 
+/// Answers by the token a request carries rather than by arrival order: 401 for `a0`, 200 for
+/// anything else. A script in arrival order breaks when one caller refreshes and retries before
+/// another has sent at all — the retry then draws the other caller's scripted 401.
+private actor TokenAwareAPITransport: MALHTTPTransport {
+    private(set) var staleRequestCount = 0
+
+    func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        let isStale = request.value(forHTTPHeaderField: "Authorization") == "Bearer a0"
+        if isStale { staleRequestCount += 1 }
+        let response = HTTPURLResponse(url: request.url!, statusCode: isStale ? 401 : 200,
+                                       httpVersion: nil, headerFields: nil)!
+        let body = isStale ? #"{"error":"invalid_token"}"# : #"{"status":"reading","num_chapters_read":1}"#
+        return (Data(body.utf8), response)
+    }
+}
+
+/// A token endpoint that holds its answer until `gate` returns, so a test can make every
+/// caller's 401 land while the one refresh is still in flight.
+private actor GatedTokenTransport: MALHTTPTransport {
+    private let gate: @Sendable () async throws -> Void
+    private(set) var callCount = 0
+
+    init(gate: @escaping @Sendable () async throws -> Void) {
+        self.gate = gate
+    }
+
+    func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        callCount += 1
+        try await gate()
+        let response = HTTPURLResponse(url: request.url!, statusCode: 200,
+                                       httpVersion: nil, headerFields: nil)!
+        return (Data(refreshedTokenBody.utf8), response)
+    }
+}
+
 private let apiConfiguration = MALOAuthConfiguration(
     clientID: "test-client",
     redirectURI: "mangareader://oauth/mal"
@@ -64,7 +99,7 @@ private func storedCredential(access: String, expiresIn: TimeInterval) -> MALSto
 
 /// A manager holding a comfortably valid `a0`, whose refresh (if one happens) yields `a1`.
 private func makeTokenManager(
-    tokenTransport: ScriptedAPITransport,
+    tokenTransport: any MALHTTPTransport,
     credential: MALStoredCredential = storedCredential(access: "a0", expiresIn: 3600)
 ) throws -> MALTokenManager {
     let store = MALCredentialStore(
@@ -244,17 +279,19 @@ struct MALAuthenticatedClientAuthorizationTests {
 
     @Test("Concurrent 401s share one refresh rather than one refresh each")
     func concurrent401sJoinOneRefresh() async throws {
-        let transport = ScriptedAPITransport(steps: [
-            .response(status: 401, body: #"{"error":"invalid_token"}"#),
-            .response(status: 401, body: #"{"error":"invalid_token"}"#),
-            .response(status: 200, body: #"{"status":"reading","num_chapters_read":1}"#),
-            .response(status: 200, body: #"{"status":"reading","num_chapters_read":2}"#)
-        ])
-        let tokenTransport = ScriptedAPITransport(steps: [
-            .response(status: 200, body: refreshedTokenBody)
-        ])
-        let client = makeClient(transport: transport,
-                                tokens: try makeTokenManager(tokenTransport: tokenTransport))
+        let transport = TokenAwareAPITransport()
+        // The refresh answers only once both callers' `a0` requests have come back 401, so the
+        // second caller always meets the refresh in flight. The deadline turns a regression
+        // that never sends the second request into a failure rather than a hung run.
+        let tokenTransport = GatedTokenTransport {
+            let deadline = ContinuousClock.now + .seconds(5)
+            while await transport.staleRequestCount < 2 {
+                guard ContinuousClock.now < deadline else { throw CancellationError() }
+                try await Task.sleep(for: .milliseconds(5))
+            }
+        }
+        let tokens = try makeTokenManager(tokenTransport: tokenTransport)
+        let client = MALAuthenticatedClient(tokens: tokens, transport: transport, updateVerb: .patch)
 
         try await withThrowingTaskGroup(of: Void.self) { group in
             for id in [7, 8] {
@@ -266,6 +303,7 @@ struct MALAuthenticatedClientAuthorizationTests {
             try await group.waitForAll()
         }
 
+        #expect(await transport.staleRequestCount == 2)
         #expect(await tokenTransport.callCount == 1)
     }
 

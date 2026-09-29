@@ -62,7 +62,6 @@ session.
 ## Other outstanding work
 
 1. **Flaky tests:**
-   - `MALAuthenticatedClientTests` "Concurrent 401s share one refresh" depends on order.
    - `LocalImportUITests.testImportReadAndDelete` should be fixed by #263. If it goes red again,
      suspect the test's own launch timeout.
    - **New:** Swift Testing `realURLSessionLoopbackPeerNeverDecodes` (#247) failed once locally in
