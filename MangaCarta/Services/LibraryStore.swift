@@ -164,6 +164,24 @@ final class LibraryStore: ObservableObject {
         saveItems()
     }
 
+    func updateLocalItem(id: String, title: String, coverURL: URL?, chapterNumbers: [String]) {
+        guard let index = items.firstIndex(where: { $0.id == id }) else { return }
+        items[index] = LibraryItem(id: id, title: title, coverURL: coverURL,
+                                   chapterNumbers: chapterNumbers, sourceId: items[index].sourceId,
+                                   collectionIds: items[index].collectionIds)
+        saveItems()
+    }
+
+    func moveItem(from oldID: String, to newID: String, title: String, coverURL: URL?, chapterNumbers: [String]) {
+        guard let old = item(for: oldID) else { return }
+        let mergedCollections = Set((item(for: newID)?.collectionIds ?? []).union(old.collectionIds))
+        items.removeAll { $0.id == oldID || $0.id == newID }
+        items.insert(LibraryItem(id: newID, title: title, coverURL: coverURL,
+                                 chapterNumbers: chapterNumbers, sourceId: old.sourceId,
+                                 collectionIds: mergedCollections), at: 0)
+        saveItems()
+    }
+
     /// Toggle a specific collection membership for a manga.
     func toggleCollection(for manga: Manga, collectionId: String) {
         if let idx = items.firstIndex(where: { $0.id == manga.id }) {

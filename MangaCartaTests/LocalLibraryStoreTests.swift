@@ -294,4 +294,34 @@ struct LocalLibraryStoreTests {
         guard case .imported(let second) = try await store.importArchive(at: url) else { Issue.record("reimport"); return }
         #expect(second.itemId == first.itemId)
     }
+
+    @Test func seriesIdentityNormalizesWhitespaceAndUnicode() {
+        let a = LocalSeriesIdentity.normalizedSeries("One  Piece ")
+        let b = LocalSeriesIdentity.normalizedSeries("one piece")
+        let decomposed = "Café".decomposedStringWithCanonicalMapping
+        let composed = "Café"
+        #expect(a == b)
+        #expect(LocalSeriesIdentity.normalizedSeries(decomposed) == LocalSeriesIdentity.normalizedSeries(composed))
+        #expect(LocalSeriesIdentity.normalizedSeries("  \n") == nil)
+        #expect(a.map(LocalSeriesIdentity.seriesID) == b.map(LocalSeriesIdentity.seriesID))
+    }
+
+    @Test func seriesChaptersAggregateByVolumeAndKeepDecimalNumbers() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let store = LocalLibraryStore(root: root.appendingPathComponent("library"))
+        func make(_ filename: String, _ volume: String) throws -> URL {
+            let url = root.appendingPathComponent(filename)
+            let xml = Data("<ComicInfo><Series>One  Piece </Series><Volume>\(volume)</Volume></ComicInfo>".utf8)
+            try LocalTestZip.write([("001.png", LocalTestZip.png), ("ComicInfo.xml", xml)], to: url)
+            return url
+        }
+        _ = try await store.importArchive(at: make("v2.cbz", "2"))
+        _ = try await store.importArchive(at: make("v1.cbz", "1"))
+        let id = LocalSeriesIdentity.seriesID(for: "one piece")
+        let chapters = await store.chapters(forMangaID: id)
+        #expect(chapters.map(\.number) == ["1", "2"])
+        #expect(chapters.allSatisfy { Double($0.number) != nil })
+    }
 }

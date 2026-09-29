@@ -80,14 +80,24 @@ final class LocalImportViewModel: ObservableObject {
             }
             if accessing { url.stopAccessingSecurityScopedResource() }
             if case .imported(let record) = result {
-                let cover = await local.coverURL(itemId: record.itemId)
+                let series = LocalSeriesIdentity.normalizedSeries(record.comicInfo?.series)
+                let mangaID = series.map(LocalSeriesIdentity.seriesID) ?? record.itemId
+                let metadata = await local.seriesMetadata(for: mangaID) ?? record
+                let numbers = await local.chapters(forMangaID: mangaID).map(\.number)
+                let cover = await local.coverURL(itemId: metadata.itemId)
                 await MainActor.run {
                     guard let library = self.library else { return }
-                    let manga = Manga(id: record.itemId, sourceId: LocalSource.sourceID,
-                                      title: record.title, description: record.comicInfo?.summary ?? "", status: "completed",
+                    let manga = Manga(id: mangaID, sourceId: LocalSource.sourceID,
+                                      title: metadata.comicInfo?.series ?? metadata.title,
+                                      description: metadata.comicInfo?.summary ?? "", status: "completed",
                                       year: nil, coverURL: cover, malId: nil)
-                    library.toggle(manga)
-                    library.setChapterNumbers(record.chapters.map { "\($0.number)" }, for: record.itemId)
+                    if library.contains(mangaID) {
+                        library.updateLocalItem(id: mangaID, title: manga.title, coverURL: cover,
+                                               chapterNumbers: numbers)
+                    } else {
+                        library.toggle(manga)
+                        library.setChapterNumbers(numbers, for: mangaID)
+                    }
                 }
             } else if case .duplicate = result {
                 errors.append("\(url.lastPathComponent): Already in your library")

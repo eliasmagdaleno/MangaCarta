@@ -66,6 +66,34 @@ final class WorkStoreTests: XCTestCase {
         XCTAssertEqual(store.work(id)?.listings.count, 1)
     }
 
+    @MainActor func testMoveListingKeepsExistingDestinationWorkAndDropsEmptySource() {
+        let store = makeStore()
+        let old = ListingKey(listing("old", source: "local"))
+        let new = ListingKey(listing("new", source: "local"))
+        let source = store.mint(from: listing("old", source: "local"))
+        let destination = store.mint(from: listing("new", source: "local"))
+
+        store.moveListing(from: old, to: new)
+
+        XCTAssertNil(store.work(source))
+        XCTAssertEqual(store.workId(for: old), nil)
+        XCTAssertEqual(store.workId(for: new), destination)
+        XCTAssertEqual(store.work(destination)?.listings, [new])
+    }
+
+    @MainActor func testMoveListingMovesUnindexedDestinationIntoExistingWork() {
+        let store = makeStore()
+        let old = ListingKey(listing("old", source: "local"))
+        let new = ListingKey(listing("new", source: "local"))
+        let source = store.mint(from: listing("old", source: "local"))
+
+        store.moveListing(from: old, to: new)
+
+        XCTAssertEqual(store.workId(for: old), nil)
+        XCTAssertEqual(store.workId(for: new), source)
+        XCTAssertEqual(store.work(source)?.listings, [new])
+    }
+
     /// The free dedupe path: MangaDex publishes `attributes.links.mal`, so a Work
     /// minted from a MangaDex Listing already carries an external id. A Listing
     /// from another source with the same malId is the same Work — no request, no
