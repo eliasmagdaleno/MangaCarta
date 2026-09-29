@@ -192,13 +192,41 @@ struct AppComposition {
             "network": .object(["httpOrigins": .array([.string("https://fixture.invalid")])]),
             "hostAPI": .object(["minimum": .string("1.0"), "maximumExclusive": .string("2.0")])
         ])
-        private static let index = RepositoryIndex(format: 1, name: "Fixture Repository", bundles: [
-            RepositoryBundle(id: "fixture-engine", version: 1, scriptURL: scriptURL,
-                             scriptSHA256: SHA256.hash(data: script).map { String(format: "%02x", $0) }.joined(),
-                             sources: [RepositorySourceRecord(rawJSON: declaration, localID: "fixture")])
+        /// A general-content Source that declares image-load reports, so a UI test can put the
+        /// Amendment 10 sheet on screen. The endpoint is never reached: nothing here loads a page.
+        private static let reportingDeclaration = JSONValue.object([
+            "localId": .string("reporting"), "name": .string("Reporting Source"),
+            "engine": .string("madara"), "configuration": .object([:]),
+            "adult": .string("none"),
+            "capabilities": .object(["search": .bool(true), "popular": .bool(true),
+                                      "detail": .bool(true), "chapters": .bool(true), "pages": .bool(true)]),
+            "languages": .object(["mode": .string("fixed"), "values": .array([.string("en")])]),
+            "network": .object([
+                "httpOrigins": .array([.string("https://fixture.invalid")]),
+                "assetOrigins": .array([.string("https://fixture.invalid")]),
+                "imageLoadReports": .object(["endpoint": .string("https://fixture.invalid/report"),
+                                             "origins": .array([.string("https://fixture.invalid")])])
+            ]),
+            "hostAPI": .object(["minimum": .string("1.3"), "maximumExclusive": .string("2.0")])
         ])
 
-        func fetchIndex(at url: URL) async throws -> RepositoryIndexFetchOutcome { .index(Self.index) }
+        /// With `includesReportingSource`, the index also lists `reporting`. Off by default:
+        /// `LiveUITestRepositoryInstall` installs every listed Source.
+        var includesReportingSource = false
+
+        private var index: RepositoryIndex {
+            var sources = [RepositorySourceRecord(rawJSON: Self.declaration, localID: "fixture")]
+            if includesReportingSource {
+                sources.append(RepositorySourceRecord(rawJSON: Self.reportingDeclaration, localID: "reporting"))
+            }
+            return RepositoryIndex(format: 1, name: "Fixture Repository", bundles: [
+                RepositoryBundle(id: "fixture-engine", version: 1, scriptURL: Self.scriptURL,
+                                 scriptSHA256: SHA256.hash(data: Self.script).map { String(format: "%02x", $0) }.joined(),
+                                 sources: sources)
+            ])
+        }
+
+        func fetchIndex(at url: URL) async throws -> RepositoryIndexFetchOutcome { .index(index) }
         func fetchScript(at url: URL) async throws -> Data { Self.script }
     }
 
