@@ -170,12 +170,14 @@ requires the label to describe them.
   ([design §4](../superpowers/specs/2026-09-28-image-load-reports-design.md)). It is sent without
   cookies and without an account or device identifier. The recipient is the Source's own operator,
   never the developer.
-- **Proposed answer:** Diagnostics › Performance Data, **not linked** to the user, **not used for
-  tracking**, purpose App Functionality. The image URL names the chapter being read, so
-  [[owner decision: whether that also makes it Usage Data › Product Interaction]].
-- **Whether it counts as "collected" at all is open:** [[owner decision]]. Apple counts data sent
-  to the developer or to third-party partners. A Source's operator is a party the user chose to add
-  and is not a partner of the developer. Declaring it anyway is the conservative choice.
+- **Declared (owner decision, 2026-09-28).** Apple counts data sent to the developer or to
+  third-party partners, and a Source's operator is neither: the reader chose to add it. Declaring
+  it anyway is the conservative choice, and the owner took it.
+- **Answer:** Diagnostics › Performance Data, **not linked** to the user, **not used for
+  tracking**, purpose App Functionality. It is in `PrivacyInfo.xcprivacy`.
+- The image URL names the chapter being read, which is Usage Data › Product Interaction. The
+  manifest already declares Product Interaction, as linked, for MyAnimeList sync. That stricter
+  entry covers it, and a data type can appear only once.
 - **In-app text.** The app has no privacy screen today, so there is no in-app place yet that says
   this. [[owner decision: add a line to the plug-in install sheet or Settings › Repositories]].
 - Recheck all of this against the build that ships Host API 1.3. No report is sent until the
