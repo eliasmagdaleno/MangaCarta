@@ -85,6 +85,11 @@ protocol MangaSource {
     var isBrowsable: Bool { get }
     /// Whether refresh, metadata upgrades, and external progress sync may query it.
     var participatesInUpdates: Bool { get }
+    /// Where this Source wants its page-image loads reported, or `nil` for no reports
+    /// (ADR-0003 Amendment 9). A value the host computes, not a call across the bridge.
+    /// A protocol requirement so an `ExtensionSource` override dispatches through
+    /// `any MangaSource`.
+    var imageLoadReportTarget: ImageLoadReportTarget? { get }
 
 }
 
@@ -125,6 +130,7 @@ enum SourceError: LocalizedError {
 extension MangaSource {
     var isBrowsable: Bool { true }
     var participatesInUpdates: Bool { true }
+    var imageLoadReportTarget: ImageLoadReportTarget? { nil }
     var isNSFW: Bool { false }
     var declaresAdultTitles: Bool { false }
     var publishesExternalIds: Bool { false }

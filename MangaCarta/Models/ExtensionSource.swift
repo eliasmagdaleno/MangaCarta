@@ -151,6 +151,13 @@ final class ExtensionSource: MangaSource {
 
     var publishesExternalIds: Bool { declaration.externalIds.contains("mal") }
 
+    var imageLoadReportTarget: ImageLoadReportTarget? {
+        declaration.network.imageLoadReports.map {
+            ImageLoadReportTarget(sourceID: declaration.qualifiedId,
+                                  endpoint: $0.endpoint, origins: $0.origins)
+        }
+    }
+
     var homeFeedCapabilities: Set<SourceOperation> {
         Set(SourceOperation.discoveryFeeds.filter { declaration.capabilities.supports($0) })
     }
