@@ -54,3 +54,15 @@ custom_rules:
       - string
     message: "Looks like a string interpolation missing its backslash: write \\(name), not (name)."
     severity: error
+  # SwiftUI's AsyncImage leaves one CFNetworkDownload_*.tmp file in the app's tmp/ for every
+  # image it loads, finished or cancelled, and nothing removes them: 33,657 files / 3.7 GB had
+  # piled up in the seeded simulator by 2026-09-29, from covers loaded before #237. Load
+  # through CachedAsyncImage, which fetches with data tasks via ImageCache and leaves nothing.
+  no_swiftui_async_image:
+    name: "No SwiftUI AsyncImage"
+    regex: '(?<![\w.])AsyncImage\s*\('
+    match_kinds:
+      - identifier
+    excluded: '.*/CachedAsyncImage\.swift'
+    message: "AsyncImage leaks a CFNetworkDownload temp file per load; use CachedAsyncImage."
+    severity: error

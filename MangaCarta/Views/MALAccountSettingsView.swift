@@ -190,10 +190,12 @@ struct MALAccountSettingsView: View {
     @ViewBuilder
     private func avatar(_ profile: MALUserIdentity) -> some View {
         if let url = profile.pictureURL {
-            AsyncImage(url: url) { image in
-                image.resizable().scaledToFill()
-            } placeholder: {
-                Circle().fill(Ink.hairline)
+            CachedAsyncImage(url: url) { phase in
+                if case .success(let image) = phase {
+                    image.resizable().scaledToFill()
+                } else {
+                    Circle().fill(Ink.hairline)
+                }
             }
             .frame(width: 28, height: 28)
             .clipShape(Circle())
