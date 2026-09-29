@@ -107,7 +107,8 @@ struct MangaCartaApp: App {
             directory = FileManager.default.temporaryDirectory
                 .appendingPathComponent("MangaCarta-RepositorySettingsUITest", isDirectory: true)
             try? FileManager.default.removeItem(at: directory)
-            repositoryTransport = AppComposition.RepositorySettingsUITestTransport()
+            repositoryTransport = AppComposition.RepositorySettingsUITestTransport(
+                includesReportingSource: ProcessInfo.processInfo.arguments.contains("-uitest-repository-reports"))
         }
 #endif
         let composed = AppComposition(defaults: defaults, directory: directory,

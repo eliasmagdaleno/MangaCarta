@@ -44,9 +44,11 @@ session.
    - Raise `hostAPI.minimum` to `1.3`.
    - If it ships too early, current builds see no version intersection and refuse the update.
    - Existing readers will see the update sheet (Amendment 10) the first time they update.
-2. **A manual check of the report sheet**, once a test repository declares reports. Nothing
-   end-to-end has shown the "Image-load reports" sheet or a real report reaching an endpoint.
-   The unit tests cover the logic only.
+2. **A real report reaching an endpoint.** The sheet itself is now covered by the hermetic
+   `RepositorySettingsUITests.testImageLoadReportsSheetGatesInstall` (`-uitest-repository-reports`).
+   Delivery is not, and cannot be tested locally: `HostURLPolicy` refuses non-public addresses,
+   loopback included, so the endpoint must be public HTTPS. Check it with the real engine against
+   MangaDex once the engine change above ships.
 3. **Rate-limit pause leftovers (small, optional):**
    - The rate-limited error copy could say how long to wait. `ExtensionSource.invoke` still drops
      `retryAfterSeconds`, so this means carrying it through.

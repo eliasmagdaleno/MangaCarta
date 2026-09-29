@@ -86,6 +86,45 @@ final class RepositorySettingsUITests: XCTestCase {
         XCTAssertFalse(app.buttons["Uninstall"].exists)
     }
 
+    /// The ADR-0003 Amendment 10 disclosure: a Source that declares image-load reports is
+    /// installed only past a sheet naming what is sent, and Cancel installs nothing.
+    func testImageLoadReportsSheetGatesInstall() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-uitest-repository-settings", "-uitest-repository-reports"]
+        app.launch()
+        app.tabBars.buttons["Settings"].tap()
+        let field = app.textFields["repositorySettings.url"]
+        XCTAssertTrue(field.waitForExistence(timeout: 10))
+        field.tap()
+        field.typeText("https://fixture.invalid/index.json")
+        app.buttons["repositorySettings.add"].tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 10))
+        let install = app.buttons["repositorySettings.install.reporting"]
+        XCTAssertTrue(install.waitForExistence(timeout: 5))
+
+        install.tap()
+        XCTAssertTrue(app.staticTexts["Image-load reports"].waitForExistence(timeout: 5))
+        let copy = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@",
+                                                        "page-loading statistics")).firstMatch
+        XCTAssertTrue(copy.label.hasPrefix("Reporting Source may have MangaCarta send"))
+        XCTAssertTrue(copy.label.contains("No cookies or identifiers are sent."))
+        XCTAssertFalse(copy.label.contains("18 or over"), "a general-content Source asks no age")
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "Image-load reports sheet"
+        shot.lifetime = .keepAlways
+        add(shot)
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(app.staticTexts["The Source was not installed or updated."].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Uninstall"].exists)
+
+        install.tap()
+        let proceed = app.buttons["repositorySettings.continueInstall"]
+        XCTAssertTrue(proceed.waitForExistence(timeout: 5))
+        XCTAssertEqual(proceed.label, "Install")
+        proceed.tap()
+        XCTAssertTrue(app.buttons["Uninstall"].waitForExistence(timeout: 5))
+    }
+
     func testAddedRepositoryCanBeRemoved() {
         let app = XCUIApplication()
         app.launchArguments += ["-uitest-repository-settings"]
