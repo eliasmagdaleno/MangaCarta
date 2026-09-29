@@ -339,3 +339,22 @@ Still open (owner item):
 
 9. Who produces the original or public-domain art for the App Store screenshots and the App
    Review sample file? (§9)
+
+## Decisions (2026-09-29, slice 5)
+
+The owner approved the slice-5 design in session:
+
+10. **ComicInfo's `Manga` element is not used.** The reader's direction is one app-wide setting,
+    and a per-title direction is its own feature ([#290](https://github.com/eliasmagdaleno/MangaCarta/issues/290)),
+    which will then be the natural consumer of this field. (§4)
+11. **Display title is `Series`, then `Title`, then the filename.** A single-chapter archive's
+    chapter is labelled from `Volume`/`Number` (then `Title`); folder chapters keep folder names.
+    A `FrontCover` page, when in range, is the cover. Only a root-level `ComicInfo.xml` counts,
+    and a malformed one never fails an import. (§3, §4)
+12. **Open-in receives a copy** (`LSSupportsOpeningDocumentsInPlace` is `false`, keeping
+    Documents out of the Files app per §2). The handed-over file is deleted after processing only
+    when it lies inside the app's own container; nothing outside the container is ever deleted.
+    `.cbz` is claimed at `Default` rank, ZIP and PDF at `Alternate`, so MangaCarta never becomes
+    the default app for every archive. (§5)
+13. **Imports queue rather than drop,** and progress is an app-wide banner, because a shared file
+    can arrive on any screen. (§5)

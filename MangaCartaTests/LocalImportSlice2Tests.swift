@@ -102,6 +102,20 @@ private struct LocalFixture {
     #expect(source.participatesInUpdates == false)
 }
 
+@Test func localSourceDetailMapsSummaryWritersAndGenres() async throws {
+    let fixture = try LocalFixture(files: [
+        ("001.png", LocalTestZip.png),
+        ("ComicInfo.xml", Data(("<ComicInfo><Series>Series</Series><Summary>Summary</Summary>" +
+                                "<Writer>A, B</Writer><Genre>Action, Fantasy</Genre></ComicInfo>").utf8))
+    ]); defer { fixture.cleanup() }
+    let store = LocalLibraryStore(root: fixture.root.appendingPathComponent("library"))
+    guard case .imported(let record) = try await store.importArchive(at: fixture.archive) else { Issue.record("expected import"); return }
+    let detail = try await LocalSource(store: store).mangaDetail(id: record.itemId)
+    #expect(detail.description == "Summary")
+    #expect(detail.authors == ["A", "B"])
+    #expect(detail.tags.map { $0.name } == ["Action", "Fantasy"])
+}
+
 @MainActor @Test func localImportViewModelMintsWorkAndListing() async throws {
     let fixture = try LocalFixture(); defer { fixture.cleanup() }
     let store = LocalLibraryStore(root: fixture.root.appendingPathComponent("library"))
@@ -160,6 +174,84 @@ private struct LocalFixture {
     await importer.importFilesAndWait([])
 
     #expect(importer.errors.isEmpty)
+}
+
+@MainActor @Test func localImportViewModelCleansHandedOverFilesButNotPickerFiles() async throws {
+    let fixture = try LocalFixture(); defer { fixture.cleanup() }
+    let store = LocalLibraryStore(root: fixture.root.appendingPathComponent("library"))
+    let works = WorkStore(directory: fixture.root.appendingPathComponent("works"))
+    let defaults = UserDefaults(suiteName: "local-import-cleanup-\(UUID().uuidString)")!
+    let registry = SourceRegistry(sources: [LocalSource(store: store)])
+    let library = LibraryStore(defaults: defaults, works: works, registry: registry)
+    let importer = LocalImportViewModel(containerRoot: fixture.root)
+    importer.configure(registry: registry, library: library, works: works)
+    importer.importOpenedURL(fixture.archive)
+    await importer.importFilesAndWait([])
+    #expect(!FileManager.default.fileExists(atPath: fixture.archive.path))
+
+    let picker = fixture.root.appendingPathComponent("picker.cbz")
+    try LocalTestZip.write([("001.png", LocalTestZip.png)], to: picker)
+    importer.importFiles([picker])
+    await importer.importFilesAndWait([])
+    #expect(FileManager.default.fileExists(atPath: picker.path))
+}
+
+@MainActor @Test func localImportViewModelQueuesBatchArrivingMidImport() async throws {
+    let fixture = try LocalFixture(); defer { fixture.cleanup() }
+    let second = fixture.root.appendingPathComponent("second.cbz")
+    try LocalTestZip.write([("001.png", LocalTestZip.png)], to: second)
+    let store = LocalLibraryStore(root: fixture.root.appendingPathComponent("library"))
+    let works = WorkStore(directory: fixture.root.appendingPathComponent("works"))
+    let defaults = UserDefaults(suiteName: "local-import-queue-\(UUID().uuidString)")!
+    let registry = SourceRegistry(sources: [LocalSource(store: store)])
+    let library = LibraryStore(defaults: defaults, works: works, registry: registry)
+    let importer = LocalImportViewModel()
+    importer.configure(registry: registry, library: library, works: works)
+    importer.importFiles([fixture.archive])
+    importer.importFiles([second])
+    await importer.importFilesAndWait([])
+    #expect((await store.allRecords()).count == 2)
+}
+
+@MainActor @Test func localImportViewModelCancelClearsQueuedHandedOverFiles() async throws {
+    let fixture = try LocalFixture(); defer { fixture.cleanup() }
+    let second = fixture.root.appendingPathComponent("second.cbz")
+    try LocalTestZip.write([("001.png", LocalTestZip.png)], to: second)
+    let store = LocalLibraryStore(root: fixture.root.appendingPathComponent("library"))
+    let works = WorkStore(directory: fixture.root.appendingPathComponent("works"))
+    let defaults = UserDefaults(suiteName: "local-import-cancel-queue-\(UUID().uuidString)")!
+    let registry = SourceRegistry(sources: [LocalSource(store: store)])
+    let library = LibraryStore(defaults: defaults, works: works, registry: registry)
+    let importer = LocalImportViewModel(containerRoot: fixture.root)
+    importer.configure(registry: registry, library: library, works: works)
+    importer.importOpenedURL(fixture.archive)
+    importer.importOpenedURL(second)
+    importer.cancel()
+    await importer.importFilesAndWait([])
+    #expect(!FileManager.default.fileExists(atPath: second.path))
+}
+
+@MainActor @Test func localImportViewModelAcceptsFileSharedAfterCancel() async throws {
+    let fixture = try LocalFixture(); defer { fixture.cleanup() }
+    let slow = fixture.root.appendingPathComponent("slow.cbz")
+    let second = fixture.root.appendingPathComponent("second.cbz")
+    let pages = (0..<400).map { (String(format: "%04d.png", $0), LocalTestZip.png) }
+    try LocalTestZip.write(pages, to: slow)
+    try LocalTestZip.write([("001.png", LocalTestZip.png)], to: second)
+    let store = LocalLibraryStore(root: fixture.root.appendingPathComponent("library"))
+    let works = WorkStore(directory: fixture.root.appendingPathComponent("works"))
+    let defaults = UserDefaults(suiteName: "local-import-post-cancel-\(UUID().uuidString)")!
+    let registry = SourceRegistry(sources: [LocalSource(store: store)])
+    let library = LibraryStore(defaults: defaults, works: works, registry: registry)
+    let importer = LocalImportViewModel(containerRoot: fixture.root)
+    importer.configure(registry: registry, library: library, works: works)
+    importer.importOpenedURL(slow)
+    await Task.yield()
+    importer.cancel()
+    importer.importOpenedURL(second)
+    await importer.importFilesAndWait([])
+    #expect((await store.allRecords()).contains { $0.sourceFilename == "second.cbz" })
+    #expect(!FileManager.default.fileExists(atPath: second.path))
 }
 
 @Suite("LocalImportSlice2Tests")

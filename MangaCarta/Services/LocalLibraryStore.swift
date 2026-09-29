@@ -22,6 +22,18 @@ enum LocalImportError: Error, Equatable {
     case insufficientSpace
 }
 
+private struct PDFImportRequest {
+    let source: URL
+    let archive: URL
+    let item: URL
+    let destination: URL
+    let staging: URL
+    let itemId: String
+    let hash: String
+    let byteSize: Int
+    let title: String
+}
+
 actor LocalLibraryStore {
     static let shared = LocalLibraryStore(root: WorkStore.applicationSupportDirectory().appendingPathComponent("LocalLibrary"))
     let root: URL
@@ -58,49 +70,20 @@ actor LocalLibraryStore {
                 try? fm.removeItem(at: staging)
                 return .duplicate(itemId: itemId)
             }
-            let title = source.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " ")
+            let filenameTitle = source.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " ")
             let isPDF = bytes.starts(with: Data("%PDF-".utf8))
                 || source.pathExtension.caseInsensitiveCompare("pdf") == .orderedSame
             if isPDF {
-                do {
-                    let pageDir = item.appendingPathComponent("pages/1")
-                    let files = try await PDFPageRasterizer().rasterize(source: archive, to: pageDir) { completed, total in
-                        progress?(LocalImportProgress(fileName: source.lastPathComponent, completed: completed, total: total))
-                    }
-                    try Task.checkCancellation()
-                    guard let firstFile = files.first else { throw PDFRasterizationError.unreadable }
-                    try writeCover(from: pageDir.appendingPathComponent(firstFile), to: item.appendingPathComponent("cover.jpg"))
-                    let chapter = LocalChapter(number: 1, title: title, pageCount: files.count, pageFiles: files)
-                    let record = LocalItemRecord(itemId: itemId, title: title, sourceFilename: source.lastPathComponent,
-                        sha256: hash, byteSize: bytes.count, importedAt: Date(), chapters: [chapter])
-                    let encoded = try JSONEncoder().encode(record)
-                    try encoded.write(to: item.appendingPathComponent("item.json"), options: .atomic)
-                    try? fm.removeItem(at: archive)
-                    try Task.checkCancellation()
-                    if fm.fileExists(atPath: destination.appendingPathComponent("item.json").path) {
-                        try? fm.removeItem(at: staging)
-                        return .duplicate(itemId: itemId)
-                    }
-                    try fm.moveItem(at: item, to: destination)
-                    try? fm.removeItem(at: staging)
-                    return .imported(record)
-                } catch is CancellationError {
-                    throw LocalImportError.cancelled
-                } catch let error as PDFRasterizationError {
-                    if error == .passwordProtected { throw LocalImportError.passwordProtectedPDF }
-                    throw LocalImportError.unreadablePDF
-                } catch {
-                    throw isOutOfSpace(error) ? LocalImportError.insufficientSpace : LocalImportError.unreadablePDF
-                }
+                let request = PDFImportRequest(source: source, archive: archive, item: item, destination: destination,
+                                               staging: staging, itemId: itemId, hash: hash, byteSize: bytes.count,
+                                               title: filenameTitle)
+                return try await importPDF(request, progress: progress)
             }
-            let reader: ZipArchiveReader
-            do {
-                reader = try ZipArchiveReader(url: archive)
-            } catch let error as ZipArchiveError {
-                throw LocalImportError.unreadableArchive(error)
-            }
+            let reader = try openArchive(at: archive)
             let archiveChapters = try reader.chapters()
             guard !archiveChapters.isEmpty else { throw LocalImportError.noImages }
+            let comicInfo = try readComicInfo(from: reader)
+            let title = comicInfo?.series ?? comicInfo?.title ?? filenameTitle
             let groups = chapterGroups(from: archiveChapters, title: title)
             try fm.createDirectory(at: item, withIntermediateDirectories: true)
             var storedChapters: [LocalChapter] = []
@@ -122,24 +105,27 @@ actor LocalLibraryStore {
                                                   total: group.1.count))
                     try Task.checkCancellation()
                 }
+                let chapterTitle = Self.chapterLabel(for: comicInfo, fallback: group.0 == "Root" ? title : group.0,
+                                                     isSingleChapter: groups.count == 1)
                 storedChapters.append(LocalChapter(number: chapterIndex + 1,
-                    title: group.0 == "Root" ? title : group.0,
+                    title: chapterTitle,
                     pageCount: files.count, pageFiles: files))
             }
+            var pageURLs: [URL] = []
             for chapter in storedChapters {
                 try Task.checkCancellation()
                 for pageFile in chapter.pageFiles {
                     try Task.checkCancellation()
                     let pageURL = item.appendingPathComponent("pages/\(chapter.number)").appendingPathComponent(pageFile)
-                    guard let image = UIImage(contentsOfFile: pageURL.path),
-                          let data = image.jpegData(compressionQuality: 0.9) else { continue }
-                    try data.write(to: item.appendingPathComponent("cover.jpg"), options: .atomic)
-                    break
+                    pageURLs.append(pageURL)
                 }
-                if fm.fileExists(atPath: item.appendingPathComponent("cover.jpg").path) { break }
+            }
+            if let cover = Self.coverPage(pageURLs: pageURLs, frontCoverPageIndex: comicInfo?.frontCoverPageIndex,
+                                          isDecodable: { UIImage(contentsOfFile: $0.path) != nil }) {
+                try writeCover(from: cover, to: item.appendingPathComponent("cover.jpg"))
             }
             let record = LocalItemRecord(itemId: itemId, title: title, sourceFilename: source.lastPathComponent,
-                sha256: hash, byteSize: bytes.count, importedAt: Date(), chapters: storedChapters)
+                sha256: hash, byteSize: bytes.count, importedAt: Date(), chapters: storedChapters, comicInfo: comicInfo)
             let encoded = try JSONEncoder().encode(record)
             try encoded.write(to: item.appendingPathComponent("item.json"), options: .atomic)
             try? fm.removeItem(at: archive)
@@ -151,6 +137,53 @@ actor LocalLibraryStore {
             try? fm.removeItem(at: staging)
             if error is CancellationError { throw LocalImportError.cancelled }
             throw error
+        }
+    }
+
+    private func readComicInfo(from reader: ZipArchiveReader) throws -> ComicInfo? {
+        guard let entry = reader.listEntries().first(where: {
+            !$0.isDirectory && !$0.name.contains("/") && $0.name.caseInsensitiveCompare("ComicInfo.xml") == .orderedSame
+        }) else { return nil }
+        return try? ComicInfo.parse(reader.data(for: entry))
+    }
+
+    private func openArchive(at url: URL) throws -> ZipArchiveReader {
+        do { return try ZipArchiveReader(url: url) } catch let error as ZipArchiveError {
+            throw LocalImportError.unreadableArchive(error)
+        }
+    }
+
+    private func importPDF(_ request: PDFImportRequest,
+                           progress: (@Sendable (LocalImportProgress) -> Void)?) async throws -> LocalImportResult {
+        do {
+            let pageDir = request.item.appendingPathComponent("pages/1")
+            let files = try await PDFPageRasterizer().rasterize(source: request.archive, to: pageDir) { completed, total in
+                progress?(LocalImportProgress(fileName: request.source.lastPathComponent, completed: completed, total: total))
+            }
+            try Task.checkCancellation()
+            guard let firstFile = files.first else { throw PDFRasterizationError.unreadable }
+            try writeCover(from: pageDir.appendingPathComponent(firstFile), to: request.item.appendingPathComponent("cover.jpg"))
+            let chapter = LocalChapter(number: 1, title: request.title, pageCount: files.count, pageFiles: files)
+            let record = LocalItemRecord(itemId: request.itemId, title: request.title, sourceFilename: request.source.lastPathComponent,
+                                         sha256: request.hash, byteSize: request.byteSize, importedAt: Date(), chapters: [chapter])
+            let encoded = try JSONEncoder().encode(record)
+            try encoded.write(to: request.item.appendingPathComponent("item.json"), options: .atomic)
+            try? fm.removeItem(at: request.archive)
+            try Task.checkCancellation()
+            if fm.fileExists(atPath: request.destination.appendingPathComponent("item.json").path) {
+                try? fm.removeItem(at: request.staging)
+                return .duplicate(itemId: request.itemId)
+            }
+            try fm.moveItem(at: request.item, to: request.destination)
+            try? fm.removeItem(at: request.staging)
+            return .imported(record)
+        } catch is CancellationError {
+            throw LocalImportError.cancelled
+        } catch let error as PDFRasterizationError {
+            if error == .passwordProtected { throw LocalImportError.passwordProtectedPDF }
+            throw LocalImportError.unreadablePDF
+        } catch {
+            throw isOutOfSpace(error) ? LocalImportError.insufficientSpace : LocalImportError.unreadablePDF
         }
     }
 
@@ -224,5 +257,21 @@ actor LocalLibraryStore {
             return root.map { [("Root", $0.pages), (folder.name, folder.pages)] } ?? [(title, folder.pages)]
         }
         return (root.map { [("Root", $0.pages)] } ?? []) + folders.map { ($0.name, $0.pages) }
+    }
+
+    static func chapterLabel(for comicInfo: ComicInfo?, fallback: String, isSingleChapter: Bool = true) -> String {
+        guard isSingleChapter else { return fallback }
+        if let volume = comicInfo?.volume, let number = comicInfo?.number { return "Vol. \(volume) · Ch. \(number)" }
+        if let number = comicInfo?.number { return "Ch. \(number)" }
+        if let volume = comicInfo?.volume { return "Vol. \(volume)" }
+        return comicInfo?.title ?? fallback
+    }
+
+    static func coverPage(pageURLs: [URL], frontCoverPageIndex: Int?, isDecodable: (URL) -> Bool) -> URL? {
+        if let index = frontCoverPageIndex, pageURLs.indices.contains(index), isDecodable(pageURLs[index]) {
+            return pageURLs[index]
+        }
+        for pageURL in pageURLs where isDecodable(pageURL) { return pageURL }
+        return nil
     }
 }

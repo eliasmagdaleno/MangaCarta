@@ -242,10 +242,6 @@ struct SettingsView: View {
                           allowsMultipleSelection: true) { result in
                 if case .success(let urls) = result { localImporter.importFiles(urls) }
             }
-            .overlay(alignment: .top) {
-                LocalImportBanner(model: localImporter, onCancel: localImporter.cancel)
-                    .padding(.top, 8)
-            }
             .task(id: library.items) { await refreshLocalUsage() }
         }
     }

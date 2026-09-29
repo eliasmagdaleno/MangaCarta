@@ -234,9 +234,6 @@ private struct HomeScreen: View {
                           allowsMultipleSelection: true) { result in
                 if case .success(let urls) = result { importer.importFiles(urls) }
             }
-            .overlay(alignment: .top) {
-                LocalImportBanner(model: importer, onCancel: importer.cancel).padding(.top, 8)
-            }
             } else {
                 noSourcesState
                     .navigationTitle("Read")
@@ -245,10 +242,6 @@ private struct HomeScreen: View {
                                   allowedContentTypes: [UTType.zip, UTType.mangaCartaCBZ, UTType.pdf],
                                   allowsMultipleSelection: true) { result in
                         if case .success(let urls) = result { importer.importFiles(urls) }
-                    }
-                    .overlay(alignment: .top) {
-                        LocalImportBanner(model: importer, onCancel: importer.cancel)
-                            .padding(.top, 8)
                     }
             }
         }
