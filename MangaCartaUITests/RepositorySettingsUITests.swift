@@ -25,10 +25,9 @@ final class RepositorySettingsUITests: XCTestCase {
         field.tap()
         field.typeText("https://fixture.invalid/index.json")
         app.buttons["repositorySettings.add"].tap()
-        // Add's result renders below the field; a keyboard left up would hide it.
-        let keyboardGone = expectation(for: NSPredicate(format: "exists == false"),
-                                       evaluatedWith: app.keyboards.firstMatch)
-        wait(for: [keyboardGone], timeout: 3)
+        // Add's result renders below the field; a keyboard left up would hide it. On CI one
+        // accessibility query takes ~2s, so a 3s wait saw the keyboard mid-dismissal and failed.
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 10))
         let install = app.buttons["repositorySettings.install.fixture"]
         XCTAssertTrue(install.waitForExistence(timeout: 5))
         install.tap()
