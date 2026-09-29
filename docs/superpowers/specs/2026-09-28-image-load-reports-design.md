@@ -116,8 +116,15 @@ protocol ImageLoadReporting: Sendable {
   turning pages. The reporter caps in-flight reports at 64 per Source and drops new ones past
   the cap. A lost report costs the operator a sample; an unbounded queue costs the reader
   memory.
-- `ImageCache` receives the reporter by injection. Production passes the one built in
-  `AppComposition` next to `rateLimiters`. Tests pass a recording fake.
+- `ImageCache` receives the reporter by injection. Tests pass a recording fake.
+- **The composition owns the cache (owner's ruling, step 4).** This line used to say
+  production "passes the one built in `AppComposition`", but `ImageCache.shared` is a
+  `static let` that nothing can hand a reporter to. So `AppComposition` builds
+  `imageLoadReporter` over `hostRateLimiters` and one `imageCache` with it, and the app root
+  injects that as `\.imageCache`. `CachedAsyncImage` reads the environment, and
+  `ImageCache.shared` survives only as the key's default for previews. That follows the
+  repo's "injected, not reached for" rule (CLAUDE.md, `SourceRegistry`). The rejected
+  alternative was installing a reporter into `.shared` at launch.
 
 ## 5. The declaration
 

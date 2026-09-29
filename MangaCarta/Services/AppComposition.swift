@@ -86,6 +86,11 @@ struct AppComposition {
     let extensions: ExtensionComposition?
     let extensionStorageError: String?
     let hostRateLimiters: HostRateLimiterRegistry
+    /// Sends image-load reports through `hostRateLimiters` (ADR-0003 Amendment 9).
+    let imageLoadReporter: ImageLoadReporter
+    /// The graph's image cache. Views read it from the environment (`\.imageCache`);
+    /// `ImageCache.shared` survives only as that key's default for previews.
+    let imageCache: ImageCache
 
     /// The extension subsystem's four owners, built together because they share one
     /// `SourceLifecycleRegistry`: the installer drives it, the registrar mirrors it.
@@ -452,6 +457,8 @@ struct AppComposition {
         self.malOutbox = outbox
         self.registry = resolvedRegistry
         self.hostRateLimiters = HostRateLimiterRegistry()
+        self.imageLoadReporter = ImageLoadReporter(rateLimiters: self.hostRateLimiters)
+        self.imageCache = ImageCache(reporter: self.imageLoadReporter)
         (self.listingCounts, self.sourcePreferences, self.fulfillment) =
             Self.makeFulfillment(works: wk, registry: self.registry, defaults: defaults)
         let extensionResult = Self.makeExtensions(directory: directory,
