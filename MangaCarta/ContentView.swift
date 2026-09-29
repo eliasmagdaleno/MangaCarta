@@ -32,6 +32,7 @@ struct ContentView: View {
     @State private var selectedTab: AppTab = .home
     @StateObject private var webViewService = WebViewService.shared
     @StateObject private var extensionBrowserManager = ExtensionBrowserManager.shared
+    @EnvironmentObject private var localImporter: LocalImportViewModel
 
     var body: some View {
         Group {
@@ -96,6 +97,13 @@ struct ContentView: View {
             }
         }
         .environment(\.selectAppTab) { selectedTab = $0 }
+        .overlay(alignment: .top) {
+            LocalImportBanner(model: localImporter, onCancel: localImporter.cancel)
+                .padding(.top, 8)
+        }
+        .onOpenURL { url in
+            localImporter.importOpenedURL(url)
+        }
         .sheet(isPresented: $webViewService.isChallengeActive,
                onDismiss: { webViewService.cancelChallenge() },
                content: { CloudflareChallengeView() })

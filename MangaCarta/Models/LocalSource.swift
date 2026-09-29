@@ -22,8 +22,12 @@ struct LocalSource: MangaSource {
     }
 
     func mangaDetail(id: String) async throws -> MangaDetail {
-        guard await store.record(itemId: id) != nil else { throw SourceError.extractionFailed("missing local item") }
-        return MangaDetail(description: "", authors: [], tags: [], contentRating: nil)
+        guard let record = await store.record(itemId: id) else { throw SourceError.extractionFailed("missing local item") }
+        let authors = (record.comicInfo?.writer ?? "").split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        let tags = (record.comicInfo?.genres ?? []).map { Tag(id: nil, name: $0, group: nil) }
+        return MangaDetail(description: record.comicInfo?.summary ?? "", authors: authors, tags: tags, contentRating: nil)
     }
 
     func chapters(mangaId: String) async throws -> [Chapter] {
@@ -42,7 +46,7 @@ struct LocalSource: MangaSource {
     func popular(limit: Int, offset: Int) async throws -> [Manga] { throw SourceError.unsupported("popular") }
 
     private func manga(_ record: LocalItemRecord, coverURL: URL?) -> Manga {
-        Manga(id: record.itemId, sourceId: Self.sourceID, title: record.title, description: "",
+        Manga(id: record.itemId, sourceId: Self.sourceID, title: record.title, description: record.comicInfo?.summary ?? "",
               status: "completed", year: nil, coverURL: coverURL, malId: nil,
               altTitles: nil, contentRating: nil)
     }

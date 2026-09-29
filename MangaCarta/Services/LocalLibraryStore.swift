@@ -39,6 +39,8 @@ actor LocalLibraryStore {
         try await importArchive(at: source, progress: nil)
     }
 
+    // The transaction's branching covers archive, PDF, staging, and cancellation boundaries.
+    // swiftlint:disable:next cyclomatic_complexity
     func importArchive(at source: URL, progress: (@Sendable (LocalImportProgress) -> Void)?) async throws -> LocalImportResult {
         let staging = root.appendingPathComponent(".staging").appendingPathComponent(UUID().uuidString)
         let archive = staging.appendingPathComponent("archive")
@@ -58,7 +60,7 @@ actor LocalLibraryStore {
                 try? fm.removeItem(at: staging)
                 return .duplicate(itemId: itemId)
             }
-            let title = source.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " ")
+            let filenameTitle = source.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " ")
             let isPDF = bytes.starts(with: Data("%PDF-".utf8))
                 || source.pathExtension.caseInsensitiveCompare("pdf") == .orderedSame
             if isPDF {
@@ -70,8 +72,8 @@ actor LocalLibraryStore {
                     try Task.checkCancellation()
                     guard let firstFile = files.first else { throw PDFRasterizationError.unreadable }
                     try writeCover(from: pageDir.appendingPathComponent(firstFile), to: item.appendingPathComponent("cover.jpg"))
-                    let chapter = LocalChapter(number: 1, title: title, pageCount: files.count, pageFiles: files)
-                    let record = LocalItemRecord(itemId: itemId, title: title, sourceFilename: source.lastPathComponent,
+                    let chapter = LocalChapter(number: 1, title: filenameTitle, pageCount: files.count, pageFiles: files)
+                    let record = LocalItemRecord(itemId: itemId, title: filenameTitle, sourceFilename: source.lastPathComponent,
                         sha256: hash, byteSize: bytes.count, importedAt: Date(), chapters: [chapter])
                     let encoded = try JSONEncoder().encode(record)
                     try encoded.write(to: item.appendingPathComponent("item.json"), options: .atomic)
@@ -101,6 +103,10 @@ actor LocalLibraryStore {
             }
             let archiveChapters = try reader.chapters()
             guard !archiveChapters.isEmpty else { throw LocalImportError.noImages }
+            let comicInfo: ComicInfo? = reader.listEntries().first(where: {
+                !$0.isDirectory && !$0.name.contains("/") && $0.name.caseInsensitiveCompare("ComicInfo.xml") == .orderedSame
+            }).flatMap { entry in try? ComicInfo.parse(reader.data(for: entry)) }
+            let title = comicInfo?.series ?? comicInfo?.title ?? filenameTitle
             let groups = chapterGroups(from: archiveChapters, title: title)
             try fm.createDirectory(at: item, withIntermediateDirectories: true)
             var storedChapters: [LocalChapter] = []
@@ -122,24 +128,26 @@ actor LocalLibraryStore {
                                                   total: group.1.count))
                     try Task.checkCancellation()
                 }
+                let chapterTitle = Self.chapterLabel(for: comicInfo, fallback: group.0 == "Root" ? title : group.0,
+                                                     isSingleChapter: groups.count == 1)
                 storedChapters.append(LocalChapter(number: chapterIndex + 1,
-                    title: group.0 == "Root" ? title : group.0,
+                    title: chapterTitle,
                     pageCount: files.count, pageFiles: files))
             }
+            var candidates: [(url: URL, isDecodable: Bool)] = []
             for chapter in storedChapters {
                 try Task.checkCancellation()
                 for pageFile in chapter.pageFiles {
                     try Task.checkCancellation()
                     let pageURL = item.appendingPathComponent("pages/\(chapter.number)").appendingPathComponent(pageFile)
-                    guard let image = UIImage(contentsOfFile: pageURL.path),
-                          let data = image.jpegData(compressionQuality: 0.9) else { continue }
-                    try data.write(to: item.appendingPathComponent("cover.jpg"), options: .atomic)
-                    break
+                    candidates.append((pageURL, UIImage(contentsOfFile: pageURL.path) != nil))
                 }
-                if fm.fileExists(atPath: item.appendingPathComponent("cover.jpg").path) { break }
+            }
+            if let cover = Self.coverPage(candidates: candidates, frontCoverPageIndex: comicInfo?.frontCoverPageIndex) {
+                try writeCover(from: cover, to: item.appendingPathComponent("cover.jpg"))
             }
             let record = LocalItemRecord(itemId: itemId, title: title, sourceFilename: source.lastPathComponent,
-                sha256: hash, byteSize: bytes.count, importedAt: Date(), chapters: storedChapters)
+                sha256: hash, byteSize: bytes.count, importedAt: Date(), chapters: storedChapters, comicInfo: comicInfo)
             let encoded = try JSONEncoder().encode(record)
             try encoded.write(to: item.appendingPathComponent("item.json"), options: .atomic)
             try? fm.removeItem(at: archive)
@@ -224,5 +232,20 @@ actor LocalLibraryStore {
             return root.map { [("Root", $0.pages), (folder.name, folder.pages)] } ?? [(title, folder.pages)]
         }
         return (root.map { [("Root", $0.pages)] } ?? []) + folders.map { ($0.name, $0.pages) }
+    }
+
+    static func chapterLabel(for comicInfo: ComicInfo?, fallback: String, isSingleChapter: Bool = true) -> String {
+        guard isSingleChapter else { return fallback }
+        if let volume = comicInfo?.volume, let number = comicInfo?.number { return "Vol. \(volume) · Ch. \(number)" }
+        if let number = comicInfo?.number { return "Ch. \(number)" }
+        if let volume = comicInfo?.volume { return "Vol. \(volume)" }
+        return comicInfo?.title ?? fallback
+    }
+
+    static func coverPage(candidates: [(url: URL, isDecodable: Bool)], frontCoverPageIndex: Int?) -> URL? {
+        if let index = frontCoverPageIndex, candidates.indices.contains(index), candidates[index].isDecodable {
+            return candidates[index].url
+        }
+        return candidates.first(where: \.isDecodable)?.url
     }
 }

@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import UIKit
 @testable import MangaCarta
 
 @Suite("LocalLibraryStoreTests")
@@ -13,6 +14,106 @@ struct LocalLibraryStoreTests {
     private func itemDirectories(at root: URL) -> [URL] {
         (try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil))?
             .filter { $0.lastPathComponent != ".staging" } ?? []
+    }
+
+    private func image(width: Int, height: Int, color: UIColor = .red) -> Data {
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: width, height: height))
+        return renderer.pngData { context in
+            color.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        }
+    }
+
+    @Test func chapterLabelsFollowComicInfoRules() {
+        let full = ComicInfo(series: nil, title: "Issue", number: "2", volume: "1", summary: nil,
+                             writer: nil, genres: [], frontCoverPageIndex: nil)
+        #expect(LocalLibraryStore.chapterLabel(for: full, fallback: "Fallback") == "Vol. 1 · Ch. 2")
+        let numberOnly = ComicInfo(series: nil, title: nil, number: "2", volume: nil, summary: nil,
+                                   writer: nil, genres: [], frontCoverPageIndex: nil)
+        let volumeOnly = ComicInfo(series: nil, title: nil, number: nil, volume: "1", summary: nil,
+                                   writer: nil, genres: [], frontCoverPageIndex: nil)
+        let titleOnly = ComicInfo(series: nil, title: "Issue", number: nil, volume: nil, summary: nil,
+                                  writer: nil, genres: [], frontCoverPageIndex: nil)
+        #expect(LocalLibraryStore.chapterLabel(for: numberOnly, fallback: "Fallback") == "Ch. 2")
+        #expect(LocalLibraryStore.chapterLabel(for: volumeOnly, fallback: "Fallback") == "Vol. 1")
+        #expect(LocalLibraryStore.chapterLabel(for: titleOnly, fallback: "Fallback") == "Issue")
+        #expect(LocalLibraryStore.chapterLabel(for: nil, fallback: "Fallback") == "Fallback")
+        #expect(LocalLibraryStore.chapterLabel(for: full, fallback: "Fallback", isSingleChapter: false) == "Fallback")
+    }
+
+    @Test func frontCoverIndexSelectsTheIndexedPage() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let xml = Data("<ComicInfo><Series>Series</Series><Pages><Page Image=\"2\" Type=\"FrontCover\"/></Pages></ComicInfo>".utf8)
+        let files = [("001.png", image(width: 1, height: 2)), ("002.png", image(width: 3, height: 4)),
+                     ("003.png", image(width: 5, height: 6)), ("ComicInfo.xml", xml)]
+        let url = try archive(root: root, files: files)
+        let store = LocalLibraryStore(root: root.appendingPathComponent("library"))
+        guard case .imported(let record) = try await store.importArchive(at: url),
+              let cover = await store.coverURL(itemId: record.itemId),
+              let coverImage = UIImage(contentsOfFile: cover.path) else {
+            Issue.record("expected cover")
+            return
+        }
+        #expect(coverImage.size == CGSize(width: 15, height: 18))
+    }
+
+    @Test func nestedComicInfoIsIgnoredAndFilenameTitleRemains() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let nestedInfo = Data("<ComicInfo><Series>Wrong</Series></ComicInfo>".utf8)
+        let url = try archive(root: root, files: [("nested/ComicInfo.xml", nestedInfo), ("001.png", LocalTestZip.png)])
+        let store = LocalLibraryStore(root: root.appendingPathComponent("library"))
+        guard case .imported(let record) = try await store.importArchive(at: url) else { Issue.record("expected import"); return }
+        #expect(record.title == "book")
+        #expect(record.comicInfo == nil)
+    }
+
+    @Test func malformedComicInfoStillImportsWithFilenameTitle() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let url = try archive(root: root, files: [("ComicInfo.xml", Data("<ComicInfo>".utf8)), ("001.png", LocalTestZip.png)])
+        let store = LocalLibraryStore(root: root.appendingPathComponent("library"))
+        guard case .imported(let record) = try await store.importArchive(at: url) else { Issue.record("expected import"); return }
+        #expect(record.title == "book")
+        #expect(record.comicInfo == nil)
+    }
+
+    @Test func seriesWinsTitleAndTitleWinsWhenSeriesMissing() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let seriesXML = Data("<ComicInfo><Series>Series Name</Series><Title>Issue Title</Title></ComicInfo>".utf8)
+        let titleXML = Data("<ComicInfo><Title>Issue Title</Title></ComicInfo>".utf8)
+        let seriesURL = root.appendingPathComponent("series.cbz")
+        let titleURL = root.appendingPathComponent("title.cbz")
+        try LocalTestZip.write([("001.png", LocalTestZip.png), ("ComicInfo.xml", seriesXML)], to: seriesURL)
+        try LocalTestZip.write([("001.png", LocalTestZip.png), ("ComicInfo.xml", titleXML)], to: titleURL)
+        let store = LocalLibraryStore(root: root.appendingPathComponent("library"))
+        guard case .imported(let series) = try await store.importArchive(at: seriesURL),
+              case .imported(let title) = try await store.importArchive(at: titleURL) else {
+            Issue.record("expected imports")
+            return
+        }
+        #expect(series.title == "Series Name")
+        #expect(title.title == "Issue Title")
+    }
+
+    @Test func legacyItemJSONWithoutComicInfoDecodes() throws {
+        let data = Data("""
+        {"itemId":"id","title":"Title","sourceFilename":"book.cbz","sha256":"hash","byteSize":1,"importedAt":0,"chapters":[]}
+        """.utf8)
+        let record = try JSONDecoder().decode(LocalItemRecord.self, from: data)
+        #expect(record.comicInfo == nil)
+    }
+
+    @Test func coverPageHelperFallsBackWhenIndexIsInvalid() {
+        let first = URL(fileURLWithPath: "/first"), second = URL(fileURLWithPath: "/second")
+        #expect(LocalLibraryStore.coverPage(candidates: [(first, false), (second, true)], frontCoverPageIndex: 8) == second)
+        #expect(LocalLibraryStore.coverPage(candidates: [(first, true), (second, true)], frontCoverPageIndex: 1) == second)
     }
 
     @Test func duplicateImportIsSkippedAndRecordRemainsUnchanged() async throws {
