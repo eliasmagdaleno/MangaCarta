@@ -49,6 +49,17 @@ final class AppCompositionTests: XCTestCase {
         AppComposition(defaults: defaults, directory: directory)
     }
 
+    /// ADR-0003 Amendment 9, design §4: the composition owns the image cache, and its
+    /// reporter sends through the graph's one rate-limiter registry. A view reaching for
+    /// `ImageCache.shared` instead would load with no reporter at all.
+    func testImageCacheIsOwnedByTheCompositionAndReportsThroughItsRegistry() {
+        let composition = makeComposition()
+
+        XCTAssertFalse(composition.imageCache === ImageCache.shared)
+        XCTAssertTrue(composition.imageLoadReporter.rateLimiters === composition.hostRateLimiters)
+        XCTAssertTrue((composition.imageCache.reporter as? ImageLoadReporter) === composition.imageLoadReporter)
+    }
+
     func testUpdateSubsystemObjectsAreSharedInstances() {
         let composition = makeComposition()
 

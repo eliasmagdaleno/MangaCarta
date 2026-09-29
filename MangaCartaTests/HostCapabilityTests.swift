@@ -818,6 +818,157 @@ struct ImageLoadReportCacheTests {
     }
 }
 
+@Suite("Image-load reporter")
+struct ImageLoadReporterTests {
+    private let target = ImageLoadReportTarget(
+        sourceID: QualifiedSourceID(rawValue: "repo:mangadex"),
+        endpoint: URL(string: "https://api.mangadex.network/report")!,
+        origins: ["https://*.mangadex.network"])
+    private let report = ImageLoadReport(url: URL(string: "https://a1.mangadex.network/data/h/1.png")!,
+                                         success: true, cached: false, bytes: 123,
+                                         durationMilliseconds: 250)
+
+    private func reporter(_ transport: ReportTransport,
+                          registry: HostRateLimiterRegistry = HostRateLimiterRegistry(),
+                          cap: Int = ImageLoadReporter.maximumInFlightPerSource) -> ImageLoadReporter {
+        ImageLoadReporter(rateLimiters: registry, transport: transport,
+                          resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
+                          maximumInFlightPerSource: cap)
+    }
+
+    @Test("a report is a JSON POST of exactly the five fields to the endpoint")
+    func payloadIsFixed() async throws {
+        let transport = ReportTransport()
+        let reporter = reporter(transport)
+        reporter.report(report, to: target)
+        await reporter.waitUntilIdle()
+
+        let request = try #require(await transport.requests().first)
+        #expect(request.url == target.endpoint)
+        #expect(request.httpMethod == "POST")
+        #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/json")
+        let body = try #require(request.httpBody)
+        let json = try #require(try JSONSerialization.jsonObject(with: body) as? [String: Any])
+        #expect(Set(json.keys) == ["url", "success", "cached", "bytes", "duration"])
+        #expect(json["url"] as? String == "https://a1.mangadex.network/data/h/1.png")
+        #expect(json["success"] as? Bool == true)
+        #expect(json["cached"] as? Bool == false)
+        #expect(json["bytes"] as? Int == 123)
+        #expect(json["duration"] as? Int == 250)
+    }
+
+    @Test("reports never carry cookies, even after the endpoint sets one")
+    func noCookies() async throws {
+        let transport = ReportTransport(headers: ["Set-Cookie": "session=abc; Path=/; Secure"])
+        let reporter = reporter(transport)
+        reporter.report(report, to: target)
+        await reporter.waitUntilIdle()
+        reporter.report(report, to: target)
+        await reporter.waitUntilIdle()
+        let requests = await transport.requests()
+        #expect(requests.count == 2)
+        #expect(requests.allSatisfy { $0.value(forHTTPHeaderField: "Cookie") == nil })
+    }
+
+    @Test("a 429 from the endpoint pauses later reports (ADR-0003 Amendment 8)")
+    func endpointRateLimitPausesReports() async {
+        let sleeper = RecordingRateLimiterSleeper()
+        let registry = HostRateLimiterRegistry(defaultInterval: 1, rules: [],
+                                                clock: FixedRateLimiterClock(), sleeper: sleeper)
+        let transport = ReportTransport(firstStatus: 429, headers: ["Retry-After": "30"])
+        let reporter = reporter(transport, registry: registry)
+        reporter.report(report, to: target)
+        await reporter.waitUntilIdle()
+        reporter.report(report, to: target)
+        await reporter.waitUntilIdle()
+        #expect((await sleeper.dates()).map(\.timeIntervalSinceReferenceDate) == [0, 30])
+    }
+
+    @Test("a transport failure is dropped, never retried, and the next report still goes")
+    func failuresAreDropped() async {
+        let transport = ReportTransport(failFirst: true)
+        let reporter = reporter(transport)
+        reporter.report(report, to: target)
+        await reporter.waitUntilIdle()
+        reporter.report(report, to: target)
+        await reporter.waitUntilIdle()
+        #expect(await transport.requests().count == 2)
+    }
+
+    @Test("past the per-Source cap new reports are dropped; other Sources are unaffected")
+    func backlogIsCappedPerSource() async {
+        let transport = ReportTransport(gated: true)
+        let reporter = reporter(transport, cap: 2)
+        let other = ImageLoadReportTarget(sourceID: QualifiedSourceID(rawValue: "repo:other"),
+                                          endpoint: target.endpoint, origins: target.origins)
+        for _ in 0..<3 { reporter.report(report, to: target) }
+        reporter.report(report, to: other)
+        await transport.waitForRequests(3)
+        await transport.open()
+        await reporter.waitUntilIdle()
+        #expect(await transport.requests().count == 3)
+    }
+}
+
+/// Records every request; can fail the first send, answer the first with a status, or hold
+/// every send until `open()`.
+private actor ReportTransport: HostHTTPTransport {
+    private let firstStatus: Int
+    private let headers: [String: String]
+    private let failFirst: Bool
+    private var gated: Bool
+    private var recorded: [URLRequest] = []
+    private var held: [CheckedContinuation<Void, Never>] = []
+    private var countWaiter: (count: Int, continuation: CheckedContinuation<Void, Never>)?
+
+    init(firstStatus: Int = 200, headers: [String: String] = [:],
+         failFirst: Bool = false, gated: Bool = false) {
+        self.firstStatus = firstStatus
+        self.headers = headers
+        self.failFirst = failFirst
+        self.gated = gated
+    }
+
+    func send(_ request: URLRequest) async throws -> HostHTTPTransportResponse {
+        recorded.append(request)
+        let index = recorded.count
+        if let waiter = countWaiter, recorded.count >= waiter.count {
+            countWaiter = nil
+            waiter.continuation.resume()
+        }
+        if gated { await withCheckedContinuation { held.append($0) } }
+        if failFirst && index == 1 { throw URLError(.notConnectedToInternet) }
+        return HostHTTPTransportResponse(statusCode: index == 1 ? firstStatus : 200,
+                                         url: request.url!, headers: headers, body: Data(),
+                                         connectedPeerAddress: "93.184.216.34")
+    }
+
+    func requests() -> [URLRequest] { recorded }
+
+    /// Returns once `count` requests arrived, or after five seconds, so a reporter that
+    /// never sends fails the test's assertion instead of hanging the suite.
+    func waitForRequests(_ count: Int) async {
+        guard recorded.count < count else { return }
+        let timeout = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(5))
+            await self?.expireCountWaiter()
+        }
+        await withCheckedContinuation { countWaiter = (count, $0) }
+        timeout.cancel()
+    }
+
+    private func expireCountWaiter() {
+        countWaiter?.continuation.resume()
+        countWaiter = nil
+    }
+
+    func open() {
+        gated = false
+        held.forEach { $0.resume() }
+        held = []
+    }
+}
+
 private final class RecordingImageLoadReporter: ImageLoadReporting, @unchecked Sendable {
     struct Entry: Equatable {
         let report: ImageLoadReport

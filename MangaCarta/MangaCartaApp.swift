@@ -53,6 +53,7 @@ struct MangaCartaApp: App {
     /// `registry` current; views reach the sources through `registry`, never this.
     private let extensions: AppComposition.ExtensionComposition?
     private let extensionStorageError: String?
+    private let imageCache: ImageCache
 
     /// The graph itself lives in `AppComposition`, where it can be built against temp
     /// storage and asserted on. This initializer does nothing but adopt what it built.
@@ -131,6 +132,7 @@ struct MangaCartaApp: App {
         self.scheduler = composed.scheduler
         self.extensions = composed.extensions
         self.extensionStorageError = composed.extensionStorageError
+        self.imageCache = composed.imageCache
         _library = StateObject(wrappedValue: composed.library)
         _history = StateObject(wrappedValue: composed.history)
         _taste = StateObject(wrappedValue: composed.taste)
@@ -180,6 +182,7 @@ struct MangaCartaApp: App {
                 .environmentObject(localImporter)
                 .environment(\.extensionComposition, extensions)
                 .environment(\.extensionStorageError, extensionStorageError)
+                .environment(\.imageCache, imageCache)
                 .preferredColorScheme(appearance.colorScheme)
                 // `onChange` does not fire for the initial value, so launch needs its
                 // own start. `start()` is idempotent, so the `.active` case below

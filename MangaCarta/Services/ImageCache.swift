@@ -123,7 +123,7 @@ final class ImageCache: @unchecked Sendable {
     private let disk: ImageDiskCache
     private let destinationPolicy: HostDestinationPolicy
     private let fetch: @Sendable (URL) async throws -> ImageFetchOutcome
-    private let reporter: any ImageLoadReporting
+    let reporter: any ImageLoadReporting
     /// Monotonic seconds, injected so a report's duration is testable.
     private let uptime: @Sendable () -> TimeInterval
     private let decode: @Sendable (Data) -> UIImage?
