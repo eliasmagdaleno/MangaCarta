@@ -26,7 +26,13 @@ All four CI checks passed on each of these before it merged:
 - Earlier the same day: #268, #271–#277 (rate-limit pause, Amendments 8 and 9, design, steps 1–3).
 
 Steps 5 and 6 were implemented by Codex Luna workers through Orca and reviewed here. Both
-workers' tests caught a mutation.
+workers' tests caught a mutation. **CI on main passed after #280 and #281 merged**
+(`ec7db61`), so the two work together.
+
+**Working trees are clean.** The only worktree besides the shared checkout is this handoff's,
+`/private/tmp/mangacarta-handoff`. Remove it and its branch once this PR merges. The shared
+checkout's `project.pbxproj` has an unrelated uncommitted change: Xcode churn, from before this
+session.
 
 ## Next
 
