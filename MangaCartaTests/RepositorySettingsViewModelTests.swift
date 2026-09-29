@@ -58,6 +58,8 @@ final class RepositorySettingsViewModelTests: XCTestCase {
         let model = try makeModel()
         let message = model.sentence(for: ExtensionInstallError.adultAcknowledgementDeclined(localId: "adult"))
         XCTAssertEqual(message, "The install was cancelled. Nothing was added.")
+        XCTAssertEqual(model.sentence(for: ExtensionInstallError.imageLoadReportsDeclined(localId: "general")),
+                       "The Source was not installed or updated.")
     }
 
     func testUnreadableStoreIsNamedAndKept() throws {
@@ -178,5 +180,25 @@ final class RepositorySettingsViewModelTests: XCTestCase {
         XCTAssertFalse(copy.localizedCaseInsensitiveContains("approved"))
         XCTAssertFalse(copy.localizedCaseInsensitiveContains("is classified"),
                        "passive voice leaves the classifier unnamed")
+    }
+
+    func testReportCopyForGeneralSourceHasNoAgeOrClassificationSentence() {
+        let acknowledgement = AdultInstallAcknowledgement(sourceName: "Image Source",
+                                                          repositoryName: "Community Index",
+                                                          classification: .none,
+                                                          sendsImageLoadReports: true)
+        let copy = RepositorySettingsViewModel.ageConfirmationCopy(for: acknowledgement,
+                                                                    asksForAge: false)
+        XCTAssertTrue(copy.contains("Image Source may have MangaCarta send page-loading statistics"))
+        XCTAssertTrue(copy.contains("No cookies or identifiers are sent."))
+        XCTAssertFalse(copy.contains("general content"))
+        XCTAssertFalse(copy.contains("18 or over"))
+        XCTAssertFalse(copy.contains("already confirmed"))
+    }
+
+    func testReportCopyOnlyAppearsWhenAcknowledgementRequestsIt() {
+        let without = AdultInstallAcknowledgement(sourceName: "Source", repositoryName: "Repo",
+                                                   classification: .none)
+        XCTAssertFalse(RepositorySettingsViewModel.ageConfirmationCopy(for: without).contains("page-loading statistics"))
     }
 }

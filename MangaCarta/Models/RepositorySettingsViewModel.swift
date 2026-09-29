@@ -16,8 +16,10 @@ final class RepositorySettingsViewModel: ObservableObject {
     @Published private(set) var legacyIDsWithData: Set<String> = []
     /// The sheet the installer is waiting on. It always appears for a `mixed` or
     /// `adultOnly` Source — a reader who has already confirmed their age still sees which
-    /// Source is adult-classed and who says so (format design §7.1) — but only asks the
-    /// age question when the device has no confirmation yet.
+    /// Source is adult-classed and who says so (format design §7.1) — and for a Source that
+    /// declares image-load reports, on install or on the update that adds them (ADR-0003
+    /// Amendment 10). It asks the age question only for an adult Source on a device with no
+    /// confirmation yet.
     struct PendingAcknowledgement: Identifiable, Equatable {
         let acknowledgement: AdultInstallAcknowledgement
         let asksForAge: Bool
@@ -38,7 +40,8 @@ final class RepositorySettingsViewModel: ObservableObject {
         self.defaults = defaults
         composition.adultAcknowledgement.present = { [weak self] acknowledgement in
             guard let self else { return false }
-            let asksForAge = !self.defaults.bool(forKey: Self.declaredAgeKey)
+            let asksForAge = acknowledgement.classification != .none
+                && !self.defaults.bool(forKey: Self.declaredAgeKey)
             return await withCheckedContinuation { continuation in
                 self.ageAnswer?.resume(returning: false)
                 self.pendingAcknowledgement = PendingAcknowledgement(acknowledgement: acknowledgement,
@@ -56,6 +59,9 @@ final class RepositorySettingsViewModel: ObservableObject {
     static let declarationCopy = "{repository} declares {source} as {classification}."
     static let ageQuestionCopy = "Confirm that you are 18 or over to install it."
     static let alreadyConfirmedCopy = "You have already confirmed your age on this device."
+    static let imageLoadReportsCopy = "{source} may have MangaCarta send page-loading statistics to the "
+        + "operator that serves its images: each image's address, whether it loaded, whether it "
+        + "came from their cache, its size and load time. No cookies or identifiers are sent."
 
     static func shouldShowAdultSourcesToggle(isConfirmed: Bool, hasRegisteredAdultSource: Bool) -> Bool {
         isConfirmed && hasRegisteredAdultSource
@@ -68,17 +74,26 @@ final class RepositorySettingsViewModel: ObservableObject {
 
     static func ageConfirmationCopy(for acknowledgement: AdultInstallAcknowledgement,
                                     asksForAge: Bool = true) -> String {
-        let classification: String
-        switch acknowledgement.classification {
-        case .adultOnly: classification = "adult-only"
-        case .mixed: classification = "mixed adult and general content"
-        case .none: classification = "general content"
+        var sentences: [String] = []
+        if acknowledgement.classification != .none {
+            let classification: String = switch acknowledgement.classification {
+            case .adultOnly: "adult-only"
+            case .mixed: "mixed adult and general content"
+            case .none: "general content"
+            }
+            sentences.append(declarationCopy
+                .replacingOccurrences(of: "{source}", with: acknowledgement.sourceName)
+                .replacingOccurrences(of: "{repository}", with: acknowledgement.repositoryName)
+                .replacingOccurrences(of: "{classification}", with: classification))
         }
-        let declaration = declarationCopy
-            .replacingOccurrences(of: "{source}", with: acknowledgement.sourceName)
-            .replacingOccurrences(of: "{repository}", with: acknowledgement.repositoryName)
-            .replacingOccurrences(of: "{classification}", with: classification)
-        return declaration + " " + (asksForAge ? ageQuestionCopy : alreadyConfirmedCopy)
+        if acknowledgement.sendsImageLoadReports {
+            sentences.append(imageLoadReportsCopy.replacingOccurrences(of: "{source}",
+                                                                         with: acknowledgement.sourceName))
+        }
+        if acknowledgement.classification != .none {
+            sentences.append(asksForAge ? ageQuestionCopy : alreadyConfirmedCopy)
+        }
+        return sentences.joined(separator: " ")
     }
 
     func refreshStoreStatus() {

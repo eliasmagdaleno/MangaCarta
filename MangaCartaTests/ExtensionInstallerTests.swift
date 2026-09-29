@@ -382,11 +382,22 @@ final class ExtensionInstallerTests: XCTestCase {
                              name: String = "Example Manga",
                              engine: String = "madara",
                              adult: String = "none",
+                             imageLoadReports: Bool = false,
                              configuration: JSONValue = .object(["baseURL": .string("https://example.test")]),
                              capabilities: [String: Bool] = ["search": true, "popular": true, "detail": true,
                                                              "chapters": true, "pages": true],
                              hostAPI: (String, String) = ("1.0", "2.0")) -> JSONValue {
-        .object([
+        var network: [String: JSONValue] = ["httpOrigins": .array([.string("https://example.test")])]
+        if imageLoadReports {
+            network["httpOrigins"] = .array([.string("https://example.test"),
+                                              .string("https://api.mangadex.network")])
+            network["assetOrigins"] = .array([.string("https://*.mangadex.network")])
+            network["imageLoadReports"] = .object([
+                "endpoint": .string("https://api.mangadex.network/report"),
+                "origins": .array([.string("https://*.mangadex.network")])
+            ])
+        }
+        return .object([
             "localId": .string(localId),
             "name": .string(name),
             "engine": .string(engine),
@@ -394,8 +405,8 @@ final class ExtensionInstallerTests: XCTestCase {
             "adult": .string(adult),
             "capabilities": .object(capabilities.mapValues { .bool($0) }),
             "languages": .object(["mode": .string("fixed"), "values": .array([.string("en")])]),
-            "network": .object(["httpOrigins": .array([.string("https://example.test")])]),
-            "hostAPI": .object(["minimum": .string(hostAPI.0), "maximumExclusive": .string(hostAPI.1)])
+            "network": .object(network),
+            "hostAPI": .object(["minimum": .string(imageLoadReports ? "1.3" : hostAPI.0), "maximumExclusive": .string(hostAPI.1)])
         ])
     }
 
@@ -1014,6 +1025,81 @@ final class ExtensionInstallerTests: XCTestCase {
         _ = try await installer.install(localId: "site-1", from: repository.id)
         XCTAssertTrue(registry.isActive(qualifiedId))
         XCTAssertEqual(installer.effectiveAdultClassification(for: qualifiedId), .mixed)
+    }
+
+    func testAGeneralReportingSourceNeedsAcknowledgementAndDecliningPersistsNothing() async throws {
+        let registry = SourceLifecycleRegistry()
+        let installer = makeInstaller(registry: registry, hostAPI: HostAPISupport(installedVersions: [
+            HostAPIVersion(major: 1, minor: 3)
+        ]))
+        serve(index(bundles: [bundle(sources: [declaration(localId: "reports", imageLoadReports: true)])]), at: urlA)
+        let repository = try await installer.addRepository(at: urlA)
+        acknowledgementAnswer = false
+
+        await XCTAssertThrowsErrorAsync(try await installer.install(localId: "reports", from: repository.id)) { error in
+            XCTAssertEqual(error as? ExtensionInstallError, .imageLoadReportsDeclined(localId: "reports"))
+        }
+        XCTAssertEqual(acknowledgements.count, 1)
+        XCTAssertTrue(acknowledgements[0].sendsImageLoadReports)
+        XCTAssertEqual(acknowledgements[0].classification, .none)
+        XCTAssertNil(installer.store.source(ExtensionInstaller.qualifiedID(repositoryID: repository.id,
+                                                                          localId: "reports")))
+        XCTAssertNil(installer.store.bundle("engine", in: repository.id))
+        XCTAssertNil(registry.state(for: ExtensionInstaller.qualifiedID(repositoryID: repository.id,
+                                                                        localId: "reports")))
+    }
+
+    func testAGeneralSourceWithoutReportsInstallsWithoutAcknowledgement() async throws {
+        let installer = makeInstaller()
+        let (_, qualifiedId) = try await addAndInstallSite1(installer)
+        XCTAssertTrue(acknowledgements.isEmpty)
+        XCTAssertNotNil(installer.store.source(qualifiedId))
+    }
+
+    func testAnAdultSourceWithReportsIncludesBothAcknowledgementReasons() async throws {
+        let installer = makeInstaller(hostAPI: HostAPISupport(installedVersions: [
+            HostAPIVersion(major: 1, minor: 3)
+        ]))
+        serve(index(bundles: [bundle(sources: [declaration(localId: "adult-reports", adult: "mixed",
+                                                            imageLoadReports: true)])]), at: urlA)
+        let repository = try await installer.addRepository(at: urlA)
+        _ = try await installer.install(localId: "adult-reports", from: repository.id)
+        let acknowledgement = try XCTUnwrap(acknowledgements.first)
+        XCTAssertTrue(acknowledgement.sendsImageLoadReports)
+        XCTAssertFalse(acknowledgement.isUpdate)
+        XCTAssertEqual(acknowledgement.classification, .mixed)
+    }
+
+    func testAnUpdateThatAddsReportsAsksBeforePersistingAndDeclineLeavesOldBundle() async throws {
+        let registry = SourceLifecycleRegistry()
+        let hostAPI = HostAPISupport(installedVersions: [HostAPIVersion(major: 1, minor: 3)])
+        let installer = makeInstaller(registry: registry, hostAPI: hostAPI)
+        let (repositoryID, qualifiedId) = try await addAndInstallSite1(installer)
+        serveUpdatedBundle(at: urlA, declaration: declaration(localId: "site-1", imageLoadReports: true))
+        _ = try await installer.refresh(repositoryID)
+        acknowledgementAnswer = false
+
+        await XCTAssertThrowsErrorAsync(try await installer.updateBundle("engine", in: repositoryID)) { error in
+            XCTAssertEqual(error as? ExtensionInstallError, .imageLoadReportsDeclined(localId: "site-1"))
+        }
+        XCTAssertTrue(acknowledgements.first?.isUpdate == true)
+        XCTAssertEqual(installer.store.bundle("engine", in: repositoryID)?.version, 1)
+        XCTAssertEqual(registry.declaration(for: qualifiedId)?.network.imageLoadReports, nil)
+        XCTAssertFalse(installer.store.source(qualifiedId)?.declaration.objectValue?["network"]?.objectValue?["imageLoadReports"] != nil)
+    }
+
+    func testAnUpdateWhereReportsAlreadyExistDoesNotAsk() async throws {
+        let registry = SourceLifecycleRegistry()
+        let hostAPI = HostAPISupport(installedVersions: [HostAPIVersion(major: 1, minor: 3)])
+        let installer = makeInstaller(registry: registry, hostAPI: hostAPI)
+        serve(index(bundles: [bundle(sources: [declaration(localId: "site-1", imageLoadReports: true)])]), at: urlA)
+        let repository = try await installer.addRepository(at: urlA)
+        _ = try await installer.install(localId: "site-1", from: repository.id)
+        acknowledgements.removeAll()
+        serveUpdatedBundle(at: urlA, declaration: declaration(localId: "site-1", name: "Updated", imageLoadReports: true))
+        _ = try await installer.refresh(repository.id)
+        try await installer.updateBundle("engine", in: repository.id)
+        XCTAssertTrue(acknowledgements.isEmpty)
     }
 
     func testTreatAsAdultElevatesANoneSourceAndAnUpdateNeverLowersIt() async throws {

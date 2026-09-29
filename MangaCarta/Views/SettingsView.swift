@@ -447,14 +447,16 @@ private struct RepositorySettingsSection: View {
         .sheet(item: Binding(get: { model.pendingAcknowledgement },
                              set: { if $0 == nil { model.answerAgeGate(false) } })) { item in
             VStack(spacing: 16) {
-                Text(item.asksForAge ? "Confirm your age" : "Adult Source").font(.title2.weight(.semibold))
+                let title = item.asksForAge ? "Confirm your age"
+                    : (item.acknowledgement.classification != .none ? "Adult Source" : "Image-load reports")
+                Text(title).font(.title2.weight(.semibold))
                 Text(RepositorySettingsViewModel.ageConfirmationCopy(for: item.acknowledgement,
                                                                      asksForAge: item.asksForAge))
                 if item.asksForAge {
                     Button("I am 18 or over") { model.answerAgeGate(true) }
                         .accessibilityIdentifier("repositorySettings.confirmAge")
                 } else {
-                    Button("Install") { model.answerAgeGate(true) }
+                    Button(item.acknowledgement.isUpdate ? "Update" : "Install") { model.answerAgeGate(true) }
                         .accessibilityIdentifier("repositorySettings.continueInstall")
                 }
                 Button("Cancel") { model.answerAgeGate(false) }

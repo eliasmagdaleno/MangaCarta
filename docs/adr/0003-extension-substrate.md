@@ -839,3 +839,36 @@ If one does, a new payload version is an amendment, not a patch.
 **Consequence.** The image loader has to know which Source a page came from, and today it
 loads by URL alone. That wiring, and carrying the `X-Cache` header and timing out of the fetch,
 belong to the design, not this decision.
+
+## Amendment 10 — reports are disclosed at install and update, and declared on the label (2026-09-28)
+
+Amendment 9 requires the privacy label and the in-app privacy text to describe image-load reports
+as data sent off the device. It did not say where the in-app text goes, and the app has no privacy
+screen. The owner settled both questions.
+
+**The label declares the reports.** Apple counts data sent to the developer or to its third-party
+partners. A Source's operator is neither, because the reader chose to add that Source. They are
+declared anyway, because that is the conservative choice: Diagnostics › Performance Data, not
+linked to the user, not used for tracking, purpose App Functionality. The image URL names the
+chapter, which makes it Usage Data › Product Interaction. The manifest already declares that type,
+as linked, for MyAnimeList sync, and the stricter entry covers it.
+
+**The in-app text is the install acknowledgement sheet, and it is shown on update too.** Before
+this, the sheet appeared only for `mixed` and `adultOnly` installs (ADR-0022 Amendment 2). It now
+also appears in two more cases:
+
+- **An install whose declaration has `network.imageLoadReports`.** For a general-content Source,
+  the sheet names the reports and asks no age question.
+- **An update that adds `imageLoadReports`** to a Source whose installed declaration has none.
+  This case is required, not optional. MangaDex will gain reports through an update to a Source
+  readers already have, so an install-only disclosure would never reach them.
+
+The sheet asks before anything is persisted, as the age acknowledgement already did. Declining an
+install adds nothing. Declining an update leaves the installed version, its script and its records
+exactly as they were. An update where the old and new declarations both have reports, or neither
+does, does not ask. Updates run only when the reader taps Update, so a reader is always present to
+answer.
+
+**Still no switch.** The acknowledgement is the only choice the reader makes: taking the Source
+with its reports, or not taking it. Amendment 9's reasoning for having no per-reader toggle still
+holds.

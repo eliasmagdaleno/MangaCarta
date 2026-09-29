@@ -1,6 +1,6 @@
 # App Store submission copy
 
-**Status: DRAFT for owner editing (updated 2026-09-25).** This file owns the *text* submitted to App Store
+**Status: DRAFT for owner editing (updated 2026-09-28).** This file owns the *text* submitted to App Store
 Connect: review notes, age-rating answers and listing copy. The *decisions* behind that text belong
 to the ADRs, which are linked here rather than repeated:
 
@@ -8,6 +8,8 @@ to the ADRs, which are linked here rather than repeated:
   Source, and no default, suggested or linked repository.
 - [ADR-0022](../adr/0022-no-adult-source-in-the-release-build.md) Amendment 2: the declared-age
   gate for `mixed` / `adultOnly` installs.
+- [ADR-0003 Amendment 9](../adr/0003-extension-substrate.md): a Source may have the app report
+  its page-image loads to that Source's operator.
 - [ADR-0025](../adr/0025-local-files-as-a-source.md) and the
   [local import spec](../superpowers/specs/2026-09-22-local-import-design.md): the first-run
   purpose is importing CBZ/ZIP/PDF.
@@ -42,6 +44,11 @@ Placeholders are in `[[double brackets]]`.
 > website lists one. Each plug-in declares a content class. Plug-ins declared as containing adult
 > adult-rated titles, and Sources that are adult throughout, are hidden by default and require the reader's declared age. Installing one requires the user to confirm they are 18 or older
 > (a declared-age gate); if they decline, nothing is installed.
+>
+> A plug-in may ask the app to report how its page images loaded to that plug-in's own operator,
+> which served those images. Each report holds the image address, whether the download succeeded,
+> whether the operator's cache served it, its size and its load time. Reports carry no cookies and
+> no account or device identifier. The app sends none unless an installed plug-in asks for them.
 >
 > No account is needed to import and read local files. There are no purchases or ads. Contact:
 > [[name, email, phone]].
@@ -126,6 +133,8 @@ argument. (Rejected: `Read your comics, your way` — friendly but says nothing 
 >
 > PRIVATE BY DESIGN
 > • Imported files stay on your device. No account required to read them. No ads.
+> • A plug-in you install may have the app send page-loading statistics to that plug-in's
+>   operator. They include no account or device identifier.
 >
 > MangaCarta does not provide or host content. You are responsible for having the rights to what
 > you read.
@@ -134,7 +143,7 @@ Before submitting, check every bullet against the release build — **this is a 
 copy to paste.** PDF import and the "Import from Files" empty state have shipped; ComicInfo
 parsing has not, so the description does not claim it. The compiled MangaDex Source and bundled
 WeebCentral package still need removal before the no-content claims become true. Check the privacy
-line against the privacy label and #149's policy.
+line against the privacy label (§5) and #149's policy.
 
 **Screenshots:** use only original or public-domain art [[owner-supplied — owner decision 4, open]]. Show no site UI and no
 recognisable series.
@@ -149,3 +158,29 @@ recognisable series.
 | **1.1.4** (overtly sexual or pornographic material) | Adult plug-ins can be reached from the app. | Adult-rated titles, and Sources that are adult throughout, are hidden by default (ADR-0022 A6). This meets 4.7.5's "age restriction mechanism based on verified or declared age". |
 | **1.2 User-Generated Content** | A reviewer classifies repositories as user-generated content and asks for filtering, reporting and blocking. | ADR-0022 A2 judged 1.2 a poor fit because users cannot post or share anything with each other. Answer UGC "No". If Review raises it anyway, the fallback is a report/contact link, and then having the installer refuse adult classes (ADR-0022 A2 consequences). |
 | **4.7 / 2.5.2** (plug-ins; downloaded code must not change features) | Plug-ins read as downloaded code. | Plug-ins run in a JavaScriptCore sandbox with a fixed host API; they supply data, not features. 4.7.4's index requirement has nothing to apply to while the app offers no repository. |
+
+## 5. Privacy label
+
+`MangaCarta/PrivacyInfo.xcprivacy` declares only optional MyAnimeList sync (#149). Image-load
+reports (ADR-0003 Amendment 9) are the second way data leaves the device, and the amendment
+requires the label to describe them.
+
+- **What is sent.** One report per page image downloaded from an origin the installed Source
+  named. It contains the image URL, `success`, `cached`, `bytes` and `duration`, and nothing else
+  ([design §4](../superpowers/specs/2026-09-28-image-load-reports-design.md)). It is sent without
+  cookies and without an account or device identifier. The recipient is the Source's own operator,
+  never the developer.
+- **Declared (owner decision, 2026-09-28).** Apple counts data sent to the developer or to
+  third-party partners, and a Source's operator is neither: the reader chose to add it. Declaring
+  it anyway is the conservative choice, and the owner took it.
+- **Answer:** Diagnostics › Performance Data, **not linked** to the user, **not used for
+  tracking**, purpose App Functionality. It is in `PrivacyInfo.xcprivacy`.
+- The image URL names the chapter being read, which is Usage Data › Product Interaction. The
+  manifest already declares Product Interaction, as linked, for MyAnimeList sync. That stricter
+  entry covers it, and a data type can appear only once.
+- **In-app text** is the install acknowledgement sheet ([ADR-0003 Amendment 10](../adr/0003-extension-substrate.md)).
+  The sheet appears when a Source that declares reports is installed, and when an update adds
+  reports. It names the reports and what they contain.
+- Recheck all of this against the build that ships Host API 1.3. No report is sent until the
+  reader wiring (design §8 step 5) ships and an installed Source declares
+  `network.imageLoadReports`.
