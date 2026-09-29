@@ -80,7 +80,7 @@ struct ReadingEntry: Codable, Identifiable, Hashable {
         id = try c.decode(UUID.self, forKey: .id)
         mangaId = try c.decode(String.self, forKey: .mangaId)
         mangaTitle = try c.decode(String.self, forKey: .mangaTitle)
-        coverURL = try c.decodeIfPresent(URL.self, forKey: .coverURL)
+        coverURL = LocalLibraryPaths.relocated(try c.decodeIfPresent(URL.self, forKey: .coverURL))
         chapterId = try c.decode(String.self, forKey: .chapterId)
         chapterNumber = try c.decode(String.self, forKey: .chapterNumber)
         page = try c.decode(Int.self, forKey: .page)
