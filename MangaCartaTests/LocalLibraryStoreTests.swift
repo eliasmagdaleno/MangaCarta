@@ -5,6 +5,49 @@ import UIKit
 
 @Suite("LocalLibraryStoreTests")
 struct LocalLibraryStoreTests {
+    @Test func localLibraryPathsRelocateCoverURLs() {
+        let root = URL(fileURLWithPath: "/new-container/Library/Application Support/LocalLibrary")
+        let stale = URL(fileURLWithPath: "/old-container/Library/Application Support/LocalLibrary/item-1/cover.jpg")
+        let expected = root.appendingPathComponent("item-1/cover.jpg")
+        #expect(LocalLibraryPaths.relocated(stale, root: root) == expected)
+        #expect(LocalLibraryPaths.relocated(expected, root: root) == expected)
+
+        let remote = URL(string: "https://example.com/cover.jpg")!
+        #expect(LocalLibraryPaths.relocated(remote, root: root) == remote)
+        let unrelated = URL(fileURLWithPath: "/old-container/Library/item-1/cover.jpg")
+        #expect(LocalLibraryPaths.relocated(unrelated, root: root) == unrelated)
+        let rootOnly = URL(fileURLWithPath: "/old-container/Library/LocalLibrary")
+        #expect(LocalLibraryPaths.relocated(rootOnly, root: root) == rootOnly)
+        #expect(LocalLibraryPaths.relocated(nil, root: root) == nil)
+
+        let spaced = URL(fileURLWithPath: "/old-container/Library/Application Support/LocalLibrary/item 1/cover.jpg")
+        #expect(LocalLibraryPaths.relocated(spaced, root: root) == root.appendingPathComponent("item 1/cover.jpg"))
+    }
+
+    @Test func libraryItemDecodeRelocatesLocalCoverButKeepsRemoteCover() throws {
+        let stale = "file:///old-container/Library/Application%20Support/LocalLibrary/item-1/cover.jpg"
+        let localJSON = Data("{\"id\":\"item-1\",\"title\":\"Title\",\"coverURL\":\"\(stale)\"}".utf8)
+        let localItem = try JSONDecoder().decode(LibraryItem.self, from: localJSON)
+        #expect(localItem.coverURL == LocalLibraryPaths.defaultRoot.appendingPathComponent("item-1/cover.jpg"))
+
+        let remoteJSON = Data("{\"id\":\"item-2\",\"title\":\"Title\",\"coverURL\":\"https://example.com/cover.jpg\"}".utf8)
+        let remoteItem = try JSONDecoder().decode(LibraryItem.self, from: remoteJSON)
+        #expect(remoteItem.coverURL == URL(string: "https://example.com/cover.jpg"))
+    }
+
+    @Test func readingEntryDecodeRelocatesLocalCoverButKeepsRemoteCover() throws {
+        let fields = "\"id\":\"00000000-0000-0000-0000-000000000000\",\"mangaId\":\"m\",\"mangaTitle\":\"T\","
+            + "\"chapterId\":\"c\",\"chapterNumber\":\"1\",\"page\":0,\"pageCount\":1,\"updatedAt\":0"
+        let stale = "file:///old-container/Library/Application%20Support/LocalLibrary/item-1/cover.jpg"
+        let localJSON = Data("{\(fields),\"coverURL\":\"\(stale)\"}".utf8)
+        let localEntry = try JSONDecoder().decode(ReadingEntry.self, from: localJSON)
+        #expect(localEntry.coverURL == LocalLibraryPaths.defaultRoot.appendingPathComponent("item-1/cover.jpg"))
+
+        let remoteJSON = Data("{\(fields),\"coverURL\":\"https://example.com/cover.jpg\"}".utf8)
+        let remoteEntry = try JSONDecoder().decode(ReadingEntry.self, from: remoteJSON)
+        #expect(remoteEntry.coverURL == URL(string: "https://example.com/cover.jpg"))
+    }
+
     private func archive(root: URL, files: [(String, Data)], corruptLastCRC: Bool = false) throws -> URL {
         let url = root.appendingPathComponent("book.cbz")
         try LocalTestZip.write(files, to: url, corruptLastCRC: corruptLastCRC)

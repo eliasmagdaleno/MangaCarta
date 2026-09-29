@@ -41,7 +41,7 @@ struct LibraryItem: Codable, Identifiable, Hashable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
         title = try container.decode(String.self, forKey: .title)
-        coverURL = try container.decodeIfPresent(URL.self, forKey: .coverURL)
+        coverURL = LocalLibraryPaths.relocated(try container.decodeIfPresent(URL.self, forKey: .coverURL))
         chapterNumbers = try container.decodeIfPresent([String].self, forKey: .chapterNumbers)
         sourceId = try container.decodeIfPresent(String.self, forKey: .sourceId)
 
