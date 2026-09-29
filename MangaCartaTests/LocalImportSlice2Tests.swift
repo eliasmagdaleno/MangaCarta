@@ -196,6 +196,38 @@ private struct LocalFixture {
     #expect(FileManager.default.fileExists(atPath: picker.path))
 }
 
+// In-place opening hands over the reader's original file, which lies outside the container.
+@MainActor @Test func localImportViewModelKeepsHandedOverFileOutsideContainer() async throws {
+    let fixture = try LocalFixture(); defer { fixture.cleanup() }
+    let container = fixture.root.appendingPathComponent("container")
+    let store = LocalLibraryStore(root: container.appendingPathComponent("library"))
+    let works = WorkStore(directory: container.appendingPathComponent("works"))
+    let defaults = UserDefaults(suiteName: "local-import-in-place-\(UUID().uuidString)")!
+    let registry = SourceRegistry(sources: [LocalSource(store: store)])
+    let library = LibraryStore(defaults: defaults, works: works, registry: registry)
+    let importer = LocalImportViewModel(containerRoot: container)
+    importer.configure(registry: registry, library: library, works: works)
+    importer.importOpenedURL(fixture.archive)
+    await importer.importFilesAndWait([])
+    #expect(importer.errors.isEmpty)
+    #expect((await store.allRecords()).count == 1)
+    #expect(FileManager.default.fileExists(atPath: fixture.archive.path))
+}
+
+// Files lists an app under Open With only if it opens documents in place, and makes it the
+// tap-to-open default only at Owner rank (measured on iOS 26.5, 2026-09-29; spec decision 12).
+@Test func infoPlistMakesMangaCartaTheDefaultCBZOpener() throws {
+    let info = try #require(Bundle.main.infoDictionary)
+    #expect(info["LSSupportsOpeningDocumentsInPlace"] as? Bool == true)
+    let types = try #require(info["CFBundleDocumentTypes"] as? [[String: Any]])
+    func rank(_ type: String) -> String? {
+        types.first { ($0["LSItemContentTypes"] as? [String])?.contains(type) == true }?["LSHandlerRank"] as? String
+    }
+    #expect(rank("com.mangacarta.cbz") == "Owner")
+    #expect(rank("public.zip-archive") == "Alternate")
+    #expect(rank("com.adobe.pdf") == "Alternate")
+}
+
 @MainActor @Test func localImportViewModelQueuesBatchArrivingMidImport() async throws {
     let fixture = try LocalFixture(); defer { fixture.cleanup() }
     let second = fixture.root.appendingPathComponent("second.cbz")
