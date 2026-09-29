@@ -272,8 +272,7 @@ final class SourceLifecycleRegistryTests: XCTestCase {
         let registry = SourceLifecycleRegistry()
         try registry.register(try declaration(qualifiedId: id, localId: "site-1"))
 
-        let defaults = UserDefaults(suiteName: "SourceLifecycleRegistryTests.pins")!
-        defaults.removePersistentDomain(forName: "SourceLifecycleRegistryTests.pins")
+        let defaults = makeTestDefaults("SourceLifecycleRegistryTests.pins")
         let preferences = SourcePreferenceStore(defaults: defaults)
         let workID = WorkID()
         let pin = ListingKey(sourceId: id.rawValue, mangaId: "manga-1")
@@ -292,7 +291,6 @@ final class SourceLifecycleRegistryTests: XCTestCase {
         XCTAssertTrue(registry.isActive(id))
         XCTAssertEqual(preferences.choice(for: workID), pin)
 
-        defaults.removePersistentDomain(forName: "SourceLifecycleRegistryTests.pins")
     }
 
     @MainActor
@@ -303,8 +301,7 @@ final class SourceLifecycleRegistryTests: XCTestCase {
         try registry.register(try declaration(qualifiedId: idFromRepoA, localId: "site-1"))
         try registry.register(try declaration(qualifiedId: idFromRepoB, localId: "site-1"))
 
-        let defaults = UserDefaults(suiteName: "SourceLifecycleRegistryTests.pins2")!
-        defaults.removePersistentDomain(forName: "SourceLifecycleRegistryTests.pins2")
+        let defaults = makeTestDefaults("SourceLifecycleRegistryTests.pins2")
         let preferences = SourcePreferenceStore(defaults: defaults)
         let workID = WorkID()
         let pinToRepoA = ListingKey(sourceId: idFromRepoA.rawValue, mangaId: "manga-1")
@@ -316,7 +313,6 @@ final class SourceLifecycleRegistryTests: XCTestCase {
         XCTAssertEqual(preferences.choice(for: workID), pinToRepoA,
                        "repo B's lifecycle activity must never affect a pin naming repo A's qualifiedId")
 
-        defaults.removePersistentDomain(forName: "SourceLifecycleRegistryTests.pins2")
     }
 
     // MARK: - Preservation of bounded Source storage (S5 seam, faked here)

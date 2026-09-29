@@ -278,8 +278,7 @@ final class TagPairSeedingDiagnostic: XCTestCase {
         // UserDefaults, not Application Support. So the prefs plist is loaded into a
         // throwaway suite and the profile is rebuilt exactly as a rail build would.
         let prefs = try Self.preferences(in: base)
-        let defaults = UserDefaults(suiteName: "TagPairSeedingDiagnostic")!
-        defaults.removePersistentDomain(forName: "TagPairSeedingDiagnostic")
+        let defaults = makeTestDefaults("TagPairSeedingDiagnostic")
         for (key, value) in prefs { defaults.set(value, forKey: key) }
 
         let history = HistoryStore(defaults: defaults)

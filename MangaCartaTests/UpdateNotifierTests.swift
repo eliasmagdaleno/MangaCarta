@@ -9,6 +9,7 @@ struct UpdateNotifierTests {
     @Test("Denied authorization schedules nothing while update state remains advanced")
     func deniedSchedulesNothing() async {
         let fixture = Fixture(status: .denied)
+        defer { fixture.suite.remove() }
         let workId = fixture.mint("Dandadan")
         fixture.discover(workId)
 
@@ -24,6 +25,7 @@ struct UpdateNotifierTests {
         let safe = NoticeSource(id: "safe", isNSFW: false)
         let adult = NoticeSource(id: "adult", isNSFW: true)
         let fixture = Fixture(sources: [safe, adult])
+        defer { fixture.suite.remove() }
         let workId = fixture.mint("Public title", source: "safe", malId: 10)
         _ = fixture.mint("Private title", source: "adult", malId: 10)
 
@@ -39,6 +41,7 @@ struct UpdateNotifierTests {
     func mixedSourceHidesCopyWhenAdultContentIsOff() async throws {
         let mixed = NoticeSource(id: "mixed", isNSFW: false, declaresAdultTitles: true)
         let fixture = Fixture(sources: [mixed])
+        defer { fixture.suite.remove() }
         let workId = fixture.mint("Mixed title", source: "mixed")
 
         await fixture.notifier.schedule([fixture.event(workId, count: 1)])
@@ -61,6 +64,7 @@ struct UpdateNotifierTests {
     @Test("Muted Works are folded but never scheduled")
     func mutedWorkIsSkipped() async {
         let fixture = Fixture()
+        defer { fixture.suite.remove() }
         let workId = fixture.mint("Muted")
         fixture.updates.setMuted(true, workId: workId)
 
@@ -73,6 +77,7 @@ struct UpdateNotifierTests {
     @Test("The global notification toggle suppresses delivery")
     func globalToggleSuppressesDelivery() async {
         let fixture = Fixture()
+        defer { fixture.suite.remove() }
         let workId = fixture.mint("Globally muted")
         fixture.defaults.set(false, forKey: UpdateNotifier.notificationsEnabledKey)
 
@@ -85,6 +90,7 @@ struct UpdateNotifierTests {
     @Test("Repeated events reuse one stable Work identifier and notification group")
     func repeatedEventReusesIdentifier() async {
         let fixture = Fixture()
+        defer { fixture.suite.remove() }
         let workId = fixture.mint("Repeat")
 
         await fixture.notifier.schedule([fixture.event(workId, count: 1)])
@@ -102,6 +108,7 @@ struct UpdateNotifierTests {
     @Test("Forgetting update state cancels its pending notification")
     func forgettingCancelsPendingRequest() {
         let fixture = Fixture()
+        defer { fixture.suite.remove() }
         let workId = fixture.mint("Forgotten")
         fixture.discover(workId)
 
@@ -115,6 +122,7 @@ struct UpdateNotifierTests {
     @Test("Authorization is requested once and only after a Library save")
     func contextualAuthorizationIsOneShot() async {
         let fixture = Fixture(status: .notDetermined)
+        defer { fixture.suite.remove() }
 
         await fixture.notifier.requestAuthorizationIfNeeded()
         #expect(fixture.notifications.authorizationRequests == 0)
@@ -131,6 +139,7 @@ struct UpdateNotifierTests {
     func responseRoutesToResolvedWork() {
         var opened: WorkID?
         let fixture = Fixture(openWork: { opened = $0 })
+        defer { fixture.suite.remove() }
         let winner = fixture.mint("Winner")
         let loser = fixture.mint("Loser", source: "other")
         fixture.works.merge(loser, into: winner)
@@ -151,6 +160,7 @@ struct UpdateNotifierTests {
 @MainActor
 private final class Fixture {
     let notifications: FakeNotificationCenter
+    let suite: TestDefaults
     let defaults: UserDefaults
     let works: WorkStore
     let updates: UpdateStateStore
@@ -162,19 +172,15 @@ private final class Fixture {
          openWork: @escaping (WorkID) -> Void = { _ in }) {
         let directory = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("UpdateNotifierTests-\(UUID().uuidString)")
-        guard let isolatedDefaults = UserDefaults(
-            suiteName: "UpdateNotifierTests-\(UUID().uuidString)"
-        ) else {
-            fatalError("Unable to create isolated defaults")
-        }
-        defaults = isolatedDefaults
+        suite = TestDefaults("UpdateNotifierTests")
+        defaults = suite.defaults
         notifications = FakeNotificationCenter(status: status)
         works = WorkStore(directory: directory)
         updates = UpdateStateStore(directory: directory, works: works)
-        library = LibraryStore(defaults: isolatedDefaults, works: works)
+        library = LibraryStore(defaults: defaults, works: works)
         notifier = UpdateNotifier(notifications: notifications, updates: updates, works: works,
                                   library: library, registry: SourceRegistry(sources: sources),
-                                  defaults: isolatedDefaults, openWork: openWork)
+                                  defaults: defaults, openWork: openWork)
     }
 
     func mint(_ title: String, source: String = MangaDexSource.sourceID, malId: Int? = nil) -> WorkID {

@@ -9,9 +9,7 @@ final class RepositorySettingsViewModelTests: XCTestCase {
     override func setUp() {
         directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("RepositorySettingsViewModelTests-\(UUID().uuidString)", isDirectory: true)
-        let suite = "RepositorySettingsViewModelTests.\(UUID().uuidString)"
-        defaults = UserDefaults(suiteName: suite)!
-        defaults.removePersistentDomain(forName: suite)
+        defaults = makeTestDefaults("RepositorySettingsViewModelTests")
     }
 
     override func tearDown() {

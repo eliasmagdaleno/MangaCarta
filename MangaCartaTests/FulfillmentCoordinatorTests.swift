@@ -55,7 +55,7 @@ final class FulfillmentCoordinatorTests: XCTestCase {
         let coordinator = FulfillmentCoordinator(
             works: works, registry: registry, counts: counts,
             preferences: SourcePreferenceStore(
-                defaults: UserDefaults(suiteName: UUID().uuidString)!))
+                defaults: makeTestDefaults("FulfillmentCoordinatorTests")))
 
         XCTAssertEqual(coordinator.candidates(for: workID).map(\.key.sourceId),
                        ["weebcentral", "mangadex"])
@@ -89,7 +89,7 @@ final class FulfillmentCoordinatorTests: XCTestCase {
                      registry: registry,
                      counts: ListingCountCache(directory: directory),
                      preferences: SourcePreferenceStore(
-                        defaults: UserDefaults(suiteName: UUID().uuidString)!),
+                        defaults: makeTestDefaults("FulfillmentCoordinatorTests")),
                      workID: workWithBothListings(works))
     }
 
@@ -159,7 +159,7 @@ final class FulfillmentCoordinatorTests: XCTestCase {
         let coordinator = FulfillmentCoordinator(
             works: works, registry: registry, counts: counts,
             preferences: SourcePreferenceStore(
-                defaults: UserDefaults(suiteName: UUID().uuidString)!))
+                defaults: makeTestDefaults("FulfillmentCoordinatorTests")))
 
         await coordinator.reconcile(workID)
 
@@ -184,7 +184,7 @@ final class FulfillmentCoordinatorTests: XCTestCase {
         let coordinator = FulfillmentCoordinator(
             works: works, registry: registry, counts: counts,
             preferences: SourcePreferenceStore(
-                defaults: UserDefaults(suiteName: UUID().uuidString)!))
+                defaults: makeTestDefaults("FulfillmentCoordinatorTests")))
         await coordinator.reconcile(workID)
 
         let askedMangaDex = await mangadex.asked.ids
@@ -207,7 +207,7 @@ final class FulfillmentCoordinatorTests: XCTestCase {
         let coordinator = FulfillmentCoordinator(
             works: works, registry: registry, counts: counts,
             preferences: SourcePreferenceStore(
-                defaults: UserDefaults(suiteName: UUID().uuidString)!))
+                defaults: makeTestDefaults("FulfillmentCoordinatorTests")))
 
         await coordinator.reconcile(workID)
 

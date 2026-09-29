@@ -13,15 +13,12 @@ import XCTest
 final class SourcePreferenceStoreTests: XCTestCase {
 
     private var defaults: UserDefaults!
-    private var suiteName: String!
 
     override func setUp() async throws {
-        suiteName = UUID().uuidString
-        defaults = UserDefaults(suiteName: suiteName)
+        defaults = makeTestDefaults("SourcePreferenceStoreTests")
     }
 
     override func tearDown() async throws {
-        defaults.removePersistentDomain(forName: suiteName)
     }
 
     private let workID = WorkID()

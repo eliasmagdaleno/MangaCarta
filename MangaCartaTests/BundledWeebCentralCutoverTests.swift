@@ -18,7 +18,6 @@ import XCTest
 final class BundledWeebCentralRetirementTests: XCTestCase {
     private var directory: URL!
     private var defaults: UserDefaults!
-    private var suite: String!
 
     private let repositoryID = BundledRepositories.weebCentralRepositoryID
     private var qualifiedID: QualifiedSourceID {
@@ -30,12 +29,10 @@ final class BundledWeebCentralRetirementTests: XCTestCase {
         directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("BundledWeebCentralRetirementTests-\(UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        suite = "BundledWeebCentralRetirementTests-\(UUID().uuidString)"
-        defaults = UserDefaults(suiteName: suite)
+        defaults = makeTestDefaults("BundledWeebCentralRetirementTests")
     }
 
     override func tearDown() {
-        defaults.removePersistentDomain(forName: suite)
         try? FileManager.default.removeItem(at: directory)
         super.tearDown()
     }
@@ -107,7 +104,6 @@ final class BundledWeebCentralRetirementTests: XCTestCase {
 final class WeebCentralIdentityMigrationTests: XCTestCase {
     private var directory: URL!
     private var defaults: UserDefaults!
-    private var suite: String!
     private let legacy = WeebCentralIdentityMigration.legacyID
     private let qualified = WeebCentralIdentityMigration.qualifiedID
 
@@ -116,12 +112,10 @@ final class WeebCentralIdentityMigrationTests: XCTestCase {
         directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("WeebCentralIdentityMigrationTests-\(UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        suite = "WeebCentralIdentityMigrationTests-\(UUID().uuidString)"
-        defaults = UserDefaults(suiteName: suite)
+        defaults = makeTestDefaults("WeebCentralIdentityMigrationTests")
     }
 
     override func tearDown() {
-        defaults.removePersistentDomain(forName: suite)
         try? FileManager.default.removeItem(at: directory)
         super.tearDown()
     }
@@ -228,7 +222,6 @@ final class WeebCentralIdentityMigrationTests: XCTestCase {
 final class InstalledSourceIDMigrationTests: XCTestCase {
     private var directory: URL!
     private var defaults: UserDefaults!
-    private var suite: String!
     private let repositoryID = UUID()
     private let localID = "mangadex"
     private var targetID: String {
@@ -240,12 +233,10 @@ final class InstalledSourceIDMigrationTests: XCTestCase {
         directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("InstalledSourceIDMigrationTests-\(UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        suite = "InstalledSourceIDMigrationTests-\(UUID().uuidString)"
-        defaults = UserDefaults(suiteName: suite)
+        defaults = makeTestDefaults("InstalledSourceIDMigrationTests")
     }
 
     override func tearDown() {
-        defaults.removePersistentDomain(forName: suite)
         try? FileManager.default.removeItem(at: directory)
         super.tearDown()
     }
