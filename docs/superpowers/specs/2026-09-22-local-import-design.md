@@ -382,3 +382,63 @@ MangaCarta worked throughout.
     - Share → MangaCarta still delivers a copy, and that copy is still cleaned up.
     - Not yet checked: a not-yet-downloaded iCloud file opened in place (may need a coordinated
       read), and a device with another app that also claims `.cbz` at `Owner`.
+
+## Decisions (2026-09-29, slice 6 — Series grouping)
+
+The owner took the recommendation on all three questions:
+
+15. **A series' identity is its normalised `Series` name, from the first file.** Any file whose
+    ComicInfo has a non-empty `Series` belongs to the series Work `series-<32 hex>`, even when it
+    is the only member so far. When a second volume arrives it just joins; nothing is converted
+    at that moment. Items imported before slice 6 that already have a `Series` are moved into
+    their series once, at launch.
+16. **Chapter numbers inside a series are stable, not positional.** Read marks and unread counts
+    key on `(mangaId, chapterNumber)`, so a number must not change when an earlier volume arrives
+    later. Numbers come from ComicInfo `Number`, else `Volume`, else the filename (rules below).
+    On-screen order still follows `Volume`, then `Number`, then natural filename sort.
+17. **"Delete from Device" on a series deletes the whole series.** Per-volume delete is later work.
+
+Defaults taken with them: the series' cover, summary, writers and genres come from its
+lowest-`Volume` member (ties: the earliest in the order above). `LanguageISO` is ignored per
+decision 7, so an English and a Japanese edition with the same `Series` merge. A file with several
+chapter folders contributes its chapters, in folder order, at that file's position.
+
+### Slice 6 design
+
+**Identity.**
+- `normalizedSeries(s)` = NFC-normalised `s`, lowercased, runs of whitespace collapsed to one space,
+  then trimmed. An empty result means "no series".
+- `seriesId` = `"series-"` + the first 32 hex characters of SHA-256(`normalizedSeries`).
+- File items keep their `itemId` (the file's SHA-256 prefix) and their directory. A series has no
+  directory and no index file: its members are the records whose `comicInfo.series` normalises to
+  it, so there is nothing to keep in sync.
+
+**Chapter ids and numbers.**
+- A member's chapter id stays `<fileItemId>/<n>`. It is exactly today's format, so
+  `LocalSource.pageURLs(chapterId:)` is unchanged, and a pre-slice-6 item's read positions keep
+  their chapter ids when it moves into a series.
+- The chapter **number** (`Chapter.number`, the key of read marks and unread counts) for a member
+  file:
+  1. base = the file's `Number` if it parses as a decimal, else its `Volume` if it parses, else the
+     first run of digits in `sourceFilename`, else the file's 1-based position in the series order
+     (the one unstable case, used only when a file carries no number at all);
+  2. a file with one chapter gets `base`; a file with k > 1 folder chapters gets `base.1`…`base.k`;
+  3. if two chapters in a series still get the same number, those after the first in series order
+     get `.1`, `.2`… appended until unique.
+  Every number is therefore decimal-parseable. `ReaderViewModel` orders neighbours by
+  `Double(number)`, so the reader's next and previous chapters follow the numbers.
+- A standalone file (no `Series`) is unchanged: `mangaId` = `itemId` and numbers `1…n`.
+
+**Reading-state migration at launch (one-shot, idempotent).** For each `local` Library item whose
+record has a `Series`: move the Library item to `seriesId` (merging collections if the series item
+exists), move its Listing (`(local, fileItemId)` → `(local, seriesId)`, keeping the Work), and
+rewrite history entries and read marks with `mangaId == fileItemId` to `seriesId`, mapping each
+old chapter number to the new one by chapter id. Chapter ids do not change. It runs before the
+Library is shown, and a second run finds nothing to do.
+
+**Deletion.** Deleting `series-…` deletes every member's directory, the Library item and the
+Listing. History is kept, as for a single file, so re-importing the same files (same `itemId`s,
+same `seriesId`, same numbers) restores read state.
+
+**Out of scope for slice 6:** per-volume delete, a manual merge or split, filename-based grouping,
+and matching local series against MAL, AniList or MangaDex.
