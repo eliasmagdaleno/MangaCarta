@@ -702,9 +702,7 @@ final class InstalledSourceRegistrationTests: XCTestCase {
     /// Sources into the registry it owns — the one views take from the environment.
     func testAppCompositionRestoresInstalledSourcesIntoItsRegistry() async throws {
         let id = try await installWeebCentral()
-        let suite = "InstalledSourceRegistrationTests.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let defaults = makeTestDefaults("InstalledSourceRegistrationTests")
 
         let composition = AppComposition(defaults: defaults, directory: directory,
                                          registry: SourceRegistry(sources: [BuiltInStubSource(
@@ -748,9 +746,7 @@ final class InstalledSourceRegistrationTests: XCTestCase {
         let id = try await installWeebCentral()
         let works = WorkStore(directory: directory)
         let counts = ListingCountCache(directory: directory)
-        let suite = "InstalledSourceRegistrationTests.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let defaults = makeTestDefaults("InstalledSourceRegistrationTests")
         let preferences = SourcePreferenceStore(defaults: defaults)
         let fulfillment = FulfillmentCoordinator(works: works, registry: registry,
                                                  counts: counts, preferences: preferences)
@@ -792,9 +788,7 @@ final class InstalledSourceRegistrationTests: XCTestCase {
         let id = try await installWeebCentral()
         let works = WorkStore(directory: directory)
         let counts = ListingCountCache(directory: directory)
-        let suite = "InstalledSourceRegistrationTests.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let defaults = makeTestDefaults("InstalledSourceRegistrationTests")
         let fulfillment = FulfillmentCoordinator(works: works, registry: registry, counts: counts,
                                                  preferences: SourcePreferenceStore(defaults: defaults))
         let manga = Manga(id: PortFixtures.weebSeriesID, sourceId: id.rawValue, title: "Berserk",

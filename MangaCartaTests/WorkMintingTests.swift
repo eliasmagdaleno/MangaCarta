@@ -25,7 +25,7 @@ final class WorkMintingTests: XCTestCase {
     }
 
     private func makeDefaults() -> UserDefaults {
-        UserDefaults(suiteName: "test.minting.\(UUID().uuidString)")!
+        makeTestDefaults("test.minting")
     }
 
     /// A Listing. `Manga` *is* a Listing despite the name (ADR-0001).

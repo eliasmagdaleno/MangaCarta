@@ -82,10 +82,7 @@ final class SimulatorSeedTests: XCTestCase {
     /// An isolated defaults suite, so seeding never touches the test runner's own
     /// `standard` defaults and each test starts empty.
     private func makeDefaults() -> UserDefaults {
-        let name = "seed-tests-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: name)!
-        addTeardownBlock { UserDefaults().removePersistentDomain(forName: name) }
-        return defaults
+        return makeTestDefaults("SimulatorSeedTests")
     }
 
     /// The history and library halves must be written **by the real stores**, for the
@@ -164,9 +161,10 @@ final class SimulatorSeedTests: XCTestCase {
     @MainActor
     func testSeededDefaultsKeysAreExactlyWhatTheSeedWrites() throws {
         let (works, _) = makeStore()
-        let name = "seed-keys-\(UUID().uuidString)"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: name))
-        addTeardownBlock { UserDefaults().removePersistentDomain(forName: name) }
+        let suite = TestDefaults("SimulatorSeedTests.keys")
+        defer { suite.remove() }
+        let name = suite.suiteName
+        let defaults = suite.defaults
         SimulatorSeed.apply(SimulatorSeed.sampleRows, to: works,
                             history: HistoryStore(defaults: defaults, works: works,
                                                   saveInterval: 0),
@@ -245,9 +243,9 @@ final class SimulatorSeedTests: XCTestCase {
     @MainActor
     func testSeedClearsInheritedResolutionCaches() throws {
         let (works, _) = makeStore()
-        let name = "seed-clear-\(UUID().uuidString)"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: name))
-        addTeardownBlock { UserDefaults().removePersistentDomain(forName: name) }
+        let suite = TestDefaults("SimulatorSeedTests.clear")
+        defer { suite.remove() }
+        let defaults = suite.defaults
         for key in SimulatorSeed.clearedDefaultsKeys {
             defaults.set(Data("stale".utf8), forKey: key)
         }

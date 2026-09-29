@@ -134,11 +134,10 @@ fi
 CONTAINER=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data)
 SUPPORT="$CONTAINER/Library/Application Support"
 
-# Each unit test that needs an isolated defaults suite leaves an emptied plist behind in
-# the container. Harmless, but the fixture should not ship the test runner's litter.
-rm -f "$CONTAINER"/Library/Preferences/seed-tests-*.plist \
-      "$CONTAINER"/Library/Preferences/seed-keys-*.plist \
-      "$CONTAINER"/Library/Preferences/seed-run-*.plist 2>/dev/null || true
+# Unit tests remove their defaults suites, but cfprefsd can write an emptied plist back
+# afterwards (see MangaCartaTests/TestDefaults.swift). Harmless, but the fixture should not
+# ship the test runner's litter.
+rm -f "$CONTAINER"/Library/Preferences/MangaCartaTests.*.plist 2>/dev/null || true
 
 echo
 echo "done. container: $CONTAINER"

@@ -28,19 +28,16 @@ import XCTest
 final class AppCompositionTests: XCTestCase {
     private var directory: URL!
     private var defaults: UserDefaults!
-    private var suiteName: String!
 
     override func setUp() {
         super.setUp()
         directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("AppCompositionTests-\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        suiteName = "AppCompositionTests-\(UUID().uuidString)"
-        defaults = UserDefaults(suiteName: suiteName)
+        defaults = makeTestDefaults("AppCompositionTests")
     }
 
     override func tearDown() {
-        UserDefaults.standard.removeSuite(named: suiteName)
         try? FileManager.default.removeItem(at: directory)
         super.tearDown()
     }

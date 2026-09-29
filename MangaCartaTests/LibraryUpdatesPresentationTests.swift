@@ -30,6 +30,7 @@ struct LibraryUpdatesPresentationTests {
     @Test("New discovery state and unread state remain independent")
     func discoveryAndUnreadDiverge() throws {
         let fixture = try Fixture()
+        defer { fixture.suite.remove() }
         let manga = fixture.save("m1", title: "Alpha")
         let id = try #require(fixture.works.workId(for: ListingKey(manga)))
         _ = fixture.updates.absorb(workId: id, listing: ListingKey(manga),
@@ -50,6 +51,7 @@ struct LibraryUpdatesPresentationTests {
     @Test("Summaries sort by newest discovery and then title")
     func sorting() throws {
         let fixture = try Fixture()
+        defer { fixture.suite.remove() }
         let beta = fixture.save("b", title: "Beta")
         let alpha = fixture.save("a", title: "Alpha")
         for manga in [beta, alpha] {
@@ -66,6 +68,7 @@ struct LibraryUpdatesPresentationTests {
     @Test("Home shows five summaries and preserves the full count")
     func homeLimit() throws {
         let fixture = try Fixture()
+        defer { fixture.suite.remove() }
         for index in 0..<7 { _ = fixture.save("m\(index)", title: "Title \(index)") }
         let all = fixture.summaries(now: now)
         #expect(all.count == 7)
@@ -82,6 +85,7 @@ struct LibraryUpdatesPresentationTests {
         defer { UserDefaults.standard.set(saved, forKey: "source.activeID") }
         let registry = SourceRegistry(sources: [first, second])
         let fixture = try Fixture(registry: registry)
+        defer { fixture.suite.remove() }
         _ = fixture.save("m1", title: "Alpha", sourceId: first.id)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
@@ -150,6 +154,7 @@ struct LibraryUpdatesPresentationTests {
 @MainActor
 private final class Fixture {
     let directory: URL
+    let suite: TestDefaults
     let defaults: UserDefaults
     let works: WorkStore
     let library: LibraryStore
@@ -162,10 +167,8 @@ private final class Fixture {
             ?? SourceRegistry(sources: [StubSource(id: "mangadex", name: "MangaDex")])
         directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        guard let isolatedDefaults = UserDefaults(suiteName: UUID().uuidString) else {
-            fatalError("Unable to create isolated defaults")
-        }
-        defaults = isolatedDefaults
+        suite = TestDefaults("LibraryUpdatesPresentationTests")
+        defaults = suite.defaults
         works = WorkStore(directory: directory)
         library = LibraryStore(defaults: defaults, works: works, registry: sourceRegistry)
         history = HistoryStore(defaults: defaults, works: works)

@@ -16,7 +16,7 @@ final class MALReadingProgressTests: XCTestCase {
     }
 
     private func makeDefaults() -> UserDefaults {
-        UserDefaults(suiteName: "test.mal-progress.\(UUID().uuidString)")!
+        makeTestDefaults("test.mal-progress")
     }
 
     private func manga() -> Manga {

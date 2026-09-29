@@ -14,19 +14,16 @@ import XCTest
 final class LiveUITestRepositoryInstallTests: XCTestCase {
     private var directory: URL!
     private var defaults: UserDefaults!
-    private var suite: String!
     private let url = URL(string: "https://fixture.invalid/index.json")!
 
     override func setUp() {
         super.setUp()
         directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("LiveUITestRepositoryInstallTests-\(UUID().uuidString)", isDirectory: true)
-        suite = "LiveUITestRepositoryInstallTests-\(UUID().uuidString)"
-        defaults = UserDefaults(suiteName: suite)
+        defaults = makeTestDefaults("LiveUITestRepositoryInstallTests")
     }
 
     override func tearDown() {
-        defaults.removePersistentDomain(forName: suite)
         try? FileManager.default.removeItem(at: directory)
         super.tearDown()
     }

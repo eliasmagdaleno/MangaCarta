@@ -81,7 +81,7 @@ final class MetadataUpgradeQueueTests: XCTestCase {
     }
 
     private func isolatedDefaults() -> UserDefaults {
-        UserDefaults(suiteName: "MetadataUpgradeQueueTests-\(UUID().uuidString)")!
+        makeTestDefaults("MetadataUpgradeQueueTests")
     }
 
     /// A search that echoes the query back as its one candidate — an exact match, with

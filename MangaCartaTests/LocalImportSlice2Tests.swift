@@ -76,9 +76,10 @@ private func writeSeriesArchive(in root: URL, name: String, series: String?, vol
 }
 
 @MainActor
-private func localImporter(root: URL, store: LocalLibraryStore) -> (LocalImportViewModel, LibraryStore, WorkStore) {
+private func localImporter(root: URL, store: LocalLibraryStore,
+                           suite: TestDefaults) -> (LocalImportViewModel, LibraryStore, WorkStore) {
     let works = WorkStore(directory: root.appendingPathComponent("works"))
-    let defaults = UserDefaults(suiteName: "local-import-slice6-\(UUID().uuidString)")!
+    let defaults = suite.defaults
     let registry = SourceRegistry(sources: [LocalSource(store: store)])
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let importer = LocalImportViewModel()
@@ -93,7 +94,9 @@ private func localImporter(root: URL, store: LocalLibraryStore) -> (LocalImportV
     let v3 = try writeSeriesArchive(in: fixture.root, name: "v3.cbz", series: "SAGA", volume: "3", number: "3")
     let standalone = try writeSeriesArchive(in: fixture.root, name: "standalone.cbz", series: nil)
     let store = LocalLibraryStore(root: fixture.root.appendingPathComponent("library"))
-    let (importer, library, works) = localImporter(root: fixture.root, store: store)
+    let suite = TestDefaults("local-import-slice6")
+    defer { suite.remove() }
+    let (importer, library, works) = localImporter(root: fixture.root, store: store, suite: suite)
 
     await importer.importFilesAndWait([v1, v2])
     await importer.importFilesAndWait([v3, standalone])
@@ -136,14 +139,18 @@ private func localImporter(root: URL, store: LocalLibraryStore) -> (LocalImportV
     let fixture = try LocalFixture(); defer { fixture.cleanup() }
     let archive = try writeSeriesArchive(in: fixture.root, name: "read.cbz", series: "Read Me", volume: "1", number: "1")
     let store = LocalLibraryStore(root: fixture.root.appendingPathComponent("library"))
-    let (importer, library, works) = localImporter(root: fixture.root, store: store)
+    let suite = TestDefaults("local-import-slice6")
+    defer { suite.remove() }
+    let (importer, library, works) = localImporter(root: fixture.root, store: store, suite: suite)
     await importer.importFilesAndWait([archive])
     let seriesID = LocalSeriesIdentity.seriesID(for: "read me")
     let source = LocalSource(store: store)
     let listing = Manga(id: seriesID, sourceId: LocalSource.sourceID, title: "Read Me", description: "",
                         status: "completed", year: nil, coverURL: nil, malId: nil)
     let chapter = try #require(try await source.chapters(mangaId: seriesID).first)
-    let defaults = UserDefaults(suiteName: "local-import-read-\(UUID().uuidString)")!
+    let readSuite = TestDefaults("local-import-read")
+    defer { readSuite.remove() }
+    let defaults = readSuite.defaults
     let history = HistoryStore(defaults: defaults, works: works)
     history.markRead(manga: listing, chapter: chapter)
     try await LocalLibraryDeletion(local: store, library: library, works: works).delete(itemId: seriesID)
@@ -158,7 +165,9 @@ private func localImporter(root: URL, store: LocalLibraryStore) -> (LocalImportV
     let fixture = try LocalFixture(); defer { fixture.cleanup() }
     let libraryRoot = fixture.root.appendingPathComponent("library")
     let store = LocalLibraryStore(root: libraryRoot)
-    let (importer, library, works) = localImporter(root: fixture.root, store: store)
+    let suite = TestDefaults("local-import-slice6")
+    defer { suite.remove() }
+    let (importer, library, works) = localImporter(root: fixture.root, store: store, suite: suite)
     let v1 = try writeSeriesArchive(in: fixture.root, name: "d1.cbz", series: "Gone", volume: "1")
     let v2 = try writeSeriesArchive(in: fixture.root, name: "d2.cbz", series: "Gone", volume: "2")
     let other = try writeSeriesArchive(in: fixture.root, name: "keep.cbz", series: nil)
@@ -195,7 +204,9 @@ private func localImporter(root: URL, store: LocalLibraryStore) -> (LocalImportV
         return
     }
     let works = WorkStore(directory: fixture.root.appendingPathComponent("works"))
-    let defaults = UserDefaults(suiteName: "local-import-migration-\(UUID().uuidString)")!
+    let suite = TestDefaults("local-import-migration")
+    defer { suite.remove() }
+    let defaults = suite.defaults
     let registry = SourceRegistry(sources: [LocalSource(store: store)])
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let history = HistoryStore(defaults: defaults, works: works)
@@ -285,7 +296,9 @@ private func localImporter(root: URL, store: LocalLibraryStore) -> (LocalImportV
     let fixture = try LocalFixture(); defer { fixture.cleanup() }
     let store = LocalLibraryStore(root: fixture.root.appendingPathComponent("library"))
     let works = WorkStore(directory: fixture.root.appendingPathComponent("works"))
-    let defaults = UserDefaults(suiteName: "local-import-work-\(UUID().uuidString)")!
+    let suite = TestDefaults("local-import-work")
+    defer { suite.remove() }
+    let defaults = suite.defaults
     let registry = SourceRegistry(sources: [LocalSource(store: store)])
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let importer = LocalImportViewModel()
@@ -313,7 +326,9 @@ private func localImporter(root: URL, store: LocalLibraryStore) -> (LocalImportV
     try Data("not a PDF".utf8).write(to: pdf)
     let store = LocalLibraryStore(root: fixture.root.appendingPathComponent("library"))
     let works = WorkStore(directory: fixture.root.appendingPathComponent("works"))
-    let defaults = UserDefaults(suiteName: "local-import-pdf-error-\(UUID().uuidString)")!
+    let suite = TestDefaults("local-import-pdf-error")
+    defer { suite.remove() }
+    let defaults = suite.defaults
     let registry = SourceRegistry(sources: [LocalSource(store: store)])
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let importer = LocalImportViewModel()
@@ -328,7 +343,9 @@ private func localImporter(root: URL, store: LocalLibraryStore) -> (LocalImportV
     let fixture = try LocalFixture(); defer { fixture.cleanup() }
     let store = LocalLibraryStore(root: fixture.root.appendingPathComponent("library"))
     let works = WorkStore(directory: fixture.root.appendingPathComponent("works"))
-    let defaults = UserDefaults(suiteName: "local-import-pdf-cancel-\(UUID().uuidString)")!
+    let suite = TestDefaults("local-import-pdf-cancel")
+    defer { suite.remove() }
+    let defaults = suite.defaults
     let registry = SourceRegistry(sources: [LocalSource(store: store)])
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let importer = LocalImportViewModel()
@@ -345,7 +362,9 @@ private func localImporter(root: URL, store: LocalLibraryStore) -> (LocalImportV
     let fixture = try LocalFixture(); defer { fixture.cleanup() }
     let store = LocalLibraryStore(root: fixture.root.appendingPathComponent("library"))
     let works = WorkStore(directory: fixture.root.appendingPathComponent("works"))
-    let defaults = UserDefaults(suiteName: "local-import-cleanup-\(UUID().uuidString)")!
+    let suite = TestDefaults("local-import-cleanup")
+    defer { suite.remove() }
+    let defaults = suite.defaults
     let registry = SourceRegistry(sources: [LocalSource(store: store)])
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let importer = LocalImportViewModel(containerRoot: fixture.root)
@@ -367,7 +386,9 @@ private func localImporter(root: URL, store: LocalLibraryStore) -> (LocalImportV
     let container = fixture.root.appendingPathComponent("container")
     let store = LocalLibraryStore(root: container.appendingPathComponent("library"))
     let works = WorkStore(directory: container.appendingPathComponent("works"))
-    let defaults = UserDefaults(suiteName: "local-import-in-place-\(UUID().uuidString)")!
+    let suite = TestDefaults("local-import-in-place")
+    defer { suite.remove() }
+    let defaults = suite.defaults
     let registry = SourceRegistry(sources: [LocalSource(store: store)])
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let importer = LocalImportViewModel(containerRoot: container)
@@ -399,7 +420,9 @@ private func localImporter(root: URL, store: LocalLibraryStore) -> (LocalImportV
     try LocalTestZip.write([("001.png", LocalTestZip.png)], to: second)
     let store = LocalLibraryStore(root: fixture.root.appendingPathComponent("library"))
     let works = WorkStore(directory: fixture.root.appendingPathComponent("works"))
-    let defaults = UserDefaults(suiteName: "local-import-queue-\(UUID().uuidString)")!
+    let suite = TestDefaults("local-import-queue")
+    defer { suite.remove() }
+    let defaults = suite.defaults
     let registry = SourceRegistry(sources: [LocalSource(store: store)])
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let importer = LocalImportViewModel()
@@ -416,7 +439,9 @@ private func localImporter(root: URL, store: LocalLibraryStore) -> (LocalImportV
     try LocalTestZip.write([("001.png", LocalTestZip.png)], to: second)
     let store = LocalLibraryStore(root: fixture.root.appendingPathComponent("library"))
     let works = WorkStore(directory: fixture.root.appendingPathComponent("works"))
-    let defaults = UserDefaults(suiteName: "local-import-cancel-queue-\(UUID().uuidString)")!
+    let suite = TestDefaults("local-import-cancel-queue")
+    defer { suite.remove() }
+    let defaults = suite.defaults
     let registry = SourceRegistry(sources: [LocalSource(store: store)])
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let importer = LocalImportViewModel(containerRoot: fixture.root)
@@ -437,7 +462,9 @@ private func localImporter(root: URL, store: LocalLibraryStore) -> (LocalImportV
     try LocalTestZip.write([("001.png", LocalTestZip.png)], to: second)
     let store = LocalLibraryStore(root: fixture.root.appendingPathComponent("library"))
     let works = WorkStore(directory: fixture.root.appendingPathComponent("works"))
-    let defaults = UserDefaults(suiteName: "local-import-post-cancel-\(UUID().uuidString)")!
+    let suite = TestDefaults("local-import-post-cancel")
+    defer { suite.remove() }
+    let defaults = suite.defaults
     let registry = SourceRegistry(sources: [LocalSource(store: store)])
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let importer = LocalImportViewModel(containerRoot: fixture.root)

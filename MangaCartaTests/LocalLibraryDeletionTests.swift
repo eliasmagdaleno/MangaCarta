@@ -28,7 +28,9 @@ struct LocalLibraryDeletionTests {
             Issue.record("import failed")
             return
         }
-        let defaults = UserDefaults(suiteName: "LocalLibraryDeletionTests-\(UUID().uuidString)")!
+        let suite = TestDefaults("LocalLibraryDeletionTests")
+        defer { suite.remove() }
+        let defaults = suite.defaults
         let works = WorkStore(directory: root.appendingPathComponent("works"))
         let library = LibraryStore(defaults: defaults, works: works)
         let manga = Manga(id: record.itemId, sourceId: "local", title: record.title, description: "",
@@ -59,7 +61,9 @@ struct LocalLibraryDeletionTests {
             Issue.record("import failed")
             return
         }
-        let defaults = UserDefaults(suiteName: "LocalLibraryDeletionTests-\(UUID().uuidString)")!
+        let suite = TestDefaults("LocalLibraryDeletionTests")
+        defer { suite.remove() }
+        let defaults = suite.defaults
         let works = WorkStore(directory: root.appendingPathComponent("works"))
         let library = LibraryStore(defaults: defaults, works: works)
         let manga = Manga(id: record.itemId, sourceId: "local", title: record.title, description: "",

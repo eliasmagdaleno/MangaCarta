@@ -20,7 +20,7 @@ import XCTest
 final class MALReverseResolverTests: XCTestCase {
 
     func testNoRegisteredExternalIdSourceDegradesToEmpty() async {
-        let defaults = UserDefaults(suiteName: "test.reverse.unavailable.\(UUID().uuidString)")!
+        let defaults = makeTestDefaults("test.reverse.unavailable")
         var registered: MangaSource?
         let resolver = MALReverseResolver(
             store: EntityResolutionStore(defaults: defaults),
@@ -38,7 +38,7 @@ final class MALReverseResolverTests: XCTestCase {
 
     private func store() -> EntityResolutionStore {
         EntityResolutionStore(
-            defaults: UserDefaults(suiteName: "test.reverse.\(UUID().uuidString)")!)
+            defaults: makeTestDefaults("test.reverse"))
     }
 
     // MARK: - Cache-write discipline

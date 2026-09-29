@@ -50,7 +50,7 @@ final class MangaCartaTests: XCTestCase {
 
     @MainActor
     private func makeHistoryStore() -> HistoryStore {
-        let suite = UserDefaults(suiteName: "test.history.\(UUID().uuidString)")!
+        let suite = makeTestDefaults("test.history")
         return HistoryStore(defaults: suite)
     }
 
@@ -386,7 +386,7 @@ final class MangaCartaTests: XCTestCase {
     }
 
     @MainActor func testReadMarksPersistAcrossReload() throws {
-        let suite = UserDefaults(suiteName: "test.history.\(UUID().uuidString)")!
+        let suite = makeTestDefaults("test.history")
         let store = HistoryStore(defaults: suite)
         store.markRead(manga: sampleManga("m"), chapter: Chapter(id: "c1", number: "7", title: nil))
 
@@ -405,7 +405,7 @@ final class MangaCartaTests: XCTestCase {
     }
 
     @MainActor func testLibraryToggleRecordsSourceId() {
-        let suite = UserDefaults(suiteName: "test.library.\(UUID().uuidString)")!
+        let suite = makeTestDefaults("test.library")
         let store = LibraryStore(defaults: suite)
         let manga = sampleManga("m", sourceId: "weebcentral")
         store.toggle(manga)
@@ -420,7 +420,7 @@ final class MangaCartaTests: XCTestCase {
     }
 
     @MainActor func testLibraryDefaultCollectionsInitialized() {
-        let suite = UserDefaults(suiteName: "test.lib.\(UUID().uuidString)")!
+        let suite = makeTestDefaults("test.lib")
         let store = LibraryStore(defaults: suite)
         XCTAssertEqual(store.collections.count, 4)
         XCTAssertEqual(store.collections.map(\.id), ["reading", "on_hold", "planned", "dropped"])
@@ -436,7 +436,7 @@ final class MangaCartaTests: XCTestCase {
     }
 
     @MainActor func testLibraryToggleCollectionAndMultiAssignment() {
-        let suite = UserDefaults(suiteName: "test.lib.\(UUID().uuidString)")!
+        let suite = makeTestDefaults("test.lib")
         let store = LibraryStore(defaults: suite)
         let manga = sampleManga("m1", sourceId: "mangadex")
 
@@ -462,7 +462,7 @@ final class MangaCartaTests: XCTestCase {
     }
 
     @MainActor func testLibraryCustomCollectionCRUD() {
-        let suite = UserDefaults(suiteName: "test.lib.\(UUID().uuidString)")!
+        let suite = makeTestDefaults("test.lib")
         let store = LibraryStore(defaults: suite)
 
         // Add custom collection
@@ -526,7 +526,7 @@ final class MangaCartaTests: XCTestCase {
         let registry = SourceRegistry(sources: [mangadex, weebcentral])
         registry.activeSourceID = MangaDexSource.sourceID
 
-        let suite = UserDefaults(suiteName: "test.lib.\(UUID().uuidString)")!
+        let suite = makeTestDefaults("test.lib")
         let store = LibraryStore(defaults: suite, registry: registry)
         store.toggle(sampleManga("md-1", sourceId: MangaDexSource.sourceID))
         store.toggle(sampleManga("wc-1", sourceId: "weebcentral"))
@@ -1631,7 +1631,7 @@ final class MangaCartaTests: XCTestCase {
     // MARK: - TasteProfileStore
 
     @MainActor private func makeTasteStore() -> TasteProfileStore {
-        let suite = UserDefaults(suiteName: "test.taste.\(UUID().uuidString)")!
+        let suite = makeTestDefaults("test.taste")
         return TasteProfileStore(defaults: suite)
     }
 
@@ -1644,7 +1644,7 @@ final class MangaCartaTests: XCTestCase {
     }
 
     @MainActor func testTasteStorePersistsFeedback() throws {
-        let suite = UserDefaults(suiteName: "test.taste.\(UUID().uuidString)")!
+        let suite = makeTestDefaults("test.taste")
         let store = TasteProfileStore(defaults: suite)
         store.markNotInterested(mangaId: "m2")
         store.markMoreLikeThis(mangaId: "m3")
@@ -1658,7 +1658,7 @@ final class MangaCartaTests: XCTestCase {
     /// it. If a `save()` ever re-encoded that key, the data this change retires would
     /// keep resurrecting itself and the one-release deletion window would never close.
     @MainActor func testLegacyTagCacheLoadsButIsNeverWrittenBack() throws {
-        let suite = UserDefaults(suiteName: "test.taste.\(UUID().uuidString)")!
+        let suite = makeTestDefaults("test.taste")
         let tags = [Tag(id: "t1", name: "Action", group: "genre")]
         seedLegacyTagCache(suite, ["m1": tags])
 
@@ -1671,7 +1671,7 @@ final class MangaCartaTests: XCTestCase {
     }
 
     @MainActor func testTasteStoreDecodesAbsentKeysAsEmpty() {
-        let store = TasteProfileStore(defaults: UserDefaults(suiteName: "test.taste.\(UUID().uuidString)")!)
+        let store = TasteProfileStore(defaults: makeTestDefaults("test.taste"))
         XCTAssertTrue(store.legacyTagCache.isEmpty)
         XCTAssertTrue(store.notInterested.isEmpty)
         XCTAssertTrue(store.moreLikeThis.isEmpty)
@@ -1907,7 +1907,7 @@ final class MangaCartaTests: XCTestCase {
                                        tagBlocked: @escaping RecommendationEngine.TagBlocked = { _ in false },
                                        admits: @escaping (Manga) -> Bool = { _ in true })
         -> RecommendationEngine {
-        let lib = library ?? LibraryStore(defaults: UserDefaults(suiteName: "test.lib.\(UUID().uuidString)")!)
+        let lib = library ?? LibraryStore(defaults: makeTestDefaults("test.lib"))
         let works = workStore ?? WorkStore(directory: URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("EngineTests-\(UUID().uuidString)"))
         return RecommendationEngine(history: history, library: lib, profileStore: tasteStore,
@@ -1937,7 +1937,7 @@ final class MangaCartaTests: XCTestCase {
 
     @MainActor
     func testRecommendationEngineWithNilSourceDoesNotCallProvider() async {
-        let defaults = UserDefaults(suiteName: "test.engine.nil-source.\(UUID().uuidString)")!
+        let defaults = makeTestDefaults("test.engine.nil-source")
         let history = HistoryStore(defaults: defaults)
         let works = WorkStore(directory: URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("EngineNil-\(UUID().uuidString)"))
@@ -1955,7 +1955,7 @@ final class MangaCartaTests: XCTestCase {
 
     @MainActor
     func testRecommendationEnginePassesRegisteredSourceToProvider() async {
-        let defaults = UserDefaults(suiteName: "test.engine.source.\(UUID().uuidString)")!
+        let defaults = makeTestDefaults("test.engine.source")
         let history = HistoryStore(defaults: defaults)
         let works = WorkStore(directory: URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("EngineSource-\(UUID().uuidString)"))
@@ -2149,7 +2149,7 @@ final class MangaCartaTests: XCTestCase {
         for i in 1...3 {
             tagRead(works, history, "m\(i)", [Tag(id: "a", name: "Action", group: "genre")])
         }
-        let lib = LibraryStore(defaults: UserDefaults(suiteName: "test.lib.\(UUID().uuidString)")!)
+        let lib = LibraryStore(defaults: makeTestDefaults("test.lib"))
         lib.toggle(sampleManga("saved-never-read"))
 
         let engine = makeEngine(history: history, tasteStore: makeTasteStore(),
@@ -2400,7 +2400,7 @@ final class MangaCartaTests: XCTestCase {
     /// **This is the last thing reading `legacyTagCache`** — when it goes, so does it.
     @MainActor func testLegacyTagCacheSeedsWorksSoTheProfileSurvivesUpgrade() async throws {
         let history = makeHistoryStore()
-        let suite = UserDefaults(suiteName: "test.taste.\(UUID().uuidString)")!
+        let suite = makeTestDefaults("test.taste")
         let action = [Tag(id: "a", name: "Action", group: "genre")]
         seedLegacyTagCache(suite, ["m1": action, "m2": action, "m3": action])
         let taste = TasteProfileStore(defaults: suite)
@@ -2716,7 +2716,7 @@ final class MangaCartaTests: XCTestCase {
     // MARK: - EntityResolutionStore
 
     @MainActor func testEntityResolutionRecordsAndReadsBack() {
-        let defaults = UserDefaults(suiteName: "test.entityres.\(UUID().uuidString)")!
+        let defaults = makeTestDefaults("test.entityres")
         let store = EntityResolutionStore(defaults: defaults)
         store.record(sourceId: "weebcentral", mangaId: "abc", .resolved(malId: 42))
         XCTAssertEqual(store.resolution(sourceId: "weebcentral", mangaId: "abc"), .resolved(malId: 42))
@@ -2724,7 +2724,7 @@ final class MangaCartaTests: XCTestCase {
     }
 
     @MainActor func testEntityResolutionKeysAreSourceQualified() {
-        let defaults = UserDefaults(suiteName: "test.entityres.\(UUID().uuidString)")!
+        let defaults = makeTestDefaults("test.entityres")
         let store = EntityResolutionStore(defaults: defaults)
         store.record(sourceId: "weebcentral", mangaId: "x", .resolved(malId: 1))
         store.record(sourceId: "mangadex", mangaId: "x", .resolved(malId: 2))
@@ -2742,8 +2742,7 @@ final class MangaCartaTests: XCTestCase {
     }
 
     @MainActor func testEntityResolutionPersistsAcrossInstances() {
-        let suite = "test.entityres.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
+        let defaults = makeTestDefaults("test.entityres")
         EntityResolutionStore(defaults: defaults).record(sourceId: "s", mangaId: "m", .resolved(malId: 7))
         let reloaded = EntityResolutionStore(defaults: defaults)
         XCTAssertEqual(reloaded.resolution(sourceId: "s", mangaId: "m"), .resolved(malId: 7))
@@ -2752,7 +2751,7 @@ final class MangaCartaTests: XCTestCase {
     // MARK: - EntityResolutionStore reverse cache
 
     @MainActor func testReverseCacheRoundTripsAndKeysByMalId() {
-        let defaults = UserDefaults(suiteName: "test.reverse.\(UUID().uuidString)")!
+        let defaults = makeTestDefaults("test.reverse")
         let store = EntityResolutionStore(defaults: defaults)
         store.recordReverse(malId: 42, .resolved(mangaDexId: "md-abc"))
         XCTAssertEqual(store.reverseResolution(malId: 42), .resolved(mangaDexId: "md-abc"))
@@ -2760,7 +2759,7 @@ final class MangaCartaTests: XCTestCase {
     }
 
     @MainActor func testReverseCacheDoesNotCollideWithForwardCache() {
-        let defaults = UserDefaults(suiteName: "test.reverse.\(UUID().uuidString)")!
+        let defaults = makeTestDefaults("test.reverse")
         let store = EntityResolutionStore(defaults: defaults)
         // Forward map keyed "{sourceId}:{mangaId}"; reverse keyed String(malId). Same
         // numeric value must not bleed across the two maps.
@@ -2780,7 +2779,7 @@ final class MangaCartaTests: XCTestCase {
     }
 
     @MainActor func testReverseCachePersistsAcrossInstances() {
-        let defaults = UserDefaults(suiteName: "test.reverse.\(UUID().uuidString)")!
+        let defaults = makeTestDefaults("test.reverse")
         EntityResolutionStore(defaults: defaults).recordReverse(malId: 11, .resolved(mangaDexId: "md-11"))
         let reloaded = EntityResolutionStore(defaults: defaults)
         XCTAssertEqual(reloaded.reverseResolution(malId: 11), .resolved(mangaDexId: "md-11"))
@@ -2789,7 +2788,7 @@ final class MangaCartaTests: XCTestCase {
     // MARK: - MALEntityResolver
 
     @MainActor func testResolverFastPathReturnsMangaMalIdWithoutTouchingStore() async {
-        let defaults = UserDefaults(suiteName: "test.resolver.\(UUID().uuidString)")!
+        let defaults = makeTestDefaults("test.resolver")
         let store = EntityResolutionStore(defaults: defaults)
         let resolver = MALEntityResolver(store: store)
         let manga = Manga(id: "m", sourceId: "mangadex", title: "Berserk",
@@ -2800,7 +2799,7 @@ final class MangaCartaTests: XCTestCase {
     }
 
     @MainActor func testResolverReturnsCachedResolvedHit() async {
-        let defaults = UserDefaults(suiteName: "test.resolver.\(UUID().uuidString)")!
+        let defaults = makeTestDefaults("test.resolver")
         let store = EntityResolutionStore(defaults: defaults)
         store.record(sourceId: "weebcentral", mangaId: "x", .resolved(malId: 55))
         let resolver = MALEntityResolver(store: store)
@@ -2811,7 +2810,7 @@ final class MangaCartaTests: XCTestCase {
     }
 
     @MainActor func testResolverReturnsNilForFreshCachedMiss() async {
-        let defaults = UserDefaults(suiteName: "test.resolver.\(UUID().uuidString)")!
+        let defaults = makeTestDefaults("test.resolver")
         let store = EntityResolutionStore(defaults: defaults)
         store.record(sourceId: "weebcentral", mangaId: "x", .unresolved(checkedAt: Date()))
         let resolver = MALEntityResolver(store: store)
@@ -2832,7 +2831,7 @@ final class MangaCartaTests: XCTestCase {
     }
 
     @MainActor func testBridgeWithoutSourceReturnsNilWithoutCaching() async throws {
-        let defaults = UserDefaults(suiteName: "test.bridge.unavailable.\(UUID().uuidString)")!
+        let defaults = makeTestDefaults("test.bridge.unavailable")
         let resolver = MALEntityResolver(
             store: EntityResolutionStore(defaults: defaults),
             search: { _ in [] },
@@ -2851,7 +2850,7 @@ final class MangaCartaTests: XCTestCase {
     /// retrieves anything from MAL, and the Work resolves anyway. A per-Listing resolver
     /// asked about the scraped title alone gets nothing.
     @MainActor func testWorkResolutionMatchesUsingASecondListingsTitle() async throws {
-        let store = EntityResolutionStore(defaults: UserDefaults(suiteName: "t.\(UUID())")!)
+        let store = EntityResolutionStore(defaults: makeTestDefaults("t"))
         let resolver = MALEntityResolver(store: store, search: { title in
             title == "Solo Leveling" ? [MALCandidate(malId: 121, titles: ["Solo Leveling"])] : []
         }, bridgeSearch: MALEntityResolver.noBridge)
@@ -2868,7 +2867,7 @@ final class MangaCartaTests: XCTestCase {
     /// `nil`. An outage must not be remembered as "MAL doesn't have this".
     @MainActor func testWorkResolutionThrowsWhenEverySearchFailed() async {
         struct Boom: Error {}
-        let store = EntityResolutionStore(defaults: UserDefaults(suiteName: "t.\(UUID())")!)
+        let store = EntityResolutionStore(defaults: makeTestDefaults("t"))
         let resolver = MALEntityResolver(store: store, search: { _ in throw Boom() },
                                          bridgeSearch: MALEntityResolver.noBridge)
 
@@ -2883,7 +2882,7 @@ final class MangaCartaTests: XCTestCase {
     /// guard — never for. Throwing away a confident match here would buy nothing.
     @MainActor func testWorkResolutionKeepsAMatchFoundDespiteAFailedSearch() async throws {
         struct Boom: Error {}
-        let store = EntityResolutionStore(defaults: UserDefaults(suiteName: "t.\(UUID())")!)
+        let store = EntityResolutionStore(defaults: makeTestDefaults("t"))
         let resolver = MALEntityResolver(store: store, search: { title in
             if title == "Only I Level Up" { throw Boom() }
             return [MALCandidate(malId: 121, titles: ["Solo Leveling"])]
@@ -2897,7 +2896,7 @@ final class MangaCartaTests: XCTestCase {
     /// The genuine miss: MAL answered, nothing cleared the threshold. This is the one the
     /// queue records as `.unmatched(knownTitlesCount)`.
     @MainActor func testWorkResolutionReturnsNilWhenSearchesSucceedButNothingMatches() async throws {
-        let store = EntityResolutionStore(defaults: UserDefaults(suiteName: "t.\(UUID())")!)
+        let store = EntityResolutionStore(defaults: makeTestDefaults("t"))
         let resolver = MALEntityResolver(store: store, search: { _ in
             [MALCandidate(malId: 9, titles: ["Completely Different Story"])]
         }, bridgeSearch: MALEntityResolver.noBridge)
@@ -2911,7 +2910,7 @@ final class MangaCartaTests: XCTestCase {
     /// as a source of them: a hit recorded by a detail-page open is a valid answer for any
     /// Work containing that Listing, and costs no request.
     @MainActor func testWorkResolutionReusesAListingLevelHitWithoutSearching() async throws {
-        let store = EntityResolutionStore(defaults: UserDefaults(suiteName: "t.\(UUID())")!)
+        let store = EntityResolutionStore(defaults: makeTestDefaults("t"))
         store.record(sourceId: "weebcentral", mangaId: "x", .resolved(malId: 55))
         let resolver = MALEntityResolver(store: store, search: { _ in
             XCTFail("a cached Listing hit must answer without touching MAL")
@@ -2929,7 +2928,7 @@ final class MangaCartaTests: XCTestCase {
     /// forever. Asserted behaviourally: with a limit of one, the *second* title — the only
     /// one MAL would answer — is never searched, so the Work does not resolve.
     @MainActor func testWorkResolutionSearchesAtMostTheTitleLimit() async throws {
-        let store = EntityResolutionStore(defaults: UserDefaults(suiteName: "t.\(UUID())")!)
+        let store = EntityResolutionStore(defaults: makeTestDefaults("t"))
         let resolver = MALEntityResolver(store: store, titleSearchLimit: 1, search: { title in
             title == "Solo Leveling" ? [MALCandidate(malId: 121, titles: ["Solo Leveling"])] : []
         }, bridgeSearch: MALEntityResolver.noBridge)
@@ -2996,7 +2995,7 @@ final class MangaCartaTests: XCTestCase {
     /// Note this test injects `search`, so it runs *around* `excludingNovels` — which is the
     /// cost ADR-0017 Decision 2 accepts openly. That is what it is demonstrating.
     @MainActor func testAProseTwinIsWhatRefusesTheWorkNotTheThreshold() async throws {
-        let store = EntityResolutionStore(defaults: UserDefaults(suiteName: "t.\(UUID())")!)
+        let store = EntityResolutionStore(defaults: makeTestDefaults("t"))
         // `noBridge` on the refusing resolver, because a Work-level miss now falls through
         // to the bridge and the default one is live (ADR-0019). The refusal this test is
         // about is MAL's, and it must not be able to reach the network to demonstrate it.
@@ -3050,7 +3049,7 @@ final class MangaCartaTests: XCTestCase {
         XCTAssertNil(unpartitioned,
                      "two candidates tie at 1.000, so the guard must reject — this is the bug")
 
-        let store = EntityResolutionStore(defaults: UserDefaults(suiteName: "t.\(UUID())")!)
+        let store = EntityResolutionStore(defaults: makeTestDefaults("t"))
         let resolver = MALEntityResolver(store: store,
                                          search: { _ in [] },              // MAL knows nothing
                                          bridgeSearch: { _ in candidates })
@@ -3065,7 +3064,7 @@ final class MangaCartaTests: XCTestCase {
     /// The bridge is a fallback, not a second opinion: a title MAL matches must not cost a
     /// MangaDex request.
     @MainActor func testBridgeIsNotConsultedWhenMALAlreadyMatched() async throws {
-        let store = EntityResolutionStore(defaults: UserDefaults(suiteName: "t.\(UUID())")!)
+        let store = EntityResolutionStore(defaults: makeTestDefaults("t"))
         let resolver = MALEntityResolver(store: store,
                                          search: { _ in [MALCandidate(malId: 2, titles: ["Berserk"])] },
                                          bridgeSearch: { _ in
@@ -3082,7 +3081,7 @@ final class MangaCartaTests: XCTestCase {
     /// entry matches only via an alternate — and it must still lose, because it cannot
     /// answer the question.
     @MainActor func testBridgeMatchesTheIdBearingPoolEvenWhenAVariantScoresHigher() async throws {
-        let store = EntityResolutionStore(defaults: UserDefaults(suiteName: "t.\(UUID())")!)
+        let store = EntityResolutionStore(defaults: makeTestDefaults("t"))
         let resolver = MALEntityResolver(store: store, search: { _ in [] }, bridgeSearch: { _ in
             [self.mdListing("md-colour", "One Punch-Man (Fan Colored)", alts: ["One Punch Man"]),
              self.mdListing("md-real", "Wanpanman", alts: ["One Punch-Man"], mal: 44347)]
@@ -3098,7 +3097,7 @@ final class MangaCartaTests: XCTestCase {
     /// both configurations return nil, so only `bridgeSearch` going uncalled distinguishes
     /// "declined to ask" from "asked and found nothing".
     @MainActor func testAMangaDexWorkIsNotBridgedThroughMangaDex() async throws {
-        let store = EntityResolutionStore(defaults: UserDefaults(suiteName: "t.\(UUID())")!)
+        let store = EntityResolutionStore(defaults: makeTestDefaults("t"))
         var bridgeCalls = 0
         func countingResolver() -> MALEntityResolver {
             MALEntityResolver(store: store, search: { _ in [] }, bridgeSearch: { _ in
@@ -3125,7 +3124,7 @@ final class MangaCartaTests: XCTestCase {
     /// keys on `sourceId` directly. A refusal here is still *recorded* — it is a real
     /// answer, not a transient failure, and must occupy its cache slot.
     @MainActor func testAMangaDexListingIsNotBridgedAndItsRefusalIsRecorded() async {
-        let store = EntityResolutionStore(defaults: UserDefaults(suiteName: "t.\(UUID())")!)
+        let store = EntityResolutionStore(defaults: makeTestDefaults("t"))
         var bridgeCalls = 0
         let resolver = MALEntityResolver(store: store, search: { _ in
             [MALCandidate(malId: 9, titles: ["Completely Different Story"])]
@@ -3158,7 +3157,7 @@ final class MangaCartaTests: XCTestCase {
     /// harvest along with it fails the `harvestedTitles` one. Both failure modes are live —
     /// the pair reads as one feature until you look.
     @MainActor func testBridgeHarvestsSpellingsWithoutReSearchingMAL() async throws {
-        let store = EntityResolutionStore(defaults: UserDefaults(suiteName: "t.\(UUID())")!)
+        let store = EntityResolutionStore(defaults: makeTestDefaults("t"))
         var searched: [String] = []
         let resolver = MALEntityResolver(store: store, search: { title in
             searched.append(title)
@@ -3181,7 +3180,7 @@ final class MangaCartaTests: XCTestCase {
     /// nothing. An outage must not be remembered as "no catalog has this".
     @MainActor func testBridgeThrowsWhenTheMangaDexSearchFailed() async {
         struct Boom: Error {}
-        let store = EntityResolutionStore(defaults: UserDefaults(suiteName: "t.\(UUID())")!)
+        let store = EntityResolutionStore(defaults: makeTestDefaults("t"))
         let resolver = MALEntityResolver(store: store, search: { _ in [] },
                                          bridgeSearch: { _ in throw Boom() })
 
@@ -3194,7 +3193,7 @@ final class MangaCartaTests: XCTestCase {
     /// Decision 7: the Listing-level resolver is bridged too, because the 2026-08-08 device
     /// check established the two resolvers are independent and can disagree.
     @MainActor func testListingLevelResolutionBridgesAndCachesTheHit() async {
-        let store = EntityResolutionStore(defaults: UserDefaults(suiteName: "t.\(UUID())")!)
+        let store = EntityResolutionStore(defaults: makeTestDefaults("t"))
         let resolver = MALEntityResolver(store: store, search: { _ in
             [MALCandidate(malId: 9, titles: ["Completely Different Story"])]
         }, bridgeSearch: { _ in

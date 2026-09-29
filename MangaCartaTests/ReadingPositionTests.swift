@@ -50,7 +50,7 @@ final class ReadingPositionTests: XCTestCase {
 
     @MainActor
     private func makeHistoryStore() -> HistoryStore {
-        let suite = UserDefaults(suiteName: "test.position.\(UUID().uuidString)")!
+        let suite = makeTestDefaults("test.position")
         return HistoryStore(defaults: suite)
     }
 
@@ -158,7 +158,7 @@ final class ReadingPositionTests: XCTestCase {
     /// the read marks. So `record` coalesces its writes — and `flush()` is what
     /// backgrounding calls so a session that ends there is not lost (ADR-0014 decision 5).
     @MainActor func testRecordingCoalescesItsWritesAndFlushForcesThem() {
-        let suite = UserDefaults(suiteName: "test.position.\(UUID().uuidString)")!
+        let suite = makeTestDefaults("test.position")
         let store = HistoryStore(defaults: suite, saveInterval: 60)
 
         store.record(manga: sampleManga(), chapter: chapter,
@@ -177,7 +177,7 @@ final class ReadingPositionTests: XCTestCase {
     /// webtoon is read by scrolling continuously for many minutes. `WorkStore` hit the same
     /// trap on this same path (`WorkStoreTests.testAReMintThatLearnsNothing...`).
     @MainActor func testContinuousScrollingStillLandsAWrite() async throws {
-        let suite = UserDefaults(suiteName: "test.position.\(UUID().uuidString)")!
+        let suite = makeTestDefaults("test.position")
         let store = HistoryStore(defaults: suite, saveInterval: 0.2)
 
         for tick in 0..<5 {                       // "scroll ticks" every 0.15s, t ≈ 0.6 total
@@ -195,7 +195,7 @@ final class ReadingPositionTests: XCTestCase {
     /// through — a marked chapter that survives one relaunch but not another would be a
     /// worse bug than a lost fraction.
     @MainActor func testMarkingReadWritesWithoutWaitingForTheThrottle() {
-        let suite = UserDefaults(suiteName: "test.position.\(UUID().uuidString)")!
+        let suite = makeTestDefaults("test.position")
         let store = HistoryStore(defaults: suite, saveInterval: 60)
 
         store.markRead(manga: sampleManga(), chapter: chapter)

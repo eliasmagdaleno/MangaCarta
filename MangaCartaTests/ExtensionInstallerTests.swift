@@ -800,9 +800,7 @@ final class ExtensionInstallerTests: XCTestCase {
                           status: "ongoing", year: nil, coverURL: nil, malId: nil)
         let workID = works.mint(from: manga)
         let listing = ListingKey(sourceId: qualifiedId.rawValue, mangaId: "manga-1")
-        let suite = "ExtensionInstallerTests.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let defaults = makeTestDefaults("ExtensionInstallerTests")
         let preferences = SourcePreferenceStore(defaults: defaults)
         preferences.choose(listing, for: workID)
         try await HostStorage(sourceID: qualifiedId, repository: storage).set("cursor", value: .int(7))
