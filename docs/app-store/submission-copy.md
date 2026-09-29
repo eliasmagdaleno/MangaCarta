@@ -178,8 +178,9 @@ requires the label to describe them.
 - The image URL names the chapter being read, which is Usage Data › Product Interaction. The
   manifest already declares Product Interaction, as linked, for MyAnimeList sync. That stricter
   entry covers it, and a data type can appear only once.
-- **In-app text.** The app has no privacy screen today, so there is no in-app place yet that says
-  this. [[owner decision: add a line to the plug-in install sheet or Settings › Repositories]].
+- **In-app text** is the install acknowledgement sheet ([ADR-0003 Amendment 10](../adr/0003-extension-substrate.md)).
+  The sheet appears when a Source that declares reports is installed, and when an update adds
+  reports. It names the reports and what they contain.
 - Recheck all of this against the build that ships Host API 1.3. No report is sent until the
   reader wiring (design §8 step 5) ships and an installed Source declares
   `network.imageLoadReports`.

@@ -14,8 +14,12 @@ final class RepositorySettingsViewModel: ObservableObject {
     /// Legacy identities with saved data. Finding them parses the persisted stores, so it
     /// is computed on appear and after an install, never from the view's `body`.
     @Published private(set) var legacyIDsWithData: Set<String> = []
-    /// The sheet the installer is waiting on. Adult Sources remain named after confirmation;
-    /// report-only Sources show the report disclosure without an age question.
+    /// The sheet the installer is waiting on. It always appears for a `mixed` or
+    /// `adultOnly` Source — a reader who has already confirmed their age still sees which
+    /// Source is adult-classed and who says so (format design §7.1) — and for a Source that
+    /// declares image-load reports, on install or on the update that adds them (ADR-0003
+    /// Amendment 10). It asks the age question only for an adult Source on a device with no
+    /// confirmation yet.
     struct PendingAcknowledgement: Identifiable, Equatable {
         let acknowledgement: AdultInstallAcknowledgement
         let asksForAge: Bool
