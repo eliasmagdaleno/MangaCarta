@@ -2,6 +2,21 @@ import CryptoKit
 import Foundation
 import UIKit
 
+/// A saved local cover URL is absolute, and the app's container moves on reinstall and on a
+/// restore from backup (#295). `relocated` re-roots anything under a `LocalLibrary` directory
+/// onto the current one; decoders apply it, so data already saved repairs itself on load.
+enum LocalLibraryPaths {
+    static let defaultRoot = WorkStore.applicationSupportDirectory().appendingPathComponent("LocalLibrary")
+
+    static func relocated(_ url: URL?, root: URL = defaultRoot) -> URL? {
+        guard let url, url.isFileURL else { return url }
+        let components = url.pathComponents
+        guard let localLibraryIndex = components.lastIndex(of: "LocalLibrary"),
+              localLibraryIndex + 1 < components.count else { return url }
+        return components[(localLibraryIndex + 1)...].reduce(root) { $0.appendingPathComponent($1) }
+    }
+}
+
 enum LocalImportResult: Equatable {
     case imported(LocalItemRecord)
     case duplicate(itemId: String)
@@ -35,7 +50,7 @@ private struct PDFImportRequest {
 }
 
 actor LocalLibraryStore {
-    static let shared = LocalLibraryStore(root: WorkStore.applicationSupportDirectory().appendingPathComponent("LocalLibrary"))
+    static let shared = LocalLibraryStore(root: LocalLibraryPaths.defaultRoot)
     let root: URL
     private let fm = FileManager.default
 
