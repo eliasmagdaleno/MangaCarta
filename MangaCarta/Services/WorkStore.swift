@@ -95,6 +95,18 @@ final class WorkStore: ObservableObject {
         markDirty()
     }
 
+    func moveListing(from old: ListingKey, to new: ListingKey) {
+        loadIfNeeded()
+        guard let id = listingIndex[old], var work = works[resolve(id) ?? id] else { return }
+        let resolved = resolve(id) ?? id
+        work.listings.removeAll { $0 == old }
+        if !work.listings.contains(new) { work.listings.append(new) }
+        works[resolved] = work
+        listingIndex[old] = nil
+        listingIndex[new] = resolved
+        markDirty()
+    }
+
     func workId(externalId ids: ExternalIDs) -> WorkID? {
         loadIfNeeded()
         return Self.indexKeys(for: ids).lazy.compactMap { self.externalIdIndex[$0] }.first

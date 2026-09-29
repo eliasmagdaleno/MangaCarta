@@ -274,6 +274,26 @@ final class HistoryStore: ObservableObject {
         save()
     }
 
+    func rewriteLocalListing(from oldID: String, to newID: String,
+                             chapterNumbers: [String: String]) {
+        entries = entries.map { entry in
+            guard entry.mangaId == oldID else { return entry }
+            var updated = entry
+            updated = ReadingEntry(id: entry.id, mangaId: newID, mangaTitle: entry.mangaTitle,
+                                   coverURL: entry.coverURL, chapterId: entry.chapterId,
+                                   chapterNumber: chapterNumbers[entry.chapterId] ?? entry.chapterNumber,
+                                   page: entry.page, pageCount: entry.pageCount, updatedAt: entry.updatedAt,
+                                   sourceId: entry.sourceId, fraction: entry.fraction, malId: entry.malId)
+            return updated
+        }
+        readMarks = readMarks.map { mark in
+            guard mark.mangaId == oldID else { return mark }
+            return ReadMark(mangaId: newID, chapterId: mark.chapterId,
+                            chapterNumber: chapterNumbers[mark.chapterId] ?? mark.chapterNumber)
+        }
+        save()
+    }
+
     /// Coalesce a write from the scroll path. **A throttle, not a debounce:** an already
     /// scheduled write is left alone rather than pushed out, because every recorded
     /// position carries new data and re-arming would defer the write for as long as the

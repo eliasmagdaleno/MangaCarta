@@ -200,6 +200,67 @@ actor LocalLibraryStore {
             .compactMap { try? JSONDecoder().decode(LocalItemRecord.self, from: $0) }
     }
 
+    func records(forMangaID id: String) -> [LocalItemRecord] {
+        guard id.hasPrefix("series-") else { return record(itemId: id).map { [$0] } ?? [] }
+        return allRecords().filter { LocalSeriesIdentity.normalizedSeries($0.comicInfo?.series) == seriesName(for: id) }
+    }
+
+    func chapters(forMangaID id: String) -> [(record: LocalItemRecord, chapter: LocalChapter, number: String)] {
+        let records = records(forMangaID: id)
+        guard id.hasPrefix("series-") else {
+            return records.flatMap { record in record.chapters.map { (record, $0, "\($0.number)") } }
+        }
+        let ordered = records.sorted { Self.seriesRecordBefore($0, $1) }
+        var used = Set<String>()
+        var result: [(LocalItemRecord, LocalChapter, String)] = []
+        for (position, record) in ordered.enumerated() {
+            let base = Self.seriesBase(record, position: position + 1)
+            for chapter in record.chapters {
+                let candidate = record.chapters.count == 1 ? base : "\(base).\(chapter.number)"
+                var number = candidate
+                var suffix = 0
+                while used.contains(number) {
+                    suffix += 1
+                    number = "\(candidate).\(suffix)"
+                }
+                used.insert(number)
+                result.append((record, chapter, number))
+            }
+        }
+        return result
+    }
+
+    func seriesName(for id: String) -> String? {
+        allRecords().compactMap { record in
+            guard let series = LocalSeriesIdentity.normalizedSeries(record.comicInfo?.series),
+                  LocalSeriesIdentity.seriesID(for: series) == id else { return nil }
+            return series
+        }.first
+    }
+
+    func seriesMetadata(for id: String) -> LocalItemRecord? {
+        records(forMangaID: id).sorted { Self.seriesRecordBefore($0, $1) }.first
+    }
+
+    private static func seriesRecordBefore(_ lhs: LocalItemRecord, _ rhs: LocalItemRecord) -> Bool {
+        let lv = Double(lhs.comicInfo?.volume ?? "") ?? .infinity
+        let rv = Double(rhs.comicInfo?.volume ?? "") ?? .infinity
+        if lv != rv { return lv < rv }
+        let ln = Double(lhs.comicInfo?.number ?? "") ?? .infinity
+        let rn = Double(rhs.comicInfo?.number ?? "") ?? .infinity
+        if ln != rn { return ln < rn }
+        return lhs.sourceFilename.localizedStandardCompare(rhs.sourceFilename) == .orderedAscending
+    }
+
+    private static func seriesBase(_ record: LocalItemRecord, position: Int) -> String {
+        if let number = record.comicInfo?.number, Double(number) != nil { return number }
+        if let volume = record.comicInfo?.volume, Double(volume) != nil { return volume }
+        if let match = record.sourceFilename.range(of: "\\d+", options: .regularExpression) {
+            return String(record.sourceFilename[match])
+        }
+        return "\(position)"
+    }
+
     func pageURLs(itemId: String, chapter: Int) -> [URL] {
         guard let record = record(itemId: itemId),
               let chapterRecord = record.chapters.first(where: { $0.number == chapter }) else { return [] }
@@ -225,7 +286,13 @@ actor LocalLibraryStore {
     }
 
     func delete(itemId: String) throws {
-        try fm.removeItem(at: root.appendingPathComponent(itemId))
+        if itemId.hasPrefix("series-") {
+            for record in records(forMangaID: itemId) {
+                try fm.removeItem(at: root.appendingPathComponent(record.itemId))
+            }
+        } else {
+            try fm.removeItem(at: root.appendingPathComponent(itemId))
+        }
     }
 
     private func writeCover(from source: URL, to destination: URL) throws {

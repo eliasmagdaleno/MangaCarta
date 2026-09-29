@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 struct LocalChapter: Codable, Equatable, Sendable {
@@ -24,4 +25,20 @@ struct LocalItemRecord: Codable, Equatable, Sendable {
         self.chapters = chapters; self.comicInfo = comicInfo
     }
 
+}
+
+enum LocalSeriesIdentity {
+    static func normalizedSeries(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let normalized = value.precomposedStringWithCanonicalMapping
+            .split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        return normalized.isEmpty ? nil : normalized
+    }
+
+    static func seriesID(for value: String) -> String {
+        let digest = SHA256.hash(data: Data(value.utf8))
+        return "series-" + String(digest.map { String(format: "%02x", $0) }.joined().prefix(32))
+    }
 }

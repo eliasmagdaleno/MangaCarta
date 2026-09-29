@@ -15,14 +15,27 @@ struct LocalSource: MangaSource {
 
     func search(title: String, limit: Int, offset: Int) async throws -> [Manga] {
         let query = title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let records = await store.allRecords().filter { query.isEmpty || $0.title.lowercased().contains(query) }
-        return await records.dropFirst(offset).prefix(limit).asyncMap { record in
-            manga(record, coverURL: await store.coverURL(itemId: record.itemId))
+        let records = await store.allRecords()
+        var ids = Set<String>()
+        var mangas: [(String, LocalItemRecord)] = []
+        for record in records.sorted(by: { $0.sourceFilename.localizedStandardCompare($1.sourceFilename) == .orderedAscending }) {
+            let id: String
+            if let series = LocalSeriesIdentity.normalizedSeries(record.comicInfo?.series) {
+                id = LocalSeriesIdentity.seriesID(for: series)
+                guard ids.insert(id).inserted else { continue }
+            } else {
+                id = record.itemId
+            }
+            mangas.append((id, await store.seriesMetadata(for: id) ?? record))
         }
+        return await mangas.filter { query.isEmpty || $0.1.title.lowercased().contains(query) }
+            .dropFirst(offset).prefix(limit).asyncMap { id, record in
+                manga(id: id, record: record, coverURL: await store.coverURL(itemId: record.itemId))
+            }
     }
 
     func mangaDetail(id: String) async throws -> MangaDetail {
-        guard let record = await store.record(itemId: id) else { throw SourceError.extractionFailed("missing local item") }
+        guard let record = await store.seriesMetadata(for: id) else { throw SourceError.extractionFailed("missing local item") }
         let authors = (record.comicInfo?.writer ?? "").split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
@@ -31,8 +44,11 @@ struct LocalSource: MangaSource {
     }
 
     func chapters(mangaId: String) async throws -> [Chapter] {
-        guard let record = await store.record(itemId: mangaId) else { throw SourceError.extractionFailed("missing local item") }
-        return record.chapters.map { Chapter(id: "\(mangaId)/\($0.number)", number: "\($0.number)", title: $0.title) }
+        let chapters = await store.chapters(forMangaID: mangaId)
+        guard !chapters.isEmpty else { throw SourceError.extractionFailed("missing local item") }
+        return chapters.map { record, chapter, number in
+            Chapter(id: "\(record.itemId)/\(chapter.number)", number: number, title: chapter.title)
+        }
     }
 
     func pageURLs(chapterId: String, preferDataSaver: Bool) async throws -> [URL] {
@@ -45,8 +61,9 @@ struct LocalSource: MangaSource {
 
     func popular(limit: Int, offset: Int) async throws -> [Manga] { throw SourceError.unsupported("popular") }
 
-    private func manga(_ record: LocalItemRecord, coverURL: URL?) -> Manga {
-        Manga(id: record.itemId, sourceId: Self.sourceID, title: record.title, description: record.comicInfo?.summary ?? "",
+    private func manga(id: String, record: LocalItemRecord, coverURL: URL?) -> Manga {
+        Manga(id: id, sourceId: Self.sourceID, title: record.comicInfo?.series ?? record.title,
+              description: record.comicInfo?.summary ?? "",
               status: "completed", year: nil, coverURL: coverURL, malId: nil,
               altTitles: nil, contentRating: nil)
     }
