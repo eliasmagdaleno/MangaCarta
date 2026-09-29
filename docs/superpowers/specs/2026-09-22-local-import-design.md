@@ -351,10 +351,34 @@ The owner approved the slice-5 design in session:
     chapter is labelled from `Volume`/`Number` (then `Title`); folder chapters keep folder names.
     A `FrontCover` page, when in range, is the cover. Only a root-level `ComicInfo.xml` counts,
     and a malformed one never fails an import. (§3, §4)
-12. **Open-in receives a copy** (`LSSupportsOpeningDocumentsInPlace` is `false`, keeping
+12. **Open-in receives a copy** *(amended by 14)* (`LSSupportsOpeningDocumentsInPlace` is `false`, keeping
     Documents out of the Files app per §2). The handed-over file is deleted after processing only
     when it lies inside the app's own container; nothing outside the container is ever deleted.
     `.cbz` is claimed at `Default` rank, ZIP and PDF at `Alternate`, so MangaCarta never becomes
     the default app for every archive. (§5)
 13. **Imports queue rather than drop,** and progress is an app-wide banner, because a shared file
     can arrive on any screen. (§5)
+
+## Decisions (2026-09-29, Open-in default)
+
+The owner approved this after a manual check of slice 5 found that Files never offered MangaCarta
+for a `.cbz`: tapping one opened Quick Look, and "Open With" said "No Apps Available". Share →
+MangaCarta worked throughout.
+
+14. **Amends 12: MangaCarta opens documents in place, and claims `.cbz` at `Owner` rank.** On iOS
+    26.5, Files lists an app under "Open With" only if `LSSupportsOpeningDocumentsInPlace` is
+    `true`, and makes it the tap-to-open default only at `Owner` rank; `Default` rank is listed but
+    never chosen. A probe app that claimed `.cbz` measured this one setting at a time: in place off
+    at either rank → not listed; in place on at `Default` → listed, Quick Look still opens; in place
+    on at `Owner` → listed as "Default" and a tap opens the app. `UISupportsDocumentBrowser` changed
+    nothing. Launch Services itself listed MangaCarta for `.cbz`, ZIP and PDF all along, so the
+    filter is Files'. ZIP and PDF stay at `Alternate`.
+    - Decision 12's reason for `false` does not hold: the library lives in Application Support, not
+      Documents (§2), and in place alone does not put Documents in Files (`UIFileSharingEnabled`
+      stays unset; no MangaCarta folder appeared).
+    - In place hands over the reader's **original** file rather than an Inbox copy. The importer
+      already takes security-scoped access and deletes only files inside the container, so the
+      original is read and kept; a unit test now pins that.
+    - Share → MangaCarta still delivers a copy, and that copy is still cleaned up.
+    - Not yet checked: a not-yet-downloaded iCloud file opened in place (may need a coordinated
+      read), and a device with another app that also claims `.cbz` at `Owner`.

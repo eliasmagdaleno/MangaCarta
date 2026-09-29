@@ -21,12 +21,12 @@
 	</array>
 	<key>CFBundleDocumentTypes</key>
 	<array>
-		<dict><key>CFBundleTypeName</key><string>MangaCarta Comic Book</string><key>CFBundleTypeRole</key><string>Viewer</string><key>LSHandlerRank</key><string>Default</string><key>LSItemContentTypes</key><array><string>com.mangacarta.cbz</string></array></dict>
+		<dict><key>CFBundleTypeName</key><string>MangaCarta Comic Book</string><key>CFBundleTypeRole</key><string>Viewer</string><key>LSHandlerRank</key><string>Owner</string><key>LSItemContentTypes</key><array><string>com.mangacarta.cbz</string></array></dict>
 		<dict><key>CFBundleTypeName</key><string>ZIP Archive</string><key>CFBundleTypeRole</key><string>Viewer</string><key>LSHandlerRank</key><string>Alternate</string><key>LSItemContentTypes</key><array><string>public.zip-archive</string></array></dict>
 		<dict><key>CFBundleTypeName</key><string>PDF</string><key>CFBundleTypeRole</key><string>Viewer</string><key>LSHandlerRank</key><string>Alternate</string><key>LSItemContentTypes</key><array><string>com.adobe.pdf</string></array></dict>
 	</array>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
-	<false/>
+	<true/>
 	<key>MALClientID</key>
 	<string>$(MAL_CLIENT_ID)</string>
 	<key>CFBundleURLTypes</key>
