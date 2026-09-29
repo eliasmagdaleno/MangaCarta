@@ -2,13 +2,6 @@ import Foundation
 
 @MainActor
 enum LocalSeriesMigration {
-    static func schedule(local: LocalLibraryStore = .shared, library: LibraryStore,
-                         history: HistoryStore, works: WorkStore) {
-        Task { @MainActor in
-            await run(local: local, library: library, history: history, works: works)
-        }
-    }
-
     static func run(local: LocalLibraryStore, library: LibraryStore, history: HistoryStore,
                     works: WorkStore) async {
         for item in library.items where item.sourceId == LocalSource.sourceID {

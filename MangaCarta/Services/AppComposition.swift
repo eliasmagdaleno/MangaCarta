@@ -273,7 +273,7 @@ struct AppComposition {
     /// The injected seams below all default to the production object. They exist so a
     /// test can build **this** graph — not a hand-rolled imitation of it — without a
     /// Keychain, an AniList request, a MyAnimeList search, or a repository fetch.
-    init(defaults: UserDefaults = .standard, // swiftlint:disable:this function_body_length
+    init(defaults: UserDefaults = .standard,
          directory: URL = WorkStore.applicationSupportDirectory(),
          malCredentials: MALCredentialStore? = nil,
          malPreferences: MALAccountPreferenceStore? = nil,
@@ -372,8 +372,6 @@ struct AppComposition {
                                 chapterCompleted: { [weak malProgress] completion in
                                     malProgress?.chapterCompleted(completion)
                                 })
-        let localStore = (resolvedRegistry.source(id: LocalSource.sourceID) as? LocalSource)?.store ?? .shared
-        LocalSeriesMigration.schedule(local: localStore, library: lib, history: hist, works: wk)
         let ts = TasteProfileStore(defaults: defaults)
 
         // One update state owner and one refresh pipeline for pull-to-refresh, activation,

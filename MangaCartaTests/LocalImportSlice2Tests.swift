@@ -140,8 +140,6 @@ private func localImporter(root: URL, store: LocalLibraryStore) -> (LocalImportV
     await importer.importFilesAndWait([archive])
     let seriesID = LocalSeriesIdentity.seriesID(for: "read me")
     let source = LocalSource(store: store)
-    let manga = try await source.mangaDetail(id: seriesID)
-    _ = manga
     let listing = Manga(id: seriesID, sourceId: LocalSource.sourceID, title: "Read Me", description: "",
                         status: "completed", year: nil, coverURL: nil, malId: nil)
     let chapter = try #require(try await source.chapters(mangaId: seriesID).first)
@@ -153,6 +151,32 @@ private func localImporter(root: URL, store: LocalLibraryStore) -> (LocalImportV
     let restored = try #require(try await source.chapters(mangaId: seriesID).first)
     #expect(history.isRead(chapterId: restored.id))
     #expect(library.item(for: seriesID) != nil)
+}
+
+// Decision 17: deleting a series removes every member, its Library item and its Listing.
+@MainActor @Test func localSeriesDeleteRemovesEveryMemberItemAndListing() async throws {
+    let fixture = try LocalFixture(); defer { fixture.cleanup() }
+    let store = LocalLibraryStore(root: fixture.root.appendingPathComponent("library"))
+    let (importer, library, works) = localImporter(root: fixture.root, store: store)
+    let v1 = try writeSeriesArchive(in: fixture.root, name: "d1.cbz", series: "Gone", volume: "1")
+    let v2 = try writeSeriesArchive(in: fixture.root, name: "d2.cbz", series: "Gone", volume: "2")
+    let other = try writeSeriesArchive(in: fixture.root, name: "keep.cbz", series: nil)
+    await importer.importFilesAndWait([v1, v2, other])
+    let seriesID = LocalSeriesIdentity.seriesID(for: "gone")
+    let members = await store.records(forMangaID: seriesID)
+    #expect(members.count == 2)
+    let kept = try #require(await store.allRecords().first { $0.comicInfo == nil })
+
+    try await LocalLibraryDeletion(local: store, library: library, works: works).delete(itemId: seriesID)
+
+    for member in members {
+        #expect(!FileManager.default.fileExists(atPath: store.root.appendingPathComponent(member.itemId).path))
+    }
+    #expect(await store.records(forMangaID: seriesID).isEmpty)
+    #expect(library.item(for: seriesID) == nil)
+    #expect(works.workId(for: ListingKey(sourceId: LocalSource.sourceID, mangaId: seriesID)) == nil)
+    #expect(await store.record(itemId: kept.itemId) != nil)
+    #expect(library.item(for: kept.itemId) != nil)
 }
 
 @MainActor @Test func localSeriesMigrationConvergesPreSliceItemsAndIsIdempotent() async throws {
