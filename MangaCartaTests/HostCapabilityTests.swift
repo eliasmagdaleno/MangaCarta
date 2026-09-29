@@ -642,6 +642,218 @@ struct ImageCacheNetworkTests {
     }
 }
 
+// MARK: - Image-load reports (ADR-0003 Amendment 9, design §3)
+
+@Suite("Image-load reports from ImageCache")
+struct ImageLoadReportCacheTests {
+    private let url = URL(string: "https://a1.mangadex.network/data/hash/1.png")!
+    private let png = Data(base64Encoded:
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")!
+    private let target = ImageLoadReportTarget(
+        sourceID: QualifiedSourceID(rawValue: "repo:mangadex"),
+        endpoint: URL(string: "https://api.mangadex.network/report")!,
+        origins: ["https://*.mangadex.network"])
+
+    private func directory() -> URL {
+        FileManager.default.temporaryDirectory
+            .appendingPathComponent("ImageLoadReportCache-\(UUID().uuidString)")
+    }
+
+    private func sessionResult(xCache: String?, status: Int = 200) -> URLSessionFetchResult {
+        URLSessionFetchResult(
+            data: png,
+            response: HTTPURLResponse(url: url, statusCode: status, httpVersion: nil,
+                                      headerFields: xCache.map { ["X-Cache": $0] })!,
+            connectedPeerAddress: "93.184.216.34",
+            resourceFetchType: .networkLoad)
+    }
+
+    private func sessionCache(xCache: String?, reporter: RecordingImageLoadReporter,
+                              directory: URL? = nil,
+                              uptime: SteppingUptime = SteppingUptime([10, 10.25])) -> ImageCache {
+        ImageCache(directory: directory ?? self.directory(),
+                   resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
+                   sessionFetcher: ImageFetchProbe(result: sessionResult(xCache: xCache)),
+                   reporter: reporter,
+                   uptime: { uptime.next() })
+    }
+
+    @Test("a covered network load reports url, success, bytes, duration and the X-Cache hit")
+    func coveredLoadIsReported() async {
+        let reporter = RecordingImageLoadReporter()
+        let cache = sessionCache(xCache: "HIT from node", reporter: reporter)
+        #expect(await cache.loadImage(for: url, reportTarget: target) != nil)
+        #expect(reporter.reports == [
+            .init(report: ImageLoadReport(url: url, success: true, cached: true,
+                                          bytes: png.count, durationMilliseconds: 250),
+                  target: target)
+        ])
+    }
+
+    @Test("only an X-Cache value starting with HIT counts as cached", arguments: [
+        ("hit", true), ("HIT-edge", true), ("MISS", false), ("x-hit", false)
+    ])
+    func xCacheHitPrefix(value: String, cached: Bool) async {
+        let reporter = RecordingImageLoadReporter()
+        _ = await sessionCache(xCache: value, reporter: reporter).loadImage(for: url, reportTarget: target)
+        #expect(reporter.reports.map(\.report.cached) == [cached])
+    }
+
+    @Test("no X-Cache header reports cached false")
+    func missingXCacheIsNotCached() async {
+        let reporter = RecordingImageLoadReporter()
+        _ = await sessionCache(xCache: nil, reporter: reporter).loadImage(for: url, reportTarget: target)
+        #expect(reporter.reports.map(\.report.cached) == [false])
+    }
+
+    @Test("a disk hit downloads nothing and reports nothing")
+    func diskHitIsNotReported() async {
+        let shared = directory()
+        let first = RecordingImageLoadReporter()
+        _ = await sessionCache(xCache: nil, reporter: first, directory: shared)
+            .loadImage(for: url, reportTarget: target)
+        let second = RecordingImageLoadReporter()
+        #expect(await sessionCache(xCache: nil, reporter: second, directory: shared)
+            .loadImage(for: url, reportTarget: target) != nil)
+        #expect(first.reports.count == 1)
+        #expect(second.reports.isEmpty)
+    }
+
+    @Test("no target, or a URL the target does not cover, reports nothing")
+    func uncoveredLoadsAreNotReported() async {
+        let reporter = RecordingImageLoadReporter()
+        _ = await sessionCache(xCache: nil, reporter: reporter).loadImage(for: url)
+        let uncovered = ImageLoadReportTarget(sourceID: target.sourceID, endpoint: target.endpoint,
+                                              origins: ["https://uploads.mangadex.org"])
+        _ = await sessionCache(xCache: nil, reporter: reporter).loadImage(for: url, reportTarget: uncovered)
+        #expect(reporter.reports.isEmpty)
+    }
+
+    @Test("a URL the destination policy refuses is never attempted and never reported")
+    func policyRefusalIsNotReported() async {
+        let reporter = RecordingImageLoadReporter()
+        let cache = ImageCache(directory: directory(),
+                               resolver: FixedHostResolver(addresses: ["10.0.0.5"]),
+                               sessionFetcher: ImageFetchProbe(result: sessionResult(xCache: nil)),
+                               reporter: reporter)
+        #expect(await cache.loadImage(for: url, reportTarget: target) == nil)
+        #expect(reporter.reports.isEmpty)
+    }
+
+    @Test("a private connected peer is the host's refusal, not a node failure")
+    func peerRefusalIsNotReported() async {
+        let reporter = RecordingImageLoadReporter()
+        let result = URLSessionFetchResult(data: png,
+                                           response: HTTPURLResponse(url: url, statusCode: 200,
+                                                                     httpVersion: nil, headerFields: nil)!,
+                                           connectedPeerAddress: "10.0.0.5",
+                                           resourceFetchType: .networkLoad)
+        let cache = ImageCache(directory: directory(),
+                               resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
+                               sessionFetcher: ImageFetchProbe(result: result),
+                               reporter: reporter)
+        #expect(await cache.loadImage(for: url, reportTarget: target) == nil)
+        #expect(reporter.reports.isEmpty)
+    }
+
+    @Test("every attempt is reported: a throttled attempt fails, the retry succeeds")
+    func eachAttemptIsReported() async {
+        let reporter = RecordingImageLoadReporter()
+        let counter = FetchProbe()
+        let png = self.png
+        let cache = ImageCache(directory: directory(), retryBaseDelay: 0, maxImageRetries: 2,
+                               resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
+                               fetcher: { _ in
+                                   await counter.bump()
+                                   if await counter.count == 1 { throw ImageFetchError.rateLimited }
+                                   return png
+                               },
+                               reporter: reporter,
+                               uptime: { SteppingUptime.shared.next() })
+        #expect(await cache.loadImage(for: url, reportTarget: target) != nil)
+        #expect(reporter.reports.map(\.report.success) == [false, true])
+        #expect(reporter.reports.map(\.report.bytes) == [0, png.count])
+    }
+
+    @Test("a cancelled load says nothing about the node and is not reported")
+    func cancellationIsNotReported() async {
+        let reporter = RecordingImageLoadReporter()
+        let cache = ImageCache(directory: directory(),
+                               resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
+                               fetcher: { _ in throw URLError(.cancelled) },
+                               reporter: reporter)
+        #expect(await cache.loadImage(for: url, reportTarget: target) == nil)
+        let cancelled = ImageCache(directory: directory(),
+                                   resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
+                                   fetcher: { _ in throw CancellationError() },
+                                   reporter: reporter)
+        #expect(await cancelled.loadImage(for: url, reportTarget: target) == nil)
+        #expect(reporter.reports.isEmpty)
+    }
+
+    @Test("a download that fails to decode still reports a successful retrieval")
+    func decodeFailureKeepsSuccess() async {
+        let reporter = RecordingImageLoadReporter()
+        let png = self.png
+        let cache = ImageCache(directory: directory(),
+                               resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
+                               fetcher: { _ in png },
+                               reporter: reporter,
+                               decoder: { _ in nil })
+        #expect(await cache.loadImage(for: url, reportTarget: target) == nil)
+        #expect(reporter.reports.map(\.report.success) == [true])
+    }
+
+    @Test("prefetch passes the target to every load")
+    func prefetchReports() async {
+        let reporter = RecordingImageLoadReporter()
+        let png = self.png
+        let cache = ImageCache(directory: directory(),
+                               resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
+                               fetcher: { _ in png },
+                               reporter: reporter)
+        let urls = (1...3).map { URL(string: "https://a1.mangadex.network/data/hash/\($0).png")! }
+        await cache.prefetchAwaitable(urls, maxConcurrent: 2, reportTarget: target)
+        #expect(Set(reporter.reports.map(\.report.url)) == Set(urls))
+    }
+}
+
+private final class RecordingImageLoadReporter: ImageLoadReporting, @unchecked Sendable {
+    struct Entry: Equatable {
+        let report: ImageLoadReport
+        let target: ImageLoadReportTarget
+    }
+    private let lock = NSLock()
+    private var entries: [Entry] = []
+
+    var reports: [Entry] {
+        lock.lock()
+        defer { lock.unlock() }
+        return entries
+    }
+
+    func report(_ report: ImageLoadReport, to target: ImageLoadReportTarget) {
+        lock.lock()
+        entries.append(Entry(report: report, target: target))
+        lock.unlock()
+    }
+}
+
+/// Hands out fixed uptime readings in order, then repeats the last one.
+private final class SteppingUptime: @unchecked Sendable {
+    static let shared = SteppingUptime([0])
+    private let lock = NSLock()
+    private var values: [TimeInterval]
+
+    init(_ values: [TimeInterval]) { self.values = values }
+
+    func next() -> TimeInterval {
+        lock.lock()
+        defer { lock.unlock() }
+        return values.count > 1 ? values.removeFirst() : values[0]
+    }
+}
+
 private actor ImageFetchProbe: URLSessionDataFetching {
     let result: URLSessionFetchResult
     private(set) var count = 0

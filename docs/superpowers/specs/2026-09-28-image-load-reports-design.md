@@ -74,10 +74,15 @@ struct ImageFetchOutcome: Sendable {
 - **Every attempt is a report.** The 429/503 back-off loop can make up to three attempts. Each
   one reached the node, so each one gets its own report: `success: false` for the throttled
   ones, then the final outcome. MangaDex's rule is per retrieval, not per page.
-- **On failure** `bytes` is whatever body arrived. It is 0 when the fetch threw before a
-  response, and `cached` is `false`.
+- **On failure** `bytes` is 0 and `cached` is `false`. The fetch step throws away a failed
+  response's body, and nothing downstream needs its size. (Amended in step 3: this line
+  used to say "whatever body arrived".)
 - **Not reported:** memory and disk hits, `file:` URLs, a URL the destination policy refused,
   and a URL `target.covers(_:)` rejects. None of these is a download from a reported origin.
+- **Also not reported (added in step 3):** a cancelled load (`CancellationError` or
+  `URLError.cancelled`), which is the reader moving on, and a refused peer
+  (`ImageFetchError.destinationRefused`), which is the host's own policy firing. Neither says
+  anything about the node's health.
 - **Decode failure does not change `success`.** The download succeeded; the image being bad is
   the app's problem, not the node's. Amendment 9 fixes `success` to mean the retrieval.
 - **The test seam keeps its shape.** The existing `fetcher: (URL) async throws -> Data`
