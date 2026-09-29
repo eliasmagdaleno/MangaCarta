@@ -100,6 +100,18 @@ final class SearchViewModel: ObservableObject {
         }
     }
 
+    /// The adult switch changed. The query re-runs exactly once either way — a `mixed`
+    /// Source filters its titles by the switch — after falling back to `fallbackID` if the
+    /// searched Source was just hidden. `selectSource` already re-runs, so it is never
+    /// followed by `retry`; it is skipped when it would be a no-op.
+    func adultContentChanged(searchedSourceIsVisible: Bool, fallbackID: String) {
+        if !searchedSourceIsVisible, fallbackID != selectedSourceID {
+            selectSource(id: fallbackID)
+        } else {
+            retry()
+        }
+    }
+
     /// Re-run the last query (e.g. after an error).
     func retry() {
         guard !lastQuery.isEmpty else { return }

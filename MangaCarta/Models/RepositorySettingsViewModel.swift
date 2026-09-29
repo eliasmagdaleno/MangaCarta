@@ -57,7 +57,9 @@ final class RepositorySettingsViewModel: ObservableObject {
     /// what the repository attests by serving the declaration (format design §7.2), and
     /// ADR-0022 Amendment 2's copy rule is that nothing here reads as moderated by us.
     static let declarationCopy = "{repository} declares {source} as {classification}."
-    static let ageQuestionCopy = "Confirm that you are 18 or over to install it."
+    /// `{action}` is "install" or "update": an update that adds reports to an adult Source
+    /// can ask again when the switch was turned off, which clears the confirmation.
+    static let ageQuestionCopy = "Confirm that you are 18 or over to {action} it."
     static let alreadyConfirmedCopy = "You have already confirmed your age on this device."
     static let imageLoadReportsCopy = "{source} may have MangaCarta send page-loading statistics to the "
         + "operator that serves its images: each image's address, whether it loaded, whether it "
@@ -91,7 +93,9 @@ final class RepositorySettingsViewModel: ObservableObject {
                                                                          with: acknowledgement.sourceName))
         }
         if acknowledgement.classification != .none {
-            sentences.append(asksForAge ? ageQuestionCopy : alreadyConfirmedCopy)
+            let question = ageQuestionCopy.replacingOccurrences(
+                of: "{action}", with: acknowledgement.isUpdate ? "update" : "install")
+            sentences.append(asksForAge ? question : alreadyConfirmedCopy)
         }
         return sentences.joined(separator: " ")
     }

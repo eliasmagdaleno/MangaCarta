@@ -166,6 +166,16 @@ final class RepositorySettingsViewModelTests: XCTestCase {
         XCTAssertFalse(defaults.bool(forKey: RepositorySettingsViewModel.showAdultSourcesKey))
     }
 
+    func testAgeQuestionNamesUpdateOnAnUpdate() {
+        func copy(isUpdate: Bool) -> String {
+            RepositorySettingsViewModel.ageConfirmationCopy(for: AdultInstallAcknowledgement(
+                sourceName: "S", repositoryName: "R", classification: .adultOnly,
+                sendsImageLoadReports: true, isUpdate: isUpdate))
+        }
+        XCTAssertTrue(copy(isUpdate: false).hasSuffix("Confirm that you are 18 or over to install it."))
+        XCTAssertTrue(copy(isUpdate: true).hasSuffix("Confirm that you are 18 or over to update it."))
+    }
+
     func testGateCopyNamesTheDeclarationWithoutImplyingModeration() {
         let acknowledgement = AdultInstallAcknowledgement(sourceName: "Reader's Choice",
                                                           repositoryName: "Community Index", classification: .adultOnly)

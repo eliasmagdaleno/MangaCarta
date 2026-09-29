@@ -74,10 +74,8 @@ private struct SearchScreen: View {
                 // app's active (non-adult) source.
                 let visible = registry.visibleSources(includeAdult: newValue)
                 let current = vm.selectedSourceID ?? registry.activeSourceID
-                if !visible.contains(where: { $0.id == current }) {
-                    vm.selectSource(id: registry.activeSourceID)
-                }
-                vm.retry()
+                vm.adultContentChanged(searchedSourceIsVisible: visible.contains { $0.id == current },
+                                       fallbackID: registry.activeSourceID)
             }
             } else {
                 InkEmptyState(

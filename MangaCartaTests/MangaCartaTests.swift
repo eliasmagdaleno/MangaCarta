@@ -1562,6 +1562,31 @@ final class MangaCartaTests: XCTestCase {
         XCTAssertEqual(source.searchCalls.last?.title, "hero")
     }
 
+    @MainActor func testHidingTheSearchedSourceFallsBackWithOneSearch() async throws {
+        let source = RecordingSource(pageProvider: { _, _ in [self.sampleManga("r")] })
+        let vm = SearchViewModel(source: source, debounce: .milliseconds(20))
+        vm.queryChanged("hero")
+        try await waitUntil("first search") { source.searchCalls.count == 1 }
+        vm.adultContentChanged(searchedSourceIsVisible: false, fallbackID: "general")
+        try await waitUntil("fallback search") { source.searchCalls.count == 2 }
+        try await Task.sleep(nanoseconds: 80_000_000)   // no duplicate behind it
+        XCTAssertEqual(source.searchCalls.count, 2)
+        XCTAssertEqual(vm.selectedSourceID, "general")
+    }
+
+    @MainActor func testAdultSwitchReRunsAVisibleSourceOnce() async throws {
+        // A `mixed` Source filters its titles by the switch, so results must refresh.
+        let source = RecordingSource(pageProvider: { _, _ in [self.sampleManga("r")] })
+        let vm = SearchViewModel(source: source, debounce: .milliseconds(20))
+        vm.queryChanged("hero")
+        try await waitUntil("first search") { source.searchCalls.count == 1 }
+        vm.adultContentChanged(searchedSourceIsVisible: true, fallbackID: "general")
+        try await waitUntil("re-run") { source.searchCalls.count == 2 }
+        try await Task.sleep(nanoseconds: 80_000_000)
+        XCTAssertEqual(source.searchCalls.count, 2)
+        XCTAssertNil(vm.selectedSourceID)
+    }
+
     @MainActor func testRetryIsNoopWithoutAQuery() async throws {
         let source = RecordingSource(pageProvider: { _, _ in [] })
         let vm = SearchViewModel(source: source, debounce: .milliseconds(20))

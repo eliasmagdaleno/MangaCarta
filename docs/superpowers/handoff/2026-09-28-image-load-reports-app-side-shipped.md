@@ -69,12 +69,9 @@ session.
 2. **Deferred minors:**
    - `SourceRegistry.setInstalledSources` restores a stored chosen Source by existence alone.
      `active` still gates it, so it is contained.
-   - `@Sendable` on `AdultContentSetting.current` is redundant.
-   - Search runs a duplicate search when the switch hides the selected Source; the second request
-     cancels the first.
-   - **New:** a reader who turned adult content off, which clears the age confirmation, is asked
-     their age again when an update adds reports to an adult Source they already have.
-     Acceptable, but it reads oddly ("to install it" on an update).
+   - Not a minor after all: `@Sendable` on `AdultContentSetting.current` is **not** redundant. The
+     target builds in Swift 5 mode without `InferSendableFromCaptures`, so nothing infers it; keep
+     it. (The duplicate search and the "to install it" copy on an update were fixed 2026-09-29.)
 3. **`MangaDexSource` / `MangaDexAPI`** still compile for AniList, MAL and the resolver, but
    nothing registers them. Narrowing them is a separate refactor, and injecting `UserDefaults`
    into `SourceRegistry` fits the same pass.
