@@ -63,9 +63,6 @@ session.
    - `MALAuthenticatedClientTests` "Concurrent 401s share one refresh" depends on order.
    - `LocalImportUITests.testImportReadAndDelete` should be fixed by #263. If it goes red again,
      suspect the test's own launch timeout.
-   - **New:** `RepositorySettingsUITests.testRepositoryCanBeAddedAndItsSourceInstalledWithFixtureTransport`
-     failed once on CI (#280) at its 3-second keyboard-dismissal wait, before any install. A
-     rerun passed. If it recurs, lengthen that wait.
    - **New:** Swift Testing `realURLSessionLoopbackPeerNeverDecodes` (#247) failed once locally in
      a full parallel run with `-1005`, then passed five times alone. It looks like loopback
      contention.
