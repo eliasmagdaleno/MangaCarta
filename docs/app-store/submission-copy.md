@@ -140,9 +140,10 @@ argument. (Rejected: `Read your comics, your way` — friendly but says nothing 
 > you read.
 
 Before submitting, check every bullet against the release build — **this is a checklist, not
-copy to paste.** PDF import and the "Import from Files" empty state have shipped; ComicInfo
-parsing has not, so the description does not claim it. The compiled MangaDex Source and bundled
-WeebCentral package still need removal before the no-content claims become true. Check the privacy
+copy to paste.** PDF import, the "Import from Files" empty state, ComicInfo metadata and "Open in"
+(#291) have shipped; the description does not yet claim the last two. No remote content Source is
+built in (ADR-0003 Amendment 6), but the asset catalog still carries two site logos — see the live
+handoff before relying on the no-content claims. Check the privacy
 line against the privacy label (§5) and #149's policy.
 
 **Screenshots:** use only original or public-domain art [[owner-supplied — owner decision 4, open]]. Show no site UI and no
