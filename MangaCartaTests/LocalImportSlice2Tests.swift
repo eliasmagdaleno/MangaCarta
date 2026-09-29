@@ -156,7 +156,8 @@ private func localImporter(root: URL, store: LocalLibraryStore) -> (LocalImportV
 // Decision 17: deleting a series removes every member, its Library item and its Listing.
 @MainActor @Test func localSeriesDeleteRemovesEveryMemberItemAndListing() async throws {
     let fixture = try LocalFixture(); defer { fixture.cleanup() }
-    let store = LocalLibraryStore(root: fixture.root.appendingPathComponent("library"))
+    let libraryRoot = fixture.root.appendingPathComponent("library")
+    let store = LocalLibraryStore(root: libraryRoot)
     let (importer, library, works) = localImporter(root: fixture.root, store: store)
     let v1 = try writeSeriesArchive(in: fixture.root, name: "d1.cbz", series: "Gone", volume: "1")
     let v2 = try writeSeriesArchive(in: fixture.root, name: "d2.cbz", series: "Gone", volume: "2")
@@ -170,7 +171,7 @@ private func localImporter(root: URL, store: LocalLibraryStore) -> (LocalImportV
     try await LocalLibraryDeletion(local: store, library: library, works: works).delete(itemId: seriesID)
 
     for member in members {
-        #expect(!FileManager.default.fileExists(atPath: store.root.appendingPathComponent(member.itemId).path))
+        #expect(!FileManager.default.fileExists(atPath: libraryRoot.appendingPathComponent(member.itemId).path))
     }
     #expect(await store.records(forMangaID: seriesID).isEmpty)
     #expect(library.item(for: seriesID) == nil)
