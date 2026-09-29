@@ -164,7 +164,7 @@ merging was theirs (see Operating notes).
   Backups: `~/Manga-Reader-sim-backup-2026-09-29-pre-openin/` (before today's check) and
   `~/Manga-Reader-sim-backup-2026-09-27-post-smoke/`.
 - **The app's data container moves on every reinstall, and every test run reinstalls.** It moved
-  four times today. Look it up with
+  at least three times today. Look it up with
   `xcrun simctl get_app_container <udid> Elias-Magdaleno.Manga-Reader data` right before use while
   booted, then edit plists with PlistBuddy while shut down. Never use `simctl spawn … defaults write`.
   When reading the app's settings, open `Library/Preferences/Elias-Magdaleno.Manga-Reader.plist`
