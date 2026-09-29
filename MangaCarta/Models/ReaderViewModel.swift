@@ -68,18 +68,22 @@ final class ReaderViewModel: ObservableObject {
     private let source: MangaSource
     private let initialPosition: ReadingPosition
     /// Injected so tests never reach the network. Production passes the real cache.
-    private let prefetch: ([URL], Int) -> Void
+    private let prefetch: ([URL], Int, ImageLoadReportTarget?) -> Void
+    let reportTarget: ImageLoadReportTarget?
 
     init(manga: Manga, chapter: Chapter, chapters: [Chapter], initialPosition: ReadingPosition,
          source: MangaSource,
-         prefetch: (([URL], Int) -> Void)? = nil) {
+         imageCache: ImageCache,
+         prefetch: (([URL], Int, ImageLoadReportTarget?) -> Void)? = nil) {
         self.manga = manga
         self.currentChapter = chapter
         self.chapters = chapters
         self.initialPosition = initialPosition
         self.source = source
-        self.prefetch = prefetch ?? { urls, width in
-            ImageCache.shared.prefetch(urls, maxConcurrent: width)
+        let reportTarget = source.imageLoadReportTarget
+        self.reportTarget = reportTarget
+        self.prefetch = prefetch ?? { urls, width, target in
+            imageCache.prefetch(urls, maxConcurrent: width, reportTarget: target)
         }
     }
 
@@ -163,7 +167,7 @@ final class ReaderViewModel: ObservableObject {
             currentChapter = chapter
             pages = fetched
             pagerTarget = Self.landingPosition(landing, pageCount: fetched.count)
-            prefetch(fetched, source.imagePrefetchConcurrency)
+            prefetch(fetched, source.imagePrefetchConcurrency, reportTarget)
         } catch {
             guard isCurrent() else { return }
 

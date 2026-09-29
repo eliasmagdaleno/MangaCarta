@@ -121,7 +121,10 @@ struct ReaderView: View {
     ///   because this `init` builds a `@StateObject` and so runs before the environment
     ///   exists — the only registry it could reach itself is the singleton, which is not
     ///   always the graph's. Every caller reads `SourceRegistry` from the environment.
+    /// - Parameter imageCache: the graph-owned cache used by the reader's page loads and
+    ///   prefetches. Passed in because this initializer runs before the environment exists.
     init(manga: Manga, chapter: Chapter, source: MangaSource,
+         imageCache: ImageCache,
          initialPosition: ReadingPosition? = nil,
          chapters: [Chapter] = []) {
         self.manga = manga
@@ -129,7 +132,8 @@ struct ReaderView: View {
                                                        chapters: chapters,
                                                        initialPosition: initialPosition
                                                            ?? ReadingPosition(page: 0),
-                                                       source: source))
+                                                       source: source,
+                                                       imageCache: imageCache))
         _progressChapterID = State(initialValue: chapter.id)
     }
 
@@ -467,7 +471,8 @@ struct ReaderView: View {
                         .tag(index)
                 } else if index >= 0, index < vm.pages.count {
                     ZoomablePage(url: vm.pages[index], index: index, currentIndex: currentPage,
-                                 pageCount: vm.pages.count, onTap: toggleChrome)
+                                 pageCount: vm.pages.count, reportTarget: vm.reportTarget,
+                                 onTap: toggleChrome)
                         .tag(index)
                 } else if index == vm.pages.count, let next = vm.nextChapter {
                     InterstitialPage(chapter: next, isNext: true)
@@ -526,7 +531,8 @@ struct ReaderView: View {
                     // position — resuming a full viewport ahead (ADR-0014 decision 7). In
                     // vertical mode the viewport top is the only position feed.
                     ForEach(Array(vm.pages.enumerated()), id: \.offset) { index, url in
-                        WebtoonPage(url: url, index: index, pageCount: vm.pages.count)
+                        WebtoonPage(url: url, index: index, pageCount: vm.pages.count,
+                                    reportTarget: vm.reportTarget)
                             .id(index)
                     }
                     if !vm.pages.isEmpty && !vm.isLoading {
@@ -709,6 +715,7 @@ private struct ZoomablePage: View {
     let index: Int
     let currentIndex: Int
     let pageCount: Int
+    let reportTarget: ImageLoadReportTarget?
     let onTap: () -> Void
 
     @State private var reloadToken = 0
@@ -719,7 +726,7 @@ private struct ZoomablePage: View {
             contentID: "\(url.absoluteString)-\(reloadToken)",
             onSingleTap: onTap
         ) {
-            CachedAsyncImage(url: url) { phase in
+            CachedAsyncImage(url: url, reportTarget: reportTarget) { phase in
                 switch phase {
                 case .success(let img):
                     img.resizable().scaledToFit()
@@ -758,11 +765,12 @@ private struct WebtoonPage: View {
     let url: URL
     let index: Int
     let pageCount: Int
+    let reportTarget: ImageLoadReportTarget?
 
     @State private var reloadToken = 0
 
     var body: some View {
-        CachedAsyncImage(url: url) { phase in
+        CachedAsyncImage(url: url, reportTarget: reportTarget) { phase in
             strip(for: phase)
                 .background(frameReporter(isDecoded: isDecoded(phase)))
                 .overlay(anchorGrid)

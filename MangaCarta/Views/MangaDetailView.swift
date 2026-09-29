@@ -21,6 +21,7 @@ struct MangaDetailView: View {
     /// lookup on this page miss.
     @EnvironmentObject private var registry: SourceRegistry
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.imageCache) private var imageCache
     @ScaledMetric(relativeTo: .title) private var coverWidth: CGFloat = 132
     @ScaledMetric(relativeTo: .title) private var coverHeight: CGFloat = 188
     @StateObject private var moreLikeThis: MoreLikeThisViewModel
@@ -365,6 +366,7 @@ struct MangaDetailView: View {
             if let source = registry.source(for: manga) {
                 ReaderView(manga: manga, chapter: action.chapter,
                            source: source,
+                           imageCache: imageCache,
                            initialPosition: action.startPosition, chapters: vm.chapters)
             } else {
                 UnavailableSourceView()
@@ -594,6 +596,7 @@ struct MangaDetailView: View {
                             if let source = registry.source(for: manga) {
                                 ReaderView(manga: manga, chapter: chapter,
                                            source: source,
+                                           imageCache: imageCache,
                                            initialPosition: history.entry(forChapter: chapter.id)?.position,
                                            chapters: vm.chapters)
                             } else {
