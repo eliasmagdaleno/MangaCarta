@@ -59,8 +59,9 @@ final class RepositorySettingsViewModel: ObservableObject {
     static let declarationCopy = "{repository} declares {source} as {classification}."
     static let ageQuestionCopy = "Confirm that you are 18 or over to install it."
     static let alreadyConfirmedCopy = "You have already confirmed your age on this device."
-    static let imageLoadReportsCopy = "{source} may have MangaCarta send page-loading statistics to the operator that serves its images: each image's address, whether it loaded, whether it came from their cache, its size and load time. "
-        + "No cookies or identifiers are sent."
+    static let imageLoadReportsCopy = "{source} may have MangaCarta send page-loading statistics to the "
+        + "operator that serves its images: each image's address, whether it loaded, whether it "
+        + "came from their cache, its size and load time. No cookies or identifiers are sent."
 
     static func shouldShowAdultSourcesToggle(isConfirmed: Bool, hasRegisteredAdultSource: Bool) -> Bool {
         isConfirmed && hasRegisteredAdultSource
