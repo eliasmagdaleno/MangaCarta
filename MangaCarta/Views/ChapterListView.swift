@@ -19,6 +19,7 @@ struct ChapterListView: View {
     /// resolves through — not whatever `SourceRegistry.shared` happens to hold.
     @EnvironmentObject private var registry: SourceRegistry
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.imageCache) private var imageCache
     @State private var descending = true
     @State private var isSelecting = false
     @State private var selectedIDs: Set<String> = []
@@ -42,6 +43,7 @@ struct ChapterListView: View {
                             if let source = registry.source(for: manga) {
                                 ReaderView(manga: manga, chapter: chapter,
                                            source: source,
+                                           imageCache: imageCache,
                                            initialPosition: history.entry(forChapter: chapter.id)?.position,
                                            chapters: chapters)
                             } else {

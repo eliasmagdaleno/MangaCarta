@@ -14,6 +14,7 @@ struct HistoryView: View {
     /// resolves through — not whatever `SourceRegistry.shared` happens to hold.
     @EnvironmentObject private var registry: SourceRegistry
     @Environment(\.selectAppTab) private var selectAppTab
+    @Environment(\.imageCache) private var imageCache
 
     @State private var showingClearConfirmation = false
 
@@ -72,6 +73,7 @@ struct HistoryView: View {
             if let source = registry.source(for: entry.asManga) {
                 ReaderView(manga: entry.asManga, chapter: entry.asChapter,
                            source: source,
+                           imageCache: imageCache,
                            initialPosition: entry.position)
             } else {
                 UnavailableSourceView()

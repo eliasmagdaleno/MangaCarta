@@ -40,6 +40,8 @@ final class ReaderViewModelTests: XCTestCase {
     private final class StubSource: MangaSource {
         let id = "stub"
         let name = "Stub"
+        var reportTarget: ImageLoadReportTarget?
+        var imageLoadReportTarget: ImageLoadReportTarget? { reportTarget }
 
         /// chapterId → what `pageURLs` should do.
         var pages: [String: Result<[URL], Error>] = [:]
@@ -132,7 +134,7 @@ final class ReaderViewModelTests: XCTestCase {
         configure(source)
         let vm = ReaderViewModel(manga: Self.manga, chapter: chapter, chapters: Self.three,
                                  initialPosition: ReadingPosition(page: 0), source: source,
-                                 prefetch: { _, _ in })
+                                 imageCache: ImageCache(), prefetch: { _, _, _ in })
         return (vm, source)
     }
 
@@ -145,11 +147,49 @@ final class ReaderViewModelTests: XCTestCase {
         // Swallow the prefetch: these tests must not touch the network or the real cache.
         let vm = ReaderViewModel(manga: Self.manga, chapter: chapter, chapters: chapters,
                                  initialPosition: initialPosition, source: source,
-                                 prefetch: { _, _ in })
+                                 imageCache: ImageCache(), prefetch: { _, _, _ in })
         return (vm, source)
     }
 
     // MARK: - Initial load
+
+    func testBeginPassesSourceImageLoadReportTargetToPrefetch() async {
+        let target = ImageLoadReportTarget(
+            sourceID: QualifiedSourceID(rawValue: "repo/stub"),
+            endpoint: URL(string: "https://reports.test/images")!,
+            origins: ["https://cdn.test"])
+        var receivedURLs: [URL] = []
+        var receivedTarget: ImageLoadReportTarget?
+        let source = StubSource()
+        source.reportTarget = target
+        source.pages["ch1"] = .success(Self.urls(2))
+        let vm = ReaderViewModel(manga: Self.manga, chapter: Self.chapter("1"),
+                                 chapters: Self.three, initialPosition: ReadingPosition(page: 0),
+                                 source: source, imageCache: ImageCache(),
+                                 prefetch: { urls, _, target in
+                                     receivedURLs = urls
+                                     receivedTarget = target
+                                 })
+
+        await vm.begin()
+
+        XCTAssertEqual(receivedURLs, Self.urls(2))
+        XCTAssertEqual(receivedTarget, target)
+    }
+
+    func testBeginPassesNilImageLoadReportTargetToPrefetchWhenSourceHasNone() async {
+        var receivedTarget: ImageLoadReportTarget?
+        let source = StubSource()
+        source.pages["ch1"] = .success(Self.urls(1))
+        let vm = ReaderViewModel(manga: Self.manga, chapter: Self.chapter("1"),
+                                 chapters: Self.three, initialPosition: ReadingPosition(page: 0),
+                                 source: source, imageCache: ImageCache(),
+                                 prefetch: { _, _, target in receivedTarget = target })
+
+        await vm.begin()
+
+        XCTAssertNil(receivedTarget)
+    }
 
     func testSuccessfulLoadPopulatesPagesAndClearsError() async {
         let (vm, _) = makeVM(chapter: Self.chapter("1")) {

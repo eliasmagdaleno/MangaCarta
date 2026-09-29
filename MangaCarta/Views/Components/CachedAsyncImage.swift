@@ -28,10 +28,18 @@ extension EnvironmentValues {
 
 struct CachedAsyncImage<Content: View>: View {
     let url: URL?
+    let reportTarget: ImageLoadReportTarget?
     @ViewBuilder let content: (AsyncImagePhase) -> Content
 
     @Environment(\.imageCache) private var imageCache
     @State private var phase: AsyncImagePhase = .empty
+
+    init(url: URL?, reportTarget: ImageLoadReportTarget? = nil,
+         @ViewBuilder content: @escaping (AsyncImagePhase) -> Content) {
+        self.url = url
+        self.reportTarget = reportTarget
+        self.content = content
+    }
 
     var body: some View {
         content(phase)
@@ -40,7 +48,7 @@ struct CachedAsyncImage<Content: View>: View {
 
     private func load() async {
         guard let url else { return }
-        if let image = await imageCache.loadImage(for: url) {
+        if let image = await imageCache.loadImage(for: url, reportTarget: reportTarget) {
             phase = .success(Image(uiImage: image))
         } else {
             phase = .failure(URLError(.cannotDecodeContentData))
