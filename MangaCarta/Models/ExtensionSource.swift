@@ -53,6 +53,9 @@ enum ExtensionSourceError: LocalizedError, Equatable {
     /// An offset the adapter could not reach by following cursors from the last page it
     /// saw — the feed was reloaded elsewhere, or paged with a different size.
     case pageOutOfSequence
+    /// `rate_limited`, with the site's advisory wait when the Source passed one on. The
+    /// host's own pause is authoritative (Amendment 8); this number only sets the copy.
+    case rateLimited(retryAfterSeconds: Double?)
 
     var errorDescription: String? {
         switch self {
@@ -62,7 +65,22 @@ enum ExtensionSourceError: LocalizedError, Equatable {
             return Self.copy(for: code)
         case .pageOutOfSequence:
             return "Couldn't load that page of the feed. Pull to refresh and try again."
+        case .rateLimited(let seconds):
+            return "The site is asking for a pause. " + Self.retryHint(after: seconds)
         }
+    }
+
+    /// Rounded up, so the reader never tries again before the site said to. Past an hour a
+    /// number is more precise than useful, and none at all falls back to the old sentence.
+    private static func retryHint(after seconds: Double?) -> String {
+        guard let seconds, seconds > 0 else { return "Try again in a moment." }
+        if seconds < 60 {
+            let whole = Int(seconds.rounded(.up))
+            return "Try again in about \(whole) second\(whole == 1 ? "" : "s")."
+        }
+        guard seconds <= 3600 else { return "Try again later." }
+        let minutes = Int((seconds / 60).rounded(.up))
+        return "Try again in about \(minutes) minute\(minutes == 1 ? "" : "s")."
     }
 
     private static func copy(for code: ExtensionHostErrorCode) -> String {
@@ -327,6 +345,9 @@ final class ExtensionSource: MangaSource {
             // A cancelled invocation is the caller's own cancellation coming back, and
             // every view model already treats `CancellationError` as "superseded".
             if error.code == .cancelled, Task.isCancelled { throw CancellationError() }
+            if error.code == .rateLimited {
+                throw ExtensionSourceError.rateLimited(retryAfterSeconds: error.retryAfterSeconds)
+            }
             throw ExtensionSourceError.invocation(error.code)
         }
     }
