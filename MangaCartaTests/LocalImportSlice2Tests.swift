@@ -76,15 +76,15 @@ private func writeSeriesArchive(in root: URL, name: String, series: String?, vol
 }
 
 @MainActor
-private func localImporter(root: URL, store: LocalLibraryStore) -> (LocalImportViewModel, LibraryStore, WorkStore, TestDefaults) {
+private func localImporter(root: URL, store: LocalLibraryStore,
+                           suite: TestDefaults) -> (LocalImportViewModel, LibraryStore, WorkStore) {
     let works = WorkStore(directory: root.appendingPathComponent("works"))
-    let suite = TestDefaults("local-import-slice6")
     let defaults = suite.defaults
     let registry = SourceRegistry(sources: [LocalSource(store: store)])
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let importer = LocalImportViewModel()
     importer.configure(registry: registry, library: library, works: works)
-    return (importer, library, works, suite)
+    return (importer, library, works)
 }
 
 @MainActor @Test func localImportGroupsSeriesAcrossBatchesAndKeepsStandaloneItemsSeparate() async throws {
@@ -94,8 +94,9 @@ private func localImporter(root: URL, store: LocalLibraryStore) -> (LocalImportV
     let v3 = try writeSeriesArchive(in: fixture.root, name: "v3.cbz", series: "SAGA", volume: "3", number: "3")
     let standalone = try writeSeriesArchive(in: fixture.root, name: "standalone.cbz", series: nil)
     let store = LocalLibraryStore(root: fixture.root.appendingPathComponent("library"))
-    let (importer, library, works, suite) = localImporter(root: fixture.root, store: store)
+    let suite = TestDefaults("local-import-slice6")
     defer { suite.remove() }
+    let (importer, library, works) = localImporter(root: fixture.root, store: store, suite: suite)
 
     await importer.importFilesAndWait([v1, v2])
     await importer.importFilesAndWait([v3, standalone])
@@ -138,8 +139,9 @@ private func localImporter(root: URL, store: LocalLibraryStore) -> (LocalImportV
     let fixture = try LocalFixture(); defer { fixture.cleanup() }
     let archive = try writeSeriesArchive(in: fixture.root, name: "read.cbz", series: "Read Me", volume: "1", number: "1")
     let store = LocalLibraryStore(root: fixture.root.appendingPathComponent("library"))
-    let (importer, library, works, suite) = localImporter(root: fixture.root, store: store)
+    let suite = TestDefaults("local-import-slice6")
     defer { suite.remove() }
+    let (importer, library, works) = localImporter(root: fixture.root, store: store, suite: suite)
     await importer.importFilesAndWait([archive])
     let seriesID = LocalSeriesIdentity.seriesID(for: "read me")
     let source = LocalSource(store: store)
@@ -163,8 +165,9 @@ private func localImporter(root: URL, store: LocalLibraryStore) -> (LocalImportV
     let fixture = try LocalFixture(); defer { fixture.cleanup() }
     let libraryRoot = fixture.root.appendingPathComponent("library")
     let store = LocalLibraryStore(root: libraryRoot)
-    let (importer, library, works, suite) = localImporter(root: fixture.root, store: store)
+    let suite = TestDefaults("local-import-slice6")
     defer { suite.remove() }
+    let (importer, library, works) = localImporter(root: fixture.root, store: store, suite: suite)
     let v1 = try writeSeriesArchive(in: fixture.root, name: "d1.cbz", series: "Gone", volume: "1")
     let v2 = try writeSeriesArchive(in: fixture.root, name: "d2.cbz", series: "Gone", volume: "2")
     let other = try writeSeriesArchive(in: fixture.root, name: "keep.cbz", series: nil)
