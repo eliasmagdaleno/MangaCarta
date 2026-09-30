@@ -409,6 +409,12 @@ _Avoid_: resume pointer, last position — a *last* position would move backward
 [deliberately rejected design](adr/0014-resuming-a-webtoon-where-the-reader-stopped.md), not a
 synonym.
 
+**Reading mode** (`ReadingMode`) — how the reader lays out a chapter: left to right, right to left,
+or vertical (webtoon). A **Work's own mode** beats the **default reading mode** set in Settings; the
+reader's mode menu sets or clears the Work's own. See
+[ADR-0026](adr/0026-reading-mode-is-per-work.md).
+_Avoid_: reading direction — vertical is a mode, not a direction.
+
 **Strip** — a webtoon page: one tall image, routinely several screens long. The reason a page index
 alone cannot say where a reader stopped, and the unit the anchor grid subdivides.
 
