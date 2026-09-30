@@ -1,4 +1,4 @@
-# Handoff: #290 per-title reading mode implemented (PR #307) — merge it, then #294's checks
+# Handoff: #290 per-title reading mode shipped (#307) — #294's checks next
 
 Date: 2026-09-30. This is the one live handoff. The prior one
 (`2026-09-30-reading-mode-planned.md`) is in `archive/`; every open item in it is carried here.
@@ -6,9 +6,8 @@ Recheck GitHub and the working tree before acting.
 
 ## Completed this session
 
-- **#290 per-title reading mode — implemented as PR #307** (branch `feat/per-title-reading-mode`,
-  worktree `/private/tmp/mangacarta-290`). Open with **squash auto-merge enabled**; not merged at
-  time of writing. Check `gh pr view 307 --json state` first.
+- **#290 per-title reading mode — merged as #307** (`8a03729`, 2026-09-30), all four checks green.
+  Its worktree and branch (local and remote) are removed.
   - Implements ADR-0026 per the spec and plan (both merged in #306): `ReadingModeStore` (injected,
     UserDefaults; default under the old `readingMode` key, per-Work modes under `reader.workModes`),
     `ReadingMode` moved to `Models/ReadingMode.swift`, ComicInfo `<Manga>` seeding on local import,
@@ -32,30 +31,22 @@ Recheck GitHub and the working tree before acting.
     Not reproduced locally on either the 17 Pro or the "iPhone 16 Pro (CI repro)" sim (both iOS 26.5;
     CI is iOS 26.2). Fix `a7acfd0`: the `Default (Right to Left)` menu check moved into the *first*
     reader session, where CI's taps on the same menu already succeed. Passes on both local sims; the
-    mutation "setter writes the default too" fails it at line 110. **Its CI run was still pending
-    when this was written** — if Hermetic UI goes red again, read the failing line first.
+    mutation "setter writes the default too" fails it at line 110. CI passed with it, Hermetic UI
+    included. Why a reopened reader's menu can't be tapped on iOS 26.2 is still unexplained and may
+    be a real app bug (not filed).
 - **Orca 1.4.217 runs Codex without the readiness wrapper** — verified by this session's first
   `worker-start` (memory updated).
 
-**Working tree:** `main` at `b336cd7`; PR #307 on top. `stash@{0}` is still the Xcode
+**Working tree:** `main` at `8a03729`, clean. `stash@{0}` is still the Xcode
 `project.pbxproj` churn from before #291; it is noise (`git stash drop` is fine, `git stash pop`
 would conflict).
 
 ## Next
 
-1. **Land #307.** The owner asked for it to merge once checks pass; auto-merge (squash) is on, so it
-   merges itself when all four checks are green. If it has merged, remove worktree
-   `/private/tmp/mangacarta-290` and branch `feat/per-title-reading-mode` (local and remote), gating on
-   `state == MERGED`. If Hermetic UI is red again at a *new* line, it is a real finding; at the
-   reopened-reader tap, the reader's second presentation on iOS 26.2 is the suspect — and the
-   question of why a reopened reader's menu can't be tapped there may be a real app bug. Deferred minors from its review, both optional:
-   - `AppComposition.init` was already over SwiftLint's `function_body_length` (147 lines); #307 adds
-     one line (148).
-   - The new `CLAUDE.md` "Current state" line is one ~200-character line; the file wraps at ~100.
-2. **#294's unchecked cases.** Opening in place hands over the reader's original file, not a copy:
+1. **#294's unchecked cases.** Opening in place hands over the reader's original file, not a copy:
    - an iCloud `.cbz` that has not been downloaded yet (may need a coordinated read);
    - a real device, ideally with another comic app that also claims `.cbz` at `Owner`.
-3. **The engine change, only after an App Store build with Host API 1.3 ships.** It is made in
+2. **The engine change, only after an App Store build with Host API 1.3 ships.** It is made in
    `proxy-link/mangacarta-sources`. Push it through the SSH alias only, and never commit as Elias.
    - Add `https://api.mangadex.network` to `httpOrigins`.
    - Add
@@ -63,10 +54,10 @@ would conflict).
    - Raise `hostAPI.minimum` to `1.3`.
    - If it ships too early, current builds see no version intersection and refuse the update.
    - Existing readers will see the update sheet (Amendment 10) the first time they update.
-4. **A real report reaching an endpoint.** Only the sheet is covered (#284). Delivery cannot be
+3. **A real report reaching an endpoint.** Only the sheet is covered (#284). Delivery cannot be
    tested locally (`HostURLPolicy` refuses non-public addresses, loopback included). Check it with
-   the real engine against MangaDex once item 3 ships.
-5. **Bare 429s (optional):** a 429 with no retry header does not pause. Amendment 8 chose that on
+   the real engine against MangaDex once item 2 ships.
+4. **Bare 429s (optional):** a 429 with no retry header does not pause. Amendment 8 chose that on
    purpose. Revisit only with evidence of a Source that sends bare 429s.
 
 ## Other outstanding work
@@ -79,27 +70,30 @@ would conflict).
      built-in ids, not installed Sources' qualified ids. Decide whether third-party site logos belong
      in a no-content build before submitting;
    - the copy may now mention ComicInfo metadata, Open in, opening `.cbz` from Files, series
-     grouping (#291, #294, #299) and, once #307 merges, per-title reading mode. That is the owner's
+     grouping (#291, #294, #299) and per-title reading mode (#307). That is the owner's
      call.
 2. **Flaky tests:**
    - `LocalImportUITests.testImportReadAndDelete` should be fixed by #263. If it goes red again,
      suspect the test's own launch timeout.
    - The loopback test now retries and logs. If it recurs, search the CI log for
      `[loopback-flake]` (#289).
-3. **Deferred minor:** `SourceRegistry.setInstalledSources` restores a stored chosen Source by
+3. **#307's deferred minors (optional):** `AppComposition.init` was already over SwiftLint's
+   `function_body_length` (147 lines) and #307 made it 148; the `CLAUDE.md` "Current state" line #307
+   added is one ~200-character line in a file that wraps at ~100.
+4. **Deferred minor:** `SourceRegistry.setInstalledSources` restores a stored chosen Source by
    existence alone. `active` still gates it, so it is contained. (`@Sendable` on
    `AdultContentSetting.current` is **not** redundant: the target is Swift 5 mode without
    `InferSendableFromCaptures`. Keep it.)
-4. **`MangaDexSource` / `MangaDexAPI`** still compile for AniList, MAL and the resolver, but nothing
+5. **`MangaDexSource` / `MangaDexAPI`** still compile for AniList, MAL and the resolver, but nothing
    registers them. Narrowing them is a separate refactor; injecting `UserDefaults` into
    `SourceRegistry` fits the same pass. Good background work for a worker.
-5. **Source pins are lost on a Work merge.** `SourcePreferenceStore` keys by raw Work id and never
+6. **Source pins are lost on a Work merge.** `SourcePreferenceStore` keys by raw Work id and never
    follows `WorkStore`'s aliases (noticed 2026-09-30 while designing #290; not filed).
-   `ReadingModeStore` (#307) now shows the fix: reads resolve merged ids without publishing, writes
+   `ReadingModeStore` (#307) shows the fix: reads resolve merged ids without publishing, writes
    re-key the stored map.
-6. **Leftover remote branch:** `docs/handoff-2026-09-29` (#288, closed unmerged, superseded). It was
+7. **Leftover remote branch:** `docs/handoff-2026-09-29` (#288, closed unmerged, superseded). It was
    left in place because it never merged; delete it only if the owner says so.
-7. **Human gates:**
+8. **Human gates:**
    - a VoiceOver device pass (#90);
    - the MAL live-write check (`TEST_RUNNER_MAL_LIVE_WRITE=1`) — the MAL avatar change in #302 can
      be eyeballed in the same signed-in session;
