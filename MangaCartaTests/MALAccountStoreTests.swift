@@ -98,14 +98,15 @@ private let exchangeBody = """
 private let elias = MALUserIdentity(id: 42, name: "elias", pictureURL: nil)
 
 @MainActor
-private struct AccountFixture {
+private final class AccountFixture {
     let store: MALAccountStore
     let presenter: FakeAuthPresenter
     let tokenTransport: ScriptedTokenExchangeTransport
     let credentials: MALCredentialStore
     let preferences: InMemoryAccountPreferences
     let outbox: MALProgressOutbox
-    let directory: URL
+    let testDirectory = TestDirectory("MALAccountStoreTests")
+    var directory: URL { testDirectory.url }
 
     init(
         presenterOutcomes: [FakeAuthPresenter.Outcome] = [.redirect("mangareader://oauth/mal?code=c1&state={state}")],
@@ -115,8 +116,7 @@ private struct AccountFixture {
         storedCredential: MALStoredCredential? = nil,
         retryDelivery: @escaping () -> Void = {}
     ) {
-        directory = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent(UUID().uuidString)
+        let directory = testDirectory.url
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
         presenter = FakeAuthPresenter(outcomes: presenterOutcomes)
@@ -143,6 +143,8 @@ private struct AccountFixture {
             now: { accountNow }
         )
     }
+
+    deinit { testDirectory.remove() }
 }
 
 // MARK: - Sign-in

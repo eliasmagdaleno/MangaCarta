@@ -19,7 +19,7 @@ final class WorkMintingTests: XCTestCase {
 
     @MainActor
     private func makeWorkStore() -> WorkStore {
-        let dir = URL(fileURLWithPath: NSTemporaryDirectory())
+        let dir = makeTestDirectory("WorkMintingTests")
             .appendingPathComponent("WorkMintingTests-\(UUID().uuidString)")
         return WorkStore(directory: dir)
     }

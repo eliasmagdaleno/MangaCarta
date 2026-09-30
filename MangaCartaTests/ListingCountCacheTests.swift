@@ -16,7 +16,7 @@ final class ListingCountCacheTests: XCTestCase {
     private var directory: URL!
 
     override func setUp() async throws {
-        directory = FileManager.default.temporaryDirectory
+        directory = makeTestDirectory("ListingCountCacheTests")
             .appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory,
                                                 withIntermediateDirectories: true)

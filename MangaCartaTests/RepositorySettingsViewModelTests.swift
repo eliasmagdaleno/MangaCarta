@@ -7,7 +7,7 @@ final class RepositorySettingsViewModelTests: XCTestCase {
     private var defaults: UserDefaults!
 
     override func setUp() {
-        directory = FileManager.default.temporaryDirectory
+        directory = makeTestDirectory("RepositorySettingsViewModelTests")
             .appendingPathComponent("RepositorySettingsViewModelTests-\(UUID().uuidString)", isDirectory: true)
         defaults = makeTestDefaults("RepositorySettingsViewModelTests")
     }

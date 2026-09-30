@@ -159,6 +159,8 @@ struct UpdateNotifierTests {
 
 @MainActor
 private final class Fixture {
+    let testDirectory = TestDirectory("UpdateNotifierTests")
+    var directory: URL { testDirectory.url }
     let notifications: FakeNotificationCenter
     let suite: TestDefaults
     let defaults: UserDefaults
@@ -170,8 +172,7 @@ private final class Fixture {
     init(status: UNAuthorizationStatus = .authorized,
          sources: [NoticeSource] = [NoticeSource(id: MangaDexSource.sourceID, isNSFW: false)],
          openWork: @escaping (WorkID) -> Void = { _ in }) {
-        let directory = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("UpdateNotifierTests-\(UUID().uuidString)")
+        let directory = testDirectory.url
         suite = TestDefaults("UpdateNotifierTests")
         defaults = suite.defaults
         notifications = FakeNotificationCenter(status: status)
@@ -182,6 +183,8 @@ private final class Fixture {
                                   library: library, registry: SourceRegistry(sources: sources),
                                   defaults: defaults, openWork: openWork)
     }
+
+    deinit { testDirectory.remove() }
 
     func mint(_ title: String, source: String = MangaDexSource.sourceID, malId: Int? = nil) -> WorkID {
         works.mint(from: manga(title, source: source, malId: malId))

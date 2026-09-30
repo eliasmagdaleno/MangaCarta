@@ -31,7 +31,7 @@ final class AppCompositionTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        directory = FileManager.default.temporaryDirectory
+        directory = makeTestDirectory("AppCompositionTests")
             .appendingPathComponent("AppCompositionTests-\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defaults = makeTestDefaults("AppCompositionTests")

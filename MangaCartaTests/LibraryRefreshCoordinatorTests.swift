@@ -203,17 +203,20 @@ struct LibraryRefreshCoordinatorTests {
 
 @MainActor
 private final class Fixture {
+    let testDirectory = TestDirectory("LibraryRefreshCoordinatorTests")
+    var directory: URL { testDirectory.url }
     let suite: TestDefaults
     let works: WorkStore
     let updates: UpdateStateStore
     let library: LibraryStore
     let coordinator: LibraryRefreshCoordinator
 
+    deinit { testDirectory.remove() }
+
     init(sources: [StubSource],
          now: Date = Date(timeIntervalSince1970: 1_000),
          cancelAfterFirst: Bool = false) {
-        let directory = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("LibraryRefreshCoordinatorTests-\(UUID().uuidString)")
+        let directory = testDirectory.url
         suite = TestDefaults("LibraryRefreshCoordinatorTests")
         let defaults = suite.defaults
         works = WorkStore(directory: directory)

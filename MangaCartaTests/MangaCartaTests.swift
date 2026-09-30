@@ -858,7 +858,7 @@ final class MangaCartaTests: XCTestCase {
     }
 
     private func makeTempDir() -> URL {
-        let dir = FileManager.default.temporaryDirectory
+        let dir = makeTestDirectory("MangaCartaTests")
             .appendingPathComponent("imgcache-\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
@@ -971,7 +971,7 @@ final class MangaCartaTests: XCTestCase {
     }
 
     private func tempCacheDir() -> URL {
-        FileManager.default.temporaryDirectory.appendingPathComponent("imgcache-\(UUID().uuidString)")
+        makeTestDirectory("MangaCartaTests").appendingPathComponent("imgcache-\(UUID().uuidString)")
     }
 
     func testImageBackoffDelayDoublesPerAttempt() {
@@ -1883,7 +1883,7 @@ final class MangaCartaTests: XCTestCase {
     // MARK: - RecommendationEngine
 
     @MainActor private func makeWorkStore() -> WorkStore {
-        WorkStore(directory: URL(fileURLWithPath: NSTemporaryDirectory())
+        WorkStore(directory: makeTestDirectory("MangaCartaTests")
             .appendingPathComponent("EngineTests-\(UUID().uuidString)"))
     }
 
@@ -1908,7 +1908,7 @@ final class MangaCartaTests: XCTestCase {
                                        admits: @escaping (Manga) -> Bool = { _ in true })
         -> RecommendationEngine {
         let lib = library ?? LibraryStore(defaults: makeTestDefaults("test.lib"))
-        let works = workStore ?? WorkStore(directory: URL(fileURLWithPath: NSTemporaryDirectory())
+        let works = workStore ?? WorkStore(directory: makeTestDirectory("MangaCartaTests")
             .appendingPathComponent("EngineTests-\(UUID().uuidString)"))
         return RecommendationEngine(history: history, library: lib, profileStore: tasteStore,
                                     workStore: works,
@@ -1939,7 +1939,7 @@ final class MangaCartaTests: XCTestCase {
     func testRecommendationEngineWithNilSourceDoesNotCallProvider() async {
         let defaults = makeTestDefaults("test.engine.nil-source")
         let history = HistoryStore(defaults: defaults)
-        let works = WorkStore(directory: URL(fileURLWithPath: NSTemporaryDirectory())
+        let works = WorkStore(directory: makeTestDirectory("MangaCartaTests")
             .appendingPathComponent("EngineNil-\(UUID().uuidString)"))
         let taste = TasteProfileStore(defaults: defaults)
         for id in ["a", "b", "c"] { tagRead(works, history, id, [Tag(id: "t", name: "Action", group: "genre")]) }
@@ -1957,7 +1957,7 @@ final class MangaCartaTests: XCTestCase {
     func testRecommendationEnginePassesRegisteredSourceToProvider() async {
         let defaults = makeTestDefaults("test.engine.source")
         let history = HistoryStore(defaults: defaults)
-        let works = WorkStore(directory: URL(fileURLWithPath: NSTemporaryDirectory())
+        let works = WorkStore(directory: makeTestDirectory("MangaCartaTests")
             .appendingPathComponent("EngineSource-\(UUID().uuidString)"))
         let taste = TasteProfileStore(defaults: defaults)
         for id in ["a", "b", "c"] { tagRead(works, history, id, [Tag(id: "t", name: "Action", group: "genre")]) }

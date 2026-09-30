@@ -138,6 +138,8 @@ SUPPORT="$CONTAINER/Library/Application Support"
 # afterwards (see MangaCartaTests/TestDefaults.swift). Harmless, but the fixture should not
 # ship the test runner's litter.
 rm -f "$CONTAINER"/Library/Preferences/MangaCartaTests.*.plist 2>/dev/null || true
+# Likewise any test directory a crashed test left behind (MangaCartaTests/TestDirectory.swift).
+rm -rf "$CONTAINER/tmp/MangaCartaTests" 2>/dev/null || true
 
 echo
 echo "done. container: $CONTAINER"

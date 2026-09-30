@@ -56,13 +56,13 @@ final class MetadataUpgradeQueueTests: XCTestCase {
 
     @MainActor
     private func makeStore() -> WorkStore {
-        WorkStore(directory: URL(fileURLWithPath: NSTemporaryDirectory())
+        WorkStore(directory: makeTestDirectory("MetadataUpgradeQueueTests")
             .appendingPathComponent("MetadataUpgradeQueueTests-\(UUID().uuidString)"))
     }
 
     @MainActor
     private func makeMemory() -> UpgradeAttemptMemory {
-        UpgradeAttemptMemory(directory: URL(fileURLWithPath: NSTemporaryDirectory())
+        UpgradeAttemptMemory(directory: makeTestDirectory("MetadataUpgradeQueueTests")
             .appendingPathComponent("MetadataUpgradeQueueTests-mem-\(UUID().uuidString)"))
     }
 
@@ -585,7 +585,7 @@ final class MetadataUpgradeQueueTests: XCTestCase {
     /// A debounced save that never fires because the app was suspended is a lost write,
     /// so backgrounding flushes rather than waiting for the timer.
     @MainActor func testFlushWritesTheAttemptMemoryThrough() async {
-        let directory = URL(fileURLWithPath: NSTemporaryDirectory())
+        let directory = makeTestDirectory("MetadataUpgradeQueueTests")
             .appendingPathComponent("MetadataUpgradeQueueTests-flush-\(UUID().uuidString)")
         let works = makeStore()
         let id = works.mint(from: listing("md-1"))

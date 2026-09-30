@@ -20,7 +20,7 @@ final class SimulatorSeedTests: XCTestCase {
 
     @MainActor
     private func makeStore() -> (WorkStore, URL) {
-        let dir = FileManager.default.temporaryDirectory
+        let dir = makeTestDirectory("SimulatorSeedTests")
             .appendingPathComponent(UUID().uuidString)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return (WorkStore(directory: dir, saveDebounce: 0), dir)

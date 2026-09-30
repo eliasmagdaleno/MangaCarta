@@ -3,7 +3,12 @@ import Testing
 @testable import MangaCarta
 
 @Suite("Update state store")
-struct UpdateStateStoreTests {
+final class UpdateStateStoreTests {
+    /// One root per test: Swift Testing makes a fresh instance of a class suite for each test and
+    /// runs its `deinit` when the test ends.
+    private let root = TestDirectory("UpdateStateStoreTests")
+    deinit { root.remove() }
+
     @MainActor
     @Test("The first successful observation establishes a silent baseline")
     func firstObservationIsBaseline() {
@@ -87,7 +92,7 @@ struct UpdateStateStoreTests {
     @MainActor
     @Test("Flushed state survives a JSON round trip")
     func jsonRoundTrip() {
-        let directory = temporaryDirectory()
+        let directory = makeDirectory()
         let works = WorkStore(directory: directory)
         let listing = ListingKey(sourceId: "mangadex", mangaId: "roundtrip")
         let workId = works.mint(from: manga(listing))
@@ -105,14 +110,14 @@ struct UpdateStateStoreTests {
     @MainActor
     @Test("An empty directory behaves as no update state")
     func emptyDirectoryIsEmpty() {
-        let store = UpdateStateStore(directory: temporaryDirectory())
+        let store = UpdateStateStore(directory: makeDirectory())
         #expect(store.state(for: WorkID()) == nil)
     }
 
     @MainActor
     @Test("A synthesized legacy updates blob loads without losing any state")
     func synthesizedLegacyBlobLoadsWithoutLosingState() throws {
-        let directory = temporaryDirectory()
+        let directory = makeDirectory()
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let workID = UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!
         let listing = ListingKey(sourceId: "mangadex", mangaId: "legacy")
@@ -163,7 +168,7 @@ struct UpdateStateStoreTests {
     @MainActor
     @Test("Reconciliation unions a real WorkStore merge without emitting")
     func reconciliationUnionsMerge() throws {
-        let directory = temporaryDirectory()
+        let directory = makeDirectory()
         let works = WorkStore(directory: directory)
         let winnerListing = ListingKey(sourceId: "mangadex", mangaId: "winner")
         let loserListing = ListingKey(sourceId: "weebcentral", mangaId: "loser")
@@ -190,7 +195,7 @@ struct UpdateStateStoreTests {
     @MainActor
     @Test("Reconciliation drops state for a Work that no longer resolves")
     func reconciliationDropsMissingWork() {
-        let directory = temporaryDirectory()
+        let directory = makeDirectory()
         let works = WorkStore(directory: directory)
         let updates = UpdateStateStore(directory: directory)
         let missing = WorkID()
@@ -204,7 +209,7 @@ struct UpdateStateStoreTests {
 
     @MainActor
     private func fixture() -> Fixture {
-        let directory = temporaryDirectory()
+        let directory = makeDirectory()
         let works = WorkStore(directory: directory)
         let listing = ListingKey(sourceId: "mangadex", mangaId: UUID().uuidString)
         let workId = works.mint(from: manga(listing))
@@ -218,9 +223,8 @@ struct UpdateStateStoreTests {
               description: "", status: "ongoing", year: nil, coverURL: nil, malId: nil)
     }
 
-    private func temporaryDirectory() -> URL {
-        URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("UpdateStateStoreTests-\(UUID().uuidString)")
+    private func makeDirectory() -> URL {
+        root.url.appendingPathComponent(UUID().uuidString, isDirectory: true)
     }
 
     private func date(_ seconds: TimeInterval) -> Date {

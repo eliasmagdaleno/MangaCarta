@@ -29,7 +29,7 @@ final class TagVocabularyStoreTests: XCTestCase {
     ]
 
     private func makeDirectory() -> URL {
-        URL(fileURLWithPath: NSTemporaryDirectory())
+        makeTestDirectory("TagVocabularyStoreTests")
             .appendingPathComponent("TagVocabularyStoreTests-\(UUID().uuidString)")
     }
 

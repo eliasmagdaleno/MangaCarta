@@ -10,7 +10,7 @@ import XCTest
 
 final class MALProgressOutboxTests: XCTestCase {
     private func makeDirectory() -> URL {
-        URL(fileURLWithPath: NSTemporaryDirectory())
+        makeTestDirectory("MALProgressOutboxTests")
             .appendingPathComponent("MALProgressOutboxTests-\(UUID().uuidString)")
     }
 

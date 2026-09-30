@@ -153,7 +153,8 @@ struct LibraryUpdatesPresentationTests {
 
 @MainActor
 private final class Fixture {
-    let directory: URL
+    let testDirectory = TestDirectory("LibraryUpdatesPresentationTests")
+    var directory: URL { testDirectory.url }
     let suite: TestDefaults
     let defaults: UserDefaults
     let works: WorkStore
@@ -162,10 +163,12 @@ private final class Fixture {
     let updates: UpdateStateStore
     let registry: SourceRegistry
 
+    deinit { testDirectory.remove() }
+
     init(registry: SourceRegistry? = nil) throws {
+        let directory = testDirectory.url
         let sourceRegistry = registry
             ?? SourceRegistry(sources: [StubSource(id: "mangadex", name: "MangaDex")])
-        directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         suite = TestDefaults("LibraryUpdatesPresentationTests")
         defaults = suite.defaults
