@@ -31,8 +31,6 @@ struct LibraryUpdatesPresentationTests {
     func discoveryAndUnreadDiverge() throws {
         let fixture = try Fixture()
         defer { fixture.suite.remove() }
-        defer { try? FileManager.default.removeItem(at: fixture.directory) }
-        defer { try? FileManager.default.removeItem(at: fixture.directory) }
         let manga = fixture.save("m1", title: "Alpha")
         let id = try #require(fixture.works.workId(for: ListingKey(manga)))
         _ = fixture.updates.absorb(workId: id, listing: ListingKey(manga),
@@ -54,7 +52,6 @@ struct LibraryUpdatesPresentationTests {
     func sorting() throws {
         let fixture = try Fixture()
         defer { fixture.suite.remove() }
-        defer { try? FileManager.default.removeItem(at: fixture.directory) }
         let beta = fixture.save("b", title: "Beta")
         let alpha = fixture.save("a", title: "Alpha")
         for manga in [beta, alpha] {
@@ -72,7 +69,6 @@ struct LibraryUpdatesPresentationTests {
     func homeLimit() throws {
         let fixture = try Fixture()
         defer { fixture.suite.remove() }
-        defer { try? FileManager.default.removeItem(at: fixture.directory) }
         for index in 0..<7 { _ = fixture.save("m\(index)", title: "Title \(index)") }
         let all = fixture.summaries(now: now)
         #expect(all.count == 7)
@@ -90,7 +86,6 @@ struct LibraryUpdatesPresentationTests {
         let registry = SourceRegistry(sources: [first, second])
         let fixture = try Fixture(registry: registry)
         defer { fixture.suite.remove() }
-        defer { try? FileManager.default.removeItem(at: fixture.directory) }
         _ = fixture.save("m1", title: "Alpha", sourceId: first.id)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
@@ -158,7 +153,8 @@ struct LibraryUpdatesPresentationTests {
 
 @MainActor
 private final class Fixture {
-    let directory: URL
+    let testDirectory = TestDirectory("LibraryUpdatesPresentationTests")
+    var directory: URL { testDirectory.url }
     let suite: TestDefaults
     let defaults: UserDefaults
     let works: WorkStore
@@ -167,12 +163,12 @@ private final class Fixture {
     let updates: UpdateStateStore
     let registry: SourceRegistry
 
-    deinit { try? FileManager.default.removeItem(at: directory) }
+    deinit { testDirectory.remove() }
 
     init(registry: SourceRegistry? = nil) throws {
+        let directory = testDirectory.url
         let sourceRegistry = registry
             ?? SourceRegistry(sources: [StubSource(id: "mangadex", name: "MangaDex")])
-        directory = TestDirectory("LibraryUpdatesPresentationTests").url
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         suite = TestDefaults("LibraryUpdatesPresentationTests")
         defaults = suite.defaults

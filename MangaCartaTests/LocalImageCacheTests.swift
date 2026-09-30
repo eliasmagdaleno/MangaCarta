@@ -20,8 +20,9 @@ import UIKit
 }
 
 @Test func missingFileImageReturnsNil() async {
-    let directory = TestDirectory("LocalImageCacheTests").url
-    let cache = ImageCache(directory: directory, resolver: PublicImageResolver(), fetcher: { _ in
+    let directory = TestDirectory("LocalImageCacheTests")
+    defer { directory.remove() }
+    let cache = ImageCache(directory: directory.url, resolver: PublicImageResolver(), fetcher: { _ in
         Issue.record("fetcher called")
         return Data()
     })

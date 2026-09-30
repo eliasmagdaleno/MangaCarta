@@ -105,7 +105,8 @@ private final class AccountFixture {
     let credentials: MALCredentialStore
     let preferences: InMemoryAccountPreferences
     let outbox: MALProgressOutbox
-    let directory: URL
+    let testDirectory = TestDirectory("MALAccountStoreTests")
+    var directory: URL { testDirectory.url }
 
     init(
         presenterOutcomes: [FakeAuthPresenter.Outcome] = [.redirect("mangareader://oauth/mal?code=c1&state={state}")],
@@ -115,8 +116,7 @@ private final class AccountFixture {
         storedCredential: MALStoredCredential? = nil,
         retryDelivery: @escaping () -> Void = {}
     ) {
-        directory = TestDirectory("MALAccountStoreTests").url
-            .appendingPathComponent(UUID().uuidString)
+        let directory = testDirectory.url
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
         presenter = FakeAuthPresenter(outcomes: presenterOutcomes)
@@ -144,7 +144,7 @@ private final class AccountFixture {
         )
     }
 
-    deinit { try? FileManager.default.removeItem(at: directory) }
+    deinit { testDirectory.remove() }
 }
 
 // MARK: - Sign-in

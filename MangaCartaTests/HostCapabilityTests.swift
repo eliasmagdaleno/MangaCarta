@@ -41,8 +41,9 @@ struct HostHTTPTests {
     @Test("ImageCache refuses a wildcard-matched URL resolving privately")
     func imageCacheRejectsPrivateWildcardAsset() async throws {
         let probe = FetchProbe()
-        let cacheDirectory = TestDirectory("HostCapabilityTests").url
-        defer { try? FileManager.default.removeItem(at: cacheDirectory) }
+        let testDirectory = TestDirectory("HostCapabilityTests")
+        defer { testDirectory.remove() }
+        let cacheDirectory = testDirectory.url
         let cache = ImageCache(directory: cacheDirectory
             .appendingPathComponent(UUID().uuidString),
             resolver: FixedHostResolver(addresses: ["10.0.0.5"]),
@@ -545,7 +546,16 @@ struct HostHTTPTests {
 }
 
 @Suite("Image cache network boundary")
-struct ImageCacheNetworkTests {
+final class ImageCacheNetworkTests {
+    /// One root per test: Swift Testing makes a fresh instance of a class suite for each test and
+    /// runs its `deinit` when the test ends.
+    private let root = TestDirectory("ImageCacheNetworkTests")
+    deinit { root.remove() }
+
+    private func makeDirectory() -> URL {
+        root.url.appendingPathComponent(UUID().uuidString, isDirectory: true)
+    }
+
     private let url = URL(string: "https://a.mangadex.network/page.png")!
     private let png = Data(base64Encoded:
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")!
@@ -592,7 +602,7 @@ struct ImageCacheNetworkTests {
 
     @Test("A public peer loads, then ImageCache's disk hit works offline")
     func publicPeerAndOfflineDiskHit() async {
-            let directory = makeDirectory()
+        let directory = makeDirectory()
         let firstFetcher = ImageFetchProbe(result: result(peer: "93.184.216.34"))
         let online = ImageCache(directory: directory,
                                 resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
@@ -648,7 +658,16 @@ struct ImageCacheNetworkTests {
 // MARK: - Image-load reports (ADR-0003 Amendment 9, design §3)
 
 @Suite("Image-load reports from ImageCache")
-struct ImageLoadReportCacheTests {
+final class ImageLoadReportCacheTests {
+    /// One root per test: Swift Testing makes a fresh instance of a class suite for each test and
+    /// runs its `deinit` when the test ends.
+    private let root = TestDirectory("ImageLoadReportCache")
+    deinit { root.remove() }
+
+    private func makeDirectory() -> URL {
+        root.url.appendingPathComponent(UUID().uuidString, isDirectory: true)
+    }
+
     private let url = URL(string: "https://a1.mangadex.network/data/hash/1.png")!
     private let png = Data(base64Encoded:
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")!
@@ -656,10 +675,6 @@ struct ImageLoadReportCacheTests {
         sourceID: QualifiedSourceID(rawValue: "repo:mangadex"),
         endpoint: URL(string: "https://api.mangadex.network/report")!,
         origins: ["https://*.mangadex.network"])
-
-    private func directory() -> URL {
-        TestDirectory("ImageLoadReportCache").url
-    }
 
     private func sessionResult(xCache: String?, status: Int = 200) -> URLSessionFetchResult {
         URLSessionFetchResult(
@@ -673,7 +688,7 @@ struct ImageLoadReportCacheTests {
     private func sessionCache(xCache: String?, reporter: RecordingImageLoadReporter,
                               directory: URL? = nil,
                               uptime: SteppingUptime = SteppingUptime([10, 10.25])) -> ImageCache {
-        ImageCache(directory: directory ?? self.directory(),
+        ImageCache(directory: directory ?? makeDirectory(),
                    resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
                    sessionFetcher: ImageFetchProbe(result: sessionResult(xCache: xCache)),
                    reporter: reporter,
@@ -710,7 +725,7 @@ struct ImageLoadReportCacheTests {
 
     @Test("a disk hit downloads nothing and reports nothing")
     func diskHitIsNotReported() async {
-        let shared = directory()
+        let shared = makeDirectory()
         let first = RecordingImageLoadReporter()
         _ = await sessionCache(xCache: nil, reporter: first, directory: shared)
             .loadImage(for: url, reportTarget: target)
@@ -734,7 +749,7 @@ struct ImageLoadReportCacheTests {
     @Test("a URL the destination policy refuses is never attempted and never reported")
     func policyRefusalIsNotReported() async {
         let reporter = RecordingImageLoadReporter()
-        let cache = ImageCache(directory: directory(),
+        let cache = ImageCache(directory: makeDirectory(),
                                resolver: FixedHostResolver(addresses: ["10.0.0.5"]),
                                sessionFetcher: ImageFetchProbe(result: sessionResult(xCache: nil)),
                                reporter: reporter)
@@ -750,7 +765,7 @@ struct ImageLoadReportCacheTests {
                                                                      httpVersion: nil, headerFields: nil)!,
                                            connectedPeerAddress: "10.0.0.5",
                                            resourceFetchType: .networkLoad)
-        let cache = ImageCache(directory: directory(),
+        let cache = ImageCache(directory: makeDirectory(),
                                resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
                                sessionFetcher: ImageFetchProbe(result: result),
                                reporter: reporter)
@@ -763,7 +778,7 @@ struct ImageLoadReportCacheTests {
         let reporter = RecordingImageLoadReporter()
         let counter = FetchProbe()
         let png = self.png
-        let cache = ImageCache(directory: directory(), retryBaseDelay: 0, maxImageRetries: 2,
+        let cache = ImageCache(directory: makeDirectory(), retryBaseDelay: 0, maxImageRetries: 2,
                                resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
                                fetcher: { _ in
                                    await counter.bump()
@@ -780,12 +795,12 @@ struct ImageLoadReportCacheTests {
     @Test("a cancelled load says nothing about the node and is not reported")
     func cancellationIsNotReported() async {
         let reporter = RecordingImageLoadReporter()
-        let cache = ImageCache(directory: directory(),
+        let cache = ImageCache(directory: makeDirectory(),
                                resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
                                fetcher: { _ in throw URLError(.cancelled) },
                                reporter: reporter)
         #expect(await cache.loadImage(for: url, reportTarget: target) == nil)
-        let cancelled = ImageCache(directory: directory(),
+        let cancelled = ImageCache(directory: makeDirectory(),
                                    resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
                                    fetcher: { _ in throw CancellationError() },
                                    reporter: reporter)
@@ -797,7 +812,7 @@ struct ImageLoadReportCacheTests {
     func decodeFailureKeepsSuccess() async {
         let reporter = RecordingImageLoadReporter()
         let png = self.png
-        let cache = ImageCache(directory: directory(),
+        let cache = ImageCache(directory: makeDirectory(),
                                resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
                                fetcher: { _ in png },
                                reporter: reporter,
@@ -810,7 +825,7 @@ struct ImageLoadReportCacheTests {
     func prefetchReports() async {
         let reporter = RecordingImageLoadReporter()
         let png = self.png
-        let cache = ImageCache(directory: directory(),
+        let cache = ImageCache(directory: makeDirectory(),
                                resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
                                fetcher: { _ in png },
                                reporter: reporter)
@@ -1120,12 +1135,19 @@ struct HostBrowserTests {
 }
 
 @Suite("Host storage capability")
-struct HostStorageTests {
+final class HostStorageTests {
+    /// One root per test: Swift Testing makes a fresh instance of a class suite for each test and
+    /// runs its `deinit` when the test ends.
+    private let root = TestDirectory("HostStorageTests")
+    deinit { root.remove() }
+
+    private func makeDirectory() -> URL {
+        root.url.appendingPathComponent(UUID().uuidString, isDirectory: true)
+    }
 
     @Test("Unreadable storage is quarantined and remains unavailable")
     func corruptStorageFileIsQuarantined() throws {
-            let directory = makeDirectory()
-        defer { try? FileManager.default.removeItem(at: directory) }
+        let directory = makeDirectory()
         let original = Data("{ definitely not valid JSON".utf8)
         let storageFile = directory.appendingPathComponent("extension-storage.json")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -1143,8 +1165,7 @@ struct HostStorageTests {
 
     @Test("Two configured Sources cannot read or enumerate each other's storage")
     func storageIsNamespacedByQualifiedSourceID() async throws {
-            let directory = makeDirectory()
-        defer { try? FileManager.default.removeItem(at: directory) }
+        let directory = makeDirectory()
         let repository = try HostStorageRepository(directory: directory)
         let sourceA = HostStorage(sourceID: QualifiedSourceID(rawValue: "repo/source-a"),
                                   repository: repository)
@@ -1162,8 +1183,7 @@ struct HostStorageTests {
 
     @Test("Storage survives repository recreation and only explicit Source erasure removes it")
     func storagePersistsUntilExplicitUserErasure() async throws {
-            let directory = makeDirectory()
-        defer { try? FileManager.default.removeItem(at: directory) }
+        let directory = makeDirectory()
         let sourceID = QualifiedSourceID(rawValue: "repo/source-a")
 
         let firstRepository = try HostStorageRepository(directory: directory)
@@ -1517,10 +1537,6 @@ struct HostJSONValueConverterTests {
     }
 }
 
-private func makeDirectory() -> URL {
-    TestDirectory("HostCapabilityTests").url
-}
-
 private struct FixedHostResolver: HostNameResolving {
     let addresses: [String]
 
@@ -1694,7 +1710,9 @@ struct HostRateLimiterTests {
     @MainActor
     @Test("the production host factory retains one shared registry")
     func factorySharesRegistry() throws {
-        let directory = TestDirectory("HostRateLimiterFactory").url
+        let testDirectory = TestDirectory("HostRateLimiterFactory")
+        defer { testDirectory.remove() }
+        let directory = testDirectory.url
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let registry = HostRateLimiterRegistry()
         let factory = try ExtensionHostCapabilityFactory(

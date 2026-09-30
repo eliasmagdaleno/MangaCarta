@@ -3,12 +3,16 @@ import Testing
 @testable import MangaCarta
 
 @Suite("Update state store")
-struct UpdateStateStoreTests {
+final class UpdateStateStoreTests {
+    /// One root per test: Swift Testing makes a fresh instance of a class suite for each test and
+    /// runs its `deinit` when the test ends.
+    private let root = TestDirectory("UpdateStateStoreTests")
+    deinit { root.remove() }
+
     @MainActor
     @Test("The first successful observation establishes a silent baseline")
     func firstObservationIsBaseline() {
         let fixture = fixture()
-        defer { fixture.cleanup() }
 
         let released = fixture.updates.absorb(workId: fixture.workId, listing: fixture.listing,
                                     rawNumbers: ["1", "2"], now: date(1))
@@ -22,7 +26,6 @@ struct UpdateStateStoreTests {
     @Test("A later chapter is emitted and retained for presentation")
     func secondObservationEmitsRelease() {
         let fixture = fixture()
-        defer { fixture.cleanup() }
         _ = fixture.updates.absorb(workId: fixture.workId, listing: fixture.listing,
                                    rawNumbers: ["1"], now: date(1))
 
@@ -38,7 +41,6 @@ struct UpdateStateStoreTests {
     @Test("Forgetting then re-adding establishes a new baseline")
     func forgettingRebaselines() {
         let fixture = fixture()
-        defer { fixture.cleanup() }
         _ = fixture.updates.absorb(workId: fixture.workId, listing: fixture.listing,
                                    rawNumbers: ["1"], now: date(1))
         let identifier = fixture.updates.forget(workId: fixture.workId)
@@ -54,7 +56,6 @@ struct UpdateStateStoreTests {
     @Test("Muting retains the frontier and newly discovered chapters")
     func mutingRetainsState() throws {
         let fixture = fixture()
-        defer { fixture.cleanup() }
         _ = fixture.updates.absorb(workId: fixture.workId, listing: fixture.listing,
                                    rawNumbers: ["1"], now: date(1))
         _ = fixture.updates.absorb(workId: fixture.workId, listing: fixture.listing,
@@ -73,7 +74,6 @@ struct UpdateStateStoreTests {
     @Test("Listing backoff doubles and a success clears it")
     func backoffDoublesAndClears() throws {
         let fixture = fixture()
-        defer { fixture.cleanup() }
         fixture.updates.recordFailure(workId: fixture.workId, listing: fixture.listing, now: date(0))
         let first = try #require(fixture.updates.state(for: fixture.workId)?.listings[fixture.listing])
         fixture.updates.recordFailure(workId: fixture.workId, listing: fixture.listing, now: date(10))
@@ -93,7 +93,6 @@ struct UpdateStateStoreTests {
     @Test("Flushed state survives a JSON round trip")
     func jsonRoundTrip() {
         let directory = makeDirectory()
-        defer { try? FileManager.default.removeItem(at: directory) }
         let works = WorkStore(directory: directory)
         let listing = ListingKey(sourceId: "mangadex", mangaId: "roundtrip")
         let workId = works.mint(from: manga(listing))
@@ -111,9 +110,7 @@ struct UpdateStateStoreTests {
     @MainActor
     @Test("An empty directory behaves as no update state")
     func emptyDirectoryIsEmpty() {
-        let directory = makeDirectory()
-        defer { try? FileManager.default.removeItem(at: directory) }
-        let store = UpdateStateStore(directory: directory)
+        let store = UpdateStateStore(directory: makeDirectory())
         #expect(store.state(for: WorkID()) == nil)
     }
 
@@ -121,7 +118,6 @@ struct UpdateStateStoreTests {
     @Test("A synthesized legacy updates blob loads without losing any state")
     func synthesizedLegacyBlobLoadsWithoutLosingState() throws {
         let directory = makeDirectory()
-        defer { try? FileManager.default.removeItem(at: directory) }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let workID = UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!
         let listing = ListingKey(sourceId: "mangadex", mangaId: "legacy")
@@ -173,7 +169,6 @@ struct UpdateStateStoreTests {
     @Test("Reconciliation unions a real WorkStore merge without emitting")
     func reconciliationUnionsMerge() throws {
         let directory = makeDirectory()
-        defer { try? FileManager.default.removeItem(at: directory) }
         let works = WorkStore(directory: directory)
         let winnerListing = ListingKey(sourceId: "mangadex", mangaId: "winner")
         let loserListing = ListingKey(sourceId: "weebcentral", mangaId: "loser")
@@ -201,7 +196,6 @@ struct UpdateStateStoreTests {
     @Test("Reconciliation drops state for a Work that no longer resolves")
     func reconciliationDropsMissingWork() {
         let directory = makeDirectory()
-        defer { try? FileManager.default.removeItem(at: directory) }
         let works = WorkStore(directory: directory)
         let updates = UpdateStateStore(directory: directory)
         let missing = WorkID()
@@ -216,11 +210,10 @@ struct UpdateStateStoreTests {
     @MainActor
     private func fixture() -> Fixture {
         let directory = makeDirectory()
-        defer { try? FileManager.default.removeItem(at: directory) }
         let works = WorkStore(directory: directory)
         let listing = ListingKey(sourceId: "mangadex", mangaId: UUID().uuidString)
         let workId = works.mint(from: manga(listing))
-        return Fixture(directory: directory, updates: UpdateStateStore(directory: directory, works: works),
+        return Fixture(updates: UpdateStateStore(directory: directory, works: works),
                        workId: workId,
                        listing: listing)
     }
@@ -231,7 +224,7 @@ struct UpdateStateStoreTests {
     }
 
     private func makeDirectory() -> URL {
-        TestDirectory("UpdateStateStoreTests").url
+        root.url.appendingPathComponent(UUID().uuidString, isDirectory: true)
     }
 
     private func date(_ seconds: TimeInterval) -> Date {
@@ -244,10 +237,7 @@ struct UpdateStateStoreTests {
 }
 
 private struct Fixture {
-    let directory: URL
     let updates: UpdateStateStore
     let workId: WorkID
     let listing: ListingKey
-
-    func cleanup() { try? FileManager.default.removeItem(at: directory) }
 }
