@@ -151,3 +151,33 @@ struct ReadingModeStoreTests {
         #expect(published == 0)
     }
 }
+
+@Suite("ComicInfo reading mode")
+struct ComicInfoReadingModeTests {
+    private func info(_ manga: String?) -> ComicInfo? {
+        let field = manga.map { "<Manga>\($0)</Manga>" } ?? ""
+        return ComicInfo.parse(Data("<ComicInfo><Series>S</Series>\(field)</ComicInfo>".utf8))
+    }
+
+    @Test func mangaValuesMapToModes() {
+        #expect(info("YesAndRightToLeft")?.readingMode == .rightToLeft)
+        #expect(info("No")?.readingMode == .leftToRight)
+        #expect(info("Yes")?.readingMode == nil)
+        #expect(info("Unknown")?.readingMode == nil)
+        #expect(info(nil)?.readingMode == nil)
+        #expect(info("YesAndRightToLeft")?.manga == "YesAndRightToLeft")
+    }
+
+    @Test func mangaValueMapsCaseInsensitively() {
+        #expect(info(" yesandrighttoleft ")?.readingMode == .rightToLeft)
+        #expect(info("NO")?.readingMode == .leftToRight)
+    }
+
+    @Test func aRecordStoredBeforeTheFieldStillDecodes() throws {
+        let old = Data(#"{"series":"S","genres":[]}"#.utf8)
+        let decoded = try JSONDecoder().decode(ComicInfo.self, from: old)
+        #expect(decoded.series == "S")
+        #expect(decoded.manga == nil)
+        #expect(decoded.readingMode == nil)
+    }
+}
