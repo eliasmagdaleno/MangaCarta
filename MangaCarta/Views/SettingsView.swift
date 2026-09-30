@@ -19,6 +19,7 @@ struct SettingsView: View {
     @EnvironmentObject private var history: HistoryStore
     @EnvironmentObject private var works: WorkStore
     @EnvironmentObject private var updates: UpdateStateStore
+    @EnvironmentObject private var readingModes: ReadingModeStore
     @Environment(\.extensionComposition) private var extensionComposition
     @Environment(\.extensionStorageError) private var extensionStorageError
     @Environment(\.openURL) private var openURL
@@ -87,6 +88,21 @@ struct SettingsView: View {
                         AppearancePicker(selection: $appearanceRaw)
                             .padding(.horizontal, Gutter.page)
                         Text("Follows your device by default. Choose Light or Dark to pin it.")
+                            .font(.footnote)
+                            .foregroundStyle(Ink.tertiary)
+                            .padding(.horizontal, Gutter.page)
+                    }
+
+                    VStack(alignment: .leading, spacing: 14) {
+                        InkSectionHeader("Reader", eyebrow: "Reading")
+                        Picker("Default reading mode", selection: $readingModes.defaultMode) {
+                            ForEach(ReadingMode.allCases) { m in
+                                Label(m.label, systemImage: m.symbol).tag(m)
+                            }
+                        }
+                        .accessibilityIdentifier("defaultReadingModePicker")
+                        .padding(.horizontal, Gutter.page)
+                        Text("Titles you've set a mode for in the reader keep it.")
                             .font(.footnote)
                             .foregroundStyle(Ink.tertiary)
                             .padding(.horizontal, Gutter.page)
@@ -592,6 +608,7 @@ private struct AppearancePicker: View {
         .environmentObject(LibraryStore(works: works))
         .environmentObject(HistoryStore(works: works))
         .environmentObject(works)
+        .environmentObject(ReadingModeStore(works: works))
         .environmentObject(LocalImportViewModel())
         .environmentObject(UpdateStateStore(works: works))
 }
