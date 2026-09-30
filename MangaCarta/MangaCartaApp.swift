@@ -32,6 +32,7 @@ struct MangaCartaApp: App {
     /// Settings sets the primary source, the detail page pins a Listing — so both belong
     /// in the environment rather than staying inside the composition.
     @StateObject private var sourcePreferences: SourcePreferenceStore
+    @StateObject private var readingModes: ReadingModeStore
     @StateObject private var fulfillment: FulfillmentCoordinator
     /// The graph's registry, so views resolve sources from the same one the services do.
     @StateObject private var registry: SourceRegistry
@@ -143,10 +144,12 @@ struct MangaCartaApp: App {
         _engine = StateObject(wrappedValue: composed.engine)
         _account = StateObject(wrappedValue: composed.account)
         _sourcePreferences = StateObject(wrappedValue: composed.sourcePreferences)
+        _readingModes = StateObject(wrappedValue: composed.readingModes)
         _fulfillment = StateObject(wrappedValue: composed.fulfillment)
         _registry = StateObject(wrappedValue: composed.registry)
         let localImporter = LocalImportViewModel()
-        localImporter.configure(registry: composed.registry, library: composed.library, works: composed.works)
+        localImporter.configure(registry: composed.registry, library: composed.library, works: composed.works,
+                                readingModes: composed.readingModes)
         _localImporter = StateObject(wrappedValue: localImporter)
         scheduler.register()
     }
@@ -178,6 +181,7 @@ struct MangaCartaApp: App {
                 .environmentObject(engine)
                 .environmentObject(account)
                 .environmentObject(sourcePreferences)
+                .environmentObject(readingModes)
                 .environmentObject(fulfillment)
                 .environmentObject(registry)
                 .environmentObject(localImporter)
@@ -192,7 +196,8 @@ struct MangaCartaApp: App {
                     let local = (registry.source(id: LocalSource.sourceID) as? LocalSource)?.store ?? .shared
                     await LocalSeriesMigration.run(local: local, library: library, history: history, works: works)
 #if DEBUG
-                    await Self.importUITestFixtureIfRequested(library: library, works: works, registry: registry)
+                    await Self.importUITestFixtureIfRequested(library: library, works: works, registry: registry,
+                                                              readingModes: readingModes)
                     if UpdatesUITestFixture.state == nil {
                         queue.start()
                         refresh.startForeground { [notifier] events in
@@ -286,7 +291,8 @@ struct MangaCartaApp: App {
     /// Hermetic UI runs can ship a CBZ beside the test bundle; the app still exercises the
     /// exact store import path used by the Files picker rather than a UI-only shortcut.
     private static func importUITestFixtureIfRequested(library: LibraryStore, works: WorkStore,
-                                                       registry: SourceRegistry) async {
+                                                       registry: SourceRegistry,
+                                                       readingModes: ReadingModeStore) async {
         let arguments = ProcessInfo.processInfo.arguments
         guard let index = arguments.firstIndex(of: "-uitest-import-fixture"),
               arguments.indices.contains(index + 1),
@@ -296,7 +302,7 @@ struct MangaCartaApp: App {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(arguments[index + 1] + ".cbz")
         try? data.write(to: url, options: .atomic)
         let importer = LocalImportViewModel()
-        importer.configure(registry: registry, library: library, works: works)
+        importer.configure(registry: registry, library: library, works: works, readingModes: readingModes)
         await importer.importFilesAndWait([url])
     }
 #endif

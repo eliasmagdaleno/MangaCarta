@@ -181,3 +181,71 @@ struct ComicInfoReadingModeTests {
         #expect(decoded.readingMode == nil)
     }
 }
+
+@MainActor
+private struct SeedingHarness {
+    let importer: LocalImportViewModel
+    let library: LibraryStore
+    let works: WorkStore
+    let modes: ReadingModeStore
+
+    init(_ dir: TestDirectory, _ suite: TestDefaults) {
+        works = WorkStore(directory: dir.url.appendingPathComponent("works"))
+        let store = LocalLibraryStore(root: dir.url.appendingPathComponent("library"))
+        let registry = SourceRegistry(sources: [LocalSource(store: store)])
+        library = LibraryStore(defaults: suite.defaults, works: works, registry: registry)
+        modes = ReadingModeStore(defaults: suite.defaults, works: works)
+        importer = LocalImportViewModel()
+        importer.configure(registry: registry, library: library, works: works, readingModes: modes)
+    }
+}
+
+@MainActor
+private func archive(_ dir: TestDirectory, _ name: String, series: String, manga: String?) throws -> URL {
+    try FileManager.default.createDirectory(at: dir.url, withIntermediateDirectories: true)
+    let url = dir.url.appendingPathComponent(name)
+    let field = manga.map { "<Manga>\($0)</Manga>" } ?? ""
+    let xml = "<ComicInfo><Series>\(series)</Series><Number>\(name)</Number>\(field)</ComicInfo>"
+    try LocalTestZip.write([("001.png", LocalTestZip.png), ("ComicInfo.xml", Data(xml.utf8))], to: url)
+    return url
+}
+
+@Suite("Reading mode seeding on import")
+@MainActor
+struct ReadingModeSeedingTests {
+    private func workID(_ works: WorkStore, series: String) -> WorkID? {
+        works.workId(for: ListingKey(sourceId: LocalSource.sourceID,
+                                     mangaId: LocalSeriesIdentity.seriesID(for: series)))
+    }
+
+    @Test func rightToLeftImportSeedsTheWork() async throws {
+        let dir = TestDirectory("ReadingModeSeeding"); defer { dir.remove() }
+        let suite = TestDefaults("ReadingModeSeeding"); defer { suite.remove() }
+        let h = SeedingHarness(dir, suite)
+        await h.importer.importFilesAndWait([try archive(dir, "1.cbz", series: "rtl", manga: "YesAndRightToLeft")])
+        let id = try #require(workID(h.works, series: "rtl"))
+        #expect(h.modes.mode(for: id) == .rightToLeft)
+    }
+
+    @Test func laterSeriesFileDoesNotOverwriteSeededMode() async throws {
+        let dir = TestDirectory("ReadingModeSeeding"); defer { dir.remove() }
+        let suite = TestDefaults("ReadingModeSeeding"); defer { suite.remove() }
+        let h = SeedingHarness(dir, suite)
+        await h.importer.importFilesAndWait([try archive(dir, "1.cbz", series: "mixed", manga: "YesAndRightToLeft")])
+        await h.importer.importFilesAndWait([try archive(dir, "2.cbz", series: "mixed", manga: "No")])
+        let id = try #require(workID(h.works, series: "mixed"))
+        #expect(h.modes.mode(for: id) == .rightToLeft)
+    }
+
+    @Test func importLeavesAnExistingModeAlone() async throws {
+        let dir = TestDirectory("ReadingModeSeeding"); defer { dir.remove() }
+        let suite = TestDefaults("ReadingModeSeeding"); defer { suite.remove() }
+        let h = SeedingHarness(dir, suite)
+        await h.importer.importFilesAndWait([try archive(dir, "1.cbz", series: "chosen", manga: nil)])
+        let id = try #require(workID(h.works, series: "chosen"))
+        #expect(h.modes.mode(for: id) == nil)                 // no Manga field: nothing seeded
+        h.modes.set(.vertical, for: id)
+        await h.importer.importFilesAndWait([try archive(dir, "2.cbz", series: "chosen", manga: "No")])
+        #expect(h.modes.mode(for: id) == .vertical)
+    }
+}

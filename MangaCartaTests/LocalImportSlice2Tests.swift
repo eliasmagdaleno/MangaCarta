@@ -83,7 +83,8 @@ private func localImporter(root: URL, store: LocalLibraryStore,
     let registry = SourceRegistry(sources: [LocalSource(store: store)])
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let importer = LocalImportViewModel()
-    importer.configure(registry: registry, library: library, works: works)
+    importer.configure(registry: registry, library: library, works: works,
+                       readingModes: ReadingModeStore(defaults: defaults, works: works))
     return (importer, library, works)
 }
 
@@ -302,7 +303,8 @@ private func localImporter(root: URL, store: LocalLibraryStore,
     let registry = SourceRegistry(sources: [LocalSource(store: store)])
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let importer = LocalImportViewModel()
-    importer.configure(registry: registry, library: library, works: works)
+    importer.configure(registry: registry, library: library, works: works,
+                       readingModes: ReadingModeStore(defaults: defaults, works: works))
 
     await importer.importFilesAndWait([fixture.archive])
 
@@ -332,7 +334,8 @@ private func localImporter(root: URL, store: LocalLibraryStore,
     let registry = SourceRegistry(sources: [LocalSource(store: store)])
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let importer = LocalImportViewModel()
-    importer.configure(registry: registry, library: library, works: works)
+    importer.configure(registry: registry, library: library, works: works,
+                       readingModes: ReadingModeStore(defaults: defaults, works: works))
 
     await importer.importFilesAndWait([pdf])
 
@@ -349,7 +352,8 @@ private func localImporter(root: URL, store: LocalLibraryStore,
     let registry = SourceRegistry(sources: [LocalSource(store: store)])
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let importer = LocalImportViewModel()
-    importer.configure(registry: registry, library: library, works: works)
+    importer.configure(registry: registry, library: library, works: works,
+                       readingModes: ReadingModeStore(defaults: defaults, works: works))
 
     importer.importFiles([fixture.archive])
     importer.cancel()
@@ -368,7 +372,8 @@ private func localImporter(root: URL, store: LocalLibraryStore,
     let registry = SourceRegistry(sources: [LocalSource(store: store)])
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let importer = LocalImportViewModel(containerRoot: fixture.root)
-    importer.configure(registry: registry, library: library, works: works)
+    importer.configure(registry: registry, library: library, works: works,
+                       readingModes: ReadingModeStore(defaults: defaults, works: works))
     importer.importOpenedURL(fixture.archive)
     await importer.importFilesAndWait([])
     #expect(!FileManager.default.fileExists(atPath: fixture.archive.path))
@@ -392,7 +397,8 @@ private func localImporter(root: URL, store: LocalLibraryStore,
     let registry = SourceRegistry(sources: [LocalSource(store: store)])
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let importer = LocalImportViewModel(containerRoot: container)
-    importer.configure(registry: registry, library: library, works: works)
+    importer.configure(registry: registry, library: library, works: works,
+                       readingModes: ReadingModeStore(defaults: defaults, works: works))
     importer.importOpenedURL(fixture.archive)
     await importer.importFilesAndWait([])
     #expect(importer.errors.isEmpty)
@@ -426,7 +432,8 @@ private func localImporter(root: URL, store: LocalLibraryStore,
     let registry = SourceRegistry(sources: [LocalSource(store: store)])
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let importer = LocalImportViewModel()
-    importer.configure(registry: registry, library: library, works: works)
+    importer.configure(registry: registry, library: library, works: works,
+                       readingModes: ReadingModeStore(defaults: defaults, works: works))
     importer.importFiles([fixture.archive])
     importer.importFiles([second])
     await importer.importFilesAndWait([])
@@ -445,7 +452,8 @@ private func localImporter(root: URL, store: LocalLibraryStore,
     let registry = SourceRegistry(sources: [LocalSource(store: store)])
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let importer = LocalImportViewModel(containerRoot: fixture.root)
-    importer.configure(registry: registry, library: library, works: works)
+    importer.configure(registry: registry, library: library, works: works,
+                       readingModes: ReadingModeStore(defaults: defaults, works: works))
     importer.importOpenedURL(fixture.archive)
     importer.importOpenedURL(second)
     importer.cancel()
@@ -468,7 +476,8 @@ private func localImporter(root: URL, store: LocalLibraryStore,
     let registry = SourceRegistry(sources: [LocalSource(store: store)])
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let importer = LocalImportViewModel(containerRoot: fixture.root)
-    importer.configure(registry: registry, library: library, works: works)
+    importer.configure(registry: registry, library: library, works: works,
+                       readingModes: ReadingModeStore(defaults: defaults, works: works))
     importer.importOpenedURL(slow)
     await Task.yield()
     importer.cancel()

@@ -68,6 +68,9 @@ struct AppComposition {
     /// environment, because both Settings and the detail page write to it.
     let listingCounts: ListingCountCache
     let sourcePreferences: SourcePreferenceStore
+    /// Per-Work reading mode over a default (ADR-0026). Observable and written from the
+    /// reader and Settings, so it belongs in the environment.
+    let readingModes: ReadingModeStore
     let fulfillment: FulfillmentCoordinator
 
     /// The registry this graph was built with — `SourceRegistry.shared` in production, an
@@ -489,6 +492,7 @@ struct AppComposition {
         self.imageCache = ImageCache(reporter: self.imageLoadReporter)
         (self.listingCounts, self.sourcePreferences, self.fulfillment) =
             Self.makeFulfillment(works: wk, registry: self.registry, defaults: defaults)
+        self.readingModes = ReadingModeStore(defaults: defaults, works: wk)
         let extensionResult = Self.makeExtensions(directory: directory,
                                                    defaults: defaults,
                                                    transport: repositoryTransport,
