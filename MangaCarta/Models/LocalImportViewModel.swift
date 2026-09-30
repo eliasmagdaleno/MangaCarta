@@ -21,6 +21,7 @@ final class LocalImportViewModel: ObservableObject {
     private var local: LocalLibraryStore = .shared
     private weak var library: LibraryStore?
     private weak var works: WorkStore?
+    private weak var readingModes: ReadingModeStore?
 
     private let containerRoot: URL
 
@@ -28,12 +29,14 @@ final class LocalImportViewModel: ObservableObject {
         self.containerRoot = containerRoot.standardizedFileURL
     }
 
-    func configure(registry: SourceRegistry, library: LibraryStore, works: WorkStore) {
+    func configure(registry: SourceRegistry, library: LibraryStore, works: WorkStore,
+                   readingModes: ReadingModeStore) {
         if let source = registry.source(id: LocalSource.sourceID) as? LocalSource {
             local = source.store
         }
         self.library = library
         self.works = works
+        self.readingModes = readingModes
     }
 
     func importFiles(_ urls: [URL]) {
@@ -97,6 +100,14 @@ final class LocalImportViewModel: ObservableObject {
                     } else {
                         library.toggle(manga)
                         library.setChapterNumbers(numbers, for: mangaID)
+                    }
+                    // The Work exists now (adding to the Library minted it). ComicInfo seeds
+                    // its mode only if it has none, so the first file of a series with a
+                    // usable `Manga` value wins (ADR-0026).
+                    if let mode = record.comicInfo?.readingMode,
+                       let workID = self.works?.workId(for: ListingKey(sourceId: LocalSource.sourceID,
+                                                                       mangaId: mangaID)) {
+                        self.readingModes?.seed(mode, for: workID)
                     }
                 }
             } else if case .duplicate = result {

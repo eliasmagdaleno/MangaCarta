@@ -84,6 +84,48 @@ final class LocalImportUITests: XCTestCase {
         add(attachment)
     }
 
+    func testReaderModeIsPerTitle() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-uitest-local-import", "-uitest-import-fixture", "deflated"]
+        app.launchEnvironment["MANGACARTA_UI_TEST_STORAGE_ID"] = storageID
+        app.launchEnvironment["MANGACARTA_UI_FIXTURE_BASE64"] = Self.fixtureBase64
+        app.launch()
+        app.tabBars.buttons["Library"].tap()
+        let card = app.buttons["libraryCoverCard"]
+        XCTAssertTrue(card.waitForExistence(timeout: 15))
+        card.tap()
+
+        let read = app.buttons.matching(NSPredicate(
+            format: "label CONTAINS[c] 'Start Reading' OR label CONTAINS[c] 'Continue'")).firstMatch
+        XCTAssertTrue(read.waitForExistence(timeout: 15))
+        read.tap()
+        let menu = app.buttons["readerModeMenu"]
+        XCTAssertTrue(menu.waitForExistence(timeout: 10))
+        XCTAssertEqual(menu.value as? String, "Right to Left, default")
+        menu.tap()
+        app.buttons["Left to Right"].tap()
+        XCTAssertEqual(menu.value as? String, "Left to Right, this title")
+        // The Default entry names the global default: it must not have moved with the title.
+        menu.tap()
+        XCTAssertTrue(app.buttons["Default (Right to Left)"].waitForExistence(timeout: 5))
+        app.buttons["Left to Right"].tap()
+        attach(app, name: "reader-mode-this-title")
+        app.buttons["Close reader"].tap()
+
+        app.tabBars.buttons["Settings"].tap()
+        let picker = app.buttons["defaultReadingModePicker"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 10))
+        let defaultMode = picker.descendants(matching: .any).matching(NSPredicate(
+            format: "label CONTAINS[c] %@", "Right to Left")).firstMatch
+        XCTAssertTrue(defaultMode.waitForExistence(timeout: 5))
+
+        app.tabBars.buttons["Library"].tap()
+        XCTAssertTrue(read.waitForExistence(timeout: 15))
+        read.tap()
+        XCTAssertTrue(menu.waitForExistence(timeout: 10))
+        XCTAssertEqual(menu.value as? String, "Left to Right, this title")
+    }
+
     private static let fixtureBase64 = [
         "UEsDBAoAAAAAAJANOF0AAAAAAAAAAAAAAAAGABwAcGFnZXMvVVQJAAPw4rRq8OK0anV4CwABBPUBAAAEFAAAAFBLAw",
         "QUAAAACACQDThdMzMKcT8AAABEAAAACwAcAHBhZ2VzLzIucG5nVVQJAAPw4rRq8OK0anV4CwABBPUBAAAEFAAAAOsM",

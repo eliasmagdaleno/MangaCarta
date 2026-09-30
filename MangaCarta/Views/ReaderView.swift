@@ -8,8 +8,8 @@
 //    • Webtoon       — continuous vertical scroll (manhwa / long-strip).
 //
 //  Paged pages zoom through the UIScrollView-backed `ZoomableContainer` (native pinch /
-//  pan physics, double-tap zooms into the tapped point). The chosen mode is persisted so
-//  it carries across chapters.
+//  pan physics, double-tap zooms into the tapped point). The reading mode is per Work,
+//  via ReadingModeStore (ADR-0026), so it carries across chapters of that title.
 //
 //  Everything the reader *fetches* lives in `ReaderViewModel`; this view owns only UI
 //  state — the chrome toggle, the pager index, the reading mode, and progress recording.
@@ -19,32 +19,6 @@
 //
 
 import SwiftUI
-
-// MARK: - Reading mode
-
-enum ReadingMode: String, CaseIterable, Identifiable {
-    case leftToRight, rightToLeft, vertical
-
-    var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .leftToRight: return "Left to Right"
-        case .rightToLeft: return "Right to Left"
-        case .vertical:    return "Webtoon (Vertical)"
-        }
-    }
-
-    var symbol: String {
-        switch self {
-        case .leftToRight: return "arrow.right"
-        case .rightToLeft: return "arrow.left"
-        case .vertical:    return "arrow.down"
-        }
-    }
-
-    var isPaged: Bool { self != .vertical }
-}
 
 // MARK: - Strip measurement
 
@@ -137,11 +111,43 @@ struct ReaderView: View {
         _progressChapterID = State(initialValue: chapter.id)
     }
 
-    @AppStorage("readingMode") private var mode: ReadingMode = .rightToLeft
+    @EnvironmentObject private var readingModes: ReadingModeStore
+    @EnvironmentObject private var works: WorkStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @EnvironmentObject private var history: HistoryStore
+
+    /// The open title's Work. Opening a chapter mints it, so `nil` is not expected; when it
+    /// happens the menu edits the default instead (ADR-0026).
+    private var workID: WorkID? {
+        works.workId(for: ListingKey(sourceId: manga.sourceId, mangaId: manga.id))
+    }
+
+    /// The mode in force: the Work's own, else the default. Every existing read of `mode`
+    /// (layout, `.onChange(of: mode)`, page order) keeps working against it.
+    private var mode: ReadingMode { readingModes.effectiveMode(for: workID) }
+
+    /// The menu's selection: `nil` is "Default".
+    private var modeSelection: Binding<ReadingMode?> {
+        Binding(
+            get: { workID.map { readingModes.mode(for: $0) } ?? readingModes.defaultMode },
+            set: { newValue in
+                if let id = workID {
+                    if let newValue {
+                        readingModes.set(newValue, for: id)
+                    } else { readingModes.clear(for: id) }
+                } else if let newValue {
+                    readingModes.defaultMode = newValue
+                }
+            }
+        )
+    }
+
+    private var modeAccessibilityValue: String {
+        let own = workID.flatMap { readingModes.mode(for: $0) } != nil
+        return "\(mode.label), \(own ? "this title" : "default")"
+    }
 
     @State private var currentPage = 0
     @State private var showChrome = true
@@ -635,9 +641,13 @@ struct ReaderView: View {
 
             Spacer()
             Menu {
-                Picker("Reading Mode", selection: $mode) {
+                Picker("Reading Mode", selection: modeSelection) {
+                    if workID != nil {
+                        Label("Default (\(readingModes.defaultMode.label))", systemImage: "circle.dashed")
+                            .tag(ReadingMode?.none)
+                    }
                     ForEach(ReadingMode.allCases) { m in
-                        Label(m.label, systemImage: m.symbol).tag(m)
+                        Label(m.label, systemImage: m.symbol).tag(Optional(m))
                     }
                 }
             } label: {
@@ -645,7 +655,8 @@ struct ReaderView: View {
             }
             .accessibilityLabel("Reading mode")
             .accessibilityInputLabels(["Reading mode", "Mode"])
-            .accessibilityValue(mode.label)
+            .accessibilityValue(modeAccessibilityValue)
+            .accessibilityIdentifier("readerModeMenu")
         }
         .padding(.horizontal, Gutter.page)
         .padding(.top, 8)

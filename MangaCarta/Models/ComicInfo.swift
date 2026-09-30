@@ -9,6 +9,14 @@ struct ComicInfo: Codable, Equatable, Sendable {
     let writer: String?
     let genres: [String]
     let frontCoverPageIndex: Int?
+    let manga: String?
+
+    init(series: String?, title: String?, number: String?, volume: String?, summary: String?,
+         writer: String?, genres: [String], frontCoverPageIndex: Int?, manga: String? = nil) {
+        self.series = series; self.title = title; self.number = number; self.volume = volume
+        self.summary = summary; self.writer = writer; self.genres = genres
+        self.frontCoverPageIndex = frontCoverPageIndex; self.manga = manga
+    }
 
     static func parse(_ data: Data) -> ComicInfo? {
         let delegate = Parser()
@@ -25,7 +33,19 @@ struct ComicInfo: Codable, Equatable, Sendable {
         return ComicInfo(series: value(delegate.values["Series"]), title: value(delegate.values["Title"]),
                          number: value(delegate.values["Number"]), volume: value(delegate.values["Volume"]),
                          summary: value(delegate.values["Summary"]), writer: value(delegate.values["Writer"]),
-                         genres: genres, frontCoverPageIndex: delegate.frontCoverPageIndex)
+                         genres: genres, frontCoverPageIndex: delegate.frontCoverPageIndex,
+                         manga: value(delegate.values["Manga"]))
+    }
+
+    /// `Manga=YesAndRightToLeft` reads right to left; `Manga=No` is a Western comic, left to
+    /// right. `Yes` says manga but not which way, so it — like `Unknown` — gives nothing
+    /// (ADR-0026).
+    var readingMode: ReadingMode? {
+        switch manga?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "yesandrighttoleft": return .rightToLeft
+        case "no": return .leftToRight
+        default: return nil
+        }
     }
 
     private final class Parser: NSObject, XMLParserDelegate {
@@ -50,7 +70,7 @@ struct ComicInfo: Codable, Equatable, Sendable {
         func parser(_ parser: XMLParser, foundCharacters string: String) { buffer += string }
 
         func parser(_ parser: XMLParser, didEndElement name: String, namespaceURI: String?, qualifiedName qName: String?) {
-            if depth == 2, ["Series", "Title", "Number", "Volume", "Summary", "Writer", "Genre"].contains(name) {
+            if depth == 2, ["Series", "Title", "Number", "Volume", "Summary", "Writer", "Genre", "Manga"].contains(name) {
                 values[name, default: ""] += buffer
             }
             depth -= 1
