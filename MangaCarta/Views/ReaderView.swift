@@ -134,7 +134,9 @@ struct ReaderView: View {
             get: { workID.map { readingModes.mode(for: $0) } ?? readingModes.defaultMode },
             set: { newValue in
                 if let id = workID {
-                    if let newValue { readingModes.set(newValue, for: id) } else { readingModes.clear(for: id) }
+                    if let newValue {
+                        readingModes.set(newValue, for: id)
+                    } else { readingModes.clear(for: id) }
                 } else if let newValue {
                     readingModes.defaultMode = newValue
                 }

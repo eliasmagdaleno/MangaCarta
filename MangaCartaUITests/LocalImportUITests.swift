@@ -111,7 +111,7 @@ final class LocalImportUITests: XCTestCase {
         app.tabBars.buttons["Settings"].tap()
         let picker = app.buttons["defaultReadingModePicker"]
         XCTAssertTrue(picker.waitForExistence(timeout: 10))
-        let defaultMode = app.descendants(matching: .any).matching(NSPredicate(
+        let defaultMode = picker.descendants(matching: .any).matching(NSPredicate(
             format: "label CONTAINS[c] %@", "Right to Left")).firstMatch
         XCTAssertTrue(defaultMode.waitForExistence(timeout: 5))
 
@@ -120,6 +120,9 @@ final class LocalImportUITests: XCTestCase {
         read.tap()
         XCTAssertTrue(menu.waitForExistence(timeout: 10))
         XCTAssertEqual(menu.value as? String, "Left to Right, this title")
+        menu.tap()
+        XCTAssertTrue(app.buttons["Default (Right to Left)"].waitForExistence(timeout: 5))
+        app.buttons["Reading mode"].tap()
     }
 
     private static let fixtureBase64 = [
