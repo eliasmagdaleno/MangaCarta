@@ -93,7 +93,7 @@ final class MALProgressCoordinatorTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        directory = URL(fileURLWithPath: NSTemporaryDirectory())
+        directory = makeTestDirectory("MALProgressCoordinatorTests")
             .appendingPathComponent("MALProgressCoordinatorTests-\(UUID().uuidString)")
         outbox = MALProgressOutbox(directory: directory)
         client = ScriptedDeliveryClient()

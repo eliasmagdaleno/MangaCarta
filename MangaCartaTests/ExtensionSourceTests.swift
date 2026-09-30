@@ -429,7 +429,7 @@ final class InstalledSourceRegistrationTests: XCTestCase {
     override func setUp() async throws {
         savedActiveSourceID = UserDefaults.standard.object(forKey: "source.activeID")
         UserDefaults.standard.removeObject(forKey: "source.activeID")
-        directory = FileManager.default.temporaryDirectory
+        directory = makeTestDirectory("ExtensionSourceTests")
             .appendingPathComponent("InstalledSourceRegistrationTests-\(UUID().uuidString)",
                                     isDirectory: true)
         transport = FakeRepositoryTransport()
@@ -960,7 +960,7 @@ final class ImageLoadReportTargetTests: XCTestCase {
 
     func testSourcesWithoutADeclarationHaveNoTarget() {
         let local: any MangaSource = LocalSource(store: LocalLibraryStore(
-            root: FileManager.default.temporaryDirectory
+            root: makeTestDirectory("ExtensionSourceTests")
                 .appendingPathComponent("ImageLoadReportTarget-\(UUID().uuidString)")))
         XCTAssertNil(local.imageLoadReportTarget)
     }

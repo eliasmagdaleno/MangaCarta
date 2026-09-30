@@ -98,7 +98,7 @@ private let exchangeBody = """
 private let elias = MALUserIdentity(id: 42, name: "elias", pictureURL: nil)
 
 @MainActor
-private struct AccountFixture {
+private final class AccountFixture {
     let store: MALAccountStore
     let presenter: FakeAuthPresenter
     let tokenTransport: ScriptedTokenExchangeTransport
@@ -115,7 +115,7 @@ private struct AccountFixture {
         storedCredential: MALStoredCredential? = nil,
         retryDelivery: @escaping () -> Void = {}
     ) {
-        directory = URL(fileURLWithPath: NSTemporaryDirectory())
+        directory = TestDirectory("MALAccountStoreTests").url
             .appendingPathComponent(UUID().uuidString)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
@@ -143,6 +143,8 @@ private struct AccountFixture {
             now: { accountNow }
         )
     }
+
+    deinit { try? FileManager.default.removeItem(at: directory) }
 }
 
 // MARK: - Sign-in

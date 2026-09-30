@@ -4,7 +4,7 @@ import UIKit
 @testable import MangaCarta
 
 @Test func fileURLImageBypassesFetcherAndDisk() async throws {
-    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let root = TestDirectory("LocalImageCacheTests").url
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: root) }
     let file = root.appendingPathComponent("page.png")
@@ -20,7 +20,7 @@ import UIKit
 }
 
 @Test func missingFileImageReturnsNil() async {
-    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let directory = TestDirectory("LocalImageCacheTests").url
     let cache = ImageCache(directory: directory, resolver: PublicImageResolver(), fetcher: { _ in
         Issue.record("fetcher called")
         return Data()

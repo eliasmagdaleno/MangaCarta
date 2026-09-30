@@ -53,11 +53,8 @@ final class AniListPoolTests: XCTestCase {
         SeededTagPair(pair: TagPair(a, b), weight: weight, contributingWorks: works)
     }
 
-    private func temporaryDirectory() -> URL {
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("pool-\(UUID().uuidString)")
-        addTeardownBlock { try? FileManager.default.removeItem(at: url) }
-        return url
+    private func makeDirectory() -> URL {
+        makeTestDirectory("pool")
     }
 
     // MARK: - The pure core
@@ -196,7 +193,7 @@ final class AniListPoolTests: XCTestCase {
     // MARK: - The store
 
     func testAColdStoreAnswersNilAndNeverBlocks() async {
-        let store = AniListPoolStore(directory: temporaryDirectory())
+        let store = AniListPoolStore(directory: makeDirectory())
         let pool = await store.pool(seeds: [TagPair("Dungeon", "Revenge")])
         XCTAssertNil(pool)
     }
@@ -204,7 +201,7 @@ final class AniListPoolTests: XCTestCase {
     /// `load()` fires on every Home appearance, so two appearances seconds apart must not
     /// kick two independent 5-query refreshes — 10 requests against a 30/min budget.
     func testConcurrentRefreshesForTheSameSeedsShareOneTask() async {
-        let store = AniListPoolStore(directory: temporaryDirectory())
+        let store = AniListPoolStore(directory: makeDirectory())
         let seeds = [TagPair("Dungeon", "Revenge")]
         let counter = Counter()
 
@@ -224,7 +221,7 @@ final class AniListPoolTests: XCTestCase {
     }
 
     func testARefreshThatAbortsLeavesThePreviousEntryStanding() async {
-        let directory = temporaryDirectory()
+        let directory = makeDirectory()
         let store = AniListPoolStore(directory: directory)
         let seeds = [TagPair("Dungeon", "Revenge")]
 
@@ -247,7 +244,7 @@ final class AniListPoolTests: XCTestCase {
     /// one — self-healing on the next Home appearance, but only at the cost of a whole
     /// refresh.
     func testARefreshForSupersededSeedsIsDiscardedNotWritten() async {
-        let store = AniListPoolStore(directory: temporaryDirectory())
+        let store = AniListPoolStore(directory: makeDirectory())
         let old = [TagPair("Dungeon", "Revenge")]
         let new = [TagPair("Magic", "Revenge")]
 
@@ -273,7 +270,7 @@ final class AniListPoolTests: XCTestCase {
     }
 
     func testACorruptCacheFileIsAMiss() async {
-        let directory = temporaryDirectory()
+        let directory = makeDirectory()
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try? Data("not json".utf8).write(to: directory.appendingPathComponent("anilist-pool.json"))
 
@@ -283,7 +280,7 @@ final class AniListPoolTests: XCTestCase {
     }
 
     func testAWrittenPoolSurvivesANewStoreOnTheSameDirectory() async {
-        let directory = temporaryDirectory()
+        let directory = makeDirectory()
         let seeds = [TagPair("Dungeon", "Revenge")]
 
         await AniListPoolStore(directory: directory).refreshIfNeeded(seeds: seeds) { pairs in
@@ -417,7 +414,7 @@ final class AniListPoolTests: XCTestCase {
     }
 
     private func vocabularyStore(seeded vocabulary: TagVocabulary?) -> TagVocabularyStore {
-        let directory = temporaryDirectory()
+        let directory = makeDirectory()
         if let vocabulary {
             try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             try? JSONEncoder().encode(vocabulary)
@@ -450,7 +447,7 @@ final class AniListPoolTests: XCTestCase {
         let queried = Counter()
         let provider = provider(works: [work("A", [("Dungeon", 90), ("Revenge", 90)])],
                                 vocabularyStore: vocabularyStore(seeded: nil),
-                                poolStore: AniListPoolStore(directory: temporaryDirectory()),
+                                poolStore: AniListPoolStore(directory: makeDirectory()),
                                 query: { _, _ in await queried.increment(); return [] })
 
         let out = try await provider.candidates(for: profile([:]), excluding: [], limit: 10)
@@ -473,7 +470,7 @@ final class AniListPoolTests: XCTestCase {
 
         let provider = provider(works: contributing + hollow,
                                 vocabularyStore: vocabularyStore(seeded: Self.vocabulary),
-                                poolStore: AniListPoolStore(directory: temporaryDirectory()),
+                                poolStore: AniListPoolStore(directory: makeDirectory()),
                                 query: { _, _ in await queried.increment(); return [] })
 
         let out = try await provider.candidates(for: profile(weights), excluding: [], limit: 10)
@@ -487,7 +484,7 @@ final class AniListPoolTests: XCTestCase {
     func testAColdPoolReturnsEmptyAndRefreshesInTheBackground() async throws {
         let works = (1...3).map { work("W\($0)", [("Dungeon", 90), ("Revenge", 90)]) }
         let weights = Dictionary(uniqueKeysWithValues: works.map { ($0.id, 1.0) })
-        let poolStore = AniListPoolStore(directory: temporaryDirectory())
+        let poolStore = AniListPoolStore(directory: makeDirectory())
 
         let provider = provider(works: works,
                                 vocabularyStore: vocabularyStore(seeded: Self.vocabulary),
@@ -528,7 +525,7 @@ final class AniListPoolTests: XCTestCase {
 
         let ani = provider(works: works,
                            vocabularyStore: vocabularyStore(seeded: Self.vocabulary),
-                           poolStore: AniListPoolStore(directory: temporaryDirectory()),
+                           poolStore: AniListPoolStore(directory: makeDirectory()),
                            query: { _, _ in [self.aniList(1, malId: 11,
                                                           [("Dungeon", 90), ("Revenge", 80)])] },
                            resolve: { works in
@@ -570,7 +567,7 @@ final class AniListPoolTests: XCTestCase {
     func testExclusionsAreAppliedAtReadTimeNotCachedIntoThePool() async throws {
         let works = (1...3).map { work("W\($0)", [("Dungeon", 90), ("Revenge", 90)]) }
         let weights = Dictionary(uniqueKeysWithValues: works.map { ($0.id, 1.0) })
-        let poolStore = AniListPoolStore(directory: temporaryDirectory())
+        let poolStore = AniListPoolStore(directory: makeDirectory())
 
         let provider = provider(works: works,
                                 vocabularyStore: vocabularyStore(seeded: Self.vocabulary),

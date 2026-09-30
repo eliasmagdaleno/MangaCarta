@@ -15,7 +15,7 @@ final class UpgradeAttemptMemoryTests: XCTestCase {
 
     @MainActor
     private func makeMemory() -> UpgradeAttemptMemory {
-        let dir = URL(fileURLWithPath: NSTemporaryDirectory())
+        let dir = makeTestDirectory("UpgradeAttemptMemoryTests")
             .appendingPathComponent("UpgradeAttemptMemoryTests-\(UUID().uuidString)")
         return UpgradeAttemptMemory(directory: dir)
     }
@@ -115,7 +115,7 @@ final class UpgradeAttemptMemoryTests: XCTestCase {
     /// The whole point of a file: a drain that ends when the app is closed must not start
     /// over from scratch on the next launch.
     @MainActor func testAttemptsSurviveAReload() {
-        let dir = URL(fileURLWithPath: NSTemporaryDirectory())
+        let dir = makeTestDirectory("UpgradeAttemptMemoryTests")
             .appendingPathComponent("UpgradeAttemptMemoryTests-\(UUID().uuidString)")
         let id = WorkID()
         let first = UpgradeAttemptMemory(directory: dir)

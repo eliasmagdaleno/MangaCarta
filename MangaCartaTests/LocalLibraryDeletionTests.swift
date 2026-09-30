@@ -5,7 +5,7 @@ import Foundation
 @Suite("LocalLibraryDeletionTests")
 struct LocalLibraryDeletionTests {
     @Test @MainActor func removeListingDeletesLastWork() async {
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let directory = TestDirectory("LocalLibraryDeletionTests").url
         defer { try? FileManager.default.removeItem(at: directory) }
         let works = WorkStore(directory: directory)
         let manga = Manga(id: "item", sourceId: "local", title: "Item", description: "",
@@ -18,7 +18,7 @@ struct LocalLibraryDeletionTests {
     }
 
     @Test @MainActor func reimportReattachesHistoryAfterDeletion() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let root = TestDirectory("LocalLibraryDeletionTests").url
         defer { try? FileManager.default.removeItem(at: root) }
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let archive = root.appendingPathComponent("book.cbz")
@@ -51,7 +51,7 @@ struct LocalLibraryDeletionTests {
     }
 
     @Test @MainActor func missingStagedDirectoryStillRemovesCatalogAndWork() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let root = TestDirectory("LocalLibraryDeletionTests").url
         defer { try? FileManager.default.removeItem(at: root) }
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let archive = root.appendingPathComponent("book.cbz")

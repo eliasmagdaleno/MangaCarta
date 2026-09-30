@@ -55,16 +55,16 @@ final class ZipArchiveReaderTests: XCTestCase {
         let payload = Data([0xff, 0xd8, 0xff, 0x00, 0x7f])
         let reader = try ZipArchiveReader(data: makeArchive(name: "pages/1.jpg", payload: payload, method: 0))
         let entry = try XCTUnwrap(reader.listEntries().first)
-        let temporaryDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
+        let directory = makeTestDirectory("ZipArchiveReaderTests")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
-        try reader.extract([entry], to: temporaryDirectory)
-        XCTAssertEqual(try Data(contentsOf: temporaryDirectory.appendingPathComponent("pages/1.jpg")), payload)
+        try reader.extract([entry], to: directory)
+        XCTAssertEqual(try Data(contentsOf: directory.appendingPathComponent("pages/1.jpg")), payload)
 
-        let outsideDirectory = temporaryDirectory.deletingLastPathComponent().appendingPathComponent(UUID().uuidString)
+        let outsideDirectory = directory.deletingLastPathComponent().appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: outsideDirectory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: outsideDirectory) }
-        let symlinkDirectory = temporaryDirectory.appendingPathComponent("escape")
+        let symlinkDirectory = directory.appendingPathComponent("escape")
         try FileManager.default.createSymbolicLink(at: symlinkDirectory, withDestinationURL: outsideDirectory)
         let escapingReader = try ZipArchiveReader(data: makeArchive(name: "page.jpg", payload: payload, method: 0))
         let escapingEntry = try XCTUnwrap(escapingReader.listEntries().first)

@@ -18,7 +18,7 @@ final class LiveUITestRepositoryInstallTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        directory = FileManager.default.temporaryDirectory
+        directory = makeTestDirectory("LiveUITestRepositoryInstallTests")
             .appendingPathComponent("LiveUITestRepositoryInstallTests-\(UUID().uuidString)", isDirectory: true)
         defaults = makeTestDefaults("LiveUITestRepositoryInstallTests")
     }

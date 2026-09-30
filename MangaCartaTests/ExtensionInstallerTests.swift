@@ -342,7 +342,7 @@ final class ExtensionInstallerTests: XCTestCase {
     private let scriptV2 = Data("registerEngine('madara', {}) // v2".utf8)
 
     override func setUp() async throws {
-        directory = FileManager.default.temporaryDirectory
+        directory = makeTestDirectory("ExtensionInstallerTests")
             .appendingPathComponent("ExtensionInstallerTests-\(UUID().uuidString)", isDirectory: true)
         transport = FakeRepositoryTransport()
         transport.scripts[scriptURL] = scriptV1

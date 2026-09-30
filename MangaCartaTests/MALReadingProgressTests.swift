@@ -11,7 +11,7 @@ import XCTest
 final class MALReadingProgressTests: XCTestCase {
     @MainActor
     private func makeWorkStore() -> WorkStore {
-        WorkStore(directory: URL(fileURLWithPath: NSTemporaryDirectory())
+        WorkStore(directory: makeTestDirectory("MALReadingProgressTests")
             .appendingPathComponent("MALReadingProgressTests-\(UUID().uuidString)"))
     }
 

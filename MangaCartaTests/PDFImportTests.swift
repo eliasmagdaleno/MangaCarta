@@ -100,7 +100,7 @@ struct PDFImportTests {
     }
 
     private func testRoot() throws -> URL {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let root = TestDirectory("PDFImportTests").url
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         return root
     }

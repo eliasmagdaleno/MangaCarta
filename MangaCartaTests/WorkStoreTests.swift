@@ -15,7 +15,7 @@ final class WorkStoreTests: XCTestCase {
 
     @MainActor
     private func makeStore() -> WorkStore {
-        let dir = URL(fileURLWithPath: NSTemporaryDirectory())
+        let dir = makeTestDirectory("WorkStoreTests")
             .appendingPathComponent("WorkStoreTests-\(UUID().uuidString)")
         return WorkStore(directory: dir)
     }
@@ -449,7 +449,7 @@ final class WorkStoreTests: XCTestCase {
     // MARK: - Persistence
 
     @MainActor func testWorksSurviveAReload() {
-        let dir = URL(fileURLWithPath: NSTemporaryDirectory())
+        let dir = makeTestDirectory("WorkStoreTests")
             .appendingPathComponent("WorkStoreTests-\(UUID().uuidString)")
         let first = WorkStore(directory: dir)
         let id = first.mint(from: listing("md-1", title: "Solo Leveling", malId: 121_496))
@@ -470,7 +470,7 @@ final class WorkStoreTests: XCTestCase {
     /// stale id aliasing exists to protect — a manual link override (ADR-0005) is
     /// permanent and may name a Work that was later merged away.
     @MainActor func testAliasesSurviveAReload() {
-        let dir = URL(fileURLWithPath: NSTemporaryDirectory())
+        let dir = makeTestDirectory("WorkStoreTests")
             .appendingPathComponent("WorkStoreTests-\(UUID().uuidString)")
         let first = WorkStore(directory: dir)
         let winner = first.mint(from: listing("md-1", title: "Solo Leveling"))
@@ -488,7 +488,7 @@ final class WorkStoreTests: XCTestCase {
     /// does, each page turn pushes the write further out and a long reading session
     /// never persists at all — the write is deferred for as long as the user reads.
     @MainActor func testAReMintThatLearnsNothingDoesNotDeferThePendingSave() async throws {
-        let dir = URL(fileURLWithPath: NSTemporaryDirectory())
+        let dir = makeTestDirectory("WorkStoreTests")
             .appendingPathComponent("WorkStoreTests-\(UUID().uuidString)")
         let store = WorkStore(directory: dir, saveDebounce: 0.2)
         let solo = listing("md-1", title: "Solo Leveling")
@@ -526,7 +526,7 @@ final class WorkStoreTests: XCTestCase {
     /// shipping the queue without the fix produces. Loading it faithfully would preserve
     /// the split, so the load path repairs it instead (ADR-0009).
     @MainActor func testLoadingAStoreThatAlreadySplitOneMangaRepairsIt() throws {
-        let dir = URL(fileURLWithPath: NSTemporaryDirectory())
+        let dir = makeTestDirectory("WorkStoreTests")
             .appendingPathComponent("WorkStoreTests-\(UUID().uuidString)")
         let ids = ExternalIDs(mal: 123, anilist: nil)
         let canonical = Work(id: WorkID(), displayTitle: "Solo Leveling",

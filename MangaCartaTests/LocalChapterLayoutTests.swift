@@ -5,7 +5,7 @@ import Testing
 @Suite("LocalChapterLayoutTests")
 struct LocalChapterLayoutTests {
     private func chapters(_ names: [String]) throws -> [ZipArchiveReader.Chapter] {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let root = TestDirectory("LocalChapterLayoutTests").url
         defer { try? FileManager.default.removeItem(at: root) }
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let archive = root.appendingPathComponent("shape.cbz")

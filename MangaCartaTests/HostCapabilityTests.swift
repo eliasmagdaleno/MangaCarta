@@ -41,7 +41,9 @@ struct HostHTTPTests {
     @Test("ImageCache refuses a wildcard-matched URL resolving privately")
     func imageCacheRejectsPrivateWildcardAsset() async throws {
         let probe = FetchProbe()
-        let cache = ImageCache(directory: FileManager.default.temporaryDirectory
+        let cacheDirectory = TestDirectory("HostCapabilityTests").url
+        defer { try? FileManager.default.removeItem(at: cacheDirectory) }
+        let cache = ImageCache(directory: cacheDirectory
             .appendingPathComponent(UUID().uuidString),
             resolver: FixedHostResolver(addresses: ["10.0.0.5"]),
             fetcher: { _ in await probe.bump(); return Data("not an image".utf8) })
@@ -50,7 +52,7 @@ struct HostHTTPTests {
         #expect(await probe.count == 0)
 
         let publicProbe = FetchProbe()
-        let publicCache = ImageCache(directory: FileManager.default.temporaryDirectory
+        let publicCache = ImageCache(directory: cacheDirectory
             .appendingPathComponent(UUID().uuidString),
             resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
             fetcher: { _ in await publicProbe.bump(); return Data("not an image".utf8) })
@@ -559,7 +561,7 @@ struct ImageCacheNetworkTests {
     @Test("A private or missing connected peer never reaches image decoding")
     func rejectsUntrustedPeerBeforeDecode() async {
         for peer in ["10.0.0.5", nil] as [String?] {
-            let directory = temporaryDirectory()
+            let directory = makeDirectory()
             let decoder = ImageDecodeProbe()
             let cache = ImageCache(
                 directory: directory,
@@ -578,7 +580,7 @@ struct ImageCacheNetworkTests {
     func rejectsURLSessionCacheResponse() async {
         let decoder = ImageDecodeProbe()
         let cache = ImageCache(
-            directory: temporaryDirectory(),
+            directory: makeDirectory(),
             resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
             sessionFetcher: ImageFetchProbe(result: result(
                 peer: "93.184.216.34", fetchType: .localCache)),
@@ -590,7 +592,7 @@ struct ImageCacheNetworkTests {
 
     @Test("A public peer loads, then ImageCache's disk hit works offline")
     func publicPeerAndOfflineDiskHit() async {
-        let directory = temporaryDirectory()
+            let directory = makeDirectory()
         let firstFetcher = ImageFetchProbe(result: result(peer: "93.184.216.34"))
         let online = ImageCache(directory: directory,
                                 resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
@@ -624,7 +626,7 @@ struct ImageCacheNetworkTests {
         let peer = try #require(observed.connectedPeerAddress)
         #expect(!HostIPAddress.isPublic(peer))
         let cache = ImageCache(
-            directory: temporaryDirectory(),
+            directory: makeDirectory(),
             resolver: FixedHostResolver(addresses: ["93.184.216.34"]),
             sessionFetcher: fetcher,
             decoder: { decoder.decode($0) })
@@ -656,8 +658,7 @@ struct ImageLoadReportCacheTests {
         origins: ["https://*.mangadex.network"])
 
     private func directory() -> URL {
-        FileManager.default.temporaryDirectory
-            .appendingPathComponent("ImageLoadReportCache-\(UUID().uuidString)")
+        TestDirectory("ImageLoadReportCache").url
     }
 
     private func sessionResult(xCache: String?, status: Int = 200) -> URLSessionFetchResult {
@@ -1123,7 +1124,7 @@ struct HostStorageTests {
 
     @Test("Unreadable storage is quarantined and remains unavailable")
     func corruptStorageFileIsQuarantined() throws {
-        let directory = temporaryDirectory()
+            let directory = makeDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let original = Data("{ definitely not valid JSON".utf8)
         let storageFile = directory.appendingPathComponent("extension-storage.json")
@@ -1142,7 +1143,7 @@ struct HostStorageTests {
 
     @Test("Two configured Sources cannot read or enumerate each other's storage")
     func storageIsNamespacedByQualifiedSourceID() async throws {
-        let directory = temporaryDirectory()
+            let directory = makeDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let repository = try HostStorageRepository(directory: directory)
         let sourceA = HostStorage(sourceID: QualifiedSourceID(rawValue: "repo/source-a"),
@@ -1161,7 +1162,7 @@ struct HostStorageTests {
 
     @Test("Storage survives repository recreation and only explicit Source erasure removes it")
     func storagePersistsUntilExplicitUserErasure() async throws {
-        let directory = temporaryDirectory()
+            let directory = makeDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let sourceID = QualifiedSourceID(rawValue: "repo/source-a")
 
@@ -1272,7 +1273,7 @@ final class HostCapabilityBridgeTests: XCTestCase {
     }
 
     func testAnEngineCanCallHostStorage() async throws {
-        let directory = FileManager.default.temporaryDirectory
+        let directory = makeTestDirectory("HostCapabilityTests")
             .appendingPathComponent("mangacarta-s1-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: directory) }
         let repository = try HostStorageRepository(directory: directory)
@@ -1329,7 +1330,7 @@ final class HostCapabilityBridgeTests: XCTestCase {
                                     allowedOrigins: ["https://example.test"],
                                     transport: BridgeHTTPTransport(),
                                     resolver: BridgeHostResolver())
-        let directory = FileManager.default.temporaryDirectory
+        let directory = makeTestDirectory("HostCapabilityTests")
             .appendingPathComponent("mangacarta-s1-errors-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: directory) }
         let storage = HostStorage(sourceID: sourceID,
@@ -1516,9 +1517,8 @@ struct HostJSONValueConverterTests {
     }
 }
 
-private func temporaryDirectory() -> URL {
-    FileManager.default.temporaryDirectory
-        .appendingPathComponent("HostCapabilityTests-\(UUID().uuidString)", isDirectory: true)
+private func makeDirectory() -> URL {
+    TestDirectory("HostCapabilityTests").url
 }
 
 private struct FixedHostResolver: HostNameResolving {
@@ -1694,8 +1694,7 @@ struct HostRateLimiterTests {
     @MainActor
     @Test("the production host factory retains one shared registry")
     func factorySharesRegistry() throws {
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("HostRateLimiterFactory-\(UUID().uuidString)")
+        let directory = TestDirectory("HostRateLimiterFactory").url
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let registry = HostRateLimiterRegistry()
         let factory = try ExtensionHostCapabilityFactory(

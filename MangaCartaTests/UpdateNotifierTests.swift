@@ -159,6 +159,7 @@ struct UpdateNotifierTests {
 
 @MainActor
 private final class Fixture {
+    let directory: URL
     let notifications: FakeNotificationCenter
     let suite: TestDefaults
     let defaults: UserDefaults
@@ -170,7 +171,7 @@ private final class Fixture {
     init(status: UNAuthorizationStatus = .authorized,
          sources: [NoticeSource] = [NoticeSource(id: MangaDexSource.sourceID, isNSFW: false)],
          openWork: @escaping (WorkID) -> Void = { _ in }) {
-        let directory = URL(fileURLWithPath: NSTemporaryDirectory())
+        directory = TestDirectory("UpdateNotifierTests").url
             .appendingPathComponent("UpdateNotifierTests-\(UUID().uuidString)")
         suite = TestDefaults("UpdateNotifierTests")
         defaults = suite.defaults
@@ -182,6 +183,8 @@ private final class Fixture {
                                   library: library, registry: SourceRegistry(sources: sources),
                                   defaults: defaults, openWork: openWork)
     }
+
+    deinit { try? FileManager.default.removeItem(at: directory) }
 
     func mint(_ title: String, source: String = MangaDexSource.sourceID, malId: Int? = nil) -> WorkID {
         works.mint(from: manga(title, source: source, malId: malId))

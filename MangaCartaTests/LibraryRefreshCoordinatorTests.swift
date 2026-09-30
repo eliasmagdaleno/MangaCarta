@@ -12,6 +12,7 @@ struct LibraryRefreshCoordinatorTests {
         let other = StubSource(id: "not-local", chapters: ["other": ["1"]], participatesInUpdates: false)
         let fixture = Fixture(sources: [remote, local, other])
         defer { fixture.suite.remove() }
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
         _ = fixture.mint("remote", source: "remote")
         _ = fixture.mint("local", source: "local")
         _ = fixture.mint("other", source: "not-local")
@@ -30,6 +31,7 @@ struct LibraryRefreshCoordinatorTests {
         let bad = StubSource(id: "bad", failures: ["shared"])
         let fixture = Fixture(sources: [good, bad])
         defer { fixture.suite.remove() }
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
         let workId = fixture.mint("shared", source: "good", malId: 7)
         _ = fixture.mint("shared", source: "bad", malId: 7)
         fixture.seed(workId, listing: .init(sourceId: "good", mangaId: "shared"), numbers: ["1"])
@@ -50,6 +52,7 @@ struct LibraryRefreshCoordinatorTests {
         let source = StubSource(id: "mangadex", failures: ["broken"])
         let fixture = Fixture(sources: [source])
         defer { fixture.suite.remove() }
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
         let workId = fixture.mint("broken", source: "mangadex")
 
         let step = await fixture.coordinator.step()
@@ -68,6 +71,7 @@ struct LibraryRefreshCoordinatorTests {
                                      chapters: ["wc-slug": ["1"]])
         let fixture = Fixture(sources: [mangaDex, weebCentral])
         defer { fixture.suite.remove() }
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
         _ = fixture.mint("wc-slug", source: WeebCentralIdentityMigration.qualifiedID)
 
         _ = await fixture.coordinator.run(budget: .foreground)
@@ -82,6 +86,7 @@ struct LibraryRefreshCoordinatorTests {
         let source = StubSource(id: "mangadex", chapters: ["series": ["1", "2", "3", "4"]])
         let fixture = Fixture(sources: [source])
         defer { fixture.suite.remove() }
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
         let workId = fixture.mint("series", source: "mangadex")
         fixture.seed(workId, listing: .init(sourceId: "mangadex", mangaId: "series"), numbers: ["1"])
 
@@ -98,6 +103,7 @@ struct LibraryRefreshCoordinatorTests {
         let second = StubSource(id: "second", chapters: ["same": ["1", "2"]])
         let fixture = Fixture(sources: [first, second])
         defer { fixture.suite.remove() }
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
         let workId = fixture.mint("same", source: "first", malId: 9)
         _ = fixture.mint("same", source: "second", malId: 9)
         fixture.seed(workId, listing: .init(sourceId: "first", mangaId: "same"), numbers: ["1"])
@@ -114,6 +120,7 @@ struct LibraryRefreshCoordinatorTests {
         let source = StubSource(id: "mangadex", chapters: ["paused": ["1"]])
         let fixture = Fixture(sources: [source], now: Date(timeIntervalSince1970: 100))
         defer { fixture.suite.remove() }
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
         let workId = fixture.mint("paused", source: "mangadex")
         let listing = ListingKey(sourceId: "mangadex", mangaId: "paused")
         fixture.updates.recordFailure(workId: workId, listing: listing,
@@ -131,6 +138,7 @@ struct LibraryRefreshCoordinatorTests {
         let source = StubSource(id: "mangadex", chapters: ["saved": ["1", "2"]])
         let fixture = Fixture(sources: [source])
         defer { fixture.suite.remove() }
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
         fixture.library.toggle(fixture.manga("saved", source: "mangadex"))
 
         await fixture.library.refresh()
@@ -145,6 +153,7 @@ struct LibraryRefreshCoordinatorTests {
         let source = StubSource(id: "mangadex", chapters: ["one": ["1"], "two": ["1"]])
         let fixture = Fixture(sources: [source], cancelAfterFirst: true)
         defer { fixture.suite.remove() }
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
         _ = fixture.mint("one", source: "mangadex")
         _ = fixture.mint("two", source: "mangadex")
 
@@ -168,6 +177,7 @@ struct LibraryRefreshCoordinatorTests {
         let source = StubSource(id: "mangadex", chapters: ["winner": ["1", "2"]])
         let fixture = Fixture(sources: [source])
         defer { fixture.suite.remove() }
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
         let winner = fixture.mint("winner", source: "mangadex")
         let loser = fixture.mint("loser", source: "mangadex")
         fixture.seed(winner, listing: .init(sourceId: "mangadex", mangaId: "winner"), numbers: ["1"])
@@ -187,6 +197,7 @@ struct LibraryRefreshCoordinatorTests {
         let source = StubSource(id: "mangadex", chapters: ["long": numbers])
         let fixture = Fixture(sources: [source])
         defer { fixture.suite.remove() }
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
         let workId = fixture.mint("long", source: "mangadex")
         fixture.seed(workId, listing: .init(sourceId: "mangadex", mangaId: "long"), numbers: ["1"])
 
@@ -203,16 +214,19 @@ struct LibraryRefreshCoordinatorTests {
 
 @MainActor
 private final class Fixture {
+    let directory: URL
     let suite: TestDefaults
     let works: WorkStore
     let updates: UpdateStateStore
     let library: LibraryStore
     let coordinator: LibraryRefreshCoordinator
 
+    deinit { try? FileManager.default.removeItem(at: directory) }
+
     init(sources: [StubSource],
          now: Date = Date(timeIntervalSince1970: 1_000),
          cancelAfterFirst: Bool = false) {
-        let directory = URL(fileURLWithPath: NSTemporaryDirectory())
+        directory = TestDirectory("LibraryRefreshCoordinatorTests").url
             .appendingPathComponent("LibraryRefreshCoordinatorTests-\(UUID().uuidString)")
         suite = TestDefaults("LibraryRefreshCoordinatorTests")
         let defaults = suite.defaults

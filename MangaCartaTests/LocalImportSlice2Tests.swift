@@ -53,7 +53,7 @@ private struct LocalFixture {
     let root: URL
     let archive: URL
     init(files: [(String, Data)] = [("001.png", LocalTestZip.png), ("002.png", LocalTestZip.png)]) throws {
-        root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        root = TestDirectory("LocalImportSlice2Tests").url
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         archive = root.appendingPathComponent("book.cbz")
         try LocalTestZip.write(files, to: archive)

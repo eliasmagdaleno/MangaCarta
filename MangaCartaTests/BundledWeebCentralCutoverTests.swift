@@ -26,7 +26,7 @@ final class BundledWeebCentralRetirementTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        directory = FileManager.default.temporaryDirectory
+        directory = makeTestDirectory("BundledWeebCentralCutoverTests")
             .appendingPathComponent("BundledWeebCentralRetirementTests-\(UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defaults = makeTestDefaults("BundledWeebCentralRetirementTests")
@@ -109,7 +109,7 @@ final class WeebCentralIdentityMigrationTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        directory = FileManager.default.temporaryDirectory
+        directory = makeTestDirectory("BundledWeebCentralCutoverTests")
             .appendingPathComponent("WeebCentralIdentityMigrationTests-\(UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defaults = makeTestDefaults("WeebCentralIdentityMigrationTests")
@@ -230,7 +230,7 @@ final class InstalledSourceIDMigrationTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        directory = FileManager.default.temporaryDirectory
+        directory = makeTestDirectory("BundledWeebCentralCutoverTests")
             .appendingPathComponent("InstalledSourceIDMigrationTests-\(UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defaults = makeTestDefaults("InstalledSourceIDMigrationTests")

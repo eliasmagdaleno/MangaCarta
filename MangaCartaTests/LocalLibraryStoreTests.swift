@@ -85,7 +85,7 @@ struct LocalLibraryStoreTests {
     }
 
     @Test func frontCoverIndexSelectsTheIndexedPage() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let root = TestDirectory("LocalLibraryStoreTests").url
         defer { try? FileManager.default.removeItem(at: root) }
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let xml = Data("<ComicInfo><Series>Series</Series><Pages><Page Image=\"2\" Type=\"FrontCover\"/></Pages></ComicInfo>".utf8)
@@ -103,7 +103,7 @@ struct LocalLibraryStoreTests {
     }
 
     @Test func nestedComicInfoIsIgnoredAndFilenameTitleRemains() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let root = TestDirectory("LocalLibraryStoreTests").url
         defer { try? FileManager.default.removeItem(at: root) }
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let nestedInfo = Data("<ComicInfo><Series>Wrong</Series></ComicInfo>".utf8)
@@ -115,7 +115,7 @@ struct LocalLibraryStoreTests {
     }
 
     @Test func malformedComicInfoStillImportsWithFilenameTitle() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let root = TestDirectory("LocalLibraryStoreTests").url
         defer { try? FileManager.default.removeItem(at: root) }
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let url = try archive(root: root, files: [("ComicInfo.xml", Data("<ComicInfo>".utf8)), ("001.png", LocalTestZip.png)])
@@ -126,7 +126,7 @@ struct LocalLibraryStoreTests {
     }
 
     @Test func seriesWinsTitleAndTitleWinsWhenSeriesMissing() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let root = TestDirectory("LocalLibraryStoreTests").url
         defer { try? FileManager.default.removeItem(at: root) }
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let seriesXML = Data("<ComicInfo><Series>Series Name</Series><Title>Issue Title</Title></ComicInfo>".utf8)
@@ -162,7 +162,7 @@ struct LocalLibraryStoreTests {
     }
 
     @Test func duplicateImportIsSkippedAndRecordRemainsUnchanged() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let root = TestDirectory("LocalLibraryStoreTests").url
         defer { try? FileManager.default.removeItem(at: root) }
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let url = try archive(root: root, files: [("001.png", LocalTestZip.png)])
@@ -174,7 +174,7 @@ struct LocalLibraryStoreTests {
     }
 
     @Test func invalidFirstPageFallsBackToNextDecodableCover() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let root = TestDirectory("LocalLibraryStoreTests").url
         defer { try? FileManager.default.removeItem(at: root) }
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let invalidPNG = Data([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0])
@@ -189,7 +189,7 @@ struct LocalLibraryStoreTests {
     }
 
     @Test func pagesWithoutDecodableCoverStillImport() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let root = TestDirectory("LocalLibraryStoreTests").url
         defer { try? FileManager.default.removeItem(at: root) }
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let invalidPNG = Data([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0])
@@ -206,7 +206,7 @@ struct LocalLibraryStoreTests {
     }
 
     @Test func itemSizeReportsExtractedDirectoryBytes() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let root = TestDirectory("LocalLibraryStoreTests").url
         defer { try? FileManager.default.removeItem(at: root) }
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let url = try archive(root: root, files: [("001.png", LocalTestZip.png), ("002.png", LocalTestZip.png)])
@@ -226,7 +226,7 @@ struct LocalLibraryStoreTests {
     }
 
     @Test func cancellingArchiveImportRemovesStagingAndDoesNotCommit() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let root = TestDirectory("LocalLibraryStoreTests").url
         defer { try? FileManager.default.removeItem(at: root) }
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let url = try archive(root: root, files: [("001.png", LocalTestZip.png), ("002.png", LocalTestZip.png)])
@@ -246,7 +246,7 @@ struct LocalLibraryStoreTests {
     }
 
     @Test func failedExtractionLeavesNoItemAndEmptyStaging() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let root = TestDirectory("LocalLibraryStoreTests").url
         defer { try? FileManager.default.removeItem(at: root) }
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let corrupt = try archive(root: root, files: [("001.png", LocalTestZip.png), ("002.png", LocalTestZip.png)], corruptLastCRC: true)
@@ -265,7 +265,7 @@ struct LocalLibraryStoreTests {
     }
 
     @Test func stagingIsNeverListedAndCrashStagingIsRemoved() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let root = TestDirectory("LocalLibraryStoreTests").url
         defer { try? FileManager.default.removeItem(at: root) }
         let stray = root.appendingPathComponent(".staging/old/item")
         try FileManager.default.createDirectory(at: stray, withIntermediateDirectories: true)
@@ -275,14 +275,14 @@ struct LocalLibraryStoreTests {
     }
 
     @Test func deletingUnknownItemThrows() async {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let root = TestDirectory("LocalLibraryStoreTests").url
         defer { try? FileManager.default.removeItem(at: root) }
         let store = LocalLibraryStore(root: root)
         await #expect(throws: Error.self) { try await store.delete(itemId: "missing") }
     }
 
     @Test func deleteRemovesItemAndReimportKeepsItemId() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let root = TestDirectory("LocalLibraryStoreTests").url
         defer { try? FileManager.default.removeItem(at: root) }
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let url = try archive(root: root, files: [("001.png", LocalTestZip.png)])
@@ -307,7 +307,7 @@ struct LocalLibraryStoreTests {
     }
 
     @Test func seriesChaptersAggregateByVolumeAndKeepDecimalNumbers() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let root = TestDirectory("LocalLibraryStoreTests").url
         defer { try? FileManager.default.removeItem(at: root) }
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let store = LocalLibraryStore(root: root.appendingPathComponent("library"))
