@@ -105,6 +105,10 @@ final class LocalImportUITests: XCTestCase {
         menu.tap()
         app.buttons["Left to Right"].tap()
         XCTAssertEqual(menu.value as? String, "Left to Right, this title")
+        // The Default entry names the global default: it must not have moved with the title.
+        menu.tap()
+        XCTAssertTrue(app.buttons["Default (Right to Left)"].waitForExistence(timeout: 5))
+        app.buttons["Left to Right"].tap()
         attach(app, name: "reader-mode-this-title")
         app.buttons["Close reader"].tap()
 
@@ -120,9 +124,6 @@ final class LocalImportUITests: XCTestCase {
         read.tap()
         XCTAssertTrue(menu.waitForExistence(timeout: 10))
         XCTAssertEqual(menu.value as? String, "Left to Right, this title")
-        menu.tap()
-        XCTAssertTrue(app.buttons["Default (Right to Left)"].waitForExistence(timeout: 5))
-        app.buttons["Reading mode"].tap()
     }
 
     private static let fixtureBase64 = [
