@@ -7,7 +7,8 @@ Recheck GitHub and the working tree before acting.
 ## Completed this session
 
 - **#290 per-title reading mode — implemented as PR #307** (branch `feat/per-title-reading-mode`,
-  worktree `/private/tmp/mangacarta-290`). Open, CI running, **not merged** at time of writing.
+  worktree `/private/tmp/mangacarta-290`). Open with **squash auto-merge enabled**; not merged at
+  time of writing. Check `gh pr view 307 --json state` first.
   - Implements ADR-0026 per the spec and plan (both merged in #306): `ReadingModeStore` (injected,
     UserDefaults; default under the old `readingMode` key, per-Work modes under `reader.workModes`),
     `ReadingMode` moved to `Models/ReadingMode.swift`, ComicInfo `<Manga>` seeding on local import,
@@ -23,8 +24,16 @@ Recheck GitHub and the working tree before acting.
     2. The plan's seeding helper let the weakly held `LibraryStore` deallocate before import (no Work
        minted); replaced with a `SeedingHarness` struct. Production refs stay weak.
     3. The plan omitted adding `"Manga"` to ComicInfo's parser element whitelist; added.
-  - Evidence: full `MangaCartaTests` + `LocalImportUITests` (3 tests) green on the branch head, run by
+  - Evidence: full `MangaCartaTests` + `LocalImportUITests` (3 tests) green on the branch, run by
     the controller; all five mutation checks failed their target tests.
+  - **CI's Hermetic UI job failed twice** (run 36782938775, first attempt and rerun) at
+    `testReaderModeIsPerTitle`: after the reader was *reopened*, tapping `readerModeMenu` failed with
+    `kAXErrorCannotComplete` on scroll-to-visible, though the element existed with the right value.
+    Not reproduced locally on either the 17 Pro or the "iPhone 16 Pro (CI repro)" sim (both iOS 26.5;
+    CI is iOS 26.2). Fix `a7acfd0`: the `Default (Right to Left)` menu check moved into the *first*
+    reader session, where CI's taps on the same menu already succeed. Passes on both local sims; the
+    mutation "setter writes the default too" fails it at line 110. **Its CI run was still pending
+    when this was written** — if Hermetic UI goes red again, read the failing line first.
 - **Orca 1.4.217 runs Codex without the readiness wrapper** — verified by this session's first
   `worker-start` (memory updated).
 
@@ -34,9 +43,12 @@ would conflict).
 
 ## Next
 
-1. **Merge #307 once its four checks pass** (owner's call — merges are asked for by PR number).
-   Then remove worktree `/private/tmp/mangacarta-290` and branch `feat/per-title-reading-mode`, gating
-   on `state == MERGED`. Deferred minors from its review, both optional:
+1. **Land #307.** The owner asked for it to merge once checks pass; auto-merge (squash) is on, so it
+   merges itself when all four checks are green. If it has merged, remove worktree
+   `/private/tmp/mangacarta-290` and branch `feat/per-title-reading-mode` (local and remote), gating on
+   `state == MERGED`. If Hermetic UI is red again at a *new* line, it is a real finding; at the
+   reopened-reader tap, the reader's second presentation on iOS 26.2 is the suspect — and the
+   question of why a reopened reader's menu can't be tapped there may be a real app bug. Deferred minors from its review, both optional:
    - `AppComposition.init` was already over SwiftLint's `function_body_length` (147 lines); #307 adds
      one line (148).
    - The new `CLAUDE.md` "Current state" line is one ~200-character line; the file wraps at ~100.
@@ -107,6 +119,12 @@ would conflict).
 - **Reusing one worker terminal across tasks works:** `worker-start --spec … --terminal <worker>
   --from <coordinator>`. A receipt of `outcome_unknown` / `turn_start_unobserved` still delivered the
   task here — read the terminal (`orca terminal read`) before retrying anything.
+- **A reopened reader's chrome can be untappable on CI's iOS 26.2** (above) while tapping it works
+  on first presentation and on every local sim. Keep UI-test taps on reader chrome in the first
+  reader session until that is understood.
+- **Check a mutation actually landed** (`git diff` after the edit) before trusting its result. A
+  `sed` against a line that had since been reformatted matched nothing, and the "mutation" run
+  passed — which reads exactly like a test that can't detect the mutation.
 - **Never background a `check --wait` with `&` inside a tool call.** It survives as an orphan waiter,
   and the next `check --wait` fails with `waiter_exists`. Use the harness's background mode.
 
