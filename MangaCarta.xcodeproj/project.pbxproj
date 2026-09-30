@@ -104,6 +104,7 @@
 		E3368D389F8E31C4E2C0F9A0 /* ExtensionJSBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFD0D41CDB5858D85E249DB5 /* ExtensionJSBridgeTests.swift */; };
 		E5799CADD97F67D52AAEAF1C /* SourceLifecycleRegistryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 157ECE58A8A05C891EC65688 /* SourceLifecycleRegistryTests.swift */; };
 		E7CBBD1428324559AFC66FAD /* BrowserInteractionSpikeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCEA6025BCD90B3F70131F41 /* BrowserInteractionSpikeTests.swift */; };
+		E9C681796C595A771DF66097 /* ReadingModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E7E7AF50362272F7578C390 /* ReadingModeTests.swift */; };
 		EFE95FCB1B3EE98E26BB994E /* TestDefaults.swift in Sources */ = {isa = PBXBuildFile; fileRef = E67D80366C4E496BCA6BBD5F /* TestDefaults.swift */; };
 		F1EDF70D02166B598E8C64BB /* AppCompositionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72871A40D70AAE0566E9CE31 /* AppCompositionTests.swift */; };
 		F2CB6BCB819D4DAA455C6FE0 /* SimulatorSeedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FA3A806F48EF86136C94C85 /* SimulatorSeedTests.swift */; };
@@ -168,6 +169,7 @@
 		55A2DC23BFF7D4B3B4BF19B5 /* ExtensionDomainSchemaTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = ExtensionDomainSchemaTests.swift; path = ExtensionDomainSchemaTests.swift; sourceTree = "<group>"; };
 		570EA9B70F2674D6ABAEBB4C /* MALProgressOutboxTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = MALProgressOutboxTests.swift; path = MALProgressOutboxTests.swift; sourceTree = "<group>"; };
 		5D7B3EDC482CBB6114C9D9DE /* LocalImportUITests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = LocalImportUITests.swift; path = LocalImportUITests.swift; sourceTree = "<group>"; };
+		5E7E7AF50362272F7578C390 /* ReadingModeTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = ReadingModeTests.swift; path = ReadingModeTests.swift; sourceTree = "<group>"; };
 		5E80918D9E1FCC45D4322C48 /* LibraryRefreshCoordinatorTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = LibraryRefreshCoordinatorTests.swift; path = LibraryRefreshCoordinatorTests.swift; sourceTree = "<group>"; };
 		63B0B08B21E70C6502707BF4 /* AdultContentFilterTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = AdultContentFilterTests.swift; path = AdultContentFilterTests.swift; sourceTree = "<group>"; };
 		651410493E4CE11A30957C52 /* WebtoonGeometryTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; path = WebtoonGeometryTests.swift; sourceTree = "<group>"; };
@@ -443,6 +445,7 @@
 				81D2241EC6ED6ED47E10DA06 /* ComicInfoTests.swift */,
 				E67D80366C4E496BCA6BBD5F /* TestDefaults.swift */,
 				8F73C8CA840CBCFD5968B2FE /* TestDirectory.swift */,
+				5E7E7AF50362272F7578C390 /* ReadingModeTests.swift */,
 			);
 			path = MangaCartaTests;
 			sourceTree = "<group>";
@@ -718,6 +721,7 @@
 				0E19C34171EAB7BDA75E3375 /* ComicInfoTests.swift in Sources */,
 				EFE95FCB1B3EE98E26BB994E /* TestDefaults.swift in Sources */,
 				34E1229A61F341103F1B062C /* TestDirectory.swift in Sources */,
+				E9C681796C595A771DF66097 /* ReadingModeTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -20,32 +20,6 @@
 
 import SwiftUI
 
-// MARK: - Reading mode
-
-enum ReadingMode: String, CaseIterable, Identifiable {
-    case leftToRight, rightToLeft, vertical
-
-    var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .leftToRight: return "Left to Right"
-        case .rightToLeft: return "Right to Left"
-        case .vertical:    return "Webtoon (Vertical)"
-        }
-    }
-
-    var symbol: String {
-        switch self {
-        case .leftToRight: return "arrow.right"
-        case .rightToLeft: return "arrow.left"
-        case .vertical:    return "arrow.down"
-        }
-    }
-
-    var isPaged: Bool { self != .vertical }
-}
-
 // MARK: - Strip measurement
 
 /// The vertical reader's measurement cache: every realized strip's frame, the viewport,
