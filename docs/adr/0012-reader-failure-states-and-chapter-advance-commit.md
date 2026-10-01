@@ -251,3 +251,28 @@ hand-checked on the iPhone 17 simulator.
   does not decode `pages` yet. One field is enough to mark the row before anyone opens it.
 - If the queue ever sees a 408, fold the carve-out above back into `permanentStatus` so the two
   subsystems share one definition rather than two that differ by a single code.
+
+## Amendment 1 — extension Source failures classify too (2026-09-30, #315)
+
+**Decision:** `ExtensionSourceError` conforms to `ClassifiedFailure`. Since ADR-0003 Amendment 6
+every content Source is an installed extension, and its errors fell through to the
+unknown-is-transient default, so the reader offered Retry for failures retrying cannot fix. The
+"bridged extension lands in the default bucket by construction" premise above no longer holds: the
+bridge ends in one Swift error type, which can classify.
+
+The rule follows the Host API design's §6 retry guidance, per code:
+
+- **Permanent** — `invalid_request`, `invalid_response`, `invalid_result`, `unsupported`,
+  `unsupported_language`, `policy_denied`, `incompatible_version`, `script`. §6 says each clears
+  only after a fix or a changed selection. `script` is "after Source fix/transient retry"; it is
+  called permanent so Retry stays for failures that can clear on their own.
+- **Transient** — `cancelled`, `network`, `navigation`, `timeout`, `rate_limited`,
+  `interaction_required`, `interaction_declined`, `interaction_timed_out` (Retry re-presents the
+  challenge, as for `SourceError.cloudflareUnsolved`), `storage`, `resource_limit`, plus a Source
+  that is unavailable or a feed page out of sequence. `cancelled` reaching the reader is a host
+  cancellation; the caller's own already becomes `CancellationError`.
+- **`http`** — by status, which travels in `details.status` (Host API design, Amendment 7): 408,
+  429 and 5xx transient, other 4xx permanent, no status transient. This is the rule above, which
+  the deleted in-app MangaDex client had applied and no extension path had since.
+
+Unknown errors still default to transient.
