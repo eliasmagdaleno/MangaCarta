@@ -284,14 +284,7 @@ struct AppComposition {
          malResolver: MALEntityResolver? = nil,
          registry: SourceRegistry? = nil,
          repositoryTransport: (any RepositoryTransport)? = nil) {
-        WeebCentralIdentityMigration.run(directory: directory, defaults: defaults)
-        let identityMigrationError: String?
-        do {
-            try InstalledSourceIDMigration.run(directory: directory, defaults: defaults)
-            identityMigrationError = nil
-        } catch {
-            identityMigrationError = error.localizedDescription
-        }
+        let identityMigrationError = Self.runIdentityMigrations(directory: directory, defaults: defaults)
         let resolvedRegistry = registry ?? .shared
         let resolvedMALResolver = malResolver ?? MALEntityResolver(
             store: .shared,
@@ -301,73 +294,11 @@ struct AppComposition {
         let wk = WorkStore(directory: directory)
         let lib = LibraryStore(defaults: defaults, works: wk)
 
-        // The MyAnimeList stack, built before `HistoryStore` because the history store takes
-        // the completion sink at construction. Nothing here touches the network until the
-        // user signs in: the account restores from what is already on disk, and the drain
-        // only runs once `start()` is called with a signed-in account.
-        let outbox = MALProgressOutbox(directory: directory)
-#if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("-uitest-mal-reset-outbox") {
-            // Task 12's stand-in-account checks share the seeded app container. Isolate each
-            // initial launch without risking another account's durable queued work.
-            try? outbox.clear(userID: Self.malUITestProfile.id)
-        }
-#endif
-        let malConfiguration = MALOAuthConfiguration(
-            clientID: (Bundle.main.object(forInfoDictionaryKey: "MALClientID") as? String) ?? "",
-            redirectURI: Self.malRedirectURI)
-        let malTransport = MALURLSessionTransport()
-        let credentials = malCredentials ?? MALCredentialStore(
-            dataStore: MALKeychainCredentialDataStore(),
-            markerStore: MALUserDefaultsInstallationMarkerStore(defaults: defaults))
-        let tokenClient = MALTokenClient(configuration: malConfiguration, transport: malTransport)
-        // The refresh spinner in Settings, through the same weak-box shape as `drain` below
-        // and for the same reason: the token manager is built before the account store.
-        let refreshHandle = MALRefreshHandle()
-        let tokens = MALTokenManager(client: tokenClient, store: credentials) { isRefreshing in
-            Task { @MainActor in
-                guard let account = refreshHandle.account else { return }
-                if isRefreshing { account.refreshBegan() } else { account.refreshEnded() }
-            }
-        }
-        // The verb is the client's verified default now — see `MALListUpdateVerb`.
-        // Only this client takes the simulated outage; `tokenClient` above keeps the real
-        // transport so a `-uitest-mal-offline` run cannot disturb a real account's credentials.
-        var progressTransport: any MALHTTPTransport = malTransport
-#if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("-uitest-mal-offline") {
-            progressTransport = MALOfflineTransport()
-        }
-#endif
-        let malClient = MALAuthenticatedClient(tokens: tokens, transport: progressTransport)
-        // **Retry now** has to reach a coordinator that does not exist yet, and the
-        // coordinator needs the account store — so the button goes through a box that is
-        // filled in a few lines below. Weak, so the graph holds no cycle.
-        let drain = MALDrainHandle()
-        let accountStore = MALAccountStore(
-            configuration: malConfiguration,
-            presenter: MALWebAuthPresenter(),
-            tokenClient: tokenClient,
-            credentials: credentials,
-            preferences: malPreferences
-                ?? MALUserDefaultsAccountPreferenceStore(defaults: defaults),
-            outbox: outbox,
-            // The identity read for a token that is not in the manager yet — see
-            // `MALAuthenticatedClient.currentUser(accessToken:transport:)`.
-            fetchIdentity: { token in
-                try await MALAuthenticatedClient.currentUser(accessToken: token,
-                                                             transport: malTransport)
-            },
-            retryDelivery: { drain.coordinator?.retryNow() })
-        let malProgress = MALProgressCoordinator(
-            outbox: outbox,
-            client: malClient,
-            account: accountStore,
-            // The coordinator never resolves anything itself; it only reads what the Work
-            // already knows, and waits for the queue's signal otherwise.
-            malID: { wk.work($0)?.externalIds.mal })
-        drain.coordinator = malProgress
-        refreshHandle.account = accountStore
+        // Built before `HistoryStore` because the history store takes the completion sink
+        // at construction.
+        let mal = Self.makeMAL(directory: directory, defaults: defaults, works: wk,
+                               credentials: malCredentials, preferences: malPreferences)
+        let malProgress = mal.progress
 
         // The completion sink. Synchronous and network-free by contract — it writes the
         // completed chapter to the outbox and returns.
@@ -483,9 +414,9 @@ struct AppComposition {
         self.engine = rec
         self.vocabularyStore = vocab
         self.poolStore = pool
-        self.account = accountStore
+        self.account = mal.account
         self.malProgress = malProgress
-        self.malOutbox = outbox
+        self.malOutbox = mal.outbox
         self.registry = resolvedRegistry
         self.hostRateLimiters = HostRateLimiterRegistry()
         self.imageLoadReporter = ImageLoadReporter(rateLimiters: self.hostRateLimiters)
@@ -500,6 +431,100 @@ struct AppComposition {
                                                    rateLimiters: self.hostRateLimiters)
         self.extensions = extensionResult.composition
         self.extensionStorageError = extensionResult.error ?? identityMigrationError
+    }
+
+    /// Both identity migrations, before anything reads a Source id. Only the installed-Source
+    /// migration can fail; its message is returned for `extensionStorageError`.
+    private static func runIdentityMigrations(directory: URL, defaults: UserDefaults) -> String? {
+        WeebCentralIdentityMigration.run(directory: directory, defaults: defaults)
+        do {
+            try InstalledSourceIDMigration.run(directory: directory, defaults: defaults)
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
+    private struct MALGraph {
+        let outbox: MALProgressOutbox
+        let account: MALAccountStore
+        let progress: MALProgressCoordinator
+    }
+
+    /// The MyAnimeList stack. Nothing here touches the network until the user signs in: the
+    /// account restores from what is already on disk, and the drain only runs once `start()`
+    /// is called with a signed-in account.
+    private static func makeMAL(
+        directory: URL,
+        defaults: UserDefaults,
+        works wk: WorkStore,
+        credentials malCredentials: MALCredentialStore?,
+        preferences malPreferences: MALAccountPreferenceStore?
+    ) -> MALGraph {
+        let outbox = MALProgressOutbox(directory: directory)
+#if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-uitest-mal-reset-outbox") {
+            // Task 12's stand-in-account checks share the seeded app container. Isolate each
+            // initial launch without risking another account's durable queued work.
+            try? outbox.clear(userID: Self.malUITestProfile.id)
+        }
+#endif
+        let malConfiguration = MALOAuthConfiguration(
+            clientID: (Bundle.main.object(forInfoDictionaryKey: "MALClientID") as? String) ?? "",
+            redirectURI: Self.malRedirectURI)
+        let malTransport = MALURLSessionTransport()
+        let credentials = malCredentials ?? MALCredentialStore(
+            dataStore: MALKeychainCredentialDataStore(),
+            markerStore: MALUserDefaultsInstallationMarkerStore(defaults: defaults))
+        let tokenClient = MALTokenClient(configuration: malConfiguration, transport: malTransport)
+        // The refresh spinner in Settings, through the same weak-box shape as `drain` below
+        // and for the same reason: the token manager is built before the account store.
+        let refreshHandle = MALRefreshHandle()
+        let tokens = MALTokenManager(client: tokenClient, store: credentials) { isRefreshing in
+            Task { @MainActor in
+                guard let account = refreshHandle.account else { return }
+                if isRefreshing { account.refreshBegan() } else { account.refreshEnded() }
+            }
+        }
+        // The verb is the client's verified default now — see `MALListUpdateVerb`.
+        // Only this client takes the simulated outage; `tokenClient` above keeps the real
+        // transport so a `-uitest-mal-offline` run cannot disturb a real account's credentials.
+        var progressTransport: any MALHTTPTransport = malTransport
+#if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-uitest-mal-offline") {
+            progressTransport = MALOfflineTransport()
+        }
+#endif
+        let malClient = MALAuthenticatedClient(tokens: tokens, transport: progressTransport)
+        // **Retry now** has to reach a coordinator that does not exist yet, and the
+        // coordinator needs the account store — so the button goes through a box that is
+        // filled in a few lines below. Weak, so the graph holds no cycle.
+        let drain = MALDrainHandle()
+        let accountStore = MALAccountStore(
+            configuration: malConfiguration,
+            presenter: MALWebAuthPresenter(),
+            tokenClient: tokenClient,
+            credentials: credentials,
+            preferences: malPreferences
+                ?? MALUserDefaultsAccountPreferenceStore(defaults: defaults),
+            outbox: outbox,
+            // The identity read for a token that is not in the manager yet — see
+            // `MALAuthenticatedClient.currentUser(accessToken:transport:)`.
+            fetchIdentity: { token in
+                try await MALAuthenticatedClient.currentUser(accessToken: token,
+                                                             transport: malTransport)
+            },
+            retryDelivery: { drain.coordinator?.retryNow() })
+        let malProgress = MALProgressCoordinator(
+            outbox: outbox,
+            client: malClient,
+            account: accountStore,
+            // The coordinator never resolves anything itself; it only reads what the Work
+            // already knows, and waits for the queue's signal otherwise.
+            malID: { wk.work($0)?.externalIds.mal })
+        drain.coordinator = malProgress
+        refreshHandle.account = accountStore
+        return MALGraph(outbox: outbox, account: accountStore, progress: malProgress)
     }
 
     /// The installed-Source subsystem (Phase 4). Restores every installed Source from
