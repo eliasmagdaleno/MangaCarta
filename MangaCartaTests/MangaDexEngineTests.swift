@@ -362,6 +362,38 @@ final class MangaDexEngineTests: XCTestCase {
         }
     }
 
+    // #315: the engine names the status, so a chapter MangaDex doesn't have is permanent
+    // (no Retry) while an outage stays transient.
+    func testAMissingChapterIsAPermanentHTTPFailure() async throws {
+        await host.transport.route(
+            "\(MangaDexFixtures.api)/at-home/server/\(MangaDexFixtures.chapterID)",
+            status: 404, headers: [:], file: nil)
+        let source = try makeSource()
+
+        do {
+            _ = try await source.pageURLs(chapterId: MangaDexFixtures.chapterID, preferDataSaver: true)
+            XCTFail("a 404 chapter must fail")
+        } catch let error as ExtensionSourceError {
+            XCTAssertEqual(error, .http(status: 404))
+            XCTAssertFalse(isTransientFailure(error))
+        }
+    }
+
+    func testAnOutageIsATransientHTTPFailure() async throws {
+        await host.transport.route(
+            "\(MangaDexFixtures.api)/at-home/server/\(MangaDexFixtures.chapterID)",
+            status: 503, headers: [:], file: nil)
+        let source = try makeSource()
+
+        do {
+            _ = try await source.pageURLs(chapterId: MangaDexFixtures.chapterID, preferDataSaver: true)
+            XCTFail("a 503 must fail")
+        } catch let error as ExtensionSourceError {
+            XCTAssertEqual(error, .http(status: 503))
+            XCTAssertTrue(isTransientFailure(error))
+        }
+    }
+
     func testIndexPinsThisEngine() throws {
         let data = try Data(contentsOf: MangaDexFixtures.directory.appendingPathComponent("engine.js"))
         let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
