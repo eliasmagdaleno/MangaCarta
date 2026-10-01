@@ -50,6 +50,8 @@ enum ExtensionSourceError: LocalizedError, Equatable {
     case unavailable(name: String)
     /// The runtime ended the invocation with this code.
     case invocation(ExtensionHostErrorCode)
+    /// An HTTP response, retaining a usable status when the engine supplied one.
+    case http(status: Int?)
     /// An offset the adapter could not reach by following cursors from the last page it
     /// saw — the feed was reloaded elsewhere, or paged with a different size.
     case pageOutOfSequence
@@ -63,11 +65,28 @@ enum ExtensionSourceError: LocalizedError, Equatable {
             return "\(name) is no longer installed. Reinstall it to keep reading from it."
         case .invocation(let code):
             return Self.copy(for: code)
+        case .http:
+            return Self.copy(for: .http)
         case .pageOutOfSequence:
             return "Couldn't load that page of the feed. Pull to refresh and try again."
         case .rateLimited(let seconds):
             return "The site is asking for a pause. " + Self.retryHint(after: seconds)
         }
+    }
+
+    static func httpStatus(from details: JSONValue?) -> Int? {
+        guard case .object(let object) = details,
+              let value = object["status"] else { return nil }
+        let status: Int
+        switch value {
+        case .int(let value):
+            status = value
+        case .double(let value) where value.rounded() == value:
+            status = Int(value)
+        default:
+            return nil
+        }
+        return (100...599).contains(status) ? status : nil
     }
 
     /// Rounded up, so the reader never tries again before the site said to. Past an hour a
@@ -347,6 +366,9 @@ final class ExtensionSource: MangaSource {
             if error.code == .cancelled, Task.isCancelled { throw CancellationError() }
             if error.code == .rateLimited {
                 throw ExtensionSourceError.rateLimited(retryAfterSeconds: error.retryAfterSeconds)
+            }
+            if error.code == .http {
+                throw ExtensionSourceError.http(status: ExtensionSourceError.httpStatus(from: error.details))
             }
             throw ExtensionSourceError.invocation(error.code)
         }

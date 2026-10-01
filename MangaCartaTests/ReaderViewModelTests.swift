@@ -218,6 +218,19 @@ final class ReaderViewModelTests: XCTestCase {
                               canRetry: false))
     }
 
+    func testPermanentExtensionFailureOffersNoRetry() async {
+        let failure = ExtensionSourceError.http(status: 404)
+        let (vm, _) = makeVM(chapter: Self.chapter("1")) {
+            $0.pages["ch1"] = .failure(failure)
+        }
+        await vm.begin()
+
+        XCTAssertTrue(vm.pages.isEmpty)
+        XCTAssertFalse(vm.failureIsTransient)
+        XCTAssertEqual(vm.presentation.body,
+                       .error(message: readerFailureMessage(failure), canRetry: false))
+    }
+
     func testTransientFailureKeepsRetryAvailable() async {
         let (vm, _) = makeVM(chapter: Self.chapter("1")) {
             $0.pages["ch1"] = .failure(URLError(.notConnectedToInternet))
