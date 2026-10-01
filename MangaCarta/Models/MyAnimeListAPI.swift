@@ -110,7 +110,7 @@ struct MyAnimeListSearchResponse: Decodable {
 struct MyAnimeListAPI {                              // Namespace-style struct for static helpers.
     static let baseURL = "https://api.myanimelist.net/v2"
 
-    /// Shared decoder (snake_case → camelCase), same strategy as MangaDexAPI's.
+    /// Shared decoder (snake_case → camelCase).
     private static let decoder: JSONDecoder = {
         let d = JSONDecoder()
         d.keyDecodingStrategy = .convertFromSnakeCase
@@ -199,7 +199,7 @@ struct MyAnimeListAPI {                              // Namespace-style struct f
     /// Generic GET + JSON decode helper for MAL endpoints.
     /// - Note: MAL is known to soft rate-limit (HTTP 429). On a 429 we retry once,
     ///         honoring the `Retry-After` header, before giving up — same behavior as
-    ///         MangaDexAPI.request.
+    ///         AniListAPI's request.
     private static func request<T: Decodable>(path: String,
                                               queryItems: [URLQueryItem]) async throws -> T {
         guard var comps = URLComponents(string: baseURL + path) else {

@@ -316,10 +316,10 @@ private func localImporter(root: URL, store: LocalLibraryStore,
 }
 
 @MainActor @Test func registryAlwaysRegistersLocalButNeverBrowsesIt() {
-    let registry = SourceRegistry(sources: [LocalSource(), MangaDexSource()])
+    let registry = SourceRegistry(sources: [LocalSource(), LegacyMangaDexStub()])
     #expect(registry.source(id: "local") != nil)
     #expect(!registry.visibleSources(includeAdult: true).contains { $0.id == "local" })
-    #expect(registry.active?.id == MangaDexSource.sourceID)
+    #expect(registry.active?.id == "mangadex")
 }
 
 @MainActor @Test func localImportViewModelReportsUnreadablePDF() async throws {
@@ -505,4 +505,18 @@ struct LocalImportSlice2Tests {
     @MainActor @Test func migrationConvergesPreSliceState() async throws {
         try await localSeriesMigrationConvergesPreSliceItemsAndIsIdempotent()
     }
+}
+
+/// Stands in for the retired built-in MangaDex Source: a registered, non-adult Source under
+/// the legacy `"mangadex"` id.
+private struct LegacyMangaDexStub: MangaSource {
+    let id = "mangadex"
+    let name = "MangaDex"
+    func search(title: String, limit: Int, offset: Int) async throws -> [Manga] { [] }
+    func popular(limit: Int, offset: Int) async throws -> [Manga] { [] }
+    func mangaDetail(id: String) async throws -> MangaDetail {
+        MangaDetail(description: "", authors: [], tags: [], contentRating: nil)
+    }
+    func chapters(mangaId: String) async throws -> [Chapter] { [] }
+    func pageURLs(chapterId: String, preferDataSaver: Bool) async throws -> [URL] { [] }
 }

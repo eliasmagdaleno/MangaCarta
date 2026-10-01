@@ -48,15 +48,15 @@ usually faster than the CLI.
 ## Architecture
 
 MVVM over a source-abstraction layer. Data flows: `MangaSource` (protocol, network) →
-`@MainActor` `ObservableObject` view models → SwiftUI views. Nothing outside the source
-adapters calls `MangaDexAPI` directly.
+`@MainActor` `ObservableObject` view models → SwiftUI views. Nothing outside a Source's
+adapter talks to a content site directly.
 
 - **`Models/MangaSource.swift`** — deliberately **bridge-friendly** (only `Int`/`String`
   params, value/Codable returns) so a future dynamic-extension runtime can conform via a
   bridge. `newTitles`/`latestUpdates` are optional capabilities whose default impls throw
   `SourceError.unsupported`.
 - **`Services/SourceRegistry.swift`** — owns the registered sources and the active browse
-  source. ViewModels/Services fetch through this, **never** `MangaDexAPI`. The registry is
+  source. ViewModels/Services fetch through this, **never** a site directly. The registry is
   **injected, not reached for**: `AppComposition.registry` is the graph's one, it is in the
   environment, and views take it from there. `SourceRegistry.shared` survives only as that
   composition's production default and in `#Preview` blocks — a view or view model reading
@@ -69,24 +69,8 @@ adapters calls `MangaDexAPI` directly.
   Interactive Cloudflare challenges surface the WebView in a sheet; declines are sticky for
   30s and task cancellation is honored. Sources receive it via `SourceContext` — mock the
   `WebViewExtracting` protocol in tests.
-- **`Models/MangaDexAPI.swift`** — decoding goes through one generic `request` helper using
-  `.convertFromSnakeCase`. `toManga(id:relationships:)` stamps `Manga.sourceId` with the
-  MangaDex source id — every conversion path must keep doing so.
 - **`Models/*ViewModel.swift`** — errors surface as `errorMessage` strings, never thrown
   past the view model.
-
-Key conventions worth preserving:
-
-- **Covers are always prefetched.** Every `/manga` query injects
-  `includes[]=cover_art`, and `MangaAttributes.toManga` pre-builds a `coverURL` so the
-  `Manga` model always carries a ready-to-use cover URL for `AsyncImage`. Cover URLs are
-  built by the free function `mangaCoverURL(mangaId:fileName:size:)` against
-  `uploads.mangadex.org`, defaulting to the 512px JPEG variant.
-- **Latest Updates is a two-step fetch:** `fetchLatestUpdates` first pulls recent
-  `/chapter` entries (with `includes[]=manga`), dedupes to unique manga preserving order,
-  then batch-fetches those manga by `ids[]` with covers. Reader page URLs come from
-  `pageURLs(for:)` which hits `/at-home/server/{chapterId}` and composes
-  `{baseUrl}/{data|data-saver}/{hash}/{file}`.
 
 ## Adding files to the project
 
@@ -186,7 +170,7 @@ The app builds and the core reading loop is implemented.
   `ExtensionRuntime` (#184). **Installed Sources are now live in the app graph:** at launch
   `ExtensionSourceRegistrar` restores every active install from the store into
   `AppComposition.registry`, *added* beside the built-in Source, never substituted. The host stamps
-  `Manga.sourceId` with the qualified id on every conversion path (the MangaDex `toManga` rule), and a
+  `Manga.sourceId` with the qualified id on every conversion path, and a
   disabled or uninstalled Source fails as unavailable while its Listings, pins and history are kept.
   **S5 and S6 landed 2026-09-21** (#193, #192): Settings has a repository manager (add by URL,
   refresh, change URL, remove; install/update/disable/enable/uninstall) over the production
@@ -196,9 +180,10 @@ The app builds and the core reading loop is implemented.
   titles (ADR-0022 A6).
   **No remote content Source ships in the app** (ADR-0003 Amendment 6, removed 2026-09-25).
   `builtInSources()` is Local alone; MangaDex and WeebCentral are engines in a separate public
-  repository that the reader adds by URL, and the app links to none. `MangaDexSource` and
-  `MangaDexAPI` still compile — AniList, MAL and the resolver use them — but nothing registers
-  them. Devices that ran a bundled-WeebCentral build have that repository retired at composition
+  repository that the reader adds by URL, and the app links to none. The in-app MangaDex client
+  (`MangaDexSource`, `MangaDexAPI`) was deleted 2026-09-30: nothing had registered it since
+  the removal, and AniList, MAL and the resolver reach MangaDex through the registry. Devices
+  that ran a bundled-WeebCentral build have that repository retired at composition
   (`ExtensionComposition.retireBundledSources()`), which keeps its data. Legacy `mangadex` and
   bundled-WeebCentral records stay dormant — `SourceRegistry` never routes them to another
   Source — until the reader installs a matching Source and accepts the reconnect prompt

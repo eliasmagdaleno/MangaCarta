@@ -116,34 +116,6 @@ final class ReaderPresentationTests: XCTestCase {
 
     // MARK: - Failure classification
 
-    /// MangaDex answers 404 for a chapter it does not have (verified live 2026-07-29).
-    /// Retrying cannot change that.
-    func testMangaDexNotFoundIsPermanent() {
-        XCTAssertFalse(isTransientFailure(MangaDexError.httpStatus(404)))
-        XCTAssertFalse(isTransientFailure(MangaDexError.httpStatus(403)))
-        XCTAssertFalse(isTransientFailure(MangaDexError.httpStatus(410)))
-    }
-
-    /// 429 and 408 are the two 4xx codes that mean "later", not "no". 429 matches the
-    /// upgrade queue's `permanentStatus`; 408 is ADR-0012's deliberate divergence from it.
-    func testRateLimitAndTimeoutStayTransient() {
-        XCTAssertTrue(isTransientFailure(MangaDexError.httpStatus(429)))
-        XCTAssertTrue(isTransientFailure(MangaDexError.httpStatus(408)))
-        XCTAssertTrue(isTransientFailure(MangaDexError.rateLimited))
-    }
-
-    func testServerErrorsAreTransient() {
-        XCTAssertTrue(isTransientFailure(MangaDexError.httpStatus(500)))
-        XCTAssertTrue(isTransientFailure(MangaDexError.httpStatus(503)))
-    }
-
-    /// A URL we failed to build is our own bug — retrying rebuilds the identical URL.
-    /// A malformed reply is the server having a bad moment, which the next one may not.
-    func testClientSideAndMalformedResponsesSplitOnWhetherRetryRebuildsTheSameRequest() {
-        XCTAssertFalse(isTransientFailure(MangaDexError.invalidURL))
-        XCTAssertTrue(isTransientFailure(MangaDexError.invalidResponse))
-    }
-
     /// Network failures are the case where withholding Retry would be worst — the user
     /// did nothing wrong and the next attempt may well work.
     func testNetworkFailuresAreTransient() {
@@ -169,35 +141,15 @@ final class ReaderPresentationTests: XCTestCase {
 
     // MARK: - Failure copy (ADR-0013)
 
-    /// `MangaDexError.httpStatus` is the one case whose `errorDescription` is written for
-    /// a developer ("Request failed with HTTP status 404.", `MangaDexAPI.swift:349`), and
-    /// it is the exact string the field report was about.
-    func testHTTPStatusIsRewrittenForHumans() {
-        let message = readerFailureMessage(MangaDexError.httpStatus(404))
-        XCTAssertFalse(message.contains("Request failed"), "the developer phrasing must be gone")
-        XCTAssertTrue(message.contains("isn't available"))
-    }
-
-    /// The code stays in the sentence. ADR-0012's first hazard is that a 404 from
-    /// `/at-home/server` may mean "externally hosted" rather than "gone", so the copy must
-    /// not claim the chapter does not exist — and in the field the code is what tells the
-    /// two apart.
-    func testHTTPStatusKeepsTheCodeVisible() {
-        XCTAssertTrue(readerFailureMessage(MangaDexError.httpStatus(404)).contains("404"))
-        XCTAssertTrue(readerFailureMessage(MangaDexError.httpStatus(503)).contains("503"))
-    }
-
-    /// Every other error type already reads as English, so the reader must not paraphrase
-    /// it — `SourceError` and `ReaderError` messages pass through untouched.
-    func testEveryOtherErrorPassesThroughUnchanged() {
+    /// Every error type the reader can see already reads as English, so the reader must not
+    /// paraphrase it — `SourceError` and `ReaderError` messages pass through untouched.
+    func testEveryErrorPassesThroughUnchanged() {
         for error in [SourceError.cloudflareUnsolved,
                       SourceError.extractionFailed("no images found")] as [Error] {
             XCTAssertEqual(readerFailureMessage(error), error.localizedDescription)
         }
         XCTAssertEqual(readerFailureMessage(ReaderError.noPages),
                        ReaderError.noPages.localizedDescription)
-        XCTAssertEqual(readerFailureMessage(MangaDexError.rateLimited),
-                       MangaDexError.rateLimited.localizedDescription)
 
         struct Mystery: Error {}
         XCTAssertEqual(readerFailureMessage(Mystery()), Mystery().localizedDescription)

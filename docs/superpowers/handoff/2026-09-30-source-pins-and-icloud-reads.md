@@ -71,12 +71,9 @@ Recheck GitHub and the working tree before acting.
    existence alone. `active` still gates it, so it is contained. (`@Sendable` on
    `AdultContentSetting.current` is **not** redundant: the target is Swift 5 mode without
    `InferSendableFromCaptures`. Keep it.)
-5. **`MangaDexSource` / `MangaDexAPI`** still compile for AniList, MAL and the resolver, but nothing
-   registers them. Narrowing them is a separate refactor; injecting `UserDefaults` into
-   `SourceRegistry` fits the same pass. Good background work for a worker.
-6. **Leftover remote branch:** `docs/handoff-2026-09-29` (#288, closed unmerged, superseded). It was
+5. **Leftover remote branch:** `docs/handoff-2026-09-29` (#288, closed unmerged, superseded). It was
    left in place because it never merged; delete it only if the owner says so.
-7. **Human gates:**
+6. **Human gates:**
    - a VoiceOver device pass (#90);
    - the MAL live-write check (`TEST_RUNNER_MAL_LIVE_WRITE=1`) — the MAL avatar change in #302 can
      be eyeballed in the same signed-in session;

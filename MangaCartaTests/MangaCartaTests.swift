@@ -521,14 +521,14 @@ final class MangaCartaTests: XCTestCase {
     /// `refresh()` must ask each saved item's own source, not the active browse source —
     /// otherwise a WeebCentral slug gets sent to MangaDex whenever MangaDex is active.
     @MainActor func testRefreshAsksEachItemsOwnSource() async {
-        let mangadex = RefreshRoutingSource(id: MangaDexSource.sourceID)
+        let mangadex = RefreshRoutingSource(id: "mangadex")
         let weebcentral = RefreshRoutingSource(id: "weebcentral")
         let registry = SourceRegistry(sources: [mangadex, weebcentral])
-        registry.activeSourceID = MangaDexSource.sourceID
+        registry.activeSourceID = "mangadex"
 
         let suite = makeTestDefaults("test.lib")
         let store = LibraryStore(defaults: suite, registry: registry)
-        store.toggle(sampleManga("md-1", sourceId: MangaDexSource.sourceID))
+        store.toggle(sampleManga("md-1", sourceId: "mangadex"))
         store.toggle(sampleManga("wc-1", sourceId: "weebcentral"))
 
         await store.refresh()
@@ -666,10 +666,6 @@ final class MangaCartaTests: XCTestCase {
         }
     }
 
-    func testMangaDexSourceIsNotNSFWByDefault() {
-        XCTAssertFalse(MangaDexSource().isNSFW)
-    }
-
     func testSourceCanDeclareNSFW() {
         struct AdultMock: MangaSource {
             let id = "adult"; let name = "Adult"
@@ -697,133 +693,13 @@ final class MangaCartaTests: XCTestCase {
             func chapters(mangaId: String) async throws -> [Chapter] { [] }
             func pageURLs(chapterId: String, preferDataSaver: Bool) async throws -> [URL] { [] }
         }
-        let registry = SourceRegistry(sources: [MangaDexSource(), AdultMock()])
+        let registry = SourceRegistry(sources: [MockSource(id: "mangadex", name: "MangaDex"), AdultMock()])
 
         XCTAssertEqual(registry.visibleSources(includeAdult: false).map(\.id), ["mangadex"])
         XCTAssertEqual(registry.visibleSources(includeAdult: true).map(\.id), ["mangadex", "adult"])
     }
 
-    func testMangaDexDecodeStampsSourceId() throws {
-        // A /manga list entry decoded exactly as the API layer does it must carry the
-        // MangaDex source id so downstream source resolution works.
-        let json = #"""
-        {
-          "data": [{
-            "id": "abc",
-            "attributes": {
-              "title": {"en": "Berserk"},
-              "description": {"en": "d"},
-              "status": "ongoing",
-              "year": 1989
-            },
-            "relationships": []
-          }]
-        }
-        """#.data(using: .utf8)!
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        let res = try decoder.decode(MangaListResponse.self, from: json)
-        let manga = res.data[0].attributes.toManga(id: res.data[0].id, relationships: res.data[0].relationships)
-
-        XCTAssertEqual(manga.id, "abc")
-        XCTAssertEqual(manga.sourceId, "mangadex")
-        XCTAssertEqual(manga.sourceId, MangaDexSource.sourceID)
-    }
-
-    func testMangaAttributesToMangaExtractsMalIdFromLinks() throws {
-        let json = """
-        {
-          "title": {"en": "Berserk"},
-          "links": {"mal": "2", "al": "30002"}
-        }
-        """.data(using: .utf8)!
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        let attrs = try decoder.decode(MangaAttributes.self, from: json)
-        let manga = attrs.toManga(id: "abc", relationships: nil)
-        XCTAssertEqual(manga.malId, 2)
-    }
-
-    func testMangaAttributesToMangaMalIdNilWhenAbsentOrNonNumeric() throws {
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-
-        let noLinks = #"{ "title": {"en": "X"} }"#.data(using: .utf8)!
-        let a = try decoder.decode(MangaAttributes.self, from: noLinks)
-        XCTAssertNil(a.toManga(id: "1", relationships: nil).malId)
-
-        // MangaDex occasionally stores a non-numeric mal link — must not crash, must be nil.
-        let badLink = #"{ "title": {"en": "X"}, "links": {"mal": "not-a-number"} }"#.data(using: .utf8)!
-        let b = try decoder.decode(MangaAttributes.self, from: badLink)
-        XCTAssertNil(b.toManga(id: "1", relationships: nil).malId)
-    }
-
     // MARK: - Alt titles (ADR-0016 Decision 1)
-
-    /// The shape is taken from a live `GET /manga?title=Tower of God` response: a list of
-    /// **single-key** locale maps, with the same locale free to repeat. Decoding it as one
-    /// merged dictionary would silently keep one value per locale and throw the rest away —
-    /// which is most of the matcher fuel this field exists to supply.
-    func testMangaAttributesFlattensAltTitleLocaleMaps() throws {
-        let json = """
-        {
-          "title": {"en": "Sinui Tap"},
-          "altTitles": [
-            {"ko": "신의 탑"},
-            {"en": "Tower of God"},
-            {"en": "Sin-ui Tab"},
-            {"tr": "Tanrının Kulesi"}
-          ],
-          "links": {"mal": "122663"}
-        }
-        """.data(using: .utf8)!
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        let manga = try decoder.decode(MangaAttributes.self, from: json)
-            .toManga(id: "abc", relationships: nil)
-
-        XCTAssertEqual(manga.altTitles?.count, 4, "both `en` alternates must survive")
-        XCTAssertEqual(manga.altTitles, ["신의 탑", "Tower of God", "Sin-ui Tab", "Tanrının Kulesi"],
-                       "order is the API's; locale keys are unsorted, so values are the only stable thing")
-        XCTAssertEqual(manga.malId, 122663)
-    }
-
-    func testMangaAttributesAltTitlesDropBlanksDuplicatesAndTheDisplayTitle() throws {
-        let json = """
-        {
-          "title": {"en": "Berserk"},
-          "altTitles": [
-            {"en": "Berserk"},
-            {"ja": "  ベルセルク  "},
-            {"ja": "ベルセルク"},
-            {"en": "   "}
-          ]
-        }
-        """.data(using: .utf8)!
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        let manga = try decoder.decode(MangaAttributes.self, from: json)
-            .toManga(id: "abc", relationships: nil)
-
-        // The display title is excluded (it already lives in `title`), the blank is dropped,
-        // and the trimmed duplicate collapses into the first spelling.
-        XCTAssertEqual(manga.altTitles, ["ベルセルク"])
-    }
-
-    func testMangaAttributesAltTitlesNilWhenAbsentOrEmpty() throws {
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-
-        let absent = #"{ "title": {"en": "X"} }"#.data(using: .utf8)!
-        XCTAssertNil(try decoder.decode(MangaAttributes.self, from: absent)
-            .toManga(id: "1", relationships: nil).altTitles)
-
-        // Present but contributing nothing collapses to nil rather than `[]` — nil and empty
-        // mean the same thing to every consumer, so only one of them should ever be stored.
-        let empty = #"{ "title": {"en": "X"}, "altTitles": [{"en": "X"}, {"ja": ""}] }"#.data(using: .utf8)!
-        XCTAssertNil(try decoder.decode(MangaAttributes.self, from: empty)
-            .toManga(id: "1", relationships: nil).altTitles)
-    }
 
     /// The compatibility claim ADR-0016 Decision 1 rests on. ADR-0011's ranked-pool cache
     /// persists `Manga` whole and treats an undecodable entry as a miss, so a required field
@@ -1013,7 +889,7 @@ final class MangaCartaTests: XCTestCase {
     }
 
     func testDefaultImagePrefetchConcurrencyIsFive() {
-        XCTAssertEqual(MangaDexSource().imagePrefetchConcurrency, 5)
+        XCTAssertEqual(MockSource(id: "x", name: "X").imagePrefetchConcurrency, 5)
     }
 
     func testPrefetchWithConcurrencyCapStillLoadsEveryURL() async {
@@ -1085,22 +961,6 @@ final class MangaCartaTests: XCTestCase {
         XCTAssertEqual(box.seen, [0, 48])
     }
 
-    // MARK: - Tag decode widening (recommendation engine)
-
-    func testMangaDetailDecodesTagIdNameAndGroup() throws {
-        let json = #"""
-        {"data":{"id":"m1","type":"manga","attributes":{
-            "title":{"en":"T"},"description":{"en":"d"},
-            "tags":[{"id":"tag-uuid-1","type":"tag","attributes":{"name":{"en":"Action"},"group":"genre"}}],
-            "content_rating":"safe"},
-          "relationships":[]}}
-        """#.data(using: .utf8)!
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        let detail = try decoder.decode(MangaDetailResponse.self, from: json).toDomain()
-        XCTAssertEqual(detail.tags, [Tag(id: "tag-uuid-1", name: "Action", group: "genre")])
-    }
-
     // MARK: - Default source registration (Phase 2)
 
     /// ADR-0003 Amendment 6: no remote content Source is compiled in, so nothing is browsable
@@ -1151,7 +1011,7 @@ final class MangaCartaTests: XCTestCase {
         // The switch is read, not the device's setting: in the app it has already changed by the
         // time the gate runs. This passed on a device with the switch on and failed on CI.
         var showAdult = false
-        let registry = SourceRegistry(sources: [MangaDexSource(), AdultMock()],
+        let registry = SourceRegistry(sources: [MockSource(id: "mangadex", name: "MangaDex"), AdultMock()],
                                       showAdultContent: { showAdult })
         registry.activeSourceID = "adult"
         registry.enforceAdultGating(includeAdult: false)
@@ -1281,18 +1141,12 @@ final class MangaCartaTests: XCTestCase {
 
     // MARK: - Source web URLs (Phase 2 addendum)
 
-    func testMangaDexWebURL() async throws {
-        let url = try await MangaDexSource().webURL(forManga: "abc-123")
-        XCTAssertEqual(url?.absoluteString,
-                       "https://mangadex.org/title/abc-123")
-    }
-
     func testWebURLDefaultsToNil() async throws {
         let url = try await MockSource(id: "x", name: "X").webURL(forManga: "y")
         XCTAssertNil(url)
     }
 
-    // MARK: - Chapter date-added (MangaDex)
+    // MARK: - Chapter date-added
 
     func testChapterParseISO8601() {
         XCTAssertNotNil(Chapter.parseISO8601("2024-01-15T12:00:00+00:00"))
@@ -1305,25 +1159,6 @@ final class MangaCartaTests: XCTestCase {
 
     func testChapterDateDefaultsToNil() {
         XCTAssertNil(Chapter(id: "c1", number: "1", title: nil).date)   // existing call shape → nil
-    }
-
-    func testMangaDexToChapterUsesPublishAt() throws {
-        let json = #"{"chapter":"12","title":"T","translatedLanguage":"en","#
-            + #""publishAt":"2024-01-15T12:00:00+00:00","readableAt":"2024-01-16T12:00:00+00:00"}"#
-        let attrs = try JSONDecoder().decode(ChapterAttributes.self, from: Data(json.utf8))
-        XCTAssertEqual(attrs.toChapter(id: "c1").date, Chapter.parseISO8601("2024-01-15T12:00:00+00:00"))
-    }
-
-    func testMangaDexToChapterFallsBackToReadableAt() throws {
-        let json = #"{"chapter":"12","title":null,"translatedLanguage":"en","publishAt":null,"readableAt":"2024-01-16T12:00:00+00:00"}"#
-        let attrs = try JSONDecoder().decode(ChapterAttributes.self, from: Data(json.utf8))
-        XCTAssertEqual(attrs.toChapter(id: "c1").date, Chapter.parseISO8601("2024-01-16T12:00:00+00:00"))
-    }
-
-    func testMangaDexToChapterNilWhenNoTimestamps() throws {
-        let json = #"{"chapter":"12","title":null,"translatedLanguage":"en","publishAt":null,"readableAt":null}"#
-        let attrs = try JSONDecoder().decode(ChapterAttributes.self, from: Data(json.utf8))
-        XCTAssertNil(attrs.toChapter(id: "c1").date)
     }
 
     // MARK: - PagedMangaLoader (search / genre pagination)
@@ -1608,24 +1443,6 @@ final class MangaCartaTests: XCTestCase {
         } catch {
             XCTFail("Expected SourceError.unsupported, got \(error)")
         }
-    }
-
-    func testMangaDexSupportsTagBrowse() {
-        XCTAssertTrue(MangaDexSource().supportsTagBrowse)
-    }
-
-    func testMangaDexTagCatalogResolvesNameCaseInsensitively() async throws {
-        let entities = [
-            MDTagEntity(id: "uuid-romance", attributes: MDTagAttributes(name: ["en": "Romance"], group: nil)),
-            MDTagEntity(id: "uuid-comedy", attributes: MDTagAttributes(name: ["en": "Comedy"], group: nil))
-        ]
-        let catalog = MangaDexTagCatalog(fetchAll: { entities })
-        let romanceLower = try await catalog.id(forName: "romance")
-        let romanceUpper = try await catalog.id(forName: "ROMANCE")
-        let unknown = try await catalog.id(forName: "Isekai")
-        XCTAssertEqual(romanceLower, "uuid-romance")
-        XCTAssertEqual(romanceUpper, "uuid-romance")   // case-insensitive
-        XCTAssertNil(unknown)                          // unknown name → nil → empty result upstream
     }
 
     // MARK: - TasteProfileStore

@@ -132,7 +132,7 @@ final class WeebCentralIdentityMigrationTests: XCTestCase {
         before.flush()
 
         _ = AppComposition(defaults: defaults, directory: directory,
-                           registry: SourceRegistry(sources: [MangaDexSource()]))
+                           registry: SourceRegistry(sources: [LegacyMangaDexStub()]))
 
         XCTAssertEqual(WorkStore(directory: directory).workId(for: ListingKey(sourceId: qualified, mangaId: "abc")),
                        workID)
@@ -141,7 +141,7 @@ final class WeebCentralIdentityMigrationTests: XCTestCase {
     func testAWorkMintedFromTheCompiledListingKeepsItsIdAndFollowsTheNewSourceId() throws {
         let before = WorkStore(directory: directory)
         let workID = before.mint(from: manga("abc", source: legacy))
-        let untouched = before.mint(from: manga("xyz", source: MangaDexSource.sourceID))
+        let untouched = before.mint(from: manga("xyz", source: "mangadex"))
         before.flush()
 
         WeebCentralIdentityMigration.run(directory: directory, defaults: defaults)
@@ -150,7 +150,7 @@ final class WeebCentralIdentityMigrationTests: XCTestCase {
         XCTAssertEqual(after.workId(for: ListingKey(sourceId: qualified, mangaId: "abc")), workID,
                        "the Work is the identity (ADR-0001); only its Listing's source id moved")
         XCTAssertNil(after.workId(for: ListingKey(sourceId: legacy, mangaId: "abc")))
-        XCTAssertEqual(after.workId(for: ListingKey(sourceId: MangaDexSource.sourceID, mangaId: "xyz")), untouched)
+        XCTAssertEqual(after.workId(for: ListingKey(sourceId: "mangadex", mangaId: "xyz")), untouched)
     }
 
     func testDefaultsValuesAndPrefixedDictionaryKeysAreRewritten() throws {
@@ -205,7 +205,7 @@ final class WeebCentralIdentityMigrationTests: XCTestCase {
 
     func testAFileWithNoLegacyReferenceIsNotRewritten() throws {
         let store = WorkStore(directory: directory)
-        _ = store.mint(from: manga("xyz", source: MangaDexSource.sourceID))
+        _ = store.mint(from: manga("xyz", source: "mangadex"))
         store.flush()
         let file = directory.appendingPathComponent("works.json")
         let before = try Data(contentsOf: file)
@@ -303,7 +303,7 @@ final class InstalledSourceIDMigrationTests: XCTestCase {
         InstalledSourceIDMigration.request(legacyID: "mangadex", installed: record, defaults: defaults)
 
         let composition = AppComposition(defaults: defaults, directory: directory,
-                                         registry: SourceRegistry(sources: [MangaDexSource()]))
+                                         registry: SourceRegistry(sources: [LegacyMangaDexStub()]))
         let newListing = ListingKey(sourceId: targetID, mangaId: "123")
 
         XCTAssertEqual(composition.works.workId(for: newListing), workID)
@@ -412,4 +412,18 @@ final class BundledWeebCentralStructureTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(
             atPath: repositoryRoot.appendingPathComponent("MangaCarta/Resources/BundledRepositories").path))
     }
+}
+
+/// Stands in for the retired built-in MangaDex Source: a registered, non-adult Source under
+/// the legacy `"mangadex"` id.
+private struct LegacyMangaDexStub: MangaSource {
+    let id = "mangadex"
+    let name = "MangaDex"
+    func search(title: String, limit: Int, offset: Int) async throws -> [Manga] { [] }
+    func popular(limit: Int, offset: Int) async throws -> [Manga] { [] }
+    func mangaDetail(id: String) async throws -> MangaDetail {
+        MangaDetail(description: "", authors: [], tags: [], contentRating: nil)
+    }
+    func chapters(mangaId: String) async throws -> [Chapter] { [] }
+    func pageURLs(chapterId: String, preferDataSaver: Bool) async throws -> [URL] { [] }
 }

@@ -442,7 +442,7 @@ final class InstalledSourceRegistrationTests: XCTestCase {
                                        transport: transport,
                                        dataEraser: RecordingDataEraser(storage: storage),
                                        acknowledgeAdult: { _ in true })
-        registry = SourceRegistry(sources: [BuiltInStubSource(id: MangaDexSource.sourceID,
+        registry = SourceRegistry(sources: [BuiltInStubSource(id: "mangadex",
                                                               chapterNumbers: ["1", "2"])])
         host = FixtureSourceHost(site: PortFixtures.weebCentralSite)
         registrar = ExtensionSourceRegistrar(store: store, lifecycle: lifecycle,
@@ -507,12 +507,12 @@ final class InstalledSourceRegistrationTests: XCTestCase {
 
         let source = try XCTUnwrap(registry.source(id: installed.qualifiedId.rawValue))
         XCTAssertEqual(source.name, "WeebCentral")
-        XCTAssertEqual(registry.sources.map(\.id), [MangaDexSource.sourceID, installed.qualifiedId.rawValue],
+        XCTAssertEqual(registry.sources.map(\.id), ["mangadex", installed.qualifiedId.rawValue],
                        "built-ins first, then installed Sources; nothing substituted")
 
         try installer.uninstall(installed.qualifiedId)
         XCTAssertNil(registry.source(id: installed.qualifiedId.rawValue))
-        XCTAssertEqual(registry.sources.map(\.id), [MangaDexSource.sourceID])
+        XCTAssertEqual(registry.sources.map(\.id), ["mangadex"])
     }
 
     func testDisablingRemovesTheSourceAndEnablingRestoresIt() async throws {
@@ -538,8 +538,8 @@ final class InstalledSourceRegistrationTests: XCTestCase {
         // Uninstalling the browse source moves browsing off it rather than leaving the
         // picker pointed at a Source that is no longer there.
         try installer.uninstall(id)
-        XCTAssertEqual(registry.activeSourceID, MangaDexSource.sourceID)
-        XCTAssertEqual(registry.active?.id, MangaDexSource.sourceID)
+        XCTAssertEqual(registry.activeSourceID, "mangadex")
+        XCTAssertEqual(registry.active?.id, "mangadex")
     }
 
     // MARK: Criterion 8, clause "serves … through ExtensionRuntime" — through the registry
@@ -637,7 +637,7 @@ final class InstalledSourceRegistrationTests: XCTestCase {
                                                      transport: transport,
                                                      dataEraser: RecordingDataEraser(storage: storage),
                                                      acknowledgeAdult: { _ in true })
-        let relaunchedRegistry = SourceRegistry(sources: [BuiltInStubSource(id: MangaDexSource.sourceID,
+        let relaunchedRegistry = SourceRegistry(sources: [BuiltInStubSource(id: "mangadex",
                                                                             chapterNumbers: [])])
         relaunchedInstaller.restoreInstalledSources()
         _ = ExtensionSourceRegistrar(store: relaunchedStore, lifecycle: relaunchedLifecycle,
@@ -661,7 +661,7 @@ final class InstalledSourceRegistrationTests: XCTestCase {
             store: relaunchedStore, registry: relaunchedLifecycle, transport: transport,
             dataEraser: RecordingDataEraser(storage: storage), acknowledgeAdult: { _ in true })
         let relaunchedRegistry = SourceRegistry(sources: [BuiltInStubSource(
-            id: MangaDexSource.sourceID, chapterNumbers: [])])
+            id: "mangadex", chapterNumbers: [])])
         relaunchedInstaller.restoreInstalledSources()
         _ = ExtensionSourceRegistrar(store: relaunchedStore, lifecycle: relaunchedLifecycle,
                                      host: host, registry: relaunchedRegistry)
@@ -671,10 +671,10 @@ final class InstalledSourceRegistrationTests: XCTestCase {
                                      status: "ongoing", year: nil, coverURL: nil, malId: nil)
         XCTAssertNil(relaunchedRegistry.source(for: uninstalledManga))
 
-        let legacyManga = Manga(id: "legacy-manga", sourceId: MangaDexSource.sourceID,
+        let legacyManga = Manga(id: "legacy-manga", sourceId: "mangadex",
                                 title: "Legacy", description: "", status: "ongoing", year: nil,
                                 coverURL: nil, malId: nil)
-        XCTAssertEqual(relaunchedRegistry.source(for: legacyManga)?.id, MangaDexSource.sourceID)
+        XCTAssertEqual(relaunchedRegistry.source(for: legacyManga)?.id, "mangadex")
     }
 
     func testASourceRefusedAtLaunchIsNotServed() async throws {
@@ -688,7 +688,7 @@ final class InstalledSourceRegistrationTests: XCTestCase {
             dataEraser: RecordingDataEraser(storage: storage),
             hostAPI: HostAPISupport(installedVersions: [HostAPIVersion(major: 2, minor: 0)]),
             acknowledgeAdult: { _ in true })
-        let relaunchedRegistry = SourceRegistry(sources: [BuiltInStubSource(id: MangaDexSource.sourceID,
+        let relaunchedRegistry = SourceRegistry(sources: [BuiltInStubSource(id: "mangadex",
                                                                             chapterNumbers: [])])
         relaunchedInstaller.restoreInstalledSources()
         _ = ExtensionSourceRegistrar(store: relaunchedStore, lifecycle: relaunchedLifecycle,
@@ -706,7 +706,7 @@ final class InstalledSourceRegistrationTests: XCTestCase {
 
         let composition = AppComposition(defaults: defaults, directory: directory,
                                          registry: SourceRegistry(sources: [BuiltInStubSource(
-                                            id: MangaDexSource.sourceID, chapterNumbers: [])]))
+                                            id: "mangadex", chapterNumbers: [])]))
 
         XCTAssertNotNil(composition.registry.source(id: id.rawValue))
         let extensions = try XCTUnwrap(composition.extensions)
@@ -727,7 +727,7 @@ final class InstalledSourceRegistrationTests: XCTestCase {
         let extensionManga = Manga(id: PortFixtures.weebSeriesID, sourceId: id.rawValue,
                                    title: "Berserk", description: "", status: "ongoing",
                                    year: nil, coverURL: nil, malId: 2)
-        let mangadexManga = Manga(id: "md-berserk", sourceId: MangaDexSource.sourceID,
+        let mangadexManga = Manga(id: "md-berserk", sourceId: "mangadex",
                                   title: "Berserk", description: "", status: "ongoing",
                                   year: nil, coverURL: nil, malId: 2)
         let workID = works.mint(from: extensionManga)

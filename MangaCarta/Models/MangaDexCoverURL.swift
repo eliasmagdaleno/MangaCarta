@@ -1,4 +1,5 @@
-// MangaDex-specific cover URL builder; used by the MangaDex adapter and SimulatorSeedFixture; revisit in removal slices 9–10.
+// MangaDex-specific cover URL builder. Since the in-app MangaDex client was deleted, its only caller is the
+// test target's SimulatorSeedFixture.
 
 import Foundation
 

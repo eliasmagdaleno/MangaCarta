@@ -214,7 +214,7 @@ struct AniListAPI {
             withJSONObject: ["query": query, "variables": variables])
 
         // Initial try plus one retry on 429, honoring Retry-After -- the same shape
-        // as MyAnimeListAPI.request and MangaDexAPI.request. Bounded deliberately:
+        // as MyAnimeListAPI.request. Bounded deliberately:
         // the upgrade queue paces requests, so a client that retried indefinitely
         // would hide a budget problem the queue is supposed to prevent.
         for attempt in 0..<2 {
