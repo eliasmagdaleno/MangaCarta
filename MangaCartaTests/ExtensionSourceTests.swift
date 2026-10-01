@@ -289,6 +289,19 @@ final class ExtensionSourceTests: XCTestCase {
         }
     }
 
+    /// The status is engine-supplied, so a value `Int(_:)` cannot represent must be refused,
+    /// not converted: converting `1e300` or infinity traps and takes the app down.
+    func testHTTPStatusRefusesDoublesOutsideTheStatusRange() {
+        func status(_ value: JSONValue) -> Int? {
+            ExtensionSourceError.httpStatus(from: .object(["status": value]))
+        }
+        XCTAssertNil(status(.double(1e300)))
+        XCTAssertNil(status(.double(.infinity)))
+        XCTAssertNil(status(.double(-.infinity)))
+        XCTAssertNil(status(.double(.nan)))
+        XCTAssertEqual(status(.double(404)), 404)
+    }
+
     // MARK: Criterion 9, clause "degrades to unavailable"
 
     /// A Source instance a detail page is still holding — adopted before the reader

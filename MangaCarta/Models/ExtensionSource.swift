@@ -74,19 +74,20 @@ enum ExtensionSourceError: LocalizedError, Equatable {
         }
     }
 
+    /// `details.status` (Host API design, Amendment 7). Anything but an integral 100...599
+    /// is unknown. The range is checked before `Int(_:)`, which traps on a huge or infinite
+    /// double, and the value comes from an engine.
     static func httpStatus(from details: JSONValue?) -> Int? {
         guard case .object(let object) = details,
               let value = object["status"] else { return nil }
-        let status: Int
         switch value {
-        case .int(let value):
-            status = value
-        case .double(let value) where value.rounded() == value:
-            status = Int(value)
+        case .int(let status) where (100...599).contains(status):
+            return status
+        case .double(let status) where (100...599).contains(status) && status.rounded() == status:
+            return Int(status)
         default:
             return nil
         }
-        return (100...599).contains(status) ? status : nil
     }
 
     /// Rounded up, so the reader never tries again before the site said to. Past an hour a
