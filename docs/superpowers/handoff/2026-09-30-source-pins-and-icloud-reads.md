@@ -24,16 +24,26 @@ Recheck GitHub and the working tree before acting.
   `a7acfd0` passes because it dismisses by tapping a menu entry. Not reproduced on 26.2 (no 26.2
   runtime installed locally); the conclusion rests on the log's step sequence. No app or test change.
 
+- **#313 — the in-app MangaDex client is deleted** (merged as `1b172a9`). Nothing had constructed
+  `MangaDexSource` since the built-in Sources were removed; AniList, MAL and the resolver go through
+  the registry. `CLAUDE.md`'s "they still use it" note was stale and is fixed.
+- **#150 — the name is kept.** A direct USPTO search found a live MAGNACARTA registration (3418240,
+  Bandai Namco; classes 009 and 041). The owner keeps MangaCarta as a conscious risk decision,
+  recorded in ADR-0023 Amendment 1 (#314).
+
 **Working tree:** `main`, clean. `stash@{0}` is still the Xcode `project.pbxproj` churn from before
 #291; it is noise (`git stash drop` is fine, `git stash pop` would conflict).
 
 ## Next
 
-1. **#294's device checks (owner).** Opening in place hands over the reader's original file:
+1. **#315 — start here (agent).** The reader offers Retry for every extension Source failure,
+   because `ExtensionSourceError` is not a `ClassifiedFailure`. The issue has the cause, a proposed
+   per-code classification, the open `http`-status question, and acceptance criteria. Test-first.
+2. **#294's device checks (owner).** Opening in place hands over the reader's original file:
    - an iCloud `.cbz` that has not been downloaded yet — now coordinated (#309); confirm on a
      signed-in device that it downloads and imports;
    - a real device with another comic app that also claims `.cbz` at `Owner`.
-2. **The engine change, only after an App Store build with Host API 1.3 ships.** It is made in
+3. **The engine change, only after an App Store build with Host API 1.3 ships.** It is made in
    `proxy-link/mangacarta-sources`. Push it through the SSH alias only, and never commit as Elias.
    - Add `https://api.mangadex.network` to `httpOrigins`.
    - Add
@@ -41,10 +51,10 @@ Recheck GitHub and the working tree before acting.
    - Raise `hostAPI.minimum` to `1.3`.
    - If it ships too early, current builds see no version intersection and refuse the update.
    - Existing readers will see the update sheet (Amendment 10) the first time they update.
-3. **A real report reaching an endpoint.** Only the sheet is covered (#284). Delivery cannot be
+4. **A real report reaching an endpoint.** Only the sheet is covered (#284). Delivery cannot be
    tested locally (`HostURLPolicy` refuses non-public addresses, loopback included). Check it with
-   the real engine against MangaDex once item 2 ships.
-4. **Bare 429s (optional):** a 429 with no retry header does not pause. Amendment 8 chose that on
+   the real engine against MangaDex once item 3 ships.
+5. **Bare 429s (optional):** a 429 with no retry header does not pause. Amendment 8 chose that on
    purpose. Revisit only with evidence of a Source that sends bare 429s.
 
 ## Other outstanding work
@@ -77,7 +87,6 @@ Recheck GitHub and the working tree before acting.
    - a VoiceOver device pass (#90);
    - the MAL live-write check (`TEST_RUNNER_MAL_LIVE_WRITE=1`) — the MAL avatar change in #302 can
      be eyeballed in the same signed-in session;
-   - the name/trademark check (#150);
    - the app icon brief (`docs/design/app-icon-brief.md`);
    - design nit, owner's call: the reports/age sheet styles Install and Cancel identically.
 
