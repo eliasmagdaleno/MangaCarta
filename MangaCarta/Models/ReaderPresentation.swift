@@ -68,6 +68,39 @@ extension SourceError: ClassifiedFailure {
     }
 }
 
+extension ExtensionSourceError: ClassifiedFailure {
+    var isTransient: Bool {
+        switch self {
+        case .unavailable:
+            return true                 // A Source may be reinstalled.
+        case .rateLimited:
+            return true                 // The host's pause may expire.
+        case .pageOutOfSequence:
+            return true                 // Pull to refresh can restore the cursor chain.
+        case .http(let status):
+            guard let status else { return true }
+            switch status {
+            case 400...499 where status != 408 && status != 429:
+                return false            // The request is rejected as made.
+            case 500...599, 408, 429:
+                return true             // The service may recover or allow a retry.
+            default:
+                return true             // Outside HTTP's status classes, retry remains safe.
+            }
+        case .invocation(let code):
+            switch code {
+            case .invalidRequest, .invalidResponse, .invalidResult, .unsupported,
+                 .unsupportedLanguage, .policyDenied, .incompatibleVersion, .script:
+                return false            // The source cannot fix this request or reply by retrying.
+            case .cancelled, .network, .navigation, .timeout, .rateLimited,
+                 .interactionRequired, .interactionDeclined, .interactionTimedOut,
+                 .storage, .resourceLimit, .http:
+                return true             // The environment or source may change on retry.
+            }
+        }
+    }
+}
+
 // MARK: - Presentation
 
 /// What the reader should put on screen, and whether the user can get out.

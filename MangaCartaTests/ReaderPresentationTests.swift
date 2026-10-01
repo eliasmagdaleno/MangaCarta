@@ -139,6 +139,42 @@ final class ReaderPresentationTests: XCTestCase {
         XCTAssertTrue(isTransientFailure(SourceError.navigationFailed("connection lost")))
     }
 
+    func testExtensionPermanentCodesAreNotTransient() {
+        let codes: [ExtensionHostErrorCode] = [.invalidRequest, .invalidResponse,
+                                                .invalidResult, .unsupported,
+                                                .unsupportedLanguage, .policyDenied,
+                                                .incompatibleVersion, .script]
+        for code in codes {
+            XCTAssertFalse(isTransientFailure(ExtensionSourceError.invocation(code)), "\(code)")
+        }
+    }
+
+    func testExtensionTransientCodesAreTransient() {
+        let codes: [ExtensionHostErrorCode] = [.cancelled, .network, .navigation, .timeout,
+                                                .rateLimited, .interactionRequired,
+                                                .interactionDeclined, .interactionTimedOut,
+                                                .storage, .resourceLimit, .http]
+        for code in codes {
+            XCTAssertTrue(isTransientFailure(ExtensionSourceError.invocation(code)), "\(code)")
+        }
+    }
+
+    func testExtensionNonInvocationCasesAreTransient() {
+        XCTAssertTrue(isTransientFailure(ExtensionSourceError.unavailable(name: "Echo")))
+        XCTAssertTrue(isTransientFailure(ExtensionSourceError.rateLimited(retryAfterSeconds: nil)))
+        XCTAssertTrue(isTransientFailure(ExtensionSourceError.pageOutOfSequence))
+    }
+
+    func testExtensionHTTPStatusClassification() {
+        for status in [404, 403, 410, 400] {
+            XCTAssertFalse(isTransientFailure(ExtensionSourceError.http(status: status)), "\(status)")
+        }
+        for status in [408, 429, 500, 503] {
+            XCTAssertTrue(isTransientFailure(ExtensionSourceError.http(status: status)), "\(status)")
+        }
+        XCTAssertTrue(isTransientFailure(ExtensionSourceError.http(status: nil)))
+    }
+
     // MARK: - Failure copy (ADR-0013)
 
     /// Every error type the reader can see already reads as English, so the reader must not

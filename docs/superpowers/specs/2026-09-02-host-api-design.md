@@ -822,3 +822,19 @@ optional field in an otherwise valid chapter result and can be safely degraded w
 
 This makes the scanlation-group credit required by MangaDex's acceptable-use policy available to
 configuration-backed Sources without inventing source-specific selection or deduplication policy.
+
+## Amendment 7 — `http` carries its status in `details.status` (2026-09-30, #315)
+
+**Decision:** an engine that fails with `http` should put the HTTP status in the error's optional
+`details` object as `details.status`, an integer from 100 to 599. The host reads it to apply §6's
+"status-dependent" retry guidance: 408, 429 and 5xx are transient, every other 4xx is permanent.
+A missing, non-integer or out-of-range status means **unknown**, and unknown is transient — the
+same default the reader applies to any error it cannot classify (ADR-0012).
+
+§6 gave `http` the guidance "status-dependent" without saying where the status travels. `message`
+already held it, but `message` is diagnostic and never parsed. Without a field, a chapter MangaDex
+does not have and a MangaDex outage reached the reader as the same error, and both offered Retry.
+
+This is additive and needs no version bump. `details` was already an optional object, and a host
+that predates this amendment ignores it. An engine that sends no status loses nothing it had.
+The published MangaDex engine sends `details.status` from bundle version 2.

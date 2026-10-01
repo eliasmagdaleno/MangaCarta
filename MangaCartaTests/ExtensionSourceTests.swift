@@ -265,6 +265,43 @@ final class ExtensionSourceTests: XCTestCase {
         }
     }
 
+    func testHTTPFailureCarriesStatusFromDetails() async throws {
+        let source = try echoSource(failWith: "http", details: "{ status: 404 }")
+
+        do {
+            _ = try await source.search(title: "x", limit: 3, offset: 0)
+            XCTFail("expected ExtensionSourceError")
+        } catch let error as ExtensionSourceError {
+            XCTAssertEqual(error, .http(status: 404))
+        }
+    }
+
+    func testHTTPFailureWithoutUsableStatusHasNilStatus() async throws {
+        for details in [nil, "{ status: \"404\" }", "{ status: 404.5 }", "{ status: 42 }"] {
+            lifecycle = SourceLifecycleRegistry()
+            let source = try echoSource(failWith: "http", details: details)
+            do {
+                _ = try await source.search(title: "x", limit: 3, offset: 0)
+                XCTFail("expected ExtensionSourceError")
+            } catch let error as ExtensionSourceError {
+                XCTAssertEqual(error, .http(status: nil), "details: \(String(describing: details))")
+            }
+        }
+    }
+
+    /// The status is engine-supplied, so a value `Int(_:)` cannot represent must be refused,
+    /// not converted: converting `1e300` or infinity traps and takes the app down.
+    func testHTTPStatusRefusesDoublesOutsideTheStatusRange() {
+        func status(_ value: JSONValue) -> Int? {
+            ExtensionSourceError.httpStatus(from: .object(["status": value]))
+        }
+        XCTAssertNil(status(.double(1e300)))
+        XCTAssertNil(status(.double(.infinity)))
+        XCTAssertNil(status(.double(-.infinity)))
+        XCTAssertNil(status(.double(.nan)))
+        XCTAssertEqual(status(.double(404)), 404)
+    }
+
     // MARK: Criterion 9, clause "degrades to unavailable"
 
     /// A Source instance a detail page is still holding — adopted before the reader
@@ -349,15 +386,20 @@ final class ExtensionSourceTests: XCTestCase {
                             minimumHostAPI: String = "1.0",
                             maximumExclusiveHostAPI: String = "2.0",
                             failWith code: String? = nil,
+                            details: String? = nil,
                             message: String = "") throws -> ExtensionSource {
         let returnedListingID = listingID.map { "\"\($0)\"" } ?? "request.listingId"
         let returnedListing = listingNonObject
             ? "[]"
             : "{ id: \(returnedListingID), title: \"Lookup\", externalIds: { mal: \"123\" } }"
+        let detailSuffix = details.map { ", details: \($0)" } ?? ""
+        let failure = code.map {
+            "return { ok: false, error: { code: \"\($0)\", message: \"\(message)\"\(detailSuffix) } };"
+        } ?? ""
         let script = """
         registerEngine("echo", {
           invoke: function (operation, request, context) {
-            \(code.map { "return { ok: false, error: { code: \"\($0)\", message: \"\(message)\" } };" } ?? "")
+            \(failure)
             if (operation === "listing") {
               return request.listingId === "missing"
                 ? { ok: true, value: null }

@@ -50,6 +50,8 @@ enum ExtensionSourceError: LocalizedError, Equatable {
     case unavailable(name: String)
     /// The runtime ended the invocation with this code.
     case invocation(ExtensionHostErrorCode)
+    /// An HTTP response, retaining a usable status when the engine supplied one.
+    case http(status: Int?)
     /// An offset the adapter could not reach by following cursors from the last page it
     /// saw — the feed was reloaded elsewhere, or paged with a different size.
     case pageOutOfSequence
@@ -63,10 +65,28 @@ enum ExtensionSourceError: LocalizedError, Equatable {
             return "\(name) is no longer installed. Reinstall it to keep reading from it."
         case .invocation(let code):
             return Self.copy(for: code)
+        case .http:
+            return Self.copy(for: .http)
         case .pageOutOfSequence:
             return "Couldn't load that page of the feed. Pull to refresh and try again."
         case .rateLimited(let seconds):
             return "The site is asking for a pause. " + Self.retryHint(after: seconds)
+        }
+    }
+
+    /// `details.status` (Host API design, Amendment 7). Anything but an integral 100...599
+    /// is unknown. The range is checked before `Int(_:)`, which traps on a huge or infinite
+    /// double, and the value comes from an engine.
+    static func httpStatus(from details: JSONValue?) -> Int? {
+        guard case .object(let object) = details,
+              let value = object["status"] else { return nil }
+        switch value {
+        case .int(let status) where (100...599).contains(status):
+            return status
+        case .double(let status) where (100...599).contains(status) && status.rounded() == status:
+            return Int(status)
+        default:
+            return nil
         }
     }
 
@@ -347,6 +367,9 @@ final class ExtensionSource: MangaSource {
             if error.code == .cancelled, Task.isCancelled { throw CancellationError() }
             if error.code == .rateLimited {
                 throw ExtensionSourceError.rateLimited(retryAfterSeconds: error.retryAfterSeconds)
+            }
+            if error.code == .http {
+                throw ExtensionSourceError.http(status: ExtensionSourceError.httpStatus(from: error.details))
             }
             throw ExtensionSourceError.invocation(error.code)
         }

@@ -1,9 +1,12 @@
 (function () {
   "use strict";
 
-  function fail(code, message, retryAfterSeconds) {
+  // `details.status` lets the host tell a gone resource (404) from an outage (503)
+  // under the one `http` code (Host API design, Amendment 7).
+  function fail(code, message, retryAfterSeconds, details) {
     var error = { code: code, message: message };
     if (typeof retryAfterSeconds === "number") { error.retryAfterSeconds = retryAfterSeconds; }
+    if (details) { error.details = details; }
     return { ok: false, error: error };
   }
 
@@ -11,14 +14,16 @@
   var MAX_LIMIT = 100;          // /manga and /chapter reject limit > 100
   var OFFSET_WINDOW = 10000;    // MangaDex rejects offset + limit > 10000
 
-  function hostError(code, message, retryAfterSeconds) {
-    return { hostErrorCode: code, message: message, retryAfterSeconds: retryAfterSeconds };
+  function hostError(code, message, retryAfterSeconds, details) {
+    return { hostErrorCode: code, message: message, retryAfterSeconds: retryAfterSeconds,
+             details: details };
   }
 
   function hostFailure(error) {
     var code = error && error.hostErrorCode ? error.hostErrorCode : "script";
     var message = error && error.message ? String(error.message) : String(error);
-    return fail(code, message, error ? error.retryAfterSeconds : undefined);
+    return fail(code, message, error ? error.retryAfterSeconds : undefined,
+                error ? error.details : undefined);
   }
 
   // Drops null/undefined keys: the bridge refuses `undefined`, and the validator
@@ -52,7 +57,8 @@
       throw hostError("rate_limited", "MangaDex rate limit", response.retryAfterSeconds);
     }
     if (response.status < 200 || response.status >= 300) {
-      throw hostError("http", "MangaDex answered HTTP " + response.status);
+      throw hostError("http", "MangaDex answered HTTP " + response.status, undefined,
+                      { status: response.status });
     }
     try {
       return JSON.parse(response.body);
@@ -254,7 +260,7 @@
         ["order[chapter]", "asc"], ["includes[]", "scanlation_group"],
         ["limit", MAX_LIMIT], ["offset", offset]
       ]);
-      if (!body) { return fail("http", "MangaDex has no such manga"); }
+      if (!body) { return fail("http", "MangaDex has no such manga", undefined, { status: 404 }); }
       var data = body.data || [];
       raw = raw.concat(data);
       offset += MAX_LIMIT;
@@ -275,7 +281,8 @@
   async function detail(request, context, cfg) {
     var body = await getJSON(context, cfg, "/manga/" + encodeURIComponent(request.listingId),
                              [["includes[]", "author"], ["includes[]", "artist"]]);
-    if (!body || !body.data) { return fail("http", "MangaDex has no such manga"); }
+    if (!body) { return fail("http", "MangaDex has no such manga", undefined, { status: 404 }); }
+    if (!body.data) { return fail("http", "MangaDex has no such manga"); }
     var attributes = body.data.attributes || {};
     var authors = [];
     (body.data.relationships || []).forEach(function (rel) {
@@ -309,7 +316,8 @@
 
   async function pages(request, context, cfg) {
     var body = await getJSON(context, cfg, "/at-home/server/" + encodeURIComponent(request.chapterId), []);
-    if (!body || !body.chapter || typeof body.baseUrl !== "string") {
+    if (!body) { return fail("http", "MangaDex has no such chapter", undefined, { status: 404 }); }
+    if (!body.chapter || typeof body.baseUrl !== "string") {
       return fail("http", "MangaDex has no such chapter");
     }
     var saver = request.quality === "dataSaver";
