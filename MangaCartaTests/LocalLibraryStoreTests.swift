@@ -173,6 +173,21 @@ struct LocalLibraryStoreTests {
         #expect(itemDirectories(at: root.appendingPathComponent("library")).count == 1)
     }
 
+    /// An iCloud file opened in place may be a placeholder until a coordinated read downloads
+    /// it (#294). A presenter on the source is told to relinquish only for a coordinated read.
+    @Test func importReadsSourceThroughFileCoordination() async throws {
+        let root = TestDirectory("LocalLibraryStoreTests").url
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let url = try archive(root: root, files: [("001.png", LocalTestZip.png)])
+        let presenter = SourcePresenter(url: url)
+        NSFileCoordinator.addFilePresenter(presenter)
+        defer { NSFileCoordinator.removeFilePresenter(presenter) }
+        let store = LocalLibraryStore(root: root.appendingPathComponent("library"))
+        guard case .imported = try await store.importArchive(at: url) else { Issue.record("import"); return }
+        #expect(presenter.relinquishedToReader)
+    }
+
     @Test func invalidFirstPageFallsBackToNextDecodableCover() async throws {
         let root = TestDirectory("LocalLibraryStoreTests").url
         defer { try? FileManager.default.removeItem(at: root) }
@@ -323,5 +338,21 @@ struct LocalLibraryStoreTests {
         let chapters = await store.chapters(forMangaID: id)
         #expect(chapters.map(\.number) == ["1", "2"])
         #expect(chapters.allSatisfy { Double($0.number) != nil })
+    }
+}
+
+private final class SourcePresenter: NSObject, NSFilePresenter, @unchecked Sendable {
+    let presentedItemURL: URL?
+    let presentedItemOperationQueue = OperationQueue()
+    private let lock = NSLock()
+    private var relinquished = false
+
+    init(url: URL) { presentedItemURL = url }
+
+    var relinquishedToReader: Bool { lock.withLock { relinquished } }
+
+    func relinquishPresentedItem(toReader reader: @escaping @Sendable ((@Sendable () -> Void)?) -> Void) {
+        lock.withLock { relinquished = true }
+        reader(nil)
     }
 }
