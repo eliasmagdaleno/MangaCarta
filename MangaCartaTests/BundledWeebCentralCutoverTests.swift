@@ -54,7 +54,7 @@ final class BundledWeebCentralRetirementTests: XCTestCase {
     }
 
     private func compose() -> (AppComposition, SourceRegistry) {
-        let registry = SourceRegistry(sources: [])
+        let registry = SourceRegistry(sources: [], defaults: defaults)
         return (AppComposition(defaults: defaults, directory: directory, registry: registry), registry)
     }
 
@@ -88,7 +88,7 @@ final class BundledWeebCentralRetirementTests: XCTestCase {
 
     /// Its data waits for the reader (Amendment 7): a lookup must not reach another Source.
     func testALegacyListingIsUnavailableRatherThanSentToTheActiveSource() {
-        let registry = SourceRegistry(sources: [UpdatesUITestSource()])
+        let registry = SourceRegistry(sources: [UpdatesUITestSource()], defaults: defaults)
         for legacyID in [LegacySourceID.unattributed, WeebCentralIdentityMigration.qualifiedID] {
             let manga = Manga(id: "abc", sourceId: legacyID, title: "Old", description: "",
                               status: "ongoing", year: nil, coverURL: nil, malId: nil,
@@ -132,7 +132,7 @@ final class WeebCentralIdentityMigrationTests: XCTestCase {
         before.flush()
 
         _ = AppComposition(defaults: defaults, directory: directory,
-                           registry: SourceRegistry(sources: [LegacyMangaDexStub()]))
+                           registry: SourceRegistry(sources: [LegacyMangaDexStub()], defaults: defaults))
 
         XCTAssertEqual(WorkStore(directory: directory).workId(for: ListingKey(sourceId: qualified, mangaId: "abc")),
                        workID)
@@ -303,7 +303,7 @@ final class InstalledSourceIDMigrationTests: XCTestCase {
         InstalledSourceIDMigration.request(legacyID: "mangadex", installed: record, defaults: defaults)
 
         let composition = AppComposition(defaults: defaults, directory: directory,
-                                         registry: SourceRegistry(sources: [LegacyMangaDexStub()]))
+                                         registry: SourceRegistry(sources: [LegacyMangaDexStub()], defaults: defaults))
         let newListing = ListingKey(sourceId: targetID, mangaId: "123")
 
         XCTAssertEqual(composition.works.workId(for: newListing), workID)

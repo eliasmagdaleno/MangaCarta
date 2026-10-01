@@ -18,9 +18,11 @@ final class MangaCartaTests: XCTestCase {
     /// here set it to a mock's id. Put it back, so a run on the seeded simulator cannot leave the
     /// app browsing a Source that does not exist.
     private var savedActiveSourceID: Any?
+    private var registryDefaults: UserDefaults!
 
     override func setUpWithError() throws {
         savedActiveSourceID = UserDefaults.standard.object(forKey: "source.activeID")
+        registryDefaults = makeTestDefaults("MangaCartaTests")
     }
 
     override func tearDownWithError() throws {
@@ -523,7 +525,7 @@ final class MangaCartaTests: XCTestCase {
     @MainActor func testRefreshAsksEachItemsOwnSource() async {
         let mangadex = RefreshRoutingSource(id: "mangadex")
         let weebcentral = RefreshRoutingSource(id: "weebcentral")
-        let registry = SourceRegistry(sources: [mangadex, weebcentral])
+        let registry = SourceRegistry(sources: [mangadex, weebcentral], defaults: registryDefaults)
         registry.activeSourceID = "mangadex"
 
         let suite = makeTestDefaults("test.lib")
@@ -576,7 +578,7 @@ final class MangaCartaTests: XCTestCase {
     @MainActor func testRegistryResolvesActiveAndByID() {
         let a = MockSource(id: "a", name: "A")
         let b = MockSource(id: "b", name: "B")
-        let registry = SourceRegistry(sources: [a, b])
+        let registry = SourceRegistry(sources: [a, b], defaults: registryDefaults)
 
         XCTAssertEqual(registry.active?.id, "a")               // first source is active by default
         XCTAssertEqual(registry.source(id: "b")?.id, "b")     // lookup by id
@@ -587,7 +589,7 @@ final class MangaCartaTests: XCTestCase {
     }
 
     @MainActor func testRegistryActiveFallsBackWhenActiveIDMissing() {
-        let registry = SourceRegistry(sources: [MockSource(id: "only", name: "Only")])
+        let registry = SourceRegistry(sources: [MockSource(id: "only", name: "Only")], defaults: registryDefaults)
         registry.activeSourceID = "ghost"                     // point at a non-existent source
         XCTAssertEqual(registry.active?.id, "only")            // still resolves to the first source
     }
@@ -602,20 +604,20 @@ final class MangaCartaTests: XCTestCase {
         let ordinary = MockSource(id: "ordinary", name: "Ordinary")
         let bridge = MockSource(id: "bridge", name: "Bridge", publishesExternalIds: true)
         let anotherBridge = MockSource(id: "bridge-2", name: "Bridge 2", publishesExternalIds: true)
-        let registry = SourceRegistry(sources: [ordinary, bridge, anotherBridge])
+        let registry = SourceRegistry(sources: [ordinary, bridge, anotherBridge], defaults: registryDefaults)
 
         XCTAssertEqual(registry.externalIdSource?.id, "bridge")
         registry.activeSourceID = "bridge-2"
         XCTAssertEqual(registry.externalIdSource?.id, "bridge-2")
         registry.activeSourceID = "ordinary"
         XCTAssertEqual(registry.externalIdSource?.id, "bridge")
-        let none = SourceRegistry(sources: [ordinary])
+        let none = SourceRegistry(sources: [ordinary], defaults: registryDefaults)
         XCTAssertNil(none.externalIdSource)
     }
 
     @MainActor func testMoreLikeThisViewModelReceivesTheInjectedRegistry() {
         let source = MockSource(id: "bridge", name: "Bridge", publishesExternalIds: true)
-        let registry = SourceRegistry(sources: [source])
+        let registry = SourceRegistry(sources: [source], defaults: registryDefaults)
         let viewModel = MoreLikeThisViewModel(registry: registry)
 
         XCTAssertEqual(registry.externalIdSource?.id, "bridge")
@@ -625,7 +627,7 @@ final class MangaCartaTests: XCTestCase {
     @MainActor func testRegistrySourceForMangaUsesSourceId() {
         let a = MockSource(id: "a", name: "A")
         let b = MockSource(id: "b", name: "B")
-        let registry = SourceRegistry(sources: [a, b])
+        let registry = SourceRegistry(sources: [a, b], defaults: registryDefaults)
         let manga = Manga(id: "x", sourceId: "b", title: "T", description: "", status: "ongoing", year: nil, coverURL: nil, malId: nil)
     XCTAssertEqual(registry.source(for: manga)?.id, "b")   // resolves to the manga's own source
     }
@@ -693,7 +695,7 @@ final class MangaCartaTests: XCTestCase {
             func chapters(mangaId: String) async throws -> [Chapter] { [] }
             func pageURLs(chapterId: String, preferDataSaver: Bool) async throws -> [URL] { [] }
         }
-        let registry = SourceRegistry(sources: [MockSource(id: "mangadex", name: "MangaDex"), AdultMock()])
+        let registry = SourceRegistry(sources: [MockSource(id: "mangadex", name: "MangaDex"), AdultMock()], defaults: registryDefaults)
 
         XCTAssertEqual(registry.visibleSources(includeAdult: false).map(\.id), ["mangadex"])
         XCTAssertEqual(registry.visibleSources(includeAdult: true).map(\.id), ["mangadex", "adult"])
@@ -966,7 +968,7 @@ final class MangaCartaTests: XCTestCase {
     /// ADR-0003 Amendment 6: no remote content Source is compiled in, so nothing is browsable
     /// until the reader installs one.
     @MainActor func testDefaultRegistryContainsOnlyTheLocalLibrary() {
-        let registry = SourceRegistry()
+        let registry = SourceRegistry(defaults: registryDefaults)
         XCTAssertEqual(registry.sources.map(\.id), ["local"])
         XCTAssertEqual(registry.visibleSources(includeAdult: true).map(\.id), [])
         XCTAssertNil(registry.active)
@@ -990,7 +992,7 @@ final class MangaCartaTests: XCTestCase {
         }
         let saved = UserDefaults.standard.object(forKey: "source.activeID")
         defer { UserDefaults.standard.set(saved, forKey: "source.activeID") }
-        let registry = SourceRegistry(sources: [])
+        let registry = SourceRegistry(sources: [], defaults: registryDefaults)
         registry.activeSourceID = "gone"
         registry.setInstalledSources([AdultMock(), UpdatesUITestSource()])
         XCTAssertEqual(registry.active?.id, UpdatesUITestSource().id)
@@ -1011,7 +1013,7 @@ final class MangaCartaTests: XCTestCase {
         // The switch is read, not the device's setting: in the app it has already changed by the
         // time the gate runs. This passed on a device with the switch on and failed on CI.
         var showAdult = false
-        let registry = SourceRegistry(sources: [MockSource(id: "mangadex", name: "MangaDex"), AdultMock()],
+        let registry = SourceRegistry(sources: [MockSource(id: "mangadex", name: "MangaDex"), AdultMock()], defaults: registryDefaults,
                                       showAdultContent: { showAdult })
         registry.activeSourceID = "adult"
         registry.enforceAdultGating(includeAdult: false)

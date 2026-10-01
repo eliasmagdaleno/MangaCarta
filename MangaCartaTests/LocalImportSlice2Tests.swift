@@ -80,7 +80,7 @@ private func localImporter(root: URL, store: LocalLibraryStore,
                            suite: TestDefaults) -> (LocalImportViewModel, LibraryStore, WorkStore) {
     let works = WorkStore(directory: root.appendingPathComponent("works"))
     let defaults = suite.defaults
-    let registry = SourceRegistry(sources: [LocalSource(store: store)])
+    let registry = SourceRegistry(sources: [LocalSource(store: store)], defaults: defaults)
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let importer = LocalImportViewModel()
     importer.configure(registry: registry, library: library, works: works,
@@ -208,7 +208,7 @@ private func localImporter(root: URL, store: LocalLibraryStore,
     let suite = TestDefaults("local-import-migration")
     defer { suite.remove() }
     let defaults = suite.defaults
-    let registry = SourceRegistry(sources: [LocalSource(store: store)])
+    let registry = SourceRegistry(sources: [LocalSource(store: store)], defaults: defaults)
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let history = HistoryStore(defaults: defaults, works: works)
     func manga(_ id: String, _ title: String) -> Manga {
@@ -300,7 +300,7 @@ private func localImporter(root: URL, store: LocalLibraryStore,
     let suite = TestDefaults("local-import-work")
     defer { suite.remove() }
     let defaults = suite.defaults
-    let registry = SourceRegistry(sources: [LocalSource(store: store)])
+    let registry = SourceRegistry(sources: [LocalSource(store: store)], defaults: defaults)
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let importer = LocalImportViewModel()
     importer.configure(registry: registry, library: library, works: works,
@@ -316,7 +316,9 @@ private func localImporter(root: URL, store: LocalLibraryStore,
 }
 
 @MainActor @Test func registryAlwaysRegistersLocalButNeverBrowsesIt() {
-    let registry = SourceRegistry(sources: [LocalSource(), LegacyMangaDexStub()])
+    let suite = TestDefaults("local-registry")
+    defer { suite.remove() }
+    let registry = SourceRegistry(sources: [LocalSource(), LegacyMangaDexStub()], defaults: suite.defaults)
     #expect(registry.source(id: "local") != nil)
     #expect(!registry.visibleSources(includeAdult: true).contains { $0.id == "local" })
     #expect(registry.active?.id == "mangadex")
@@ -331,7 +333,7 @@ private func localImporter(root: URL, store: LocalLibraryStore,
     let suite = TestDefaults("local-import-pdf-error")
     defer { suite.remove() }
     let defaults = suite.defaults
-    let registry = SourceRegistry(sources: [LocalSource(store: store)])
+    let registry = SourceRegistry(sources: [LocalSource(store: store)], defaults: defaults)
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let importer = LocalImportViewModel()
     importer.configure(registry: registry, library: library, works: works,
@@ -349,7 +351,7 @@ private func localImporter(root: URL, store: LocalLibraryStore,
     let suite = TestDefaults("local-import-pdf-cancel")
     defer { suite.remove() }
     let defaults = suite.defaults
-    let registry = SourceRegistry(sources: [LocalSource(store: store)])
+    let registry = SourceRegistry(sources: [LocalSource(store: store)], defaults: defaults)
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let importer = LocalImportViewModel()
     importer.configure(registry: registry, library: library, works: works,
@@ -369,7 +371,7 @@ private func localImporter(root: URL, store: LocalLibraryStore,
     let suite = TestDefaults("local-import-cleanup")
     defer { suite.remove() }
     let defaults = suite.defaults
-    let registry = SourceRegistry(sources: [LocalSource(store: store)])
+    let registry = SourceRegistry(sources: [LocalSource(store: store)], defaults: defaults)
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let importer = LocalImportViewModel(containerRoot: fixture.root)
     importer.configure(registry: registry, library: library, works: works,
@@ -394,7 +396,7 @@ private func localImporter(root: URL, store: LocalLibraryStore,
     let suite = TestDefaults("local-import-in-place")
     defer { suite.remove() }
     let defaults = suite.defaults
-    let registry = SourceRegistry(sources: [LocalSource(store: store)])
+    let registry = SourceRegistry(sources: [LocalSource(store: store)], defaults: defaults)
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let importer = LocalImportViewModel(containerRoot: container)
     importer.configure(registry: registry, library: library, works: works,
@@ -429,7 +431,7 @@ private func localImporter(root: URL, store: LocalLibraryStore,
     let suite = TestDefaults("local-import-queue")
     defer { suite.remove() }
     let defaults = suite.defaults
-    let registry = SourceRegistry(sources: [LocalSource(store: store)])
+    let registry = SourceRegistry(sources: [LocalSource(store: store)], defaults: defaults)
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let importer = LocalImportViewModel()
     importer.configure(registry: registry, library: library, works: works,
@@ -449,7 +451,7 @@ private func localImporter(root: URL, store: LocalLibraryStore,
     let suite = TestDefaults("local-import-cancel-queue")
     defer { suite.remove() }
     let defaults = suite.defaults
-    let registry = SourceRegistry(sources: [LocalSource(store: store)])
+    let registry = SourceRegistry(sources: [LocalSource(store: store)], defaults: defaults)
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let importer = LocalImportViewModel(containerRoot: fixture.root)
     importer.configure(registry: registry, library: library, works: works,
@@ -473,7 +475,7 @@ private func localImporter(root: URL, store: LocalLibraryStore,
     let suite = TestDefaults("local-import-post-cancel")
     defer { suite.remove() }
     let defaults = suite.defaults
-    let registry = SourceRegistry(sources: [LocalSource(store: store)])
+    let registry = SourceRegistry(sources: [LocalSource(store: store)], defaults: defaults)
     let library = LibraryStore(defaults: defaults, works: works, registry: registry)
     let importer = LocalImportViewModel(containerRoot: fixture.root)
     importer.configure(registry: registry, library: library, works: works,

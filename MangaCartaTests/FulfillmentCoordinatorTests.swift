@@ -14,12 +14,14 @@ import XCTest
 final class FulfillmentCoordinatorTests: XCTestCase {
 
     private var directory: URL!
+    private var defaults: UserDefaults!
 
     override func setUp() async throws {
         directory = makeTestDirectory("FulfillmentCoordinatorTests")
             .appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory,
                                                 withIntermediateDirectories: true)
+        defaults = makeTestDefaults("FulfillmentCoordinatorTests")
     }
 
     override func tearDown() async throws {
@@ -46,7 +48,7 @@ final class FulfillmentCoordinatorTests: XCTestCase {
         let works = WorkStore(directory: directory)
         let counts = ListingCountCache(directory: directory)
         let registry = SourceRegistry(sources: [StubCountingSource(id: "mangadex"),
-                                                StubCountingSource(id: "weebcentral")])
+                                                StubCountingSource(id: "weebcentral")], defaults: defaults)
         let workID = workWithBothListings(works)
 
         counts.record(40, for: ListingKey(sourceId: "mangadex", mangaId: "op"))
@@ -84,7 +86,7 @@ final class FulfillmentCoordinatorTests: XCTestCase {
     private func standardSetup() -> Setup {
         let works = WorkStore(directory: directory)
         let registry = SourceRegistry(sources: [StubCountingSource(id: "mangadex"),
-                                                StubCountingSource(id: "weebcentral")])
+                                                StubCountingSource(id: "weebcentral")], defaults: defaults)
         return Setup(works: works,
                      registry: registry,
                      counts: ListingCountCache(directory: directory),
@@ -135,7 +137,7 @@ final class FulfillmentCoordinatorTests: XCTestCase {
     /// takes over, and the pin is left alone in case the source comes back.
     func testAChoiceOnAnUnregisteredSourceFallsBackToTheRanking() {
         let setup = standardSetup()
-        let mangaDexOnly = SourceRegistry(sources: [StubCountingSource(id: "mangadex")])
+        let mangaDexOnly = SourceRegistry(sources: [StubCountingSource(id: "mangadex")], defaults: defaults)
         setup.counts.record(400, for: ListingKey(sourceId: "mangadex", mangaId: "op"))
         setup.preferences.choose(ListingKey(sourceId: "weebcentral", mangaId: "one-piece"),
                            for: setup.workID)
@@ -154,7 +156,7 @@ final class FulfillmentCoordinatorTests: XCTestCase {
         let registry = SourceRegistry(sources: [
             StubCountingSource(id: "mangadex", chapterNumbers: ["1", "2"]),
             StubCountingSource(id: "weebcentral", chapterNumbers: ["1", "2", "3", "4"])
-        ])
+        ], defaults: defaults)
         let workID = workWithBothListings(works)
         let coordinator = FulfillmentCoordinator(
             works: works, registry: registry, counts: counts,
@@ -176,7 +178,7 @@ final class FulfillmentCoordinatorTests: XCTestCase {
         let counts = ListingCountCache(directory: directory)
         let mangadex = StubCountingSource(id: "mangadex", chapterNumbers: ["1", "2"])
         let weebcentral = StubCountingSource(id: "weebcentral", chapterNumbers: ["1"])
-        let registry = SourceRegistry(sources: [mangadex, weebcentral])
+        let registry = SourceRegistry(sources: [mangadex, weebcentral], defaults: defaults)
         let workID = workWithBothListings(works)
 
         counts.record(2, for: ListingKey(sourceId: "mangadex", mangaId: "op"))
@@ -202,7 +204,7 @@ final class FulfillmentCoordinatorTests: XCTestCase {
         let registry = SourceRegistry(sources: [
             StubCountingSource(id: "mangadex", failing: true),
             StubCountingSource(id: "weebcentral", chapterNumbers: ["1", "2", "3"])
-        ])
+        ], defaults: defaults)
         let workID = workWithBothListings(works)
         let coordinator = FulfillmentCoordinator(
             works: works, registry: registry, counts: counts,

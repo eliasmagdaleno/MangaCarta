@@ -12,6 +12,12 @@ import XCTest
 
 @MainActor
 final class MangaDetailRetargetTests: XCTestCase {
+    private var defaults: UserDefaults!
+
+    override func setUp() {
+        super.setUp()
+        defaults = makeTestDefaults("MangaDetailRetargetTests")
+    }
 
     private let mangaDexListing = Manga(
         id: "op", sourceId: "mangadex", title: "One Piece", description: "",
@@ -21,7 +27,7 @@ final class MangaDetailRetargetTests: XCTestCase {
         SourceRegistry(sources: [
             RetargetStubSource(id: "mangadex", chapterNumbers: ["1", "2"]),
             RetargetStubSource(id: "weebcentral", chapterNumbers: ["1", "2", "3"])
-        ])
+        ], defaults: defaults)
     }
 
     /// The point of the picker: after switching, chapters come from the chosen Listing.
