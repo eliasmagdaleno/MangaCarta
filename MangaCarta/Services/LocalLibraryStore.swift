@@ -62,6 +62,18 @@ actor LocalLibraryStore {
         try? fm.createDirectory(at: staging, withIntermediateDirectories: true)
     }
 
+    /// Copies the source under a coordinated read. A file opened in place from iCloud Drive can
+    /// be a placeholder until then; the coordinated read is what downloads it (#294).
+    private func coordinatedCopy(from source: URL, to destination: URL) throws {
+        var coordinationError: NSError?
+        var copyError: Error?
+        NSFileCoordinator().coordinate(readingItemAt: source, options: [],
+                                       error: &coordinationError) { readable in
+            do { try fm.copyItem(at: readable, to: destination) } catch { copyError = error }
+        }
+        if let error = coordinationError ?? copyError { throw error }
+    }
+
     func importArchive(at source: URL) async throws -> LocalImportResult {
         try await importArchive(at: source, progress: nil)
     }
@@ -73,7 +85,7 @@ actor LocalLibraryStore {
         do {
             try Task.checkCancellation()
             try fm.createDirectory(at: staging, withIntermediateDirectories: true)
-            try fm.copyItem(at: source, to: archive)
+            try coordinatedCopy(from: source, to: archive)
             try Task.checkCancellation()
             let bytes = try Data(contentsOf: archive, options: .mappedIfSafe)
             try Task.checkCancellation()
