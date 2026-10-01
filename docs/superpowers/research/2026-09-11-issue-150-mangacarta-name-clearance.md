@@ -88,3 +88,40 @@ bundle ID, provide a privacy-policy URL, support URL, age rating, content-rights
 category, screenshots/description, and complete App Privacy. None of those metadata checks was
 performed from this worker account, and name availability is not a trademark clearance.
 
+
+## Addendum — 2026-09-30: direct USPTO search
+
+**This changes the risk picture.** The 2026-09-11 pass could not query the USPTO database (its
+search UI is JavaScript-only). This pass drove the UI in a real browser.
+
+- **`mangacarta`** (wordmark, live and dead): **no results.** No mark contains the word.
+- **`magnacarta`**: one result, and it is live — **MAGNACARTA**, serial **78626288**, registration
+  **3418240**, owner **Bandai Namco Entertainment Inc.** (Tokyo). Registered 2008-04-29, renewed
+  (status 2018-05-02, so the next renewal falls in 2028). Read from TSDR on 2026-09-30. Of its
+  eight classes, six were cancelled at the Section 8 filing; **two remain ACTIVE**:
+  - **IC 009** — computer and video game software, downloadable images/music, and *downloadable
+    electronic publications in the nature of books and magazines featuring games and animated
+    stories*;
+  - **IC 041** — entertainment services including *online non-downloadable electronic books in the
+    field of games and animated stories*, book publishing, and provision of electronic publications.
+- **`magna carta`** (spaced): ~1,300 results across all classes. The search treats the words
+  separately, and its class filter did not narrow the list reliably, so this set was **not**
+  reviewed exhaustively. One live pending hit seen in passing: **META MAGNA CARTA**, serial
+  97658968 (classes include 009 and 041), owner an individual.
+
+### What this means
+
+The 2026-09-11 analysis rested on the nearest mark being a dead AR-software filing in unrelated
+goods. That no longer holds. The nearest live mark is **one transposed letter pair away**, owned by
+a **large, actively-lawyered company** (its attorney of record changed in 2018), and its live
+classes reach **electronic books and publications about animated stories** — goods an examiner or
+a court could plausibly call related to a manga reader app. Meaning still differs ("manga" vs the
+charter), and MangaCarta itself ships no content, but similarity of sight and sound plus related
+goods is the core of the likelihood-of-confusion test.
+
+The recommendation above changes from "commission a search, then probably proceed" to: **do not
+submit under MangaCarta without counsel's opinion on registration 3418240 specifically**, and treat
+a rename (option 4) as a live option rather than a fallback. A rename is cheapest before the first
+App Store submission.
+
+This remains a screening note, not legal advice or a clearance opinion.
