@@ -125,14 +125,17 @@ resort; if you must, mirror an existing entry across all four sections.
 
 ## Current state
 
-- `LocalSource` and `LocalLibraryStore` provide the on-device CBZ/ZIP library; Local is always registered but excluded from browse and update surfaces.
+- `LocalSource` and `LocalLibraryStore` provide the on-device CBZ/ZIP library; Local is always
+  registered but excluded from browse and update surfaces.
 
 The app builds and the core reading loop is implemented.
 
 - **Reader:** R→L is implemented as **reversed page order — NOT a mirror transform.** A
   previous mirror-based approach inverted zoomed panning. Paged zoom is `UIScrollView`-backed
   (`Components/ZoomableContainer.swift`) for native pinch/pan physics.
-  Reading mode is **per Work** (ADR-0026): `ReadingModeStore` holds each Work's own mode over a default set in Settings; the reader's mode menu sets or clears the Work's own, and a local import's ComicInfo `Manga` seeds it.
+  Reading mode is **per Work** (ADR-0026): `ReadingModeStore` holds each Work's own mode over a
+  default set in Settings; the reader's mode menu sets or clears the Work's own, and a local
+  import's ComicInfo `Manga` seeds it.
 - **Read state:** per-chapter read/unread marks ship (`HistoryStore`, since 2026-07-14) —
   single and batch `markRead`/`markUnread`, mark-all-below, dimmed rows, unread badges.
   `isRead` means **read to the end, or manually marked** — `ReadingEntry.isComplete` is
