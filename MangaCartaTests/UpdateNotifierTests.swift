@@ -170,7 +170,7 @@ private final class Fixture {
     let notifier: UpdateNotifier
 
     init(status: UNAuthorizationStatus = .authorized,
-         sources: [NoticeSource] = [NoticeSource(id: MangaDexSource.sourceID, isNSFW: false)],
+         sources: [NoticeSource] = [NoticeSource(id: "mangadex", isNSFW: false)],
          openWork: @escaping (WorkID) -> Void = { _ in }) {
         let directory = testDirectory.url
         suite = TestDefaults("UpdateNotifierTests")
@@ -186,12 +186,12 @@ private final class Fixture {
 
     deinit { testDirectory.remove() }
 
-    func mint(_ title: String, source: String = MangaDexSource.sourceID, malId: Int? = nil) -> WorkID {
+    func mint(_ title: String, source: String = "mangadex", malId: Int? = nil) -> WorkID {
         works.mint(from: manga(title, source: source, malId: malId))
     }
 
     func manga(_ title: String,
-               source: String = MangaDexSource.sourceID,
+               source: String = "mangadex",
                malId: Int? = nil) -> Manga {
         Manga(id: title.lowercased(), sourceId: source, title: title, description: "",
               status: "ongoing", year: nil, coverURL: nil, malId: malId)
@@ -199,7 +199,7 @@ private final class Fixture {
 
     func discover(_ workId: WorkID) {
         let listing = works.work(workId)?.listings.first
-            ?? ListingKey(sourceId: MangaDexSource.sourceID, mangaId: "missing")
+            ?? ListingKey(sourceId: "mangadex", mangaId: "missing")
         _ = updates.absorb(workId: workId, listing: listing, rawNumbers: ["1"], now: Date())
         _ = updates.absorb(workId: workId, listing: listing, rawNumbers: ["2"], now: Date())
     }

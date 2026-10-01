@@ -207,14 +207,14 @@ final class ReaderViewModelTests: XCTestCase {
     /// chrome forced, and must not offer a Retry that cannot work.
     func testNotFoundIsAPermanentFullScreenErrorWithChromeForced() async {
         let (vm, _) = makeVM(chapter: Self.chapter("1")) {
-            $0.pages["ch1"] = .failure(MangaDexError.httpStatus(404))
+            $0.pages["ch1"] = .failure(PermanentFailure())
         }
         await vm.begin()
 
         XCTAssertTrue(vm.pages.isEmpty)
         XCTAssertTrue(vm.presentation.chromeForced, "a failed load must stay escapable")
         XCTAssertEqual(vm.presentation.body,
-                       .error(message: readerFailureMessage(MangaDexError.httpStatus(404)),
+                       .error(message: readerFailureMessage(PermanentFailure()),
                               canRetry: false))
     }
 
@@ -334,7 +334,7 @@ final class ReaderViewModelTests: XCTestCase {
     func testAFailedForwardAdvanceRetreatsToTheLastRealPage() async {
         let (vm, _) = makeVM(chapter: Self.chapter("2")) {
             $0.pages["ch2"] = .success(Self.urls(20))
-            $0.pages["ch3"] = .failure(MangaDexError.httpStatus(404))
+            $0.pages["ch3"] = .failure(PermanentFailure())
         }
         await vm.begin()
         await vm.loadNext()
@@ -346,7 +346,7 @@ final class ReaderViewModelTests: XCTestCase {
     func testAFailedBackwardAdvanceRetreatsToTheFirstPage() async {
         let (vm, _) = makeVM(chapter: Self.chapter("2")) {
             $0.pages["ch2"] = .success(Self.urls(20))
-            $0.pages["ch1"] = .failure(MangaDexError.httpStatus(404))
+            $0.pages["ch1"] = .failure(PermanentFailure())
         }
         await vm.begin()
         await vm.loadPrevious()
@@ -357,7 +357,7 @@ final class ReaderViewModelTests: XCTestCase {
     /// A failed initial load has nothing to retreat into, so the target is left alone.
     func testAFailedInitialLoadLeavesTheTargetAlone() async {
         let (vm, _) = makeVM(chapter: Self.chapter("1"), initialPosition: ReadingPosition(page: 4)) {
-            $0.pages["ch1"] = .failure(MangaDexError.httpStatus(404))
+            $0.pages["ch1"] = .failure(PermanentFailure())
         }
         await vm.begin()
 
@@ -374,7 +374,7 @@ final class ReaderViewModelTests: XCTestCase {
         let (vm, _) = makeVM(chapter: Self.chapter("1")) {
             $0.pages["ch1"] = .success(Self.urls(10))
             $0.pages["ch2"] = .success(Self.urls(10))
-            $0.pages["ch3"] = .failure(MangaDexError.httpStatus(404))
+            $0.pages["ch3"] = .failure(PermanentFailure())
         }
         XCTAssertEqual(vm.lastCompletedRequest, 0, "nothing has completed yet")
 
@@ -400,8 +400,8 @@ final class ReaderViewModelTests: XCTestCase {
     func testAFailedAdvanceNamesTheDirection() async {
         let (vm, _) = makeVM(chapter: Self.chapter("2")) {
             $0.pages["ch2"] = .success(Self.urls(20))
-            $0.pages["ch3"] = .failure(MangaDexError.httpStatus(404))
-            $0.pages["ch1"] = .failure(MangaDexError.httpStatus(404))
+            $0.pages["ch3"] = .failure(PermanentFailure())
+            $0.pages["ch1"] = .failure(PermanentFailure())
         }
         await vm.begin()
 
@@ -418,11 +418,11 @@ final class ReaderViewModelTests: XCTestCase {
     /// so they carry no prefix.
     func testAFailedInitialLoadCarriesNoDirectionPrefix() async {
         let (vm, _) = makeVM(chapter: Self.chapter("1")) {
-            $0.pages["ch1"] = .failure(MangaDexError.httpStatus(404))
+            $0.pages["ch1"] = .failure(PermanentFailure())
         }
         await vm.begin()
 
-        XCTAssertEqual(vm.errorMessage, readerFailureMessage(MangaDexError.httpStatus(404)))
+        XCTAssertEqual(vm.errorMessage, readerFailureMessage(PermanentFailure()))
     }
 
     /// The failed chapter's reason still has to reach the user, prefix or not.
@@ -447,7 +447,7 @@ final class ReaderViewModelTests: XCTestCase {
     func testFailedAdvanceLeavesTheChapterBeingReadIntact() async {
         let (vm, _) = makeVM(chapter: Self.chapter("2")) {
             $0.pages["ch2"] = .success(Self.urls(20))
-            $0.pages["ch3"] = .failure(MangaDexError.httpStatus(404))
+            $0.pages["ch3"] = .failure(PermanentFailure())
         }
         await vm.begin()
         let pagesBefore = vm.pages
@@ -463,7 +463,7 @@ final class ReaderViewModelTests: XCTestCase {
     func testFailedAdvanceBannersTheErrorWithoutBlankingTheChapter() async {
         let (vm, _) = makeVM(chapter: Self.chapter("2")) {
             $0.pages["ch2"] = .success(Self.urls(20))
-            $0.pages["ch3"] = .failure(MangaDexError.httpStatus(404))
+            $0.pages["ch3"] = .failure(PermanentFailure())
         }
         await vm.begin()
         await vm.loadNext()
@@ -492,7 +492,7 @@ final class ReaderViewModelTests: XCTestCase {
     func testASuccessfulAdvanceClearsAPreviousFailure() async {
         let (vm, source) = makeVM(chapter: Self.chapter("2")) {
             $0.pages["ch2"] = .success(Self.urls(20))
-            $0.pages["ch3"] = .failure(MangaDexError.httpStatus(404))
+            $0.pages["ch3"] = .failure(PermanentFailure())
         }
         await vm.begin()
         await vm.loadNext()
@@ -551,7 +551,7 @@ final class ReaderViewModelTests: XCTestCase {
     func testASupersededFailureRaisesNoBanner() async {
         let (vm, source) = makeGatedVM(chapter: Self.chapter("2")) {
             $0.pages["ch2"] = .success(Self.urls(20))
-            $0.pages["ch3"] = .failure(MangaDexError.httpStatus(404))
+            $0.pages["ch3"] = .failure(PermanentFailure())
             $0.pages["ch1"] = .success(Self.urls(7))
             $0.gated = ["ch3"]
         }
@@ -618,4 +618,10 @@ final class ReaderViewModelTests: XCTestCase {
 
         XCTAssertEqual(vm.lastCompletedRequest, afterWinner)
     }
+}
+
+/// A failure retrying cannot fix — the shape of a chapter the Source does not have.
+private struct PermanentFailure: LocalizedError, ClassifiedFailure {
+    var isTransient: Bool { false }
+    var errorDescription: String? { "This chapter isn't available to read from this source." }
 }

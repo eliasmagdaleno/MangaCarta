@@ -8,9 +8,8 @@
 //  network hop or a policy about when not to make one; every scoring decision lives in the
 //  core, where it is testable without a transport.
 //
-//  `MoreLikeThisProvider` calls `MangaDexAPI` statics inside a private method, so it has no
-//  injection point and its policies are testable only against live network. This provider
-//  takes an injected `Resolve` closure instead — the `MetadataUpgradeQueue.Sleep` pattern,
+//  This provider takes an injected `Resolve` closure so its policies are testable without
+//  live network — the `MetadataUpgradeQueue.Sleep` pattern,
 //  this codebase's answer to a dependency worth faking without a protocol. A `Resolve`
 //  returning short exercises the no-floor rule, one returning nothing exercises the
 //  24-hour empty TTL, and a transport throwing on query 3 exercises the abort.
@@ -29,8 +28,8 @@ struct AniListCandidateProvider: CandidateProvider {
     /// keyed by `malId` — a short return is the normal case, not an error.
     ///
     /// Takes whole `AniListWork`s, **not bare `malId`s**. Reverse-resolution is title
-    /// matching: `MoreLikeThis.pickMatch` needs a title to search MangaDex with, and
-    /// `MangaDexAPI.searchManga(title:)` is the only way to get candidates at all. Passing
+    /// matching: `MoreLikeThis.pickMatch` needs a title to search a Source with, and its
+    /// `search(title:)` is the only way to get candidates at all. Passing
     /// ids alone would mean re-fetching titles we held one line earlier — one
     /// `MyAnimeListAPI.mangaDetail` per unresolved id, up to `resolveLimit` per refresh,
     /// against a budget this ADR never costed. `knownTitles` is also a *better* left-hand

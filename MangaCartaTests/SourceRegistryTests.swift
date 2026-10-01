@@ -5,13 +5,13 @@ import Testing
 @MainActor @Suite("SourceRegistryTests")
 struct SourceRegistryTests {
     @Test func visibleSourcesNeverIncludesLocal() {
-        let registry = SourceRegistry(sources: [LocalSource(), MangaDexSource()])
-        #expect(registry.visibleSources(includeAdult: true).map(\.id) == [MangaDexSource.sourceID])
+        let registry = SourceRegistry(sources: [LocalSource(), StubSource(id: "mangadex", isNSFW: false)])
+        #expect(registry.visibleSources(includeAdult: true).map(\.id) == ["mangadex"])
         #expect(!registry.browsableSourceNames.contains("Local"))
     }
 
     @Test func localIsResolvableById() {
-        let registry = SourceRegistry(sources: [LocalSource(), MangaDexSource()])
+        let registry = SourceRegistry(sources: [LocalSource(), StubSource(id: "mangadex", isNSFW: false)])
         #expect(registry.source(id: "local")?.id == "local")
     }
     @Test func onlyAnAdultOnlySourceAndSwitchOffMeansNoActiveSource() {

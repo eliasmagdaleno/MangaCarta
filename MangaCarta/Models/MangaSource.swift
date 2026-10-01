@@ -3,8 +3,8 @@
 //  MangaCarta
 //
 //  The source-abstraction seam. Everything the app does to browse and read manga
-//  goes through a `MangaSource`, not a concrete API. MangaDex is source #1
-//  (`MangaDexSource`); more sources plug in by conforming to this protocol.
+//  goes through a `MangaSource`, not a concrete API. `LocalSource` is the one built in;
+//  installed extension Sources plug in through `ExtensionSource`.
 //
 //  Designed to be BRIDGE-FRIENDLY: every parameter is an `Int`/`String` and every
 //  return value is a value/Codable domain type, with no Swift-only constructs crossing

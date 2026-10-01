@@ -21,7 +21,7 @@ final class MALEntityResolver {
     typealias Search = (String) async throws -> [MALCandidate]
 
     /// The MangaDex **bridge** search (ADR-0016), injected for the same reason `Search` is:
-    /// `MangaDexAPI` is static onto `URLSession.shared`. Returns Listings rather than a
+    /// so tests reach it without the network. Returns Listings rather than a
     /// reduced candidate type because the bridge needs three things off each one — the
     /// title, the alternates, and `malId` — and a purpose-built struct would carry exactly
     /// those and nothing else.

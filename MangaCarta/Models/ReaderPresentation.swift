@@ -21,8 +21,8 @@ import Foundation
 
 /// An error that knows whether retrying could plausibly succeed.
 ///
-/// The reader reaches sources through `MangaSource`, so it sees `MangaDexError` from
-/// one and `SourceError` from another and cannot switch on either concrete type.
+/// The reader reaches sources through `MangaSource`, so it sees a different error type from
+/// each Source and cannot switch on any one concrete type.
 protocol ClassifiedFailure {
     /// `true` when the failure might resolve on its own — an outage, a timeout, a
     /// throttle. `false` when it is an *answer*: the thing asked for is not there.
@@ -42,43 +42,13 @@ func isTransientFailure(_ error: Error) -> Bool {
 
 /// What to *tell the user* about `error`. ADR-0013.
 ///
-/// Almost every error the reader can see already reads as English — `SourceError`'s cases
-/// and `ReaderError.noPages` are plain sentences. `MangaDexError.httpStatus` is the one
-/// exception ("Request failed with HTTP status 404.", `MangaDexAPI.swift:349`), and it is
-/// the exact string the field report was about.
-///
-/// **The code stays in the sentence.** ADR-0012's first hazard is that MangaDex answers 404
-/// from `/at-home/server` for an *externally hosted* chapter as well as a missing one, so the
-/// copy can only claim the chapter is not available *here* — and when this shows up in the
-/// field the code is what distinguishes the two.
-///
-/// `MangaDexError.errorDescription` itself is deliberately left alone: those strings also
-/// surface on Home, Detail, Search and More Like This.
+/// Every error the reader can see already reads as English — `SourceError`'s and
+/// `ExtensionSourceError`'s cases and `ReaderError.noPages` are plain sentences — so this
+/// passes them through. It once rewrote the built-in MangaDex client's developer-worded
+/// `httpStatus` error; that client is gone, and the reader's copy stays the one seam for
+/// any future rewording.
 func readerFailureMessage(_ error: Error) -> String {
-    if case .httpStatus(let code)? = error as? MangaDexError {
-        return "This chapter isn't available to read from this source. (HTTP \(code))"
-    }
-    return error.localizedDescription
-}
-
-extension MangaDexError: ClassifiedFailure {
-    var isTransient: Bool {
-        switch self {
-        case .rateLimited:
-            return true
-        case .invalidResponse:
-            return true                 // Malformed reply; the next one may be fine.
-        case .invalidURL:
-            return false                // We built a bad URL. Retrying rebuilds the same one.
-        case .httpStatus(let code):
-            // 4xx is the server answering "no". The two exceptions mean "not now":
-            // 429 (throttled) matches the upgrade queue; 408 (timeout) is ADR-0012's
-            // deliberate divergence from it, because the reader talks to an image CDN
-            // where a timeout is plausible and MAL/AniList never emit one.
-            guard (400..<500).contains(code) else { return true }
-            return code == 429 || code == 408
-        }
-    }
+    error.localizedDescription
 }
 
 extension SourceError: ClassifiedFailure {

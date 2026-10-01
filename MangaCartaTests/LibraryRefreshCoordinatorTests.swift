@@ -63,7 +63,7 @@ struct LibraryRefreshCoordinatorTests {
     @MainActor
     @Test("A WeebCentral slug is never sent to MangaDex")
     func routesEachListingToItsSource() async {
-        let mangaDex = StubSource(id: MangaDexSource.sourceID)
+        let mangaDex = StubSource(id: "mangadex")
         let weebCentral = StubSource(id: WeebCentralIdentityMigration.qualifiedID,
                                      chapters: ["wc-slug": ["1"]])
         let fixture = Fixture(sources: [mangaDex, weebCentral])
