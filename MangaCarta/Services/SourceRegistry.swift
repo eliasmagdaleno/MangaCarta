@@ -29,6 +29,8 @@ final class SourceRegistry: ObservableObject {
     /// and never displace it.
     private let builtIn: [MangaSource]
 
+    private let defaults: UserDefaults
+
     /// Source ids known to the extension lifecycle, including disabled and uninstalled
     /// entries. This lets legacy records retain the active-source fallback while an old
     /// extension listing is treated as unavailable instead of being misrouted.
@@ -37,7 +39,7 @@ final class SourceRegistry: ObservableObject {
     /// The source used for browsing feeds (Home rails, search). Persisted across launches.
     @Published var activeSourceID: String {
         didSet {
-            UserDefaults.standard.set(activeSourceID, forKey: Self.activeKey)
+            defaults.set(activeSourceID, forKey: Self.activeKey)
             chosenSourceID = activeSourceID
         }
     }
@@ -52,8 +54,10 @@ final class SourceRegistry: ObservableObject {
     /// - Parameter sources: Sources to register, or `nil` for the built-in set (Local only).
     ///   Injectable so tests can supply mock sources.
     init(sources: [MangaSource]? = nil,
+         defaults: UserDefaults = .standard,
          showAdultContent: @escaping () -> Bool = AdultContentSetting.current) {
         let sources = sources ?? Self.builtInSources()
+        self.defaults = defaults
         self.showAdultContent = showAdultContent
         self.builtIn = sources
         self.sources = sources
@@ -67,10 +71,10 @@ final class SourceRegistry: ObservableObject {
            arguments.indices.contains(index + 1) {
             stored = arguments[index + 1]
         } else {
-            stored = UserDefaults.standard.string(forKey: Self.activeKey)
+            stored = defaults.string(forKey: Self.activeKey)
         }
 #else
-        stored = UserDefaults.standard.string(forKey: Self.activeKey)
+        stored = defaults.string(forKey: Self.activeKey)
 #endif
         let isBrowsableNow: (MangaSource) -> Bool = {
             $0.isBrowsable && (!$0.isNSFW || showAdultContent())

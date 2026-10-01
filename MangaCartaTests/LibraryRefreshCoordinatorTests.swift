@@ -221,7 +221,7 @@ private final class Fixture {
         let defaults = suite.defaults
         works = WorkStore(directory: directory)
         updates = UpdateStateStore(directory: directory, works: works)
-        let registry = SourceRegistry(sources: sources)
+        let registry = SourceRegistry(sources: sources, defaults: defaults)
         library = LibraryStore(defaults: defaults, works: works, registry: registry)
         let history = HistoryStore(defaults: defaults, works: works)
         var processed = 0

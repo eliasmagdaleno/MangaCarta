@@ -180,7 +180,7 @@ private final class Fixture {
         updates = UpdateStateStore(directory: directory, works: works)
         library = LibraryStore(defaults: defaults, works: works)
         notifier = UpdateNotifier(notifications: notifications, updates: updates, works: works,
-                                  library: library, registry: SourceRegistry(sources: sources),
+                                  library: library, registry: SourceRegistry(sources: sources, defaults: defaults),
                                   defaults: defaults, openWork: openWork)
     }
 

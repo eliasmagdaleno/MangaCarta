@@ -29,7 +29,7 @@ final class LiveUITestRepositoryInstallTests: XCTestCase {
     }
 
     private func launch() async throws -> (AppComposition.ExtensionComposition, SourceRegistry) {
-        let registry = SourceRegistry(sources: [])
+        let registry = SourceRegistry(sources: [], defaults: defaults)
         let composition = AppComposition(defaults: defaults, directory: directory, registry: registry,
                                          repositoryTransport: AppComposition.RepositorySettingsUITestTransport())
         let extensions = try XCTUnwrap(composition.extensions)

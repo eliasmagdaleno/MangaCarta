@@ -67,11 +67,13 @@ final class ExtensionSourceTests: XCTestCase {
 
     private var lifecycle: SourceLifecycleRegistry!
     private var host: FixtureSourceHost!
+    private var defaults: UserDefaults!
 
     override func setUp() {
         super.setUp()
         lifecycle = SourceLifecycleRegistry()
         host = FixtureSourceHost(site: PortFixtures.weebCentralSite)
+        defaults = makeTestDefaults("ExtensionSourceTests")
     }
 
     /// The WeebCentral declaration under a repository-qualified id, registered, backed by
@@ -185,7 +187,7 @@ final class ExtensionSourceTests: XCTestCase {
 
     func testRegistryChoosesInstalledExternalIdSource() throws {
         let source = try echoSource(declareListing: true, declaresMAL: true)
-        let registry = SourceRegistry(sources: [source])
+        let registry = SourceRegistry(sources: [source], defaults: defaults)
         XCTAssertEqual(registry.externalIdSource?.id, Self.echoID)
     }
 
@@ -462,6 +464,7 @@ final class InstalledSourceRegistrationTests: XCTestCase {
     private var registry: SourceRegistry!
     private var host: FixtureSourceHost!
     private var registrar: ExtensionSourceRegistrar!
+    private var defaults: UserDefaults!
     private var savedActiveSourceID: Any?
 
     private let indexURL = URL(string: "https://repo.example.test/index.json")!
@@ -470,7 +473,7 @@ final class InstalledSourceRegistrationTests: XCTestCase {
 
     override func setUp() async throws {
         savedActiveSourceID = UserDefaults.standard.object(forKey: "source.activeID")
-        UserDefaults.standard.removeObject(forKey: "source.activeID")
+        defaults = makeTestDefaults("InstalledSourceRegistrationTests")
         directory = makeTestDirectory("ExtensionSourceTests")
             .appendingPathComponent("InstalledSourceRegistrationTests-\(UUID().uuidString)",
                                     isDirectory: true)
@@ -485,7 +488,7 @@ final class InstalledSourceRegistrationTests: XCTestCase {
                                        dataEraser: RecordingDataEraser(storage: storage),
                                        acknowledgeAdult: { _ in true })
         registry = SourceRegistry(sources: [BuiltInStubSource(id: "mangadex",
-                                                              chapterNumbers: ["1", "2"])])
+                                                              chapterNumbers: ["1", "2"])], defaults: defaults)
         host = FixtureSourceHost(site: PortFixtures.weebCentralSite)
         registrar = ExtensionSourceRegistrar(store: store, lifecycle: lifecycle,
                                              host: host, registry: registry)
@@ -680,7 +683,7 @@ final class InstalledSourceRegistrationTests: XCTestCase {
                                                      dataEraser: RecordingDataEraser(storage: storage),
                                                      acknowledgeAdult: { _ in true })
         let relaunchedRegistry = SourceRegistry(sources: [BuiltInStubSource(id: "mangadex",
-                                                                            chapterNumbers: [])])
+                                                                            chapterNumbers: [])], defaults: defaults)
         relaunchedInstaller.restoreInstalledSources()
         _ = ExtensionSourceRegistrar(store: relaunchedStore, lifecycle: relaunchedLifecycle,
                                      host: host, registry: relaunchedRegistry)
@@ -703,7 +706,7 @@ final class InstalledSourceRegistrationTests: XCTestCase {
             store: relaunchedStore, registry: relaunchedLifecycle, transport: transport,
             dataEraser: RecordingDataEraser(storage: storage), acknowledgeAdult: { _ in true })
         let relaunchedRegistry = SourceRegistry(sources: [BuiltInStubSource(
-            id: "mangadex", chapterNumbers: [])])
+            id: "mangadex", chapterNumbers: [])], defaults: defaults)
         relaunchedInstaller.restoreInstalledSources()
         _ = ExtensionSourceRegistrar(store: relaunchedStore, lifecycle: relaunchedLifecycle,
                                      host: host, registry: relaunchedRegistry)
@@ -731,7 +734,7 @@ final class InstalledSourceRegistrationTests: XCTestCase {
             hostAPI: HostAPISupport(installedVersions: [HostAPIVersion(major: 2, minor: 0)]),
             acknowledgeAdult: { _ in true })
         let relaunchedRegistry = SourceRegistry(sources: [BuiltInStubSource(id: "mangadex",
-                                                                            chapterNumbers: [])])
+                                                                            chapterNumbers: [])], defaults: defaults)
         relaunchedInstaller.restoreInstalledSources()
         _ = ExtensionSourceRegistrar(store: relaunchedStore, lifecycle: relaunchedLifecycle,
                                      host: host, registry: relaunchedRegistry)
@@ -748,7 +751,7 @@ final class InstalledSourceRegistrationTests: XCTestCase {
 
         let composition = AppComposition(defaults: defaults, directory: directory,
                                          registry: SourceRegistry(sources: [BuiltInStubSource(
-                                            id: "mangadex", chapterNumbers: [])]))
+                                            id: "mangadex", chapterNumbers: [])], defaults: defaults))
 
         XCTAssertNotNil(composition.registry.source(id: id.rawValue))
         let extensions = try XCTUnwrap(composition.extensions)

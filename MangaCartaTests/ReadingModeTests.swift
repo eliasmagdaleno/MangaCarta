@@ -192,7 +192,7 @@ private struct SeedingHarness {
     init(_ dir: TestDirectory, _ suite: TestDefaults) {
         works = WorkStore(directory: dir.url.appendingPathComponent("works"))
         let store = LocalLibraryStore(root: dir.url.appendingPathComponent("library"))
-        let registry = SourceRegistry(sources: [LocalSource(store: store)])
+        let registry = SourceRegistry(sources: [LocalSource(store: store)], defaults: suite.defaults)
         library = LibraryStore(defaults: suite.defaults, works: works, registry: registry)
         modes = ReadingModeStore(defaults: suite.defaults, works: works)
         importer = LocalImportViewModel()

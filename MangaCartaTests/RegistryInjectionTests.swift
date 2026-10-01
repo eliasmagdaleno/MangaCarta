@@ -29,10 +29,12 @@ final class RegistryInjectionTests: XCTestCase {
     /// run in the app host — so without this they would leave the simulator fixture pointed
     /// at a source that does not exist.
     private var savedActiveSourceID: Any?
+    private var defaults: UserDefaults!
 
     override func setUp() {
         super.setUp()
         savedActiveSourceID = UserDefaults.standard.object(forKey: "source.activeID")
+        defaults = makeTestDefaults("RegistryInjectionTests")
     }
 
     override func tearDown() {
@@ -52,8 +54,7 @@ final class RegistryInjectionTests: XCTestCase {
             InjectedStubSource(id: Self.injectedA, chapterNumbers: ["1"]),
             InjectedStubSource(id: Self.injectedB, chapterNumbers: ["1", "2", "3"])
         ]
-        UserDefaults.standard.removeObject(forKey: "source.activeID")
-        return SourceRegistry(sources: active == Self.injectedA ? sources : sources.reversed())
+        return SourceRegistry(sources: active == Self.injectedA ? sources : sources.reversed(), defaults: defaults)
     }
 
     /// The singleton must be *reachable* for these tests to prove anything: if it happened
@@ -102,7 +103,7 @@ final class RegistryInjectionTests: XCTestCase {
     }
 
     func testEmptyRegistryHasNoActiveSourceAndDoesNotFallback() {
-        let registry = SourceRegistry(sources: [])
+        let registry = SourceRegistry(sources: [], defaults: defaults)
         let manga = Manga(id: "x", sourceId: LegacySourceID.unattributed, title: "Title", description: "",
                           status: "ongoing", year: nil, coverURL: nil, malId: nil)
         XCTAssertNil(registry.active)
@@ -112,7 +113,7 @@ final class RegistryInjectionTests: XCTestCase {
     }
 
     func testBrowseViewModelsDoNotReportAnErrorWithoutASource() async {
-        let registry = SourceRegistry(sources: [])
+        let registry = SourceRegistry(sources: [], defaults: defaults)
         let home = HomeViewModel(registry: registry)
         home.loadHome()
         await Task.yield()

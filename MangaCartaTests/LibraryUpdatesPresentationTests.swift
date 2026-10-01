@@ -80,10 +80,9 @@ struct LibraryUpdatesPresentationTests {
     func activeSourceIndependence() throws {
         let first = StubSource(id: "first", name: "First")
         let second = StubSource(id: "second", name: "Second")
-        // Setting `activeSourceID` writes the real `source.activeID`; put it back.
-        let saved = UserDefaults.standard.object(forKey: "source.activeID")
-        defer { UserDefaults.standard.set(saved, forKey: "source.activeID") }
-        let registry = SourceRegistry(sources: [first, second])
+        let registrySuite = TestDefaults("LibraryUpdatesPresentationTestsRegistry")
+        defer { registrySuite.remove() }
+        let registry = SourceRegistry(sources: [first, second], defaults: registrySuite.defaults)
         let fixture = try Fixture(registry: registry)
         defer { fixture.suite.remove() }
         _ = fixture.save("m1", title: "Alpha", sourceId: first.id)
@@ -167,11 +166,11 @@ private final class Fixture {
 
     init(registry: SourceRegistry? = nil) throws {
         let directory = testDirectory.url
-        let sourceRegistry = registry
-            ?? SourceRegistry(sources: [StubSource(id: "mangadex", name: "MangaDex")])
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         suite = TestDefaults("LibraryUpdatesPresentationTests")
         defaults = suite.defaults
+        let sourceRegistry = registry
+            ?? SourceRegistry(sources: [StubSource(id: "mangadex", name: "MangaDex")], defaults: defaults)
         works = WorkStore(directory: directory)
         library = LibraryStore(defaults: defaults, works: works, registry: sourceRegistry)
         history = HistoryStore(defaults: defaults, works: works)
