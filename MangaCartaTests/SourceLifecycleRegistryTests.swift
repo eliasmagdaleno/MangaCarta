@@ -273,8 +273,10 @@ final class SourceLifecycleRegistryTests: XCTestCase {
         try registry.register(try declaration(qualifiedId: id, localId: "site-1"))
 
         let defaults = makeTestDefaults("SourceLifecycleRegistryTests.pins")
-        let preferences = SourcePreferenceStore(defaults: defaults)
-        let workID = WorkID()
+        let works = WorkStore(directory: makeTestDirectory("SourceLifecycleRegistryTests.pins"))
+        let preferences = SourcePreferenceStore(defaults: defaults, works: works)
+        let workID = works.mint(from: Manga(id: "manga-1", sourceId: "src", title: "Manga", description: "",
+                                            status: "ongoing", year: nil, coverURL: nil, malId: nil))
         let pin = ListingKey(sourceId: id.rawValue, mangaId: "manga-1")
         preferences.choose(pin, for: workID)
 
@@ -302,8 +304,10 @@ final class SourceLifecycleRegistryTests: XCTestCase {
         try registry.register(try declaration(qualifiedId: idFromRepoB, localId: "site-1"))
 
         let defaults = makeTestDefaults("SourceLifecycleRegistryTests.pins2")
-        let preferences = SourcePreferenceStore(defaults: defaults)
-        let workID = WorkID()
+        let works = WorkStore(directory: makeTestDirectory("SourceLifecycleRegistryTests.pins2"))
+        let preferences = SourcePreferenceStore(defaults: defaults, works: works)
+        let workID = works.mint(from: Manga(id: "manga-1", sourceId: "src", title: "Manga", description: "",
+                                            status: "ongoing", year: nil, coverURL: nil, malId: nil))
         let pinToRepoA = ListingKey(sourceId: idFromRepoA.rawValue, mangaId: "manga-1")
         preferences.choose(pinToRepoA, for: workID)
 

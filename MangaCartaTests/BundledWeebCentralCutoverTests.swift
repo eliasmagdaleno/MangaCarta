@@ -299,7 +299,7 @@ final class InstalledSourceIDMigrationTests: XCTestCase {
         let updates = UpdateStateStore(directory: directory, works: works)
         _ = updates.absorb(workId: workID, listing: oldListing, rawNumbers: ["1"])
         updates.flush()
-        SourcePreferenceStore(defaults: defaults).choose(oldListing, for: workID)
+        SourcePreferenceStore(defaults: defaults, works: works).choose(oldListing, for: workID)
         InstalledSourceIDMigration.request(legacyID: "mangadex", installed: record, defaults: defaults)
 
         let composition = AppComposition(defaults: defaults, directory: directory,
@@ -308,7 +308,8 @@ final class InstalledSourceIDMigrationTests: XCTestCase {
 
         XCTAssertEqual(composition.works.workId(for: newListing), workID)
         XCTAssertNotNil(UpdateStateStore(directory: directory).state(for: workID)?.listings[newListing])
-        XCTAssertEqual(SourcePreferenceStore(defaults: defaults).choice(for: workID), newListing)
+        XCTAssertEqual(SourcePreferenceStore(defaults: defaults, works: composition.works).choice(for: workID),
+                       newListing)
     }
 
     func testNoBindingOrMissingInstallLeavesDataDormant() throws {

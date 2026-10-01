@@ -552,7 +552,7 @@ struct AppComposition {
         defaults: UserDefaults
     ) -> (ListingCountCache, SourcePreferenceStore, FulfillmentCoordinator) {
         let counts = ListingCountCache()
-        let preferences = SourcePreferenceStore(defaults: defaults)
+        let preferences = SourcePreferenceStore(defaults: defaults, works: works)
         return (counts, preferences,
                 FulfillmentCoordinator(works: works, registry: registry,
                                        counts: counts, preferences: preferences))

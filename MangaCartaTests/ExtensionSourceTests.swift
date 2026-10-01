@@ -747,7 +747,7 @@ final class InstalledSourceRegistrationTests: XCTestCase {
         let works = WorkStore(directory: directory)
         let counts = ListingCountCache(directory: directory)
         let defaults = makeTestDefaults("InstalledSourceRegistrationTests")
-        let preferences = SourcePreferenceStore(defaults: defaults)
+        let preferences = SourcePreferenceStore(defaults: defaults, works: works)
         let fulfillment = FulfillmentCoordinator(works: works, registry: registry,
                                                  counts: counts, preferences: preferences)
         let (workID, extensionKey, mangadexKey) = workWithTwoListings(installed: id,
@@ -790,7 +790,7 @@ final class InstalledSourceRegistrationTests: XCTestCase {
         let counts = ListingCountCache(directory: directory)
         let defaults = makeTestDefaults("InstalledSourceRegistrationTests")
         let fulfillment = FulfillmentCoordinator(works: works, registry: registry, counts: counts,
-                                                 preferences: SourcePreferenceStore(defaults: defaults))
+                                                 preferences: SourcePreferenceStore(defaults: defaults, works: works))
         let manga = Manga(id: PortFixtures.weebSeriesID, sourceId: id.rawValue, title: "Berserk",
                           description: "", status: "ongoing", year: nil, coverURL: nil, malId: nil)
         let workID = works.mint(from: manga)
