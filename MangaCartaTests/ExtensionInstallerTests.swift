@@ -801,7 +801,7 @@ final class ExtensionInstallerTests: XCTestCase {
         let workID = works.mint(from: manga)
         let listing = ListingKey(sourceId: qualifiedId.rawValue, mangaId: "manga-1")
         let defaults = makeTestDefaults("ExtensionInstallerTests")
-        let preferences = SourcePreferenceStore(defaults: defaults)
+        let preferences = SourcePreferenceStore(defaults: defaults, works: works)
         preferences.choose(listing, for: workID)
         try await HostStorage(sourceID: qualifiedId, repository: storage).set("cursor", value: .int(7))
 
