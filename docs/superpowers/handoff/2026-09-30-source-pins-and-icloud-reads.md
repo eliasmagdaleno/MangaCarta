@@ -80,7 +80,6 @@ Recheck GitHub and the working tree before acting.
    - a VoiceOver device pass (#90);
    - the MAL live-write check (`TEST_RUNNER_MAL_LIVE_WRITE=1`) — the MAL avatar change in #302 can
      be eyeballed in the same signed-in session;
-   - the name/trademark check (#150);
    - the app icon brief (`docs/design/app-icon-brief.md`);
    - design nit, owner's call: the reports/age sheet styles Install and Cancel identically.
 

@@ -69,3 +69,21 @@ Two things follow that are worth stating so they are not rediscovered:
 
 The GitHub repository was renamed too; GitHub redirects the old URL, so existing clones and links
 continue to resolve.
+
+## Amendment 1 — the name is kept knowing registration 3418240 exists (2026-09-30)
+
+The decision above stands. This records the decision #150 asked for.
+
+A direct USPTO search on 2026-09-30 found no mark containing `MangaCarta`, but a **live
+MAGNACARTA registration, 3418240, owned by Bandai Namco Entertainment**, whose surviving classes
+(009 and 041) cover game software and electronic books and publications about games and animated
+stories. The search record and its risk analysis are owned by
+`docs/superpowers/research/2026-09-11-issue-150-mangacarta-name-clearance.md` (2026-09-30 addendum).
+
+**The owner keeps the name.** They judge the confusion risk low — different meaning, a content-free
+reader rather than a game or publication, and no conflicting mark on `MangaCarta` itself — and chose
+not to commission a professional clearance opinion. This is a conscious risk decision, not a
+clearance or a registration, and should not be described as either.
+
+What would reopen it: an objection from the registrant, an App Store name dispute, or a decision to
+register MangaCarta as a mark (which would put the examiner's view of 3418240 on record).
