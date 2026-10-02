@@ -1,4 +1,4 @@
-# Handoff: SourceRegistry defaults injected (#317), AppComposition.init split (#318); agent-side follow-ups open as #323–#326
+# Handoff: SourceRegistry defaults injected (#317), AppComposition.init split (#318); agent-side follow-ups #323–#326 merged
 
 Date: 2026-10-01. This is the one live handoff. The prior one
 (`2026-09-30-extension-failure-classification.md`) is in `archive/`; every open item in it is
@@ -24,38 +24,33 @@ carried here. Recheck GitHub and the working tree before acting.
 
 **Later the same day (owner: "do everything besides the checks I need to do"):**
 
-- **#323 (open)** — `setInstalledSources` restores a stored browse choice only while it is
+- **#323 (merged as `596d243`)** — `setInstalledSources` restores a stored browse choice only while it is
   browsable now (`isBrowsableNow`, the rule `init` and `active` use). Closes the old "deferred
   minor". Test `testInstalledSourcesRestoreOnlyABrowsableStoredChoice`; each branch mutated fails it.
-- **#324 (open)** — the install/age sheet's Install / Update / "I am 18 or over" take a vermilion
+- **#324 (merged as `f8bc200`)** — the install/age sheet's Install / Update / "I am 18 or over" take a vermilion
   fill (`SealFillButtonStyle`); Cancel is secondary ink. Owner's call — reject freely.
-- **#325 (open)** — `submission-copy.md` rechecked against `main`: zoom is paged-only (bullet
+- **#325 (merged as `17c3969`)** — `submission-copy.md` rechecked against `main`: zoom is paged-only (bullet
   corrected), the garbled adult paragraph in the review notes rewritten, §5's stale "manifest
   declares only MAL" / "wiring unshipped" fixed. Three shipped-but-unclaimed features listed for
   the owner to accept or drop.
-- **#326 (open)** — `AccessibilityAuditUITests` runs Xcode's accessibility audit on Home, Library,
+- **#326 (merged as `8e01e7b`)** — `AccessibilityAuditUITests` runs Xcode's accessibility audit on Home, Library,
   detail, reader and Settings (hermetic, local import) and is **added to CI's UI job**. Its 17
   findings → 0: empty-state buttons and the Manage Collections / Local library rows were only
   tappable on their text (a real tap bug), a decorative symbol read as "books.vertical", Library
   chip counts were ~3:1 contrast, the detail cover was an unlabeled image. `.contrast` and
-  `.textClipped` are excluded as false positives (documented in the test). First run on CI's iOS
-  26.2 happens on that PR.
+  `.textClipped` are excluded as false positives (documented in the test). It passed on CI's iOS 26.2.
 - Remote branch `docs/handoff-2026-09-29` deleted (owner ran it; the auto-mode classifier blocked
   the agent).
 
-**Working tree:** `main` at `9161d37`. Worktrees for #323–#326 live at `/tmp/mc-registry`,
-`/tmp/mc-sheet`, `/tmp/mc-copy`, `/tmp/mc-a11y` (plain git worktrees); remove each and its branch
-once its PR is MERGED. `stash@{0}` is still the Xcode
+**Working tree:** `main` at `2061ab9` plus this handoff's PR, clean, no extra worktrees; the
+#322–#326 branches are deleted locally and on the remote. `stash@{0}` is still the Xcode
 `project.pbxproj` churn from before #291; it is noise (`git stash drop` is fine, `git stash pop`
 would conflict).
 
 ## Next
 
-**Owner merges #322–#326** (each by number). After each merge, the agent removes that PR's
-worktree and branch, gated on `state == MERGED`. If #326's CI fails on iOS 26.2, read the attached
-`a11y-<screen>` screenshot before changing anything.
-
-Beyond that, **no agent work is queued.** No open issue is `ready-for-agent`; the only open issue
+**No agent work is queued.** If `AccessibilityAuditUITests` goes red, read its attached
+`a11y-<screen>` screenshot before changing anything. No open issue is `ready-for-agent`; the only open issue
 is #90 (owner). An agent with nothing assigned should ask the owner, or look for real defects and file
 them as issues after verifying each against `main`. Don't invent refactors.
 
@@ -259,7 +254,7 @@ them as issues after verifying each against `main`. Don't invent refactors.
 - **Parallel workers must not run UI suites at the same time.** Two workers sharing the seeded
   simulator both got signal-killed hermetic UI runs on 2026-10-01 (#317's worker reported `failed`
   for it). Run alone, the same suites passed 19/19. Have parallel workers run unit tests only, then
-  run the CI-gated hermetic suites yourself (4, or 5 once #326 merges), one branch at a time:
+  run the CI-gated hermetic suites yourself (5, now including `AccessibilityAuditUITests`), one branch at a time:
   `-only-testing:MangaCartaUITests/UpdatesUITests -only-testing:MangaCartaUITests/SourcePreferenceUITests -only-testing:MangaCartaUITests/RepositorySettingsUITests -only-testing:MangaCartaUITests/LocalImportUITests`.
 - **`Secrets.xcconfig` is not in a fresh worktree.** It is gitignored (it holds `MAL_CLIENT_ID`, read into `MALClientID`) and is
   the target's base configuration. #318's worker copied it in from the main checkout to build;
