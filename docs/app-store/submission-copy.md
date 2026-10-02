@@ -1,6 +1,6 @@
 # App Store submission copy
 
-**Status: DRAFT for owner editing (updated 2026-09-28).** This file owns the *text* submitted to App Store
+**Status: DRAFT for owner editing (updated 2026-10-01).** This file owns the *text* submitted to App Store
 Connect: review notes, age-rating answers and listing copy. The *decisions* behind that text belong
 to the ADRs, which are linked here rather than repeated:
 
@@ -41,9 +41,10 @@ Placeholders are in `[[double brackets]]`.
 > URL they found themselves. A repository lists configuration-backed JavaScript plug-ins. They run
 > in a sandboxed JavaScriptCore context with a fixed host API and cannot change the app's features.
 > The app ships with no repository and no repository URL, and neither our App Store page nor our
-> website lists one. Each plug-in declares a content class. Plug-ins declared as containing adult
-> adult-rated titles, and Sources that are adult throughout, are hidden by default and require the reader's declared age. Installing one requires the user to confirm they are 18 or older
-> (a declared-age gate); if they decline, nothing is installed.
+> website lists one. Each plug-in declares a content class. Installing one declared as containing
+> adult titles, or as adult throughout, requires the user to confirm they are 18 or older (a
+> declared-age gate); if they decline, nothing is installed. Even after that, adult titles stay
+> hidden until the user turns on "Show adult content" in Settings, which is off by default.
 >
 > A plug-in may ask the app to report how its page images loaded to that plug-in's own operator,
 > which served those images. Each report holds the image address, whether the download succeeded,
@@ -61,8 +62,9 @@ Notes on the text:
   URL cuts against "the app ships and suggests no repository", and local import is the path
   reviewers are meant to test. If a reviewer asks to see plug-ins working, create a repository with
   only owned sample content then — never the first-party engines repository (ADR-0003 A6).
-- "Import from Files" and the "does not provide content" line match the current empty-state UI;
-  recheck them against the release build after compiled and bundled Sources are removed.
+- "Import from Files" and the "does not provide content" line match the empty states in Home and
+  Library (rechecked 2026-10-01, after compiled and bundled Sources were removed). Recheck them
+  against the release build.
 
 ## 2. Age-rating questionnaire
 
@@ -119,7 +121,7 @@ argument. (Rejected: `Read your comics, your way` — friendly but says nothing 
 >
 > READ THE WAY THE BOOK WAS MADE
 > • Right-to-left, left-to-right and vertical scroll modes
-> • Smooth pinch-to-zoom and panning on every page
+> • Smooth pinch-to-zoom and panning in the paged modes
 > • Chapters detected from folders inside an archive
 >
 > KEEP TRACK
@@ -140,8 +142,16 @@ argument. (Rejected: `Read your comics, your way` — friendly but says nothing 
 > you read.
 
 Before submitting, check every bullet against the release build — **this is a checklist, not
-copy to paste.** PDF import, the "Import from Files" empty state, ComicInfo metadata and "Open in"
-(#291) have shipped; the description does not yet claim the last two. No remote content Source is
+copy to paste.** Rechecked against `main` on 2026-10-01: every bullet above holds. Zoom is paged
+modes only — the vertical reader has none — so that bullet no longer says "every page".
+
+**Shipped but not yet claimed (owner's call whether to add):**
+
+> • Each title remembers its own reading direction *(#307; under READ THE WAY THE BOOK WAS MADE)*
+> • Reads ComicInfo metadata and groups volumes into a series *(#291, #299)*
+> • Open CBZ files straight from Files or another app *(#294)*
+
+No remote content Source is
 built in (ADR-0003 Amendment 6), but the asset catalog still carries two site logos — see the live
 handoff before relying on the no-content claims. Check the privacy
 line against the privacy label (§5) and #149's policy.
@@ -162,9 +172,9 @@ recognisable series.
 
 ## 5. Privacy label
 
-`MangaCarta/PrivacyInfo.xcprivacy` declares only optional MyAnimeList sync (#149). Image-load
-reports (ADR-0003 Amendment 9) are the second way data leaves the device, and the amendment
-requires the label to describe them.
+`MangaCarta/PrivacyInfo.xcprivacy` declares optional MyAnimeList sync (#149) and image-load
+reports. Reports (ADR-0003 Amendment 9) are the second way data leaves the device, and the
+amendment requires the label to describe them.
 
 - **What is sent.** One report per page image downloaded from an origin the installed Source
   named. It contains the image URL, `success`, `cached`, `bytes` and `duration`, and nothing else
@@ -182,6 +192,6 @@ requires the label to describe them.
 - **In-app text** is the install acknowledgement sheet ([ADR-0003 Amendment 10](../adr/0003-extension-substrate.md)).
   The sheet appears when a Source that declares reports is installed, and when an update adds
   reports. It names the reports and what they contain.
-- Recheck all of this against the build that ships Host API 1.3. No report is sent until the
-  reader wiring (design §8 step 5) ships and an installed Source declares
-  `network.imageLoadReports`.
+- Recheck all of this against the build that ships Host API 1.3. The reader wiring has shipped
+  (#275–#281); no report is sent until an installed Source declares
+  `network.imageLoadReports`, and no published Source does yet.
