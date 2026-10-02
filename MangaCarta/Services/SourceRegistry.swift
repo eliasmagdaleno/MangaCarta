@@ -103,12 +103,14 @@ final class SourceRegistry: ObservableObject {
     /// `installed` follows them in the order given. If the browse source was one that is
     /// no longer here — uninstalled, disabled, refused at launch — browsing moves to the
     /// first source rather than leaving `activeSourceID` pointing at nothing the picker
-    /// can show.
+    /// can show. A stored choice is restored only while it can be browsed, by the same rule
+    /// as `init` and `active`; otherwise the picker would highlight nothing.
     func setInstalledSources(_ installed: [MangaSource]) {
         sources = builtIn + installed
-        if let chosen = chosenSourceID, chosen != activeSourceID, source(id: chosen) != nil {
+        if let chosen = chosenSourceID, chosen != activeSourceID,
+           let stored = source(id: chosen), isBrowsableNow(stored) {
             activeSourceID = chosen
-        } else if (source(id: activeSourceID)?.isBrowsable != true), let first = firstBrowsable {
+        } else if source(id: activeSourceID).map(isBrowsableNow) != true, let first = firstBrowsable {
             activeSourceID = first.id
         }
     }
