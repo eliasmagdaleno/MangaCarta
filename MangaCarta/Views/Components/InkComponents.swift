@@ -188,6 +188,9 @@ struct InkEmptyState: View {
                     .font(.system(size: 30, weight: .regular))
                     .foregroundStyle(Ink.seal)
             }
+            // Decorative: the title says what the screen is, and VoiceOver would otherwise
+            // read the symbol's raw name ("books.vertical").
+            .accessibilityHidden(true)
             Text(title)
                 .font(.inkDisplay(20))
                 .foregroundStyle(Ink.primary)
@@ -197,20 +200,29 @@ struct InkEmptyState: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
             if let actionTitle, let action {
-                Button(actionTitle, action: action)
-                    .font(.subheadline.bold())
-                    .foregroundStyle(.white)
-                    .frame(minHeight: 44)
-                    .padding(.horizontal, 18)
-                    .background(RoundedRectangle(cornerRadius: 12).fill(Ink.seal))
-                    .buttonStyle(.plain)
+                // The frame and fill live inside the label: on a `.plain` button only the label
+                // is the hit region, so styling the Button itself left just the text tappable.
+                Button(action: action) {
+                    Text(actionTitle)
+                        .font(.subheadline.bold())
+                        .foregroundStyle(.white)
+                        .frame(minHeight: 44)
+                        .padding(.horizontal, 18)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(Ink.seal))
+                        .contentShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .buttonStyle(.plain)
             }
             if let secondaryActionTitle, let secondaryAction {
-                Button(secondaryActionTitle, action: secondaryAction)
-                    .font(.subheadline.bold())
-                    .foregroundStyle(Ink.seal)
-                    .frame(minHeight: 44)
-                    .buttonStyle(.plain)
+                Button(action: secondaryAction) {
+                    Text(secondaryActionTitle)
+                        .font(.subheadline.bold())
+                        .foregroundStyle(Ink.seal)
+                        .frame(minHeight: 44)
+                        .padding(.horizontal, 18)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

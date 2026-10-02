@@ -241,6 +241,8 @@ struct MangaDetailView: View {
                     .strokeBorder(Ink.hairline, lineWidth: 1)
             )
             .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 4)
+            // The title beside it names the work; an unlabeled image is only a stop for VoiceOver.
+            .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 8) {
                 Text(manga.title)
