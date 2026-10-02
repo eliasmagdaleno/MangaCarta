@@ -1,4 +1,4 @@
-# Handoff: SourceRegistry defaults injected (#317), AppComposition.init split (#318)
+# Handoff: SourceRegistry defaults injected (#317), AppComposition.init split (#318); agent-side follow-ups open as #323–#326
 
 Date: 2026-10-01. This is the one live handoff. The prior one
 (`2026-09-30-extension-failure-classification.md`) is in `archive/`; every open item in it is
@@ -22,14 +22,41 @@ carried here. Recheck GitHub and the working tree before acting.
   MAL stack moved without changes. The side-effect order was compared before and after: identical.
 - `CLAUDE.md`'s two overlong "Current state" lines were wrapped (#319).
 
-**Working tree:** `main` at `9161d37`, clean, no extra worktrees. `stash@{0}` is still the Xcode
+**Later the same day (owner: "do everything besides the checks I need to do"):**
+
+- **#323 (open)** — `setInstalledSources` restores a stored browse choice only while it is
+  browsable now (`isBrowsableNow`, the rule `init` and `active` use). Closes the old "deferred
+  minor". Test `testInstalledSourcesRestoreOnlyABrowsableStoredChoice`; each branch mutated fails it.
+- **#324 (open)** — the install/age sheet's Install / Update / "I am 18 or over" take a vermilion
+  fill (`SealFillButtonStyle`); Cancel is secondary ink. Owner's call — reject freely.
+- **#325 (open)** — `submission-copy.md` rechecked against `main`: zoom is paged-only (bullet
+  corrected), the garbled adult paragraph in the review notes rewritten, §5's stale "manifest
+  declares only MAL" / "wiring unshipped" fixed. Three shipped-but-unclaimed features listed for
+  the owner to accept or drop.
+- **#326 (open)** — `AccessibilityAuditUITests` runs Xcode's accessibility audit on Home, Library,
+  detail, reader and Settings (hermetic, local import) and is **added to CI's UI job**. Its 17
+  findings → 0: empty-state buttons and the Manage Collections / Local library rows were only
+  tappable on their text (a real tap bug), a decorative symbol read as "books.vertical", Library
+  chip counts were ~3:1 contrast, the detail cover was an unlabeled image. `.contrast` and
+  `.textClipped` are excluded as false positives (documented in the test). First run on CI's iOS
+  26.2 happens on that PR.
+- Remote branch `docs/handoff-2026-09-29` deleted (owner ran it; the auto-mode classifier blocked
+  the agent).
+
+**Working tree:** `main` at `9161d37`. Worktrees for #323–#326 live at `/tmp/mc-registry`,
+`/tmp/mc-sheet`, `/tmp/mc-copy`, `/tmp/mc-a11y` (plain git worktrees); remove each and its branch
+once its PR is MERGED. `stash@{0}` is still the Xcode
 `project.pbxproj` churn from before #291; it is noise (`git stash drop` is fine, `git stash pop`
 would conflict).
 
 ## Next
 
-**No agent work is queued.** No open issue is `ready-for-agent`; the only open issue is #90
-(owner). An agent with nothing assigned should ask the owner, or look for real defects and file
+**Owner merges #322–#326** (each by number). After each merge, the agent removes that PR's
+worktree and branch, gated on `state == MERGED`. If #326's CI fails on iOS 26.2, read the attached
+`a11y-<screen>` screenshot before changing anything.
+
+Beyond that, **no agent work is queued.** No open issue is `ready-for-agent`; the only open issue
+is #90 (owner). An agent with nothing assigned should ask the owner, or look for real defects and file
 them as issues after verifying each against `main`. Don't invent refactors.
 
 ## Owner items
@@ -63,26 +90,24 @@ them as issues after verifying each against `main`. Don't invent refactors.
      `SourceLogoView` looks logos up as `SourceLogo-<sourceID>`, so they now match only the legacy
      built-in ids, not installed Sources' qualified ids. Decide whether third-party site logos belong
      in a no-content build before submitting;
-   - the copy may now mention ComicInfo metadata, Open in, opening `.cbz` from Files, series
-     grouping (#291, #294, #299) and per-title reading mode (#307). That is the owner's
-     call.
+   - whether to add the three candidate bullets #325 lists (per-title direction, ComicInfo +
+     series, Open in). That is the owner's call.
 2. **Flaky tests:**
    - `LocalImportUITests.testImportReadAndDelete` should be fixed by #263. If it goes red again,
      suspect the test's own launch timeout.
    - The loopback test now retries and logs. If it recurs, search the CI log for
      `[loopback-flake]` (#289).
-3. **Deferred minor:** `SourceRegistry.setInstalledSources` restores a stored chosen Source by
-   existence alone. `active` still gates it, so it is contained. (`@Sendable` on
-   `AdultContentSetting.current` is **not** redundant: the target is Swift 5 mode without
-   `InferSendableFromCaptures`. Keep it.)
-4. **Leftover remote branch:** `docs/handoff-2026-09-29` (#288, closed unmerged, superseded). It was
-   left in place because it never merged; delete it only if the owner says so.
-5. **Human gates:**
-   - a VoiceOver device pass (#90);
-   - the MAL live-write check (`TEST_RUNNER_MAL_LIVE_WRITE=1`) — the MAL avatar change in #302 can
-     be eyeballed in the same signed-in session;
-   - the app icon brief (`docs/design/app-icon-brief.md`);
-   - design nit, owner's call: the reports/age sheet styles Install and Cancel identically.
+3. **`@Sendable` on `AdultContentSetting.current` is not redundant:** the target is Swift 5 mode
+   without `InferSendableFromCaptures`. Keep it.
+4. **Human gates:**
+   - a VoiceOver device pass (#90) — #326's audit clears the mechanical findings first; traversal
+     order, announcements and focus restoration are still the person's;
+   - the MAL live-write check. **No agent holds a MAL token** — `scripts/mal_oauth_token.py` prints
+     one and never saves it, and the harness can't read the simulator keychain. The owner runs, in
+     their own terminal: `python3 scripts/mal_oauth_token.py`, `export MAL_ACCESS_TOKEN=…`,
+     `scripts/mal_live_write.py fire`. The MAL avatar change in #302 can be eyeballed in the same
+     signed-in session;
+   - the app icon brief (`docs/design/app-icon-brief.md`).
 
 ## Operating notes
 
@@ -234,7 +259,7 @@ them as issues after verifying each against `main`. Don't invent refactors.
 - **Parallel workers must not run UI suites at the same time.** Two workers sharing the seeded
   simulator both got signal-killed hermetic UI runs on 2026-10-01 (#317's worker reported `failed`
   for it). Run alone, the same suites passed 19/19. Have parallel workers run unit tests only, then
-  run the 4 CI-gated hermetic suites yourself, one branch at a time:
+  run the CI-gated hermetic suites yourself (4, or 5 once #326 merges), one branch at a time:
   `-only-testing:MangaCartaUITests/UpdatesUITests -only-testing:MangaCartaUITests/SourcePreferenceUITests -only-testing:MangaCartaUITests/RepositorySettingsUITests -only-testing:MangaCartaUITests/LocalImportUITests`.
 - **`Secrets.xcconfig` is not in a fresh worktree.** It is gitignored (it holds `MAL_CLIENT_ID`, read into `MALClientID`) and is
   the target's base configuration. #318's worker copied it in from the main checkout to build;
