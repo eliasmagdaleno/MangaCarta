@@ -990,12 +990,43 @@ final class MangaCartaTests: XCTestCase {
             func chapters(mangaId: String) async throws -> [Chapter] { [] }
             func pageURLs(chapterId: String, preferDataSaver: Bool) async throws -> [URL] { [] }
         }
-        let saved = UserDefaults.standard.object(forKey: "source.activeID")
-        defer { UserDefaults.standard.set(saved, forKey: "source.activeID") }
         let registry = SourceRegistry(sources: [], defaults: registryDefaults)
         registry.activeSourceID = "gone"
         registry.setInstalledSources([AdultMock(), UpdatesUITestSource()])
         XCTAssertEqual(registry.active?.id, UpdatesUITestSource().id)
+    }
+
+    /// A stored choice the reader cannot browse right now — an adult Source with the switch
+    /// off, or one that is not browsable at all — is not restored when the installed Sources
+    /// arrive. Otherwise `activeSourceID` names a Source the picker does not show while
+    /// `active` quietly browses another, and the picker highlights nothing.
+    @MainActor func testInstalledSourcesRestoreOnlyABrowsableStoredChoice() {
+        struct ConfigurableSource: MangaSource {
+            let id: String; let name = "Mock"
+            var isNSFW = false
+            var isBrowsable = true
+            func search(title: String, limit: Int, offset: Int) async throws -> [Manga] { [] }
+            func popular(limit: Int, offset: Int) async throws -> [Manga] { [] }
+            func mangaDetail(id: String) async throws -> MangaDetail {
+                MangaDetail(description: "", authors: [], tags: [], contentRating: nil)
+            }
+            func chapters(mangaId: String) async throws -> [Chapter] { [] }
+            func pageURLs(chapterId: String, preferDataSaver: Bool) async throws -> [URL] { [] }
+        }
+        let safe = MockSource(id: "safe", name: "Safe")
+        let adult = ConfigurableSource(id: "adult", isNSFW: true)
+        let hidden = ConfigurableSource(id: "hidden", isBrowsable: false)
+
+        for (builtIn, installed, stored) in [([safe] as [MangaSource], [adult] as [MangaSource], "adult"),
+                                             ([safe], [hidden], "hidden"),
+                                             ([], [adult, safe], "adult")] {
+            registryDefaults.set(stored, forKey: "source.activeID")
+            let registry = SourceRegistry(sources: builtIn, defaults: registryDefaults,
+                                          showAdultContent: { false })
+            registry.setInstalledSources(installed)
+            XCTAssertEqual(registry.activeSourceID, "safe", "stored \(stored)")
+            XCTAssertEqual(registry.active?.id, registry.activeSourceID, "stored \(stored)")
+        }
     }
 
     @MainActor func testDisablingAdultToggleReSourcesAwayFromActiveAdultSource() {
