@@ -466,12 +466,17 @@ private struct RepositorySettingsSection: View {
                                                                      asksForAge: item.asksForAge))
                 if item.asksForAge {
                     Button("I am 18 or over") { model.answerAgeGate(true) }
+                        .buttonStyle(SealFillButtonStyle())
                         .accessibilityIdentifier("repositorySettings.confirmAge")
                 } else {
                     Button(item.acknowledgement.isUpdate ? "Update" : "Install") { model.answerAgeGate(true) }
+                        .buttonStyle(SealFillButtonStyle())
                         .accessibilityIdentifier("repositorySettings.continueInstall")
                 }
                 Button("Cancel") { model.answerAgeGate(false) }
+                    .font(.subheadline)
+                    .foregroundStyle(Ink.secondary)
+                    .frame(minHeight: 44)
             }.padding(24).presentationDetents([.medium])
         }
         .alert("Reconnect previous library data?",
@@ -493,6 +498,19 @@ private struct RepositorySettingsSection: View {
 /// above it. Browsing is "whose feed am I looking at"; this is "when several sources have
 /// the same manga, whose scans do I want". Two lists of source names one after another
 /// would be confusing without the caption saying which question each answers.
+/// The sheet's one primary action: a full-width vermilion fill, as on the detail page's
+/// "Add to Library" (DESIGN.md, Buttons → Primary), so it never reads as equal to Cancel.
+private struct SealFillButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.subheadline.weight(.semibold))
+            .frame(maxWidth: .infinity, minHeight: 50)
+            .foregroundStyle(Color.white)
+            .background(RoundedRectangle(cornerRadius: 12).fill(Ink.seal))
+            .opacity(configuration.isPressed ? 0.8 : 1)
+    }
+}
+
 private struct PreferredSourcePicker: View {
     let sources: [MangaSource]
     @EnvironmentObject private var preferences: SourcePreferenceStore
