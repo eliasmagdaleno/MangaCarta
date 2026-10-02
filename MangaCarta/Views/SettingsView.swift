@@ -49,9 +49,9 @@ struct SettingsView: View {
                                     .font(.caption)
                                     .foregroundStyle(Ink.tertiary)
                             }
-                            .contentShape(Rectangle())
                             .padding(.horizontal, Gutter.page)
                             .padding(.vertical, 15)
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .background(RoundedRectangle(cornerRadius: 14).fill(Ink.surface))
@@ -72,6 +72,7 @@ struct SettingsView: View {
                             }
                             .padding(.horizontal, Gutter.page)
                             .padding(.vertical, 15)
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .background(RoundedRectangle(cornerRadius: 14).fill(Ink.surface))

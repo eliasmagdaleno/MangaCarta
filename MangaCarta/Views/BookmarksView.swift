@@ -282,9 +282,9 @@ struct BookmarksView: View {
             HStack(spacing: 5) {
                 Text(title)
                     .font(.subheadline.weight(isSelected ? .semibold : .medium))
+                // Full ink: at 60% opacity the caption-size count fell to ~3:1 contrast.
                 Text("(\(count))")
                     .font(.caption.weight(isSelected ? .bold : .regular))
-                    .opacity(isSelected ? 0.9 : 0.6)
             }
             .foregroundStyle(isSelected ? Ink.seal : Ink.secondary)
             .padding(.horizontal, 14)

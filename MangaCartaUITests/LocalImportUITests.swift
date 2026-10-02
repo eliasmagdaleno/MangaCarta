@@ -126,7 +126,7 @@ final class LocalImportUITests: XCTestCase {
         XCTAssertEqual(menu.value as? String, "Left to Right, this title")
     }
 
-    private static let fixtureBase64 = [
+    static let fixtureBase64 = [
         "UEsDBAoAAAAAAJANOF0AAAAAAAAAAAAAAAAGABwAcGFnZXMvVVQJAAPw4rRq8OK0anV4CwABBPUBAAAEFAAAAFBLAw",
         "QUAAAACACQDThdMzMKcT8AAABEAAAACwAcAHBhZ2VzLzIucG5nVVQJAAPw4rRq8OK0anV4CwABBPUBAAAEFAAAAOsM",
         "8HPn5ZLiYmBg4PX0cAkC0owgzMECJLfK8DABKW5PF8eQilvJKT/4GRhZGRnVJR6nAYUZPF39XNY5JTQBAFBLAwQUAA",
