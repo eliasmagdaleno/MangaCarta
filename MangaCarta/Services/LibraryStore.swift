@@ -78,7 +78,9 @@ extension LibraryItem {
 
 @MainActor
 final class LibraryStore: ObservableObject {
-    @Published private(set) var items: [LibraryItem] = []
+    @Published private(set) var items: [LibraryItem] = [] {
+        didSet { reportWorksThatLeft(oldValue) }
+    }
     @Published private(set) var collections: [LibraryCollection] = []
     @Published private(set) var isRefreshing = false
 
@@ -93,6 +95,9 @@ final class LibraryStore: ObservableObject {
     /// register stub sources; the app uses the shared registry.
     private let registryOverride: SourceRegistry?
     private weak var refreshCoordinator: LibraryRefreshCoordinator?
+    /// Called with a Work whose last Library item was just removed, by any path. The
+    /// composition wires it to `UpdateNotifier.forget(workId:)` (ADR-0021, #342).
+    private var workLeftLibrary: (WorkID) -> Void = { _ in }
     private var registry: SourceRegistry { registryOverride ?? .shared }
 
     init(defaults: UserDefaults = .standard, works: WorkStore? = nil, registry: SourceRegistry? = nil) {
@@ -302,6 +307,24 @@ final class LibraryStore: ObservableObject {
 
     func configureRefreshCoordinator(_ coordinator: LibraryRefreshCoordinator) {
         refreshCoordinator = coordinator
+    }
+
+    func configureWorkLeftLibrary(_ handler: @escaping (WorkID) -> Void) {
+        workLeftLibrary = handler
+    }
+
+    /// Every removal path assigns `items`, so diffing here covers all of them.
+    private func reportWorksThatLeft(_ previous: [LibraryItem]) {
+        guard let works else { return }
+        func key(_ item: LibraryItem) -> ListingKey {
+            ListingKey(sourceId: item.sourceId ?? LegacySourceID.unattributed, mangaId: item.id)
+        }
+        let remaining = Set(items.map(key))
+        let removed = previous.map(key).filter { !remaining.contains($0) }
+        guard !removed.isEmpty else { return }
+        let stillSaved = Set(remaining.compactMap { works.workId(for: $0) })
+        let left = Set(removed.compactMap { works.workId(for: $0) }).subtracting(stillSaved)
+        for workId in left { workLeftLibrary(workId) }
     }
 
     /// Refresh every saved manga's full chapter-number list concurrently. Best-effort:

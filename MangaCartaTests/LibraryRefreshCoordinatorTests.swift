@@ -255,6 +255,26 @@ struct LibraryRefreshCoordinatorTests {
     }
 
     @MainActor
+    @Test("A Work minted only by reading is neither fetched nor notified (#342)")
+    func readOnlyWorkIsNeitherFetchedNorNotified() async {
+        let source = StubSource(id: "mangadex", chapters: ["read-only": ["1"]])
+        let fixture = Fixture(sources: [source])
+        defer { fixture.suite.remove() }
+        let manga = fixture.manga("read-only", source: "mangadex")
+        fixture.history.record(manga: manga, chapter: Chapter(id: "read-only-1", number: "1", title: nil),
+                               position: ReadingPosition(page: 4), pageCount: 5)
+        #expect(fixture.works.workId(for: ListingKey(manga)) != nil)
+
+        let first = await fixture.coordinator.run(budget: .foreground)
+        await source.setChapters(["1", "2"], for: "read-only")
+        let second = await fixture.coordinator.run(budget: .foreground)
+
+        #expect(await source.askedIds().isEmpty)
+        #expect(first.isEmpty)
+        #expect(second.isEmpty)
+    }
+
+    @MainActor
     @Test("A renumbering burst caps the event while absorbing the full frontier")
     func notificationCapDoesNotCapFrontier() async throws {
         let numbers = (1...101).map(String.init)
@@ -283,6 +303,7 @@ private final class Fixture {
     let works: WorkStore
     let updates: UpdateStateStore
     let library: LibraryStore
+    let history: HistoryStore
     let coordinator: LibraryRefreshCoordinator
     let now: Date
 
@@ -300,6 +321,7 @@ private final class Fixture {
         let registry = SourceRegistry(sources: sources, defaults: defaults)
         library = LibraryStore(defaults: defaults, works: works, registry: registry)
         let history = HistoryStore(defaults: defaults, works: works)
+        self.history = history
         var processed = 0
         coordinator = LibraryRefreshCoordinator(
             works: works, library: library, history: history,
@@ -314,8 +336,14 @@ private final class Fixture {
         library.configureRefreshCoordinator(coordinator)
     }
 
+    /// Mints the Work and saves the Listing, since refresh covers saved Works only (#342).
+    /// The Library keys items by manga id, so a second source's copy of a saved id is
+    /// minted without a second item; its Work is saved through the first.
     func mint(_ id: String, source: String, malId: Int? = nil) -> WorkID {
-        works.mint(from: manga(id, source: source, malId: malId))
+        let listing = manga(id, source: source, malId: malId)
+        let workId = works.mint(from: listing)
+        if !library.contains(id) { library.toggle(listing) }
+        return workId
     }
 
     func manga(_ id: String, source: String, malId: Int? = nil) -> Manga {
@@ -363,6 +391,9 @@ private struct StubSource: MangaSource, @unchecked Sendable {
 
     func askedIds() async -> [String] { await state.asked }
     func clearAsked() async { await state.clearAsked() }
+    func setChapters(_ numbers: [String], for mangaId: String) async {
+        await state.setChapters(numbers, for: mangaId)
+    }
     func chapters(mangaId: String) async throws -> [Chapter] { try await state.fetch(mangaId) }
     func search(title: String, limit: Int, offset: Int) async throws -> [Manga] { [] }
     func popular(limit: Int, offset: Int) async throws -> [Manga] { [] }
@@ -374,7 +405,7 @@ private struct StubSource: MangaSource, @unchecked Sendable {
 
 private actor StubSourceState {
     enum Failure: Error { case requested }
-    let chapters: [String: [String]]
+    private(set) var chapters: [String: [String]]
     let failures: Set<String>
     private(set) var asked: [String] = []
 
@@ -390,4 +421,5 @@ private actor StubSourceState {
     }
 
     func clearAsked() { asked = [] }
+    func setChapters(_ numbers: [String], for mangaId: String) { chapters[mangaId] = numbers }
 }

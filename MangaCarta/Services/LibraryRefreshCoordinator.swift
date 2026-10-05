@@ -219,7 +219,11 @@ final class LibraryRefreshCoordinator {
     }
 
     private func makeQueue(now: Date) -> [WorkID] {
-        let all = works.allWorkIds().sorted { $0.raw.uuidString < $1.raw.uuidString }
+        // ADR-0021 refreshes saved Works only. Reading mints a Work and unsaving keeps it,
+        // so the Work store alone would refresh every title ever read (#342).
+        let all = works.allWorkIds().filter { workId in
+            works.work(workId)?.listings.contains { isSaved($0) } == true
+        }.sorted { $0.raw.uuidString < $1.raw.uuidString }
         let stale = all.filter { workId in
             guard works.work(workId)?.snapshot?.publicationStatus != .finished else { return false }
             guard let checked = updates.state(for: workId)?.lastSuccessfulCheck else { return true }
@@ -232,7 +236,7 @@ final class LibraryRefreshCoordinator {
         let engaged = all.filter { workId in
             guard let work = works.work(workId) else { return false }
             return work.listings.contains { listing in
-                library.items.contains { $0.id == listing.mangaId && ($0.sourceId ?? LegacySourceID.unattributed) == listing.sourceId }
+                isSaved(listing)
                     || history.latestEntry(forManga: listing.mangaId).map {
                         now.timeIntervalSince($0.updatedAt) <= UpdateTuning.recentEngagementWindow
                     } == true
@@ -241,6 +245,10 @@ final class LibraryRefreshCoordinator {
         let prioritized = deduplicated(stale + engaged)
         let remainder = all.filter { !prioritized.contains($0) }
         return prioritized + rotated(remainder, after: updates.refreshCursor)
+    }
+
+    private func isSaved(_ listing: ListingKey) -> Bool {
+        library.items.contains { $0.id == listing.mangaId && ($0.sourceId ?? LegacySourceID.unattributed) == listing.sourceId }
     }
 
     private func rotated(_ ids: [WorkID], after cursor: WorkID?) -> [WorkID] {
