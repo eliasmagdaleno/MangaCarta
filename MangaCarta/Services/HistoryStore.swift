@@ -177,7 +177,10 @@ final class HistoryStore: ObservableObject {
                 at: 0
             )
         }
-        if entries.count > cap { entries.removeLast(entries.count - cap) }
+        if entries.count > cap {
+            preserveReadMarks(for: Array(entries.suffix(entries.count - cap)))
+            entries.removeLast(entries.count - cap)
+        }
         saveSoon()
 
         if !wasComplete,
@@ -331,11 +334,13 @@ final class HistoryStore: ObservableObject {
     }
 
     func delete(_ entry: ReadingEntry) {
+        preserveReadMarks(for: entries.filter { $0.id == entry.id })
         entries.removeAll { $0.id == entry.id }
         save()
     }
 
     func clear() {
+        preserveReadMarks(for: entries)
         entries.removeAll()
         save()
     }
@@ -393,6 +398,17 @@ final class HistoryStore: ObservableObject {
         }
         if let marks = try? JSONEncoder().encode(readMarks) {
             defaults.set(marks, forKey: marksKey)
+        }
+    }
+
+    /// Preserve completion when a history entry leaves the bounded log. An existing
+    /// manual or migrated mark wins, so each chapter keeps one durable read mark.
+    private func preserveReadMarks(for entries: [ReadingEntry]) {
+        var markedChapterIDs = Set(readMarks.map(\.chapterId))
+        for entry in entries where entry.isComplete && !markedChapterIDs.contains(entry.chapterId) {
+            readMarks.append(ReadMark(mangaId: entry.mangaId, chapterId: entry.chapterId,
+                                      chapterNumber: entry.chapterNumber))
+            markedChapterIDs.insert(entry.chapterId)
         }
     }
 
