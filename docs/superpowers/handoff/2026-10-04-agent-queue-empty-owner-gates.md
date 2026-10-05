@@ -1,72 +1,63 @@
-# Handoff: SourceRegistry defaults injected (#317), AppComposition.init split (#318); agent-side follow-ups open as #323–#326
+# Handoff: agent queue empty; owner gates and App Store decisions remain
 
-Date: 2026-10-01. This is the one live handoff. The prior one
-(`2026-09-30-extension-failure-classification.md`) is in `archive/`; every open item in it is
-carried here. Recheck GitHub and the working tree before acting.
+Date: 2026-10-04. This is the one live handoff. The prior one
+(`2026-10-01-registry-defaults-and-composition.md`) is in `archive/`; every open item in it is
+carried here. Nothing landed between 2026-10-01 and this writing. Recheck GitHub and the working
+tree before acting.
 
-## Completed this session
+## State
 
-- **#315 / #316 — the reader stops offering Retry for failures retrying cannot fix** (merged as
-  `666b886`). ADR-0012 Amendment 1 and Host API design Amendment 7 hold the rule; `http` is
-  classified by `details.status`. Detail is in the archived handoff and the ADR.
-- **MangaDex engine bundle version 2 is published** (`proxy-link/mangacarta-sources` `15a3823`). It
-  sends `details.status` on `http` failures. The Pages index was confirmed serving the new hash.
-- **#317 / #321 — `SourceRegistry` takes injected `UserDefaults`** (merged as `9161d37`).
-  `init(sources:defaults:showAdultContent:)` uses it for both the read and the `didSet` write;
-  production keeps `.standard`. Every test-built registry now has an isolated `TestDefaults` suite
-  (14 files, checked across multi-line calls), so unit tests no longer read or overwrite the seeded
-  simulator's `source.activeID`. Test: `activeChoicePersistsThroughTheInjectedSuite`; mutations of
-  the read and the write each fail it.
-- **#318 / #320 — `AppComposition.init` is under `function_body_length`** (merged as `87e3908`).
-  `runIdentityMigrations(directory:defaults:)` and `makeMAL(...) -> MALGraph` were extracted; the
-  MAL stack moved without changes. The side-effect order was compared before and after: identical.
-- `CLAUDE.md`'s two overlong "Current state" lines were wrapped (#319).
+`main` is at `2061ab9`, with #315–#326 all merged. The last batch (2026-10-01) is summarised here
+so this file stands alone; detail is in each PR:
 
-**Later the same day (owner: "do everything besides the checks I need to do"):**
+- **#323** (`596d243`) — `SourceRegistry.setInstalledSources` restores a stored browse choice only
+  while `isBrowsableNow`, the rule `init` and `active` use.
+- **#324** (`f8bc200`) — the install/age sheet has one primary action (`SealFillButtonStyle`).
+- **#325** (`17c3969`) — `docs/app-store/submission-copy.md` rechecked against `main`.
+- **#326** (`8e01e7b`) — `AccessibilityAuditUITests` audits Home, Library, detail, reader and
+  Settings and is **a CI-gated hermetic suite** (5 now). It fixed text-only hit regions on
+  `InkEmptyState` buttons and two Settings rows, a symbol read aloud by name, chip-count contrast
+  and an unlabeled detail cover. `.contrast` and `.textClipped` are excluded as false positives;
+  the test's header says why.
 
-- **#323 (open)** — `setInstalledSources` restores a stored browse choice only while it is
-  browsable now (`isBrowsableNow`, the rule `init` and `active` use). Closes the old "deferred
-  minor". Test `testInstalledSourcesRestoreOnlyABrowsableStoredChoice`; each branch mutated fails it.
-- **#324 (open)** — the install/age sheet's Install / Update / "I am 18 or over" take a vermilion
-  fill (`SealFillButtonStyle`); Cancel is secondary ink. Owner's call — reject freely.
-- **#325 (open)** — `submission-copy.md` rechecked against `main`: zoom is paged-only (bullet
-  corrected), the garbled adult paragraph in the review notes rewritten, §5's stale "manifest
-  declares only MAL" / "wiring unshipped" fixed. Three shipped-but-unclaimed features listed for
-  the owner to accept or drop.
-- **#326 (open)** — `AccessibilityAuditUITests` runs Xcode's accessibility audit on Home, Library,
-  detail, reader and Settings (hermetic, local import) and is **added to CI's UI job**. Its 17
-  findings → 0: empty-state buttons and the Manage Collections / Local library rows were only
-  tappable on their text (a real tap bug), a decorative symbol read as "books.vertical", Library
-  chip counts were ~3:1 contrast, the detail cover was an unlabeled image. `.contrast` and
-  `.textClipped` are excluded as false positives (documented in the test). First run on CI's iOS
-  26.2 happens on that PR.
-- Remote branch `docs/handoff-2026-09-29` deleted (owner ran it; the auto-mode classifier blocked
-  the agent).
-
-**Working tree:** `main` at `9161d37`. Worktrees for #323–#326 live at `/tmp/mc-registry`,
-`/tmp/mc-sheet`, `/tmp/mc-copy`, `/tmp/mc-a11y` (plain git worktrees); remove each and its branch
-once its PR is MERGED. `stash@{0}` is still the Xcode
+**Working tree:** clean, no extra worktrees. This handoff's PR is the only open PR (#327, which
+originally just corrected the previous handoff and now carries this one). `stash@{0}` is the Xcode
 `project.pbxproj` churn from before #291; it is noise (`git stash drop` is fine, `git stash pop`
 would conflict).
 
 ## Next
 
-**Owner merges #322–#326** (each by number). After each merge, the agent removes that PR's
-worktree and branch, gated on `state == MERGED`. If #326's CI fails on iOS 26.2, read the attached
-`a11y-<screen>` screenshot before changing anything.
-
-Beyond that, **no agent work is queued.** No open issue is `ready-for-agent`; the only open issue
-is #90 (owner). An agent with nothing assigned should ask the owner, or look for real defects and file
-them as issues after verifying each against `main`. Don't invent refactors.
+**No agent work is queued.** No open issue is `ready-for-agent`; the only open issue is #90
+(owner). An agent with nothing assigned should ask the owner, or look for real defects and file
+them as issues after verifying each against `main`. Don't invent refactors. If
+`AccessibilityAuditUITests` goes red, read its attached `a11y-<screen>` screenshot before changing
+anything.
 
 ## Owner items
 
-1. **#294's device checks (owner).** Opening in place hands over the reader's original file:
-   - an iCloud `.cbz` that has not been downloaded yet — now coordinated (#309); confirm on a
+1. **#294's device checks.** Opening in place hands over the reader's original file:
+   - an iCloud `.cbz` that has not been downloaded yet — coordinated since #309; confirm on a
      signed-in device that it downloads and imports;
    - a real device with another comic app that also claims `.cbz` at `Owner`.
-2. **The engine change, only after an App Store build with Host API 1.3 ships.** It is made in
-   `proxy-link/mangacarta-sources`. Push it through the SSH alias only, and never commit as Elias.
+2. **VoiceOver device pass (#90).** #326 cleared the mechanical findings; traversal order,
+   announcements and focus restoration (after sheets and after closing the reader) need a person.
+3. **MAL live-write check.** No agent holds a MAL token: `scripts/mal_oauth_token.py` prints one and
+   never saves it, and the harness cannot read the simulator keychain. In the owner's own terminal:
+   `python3 scripts/mal_oauth_token.py`, `export MAL_ACCESS_TOKEN=…`, then
+   `scripts/mal_live_write.py fire` (it snapshots the Horimiya entry, runs the test, restores).
+   The MAL avatar change in #302 can be eyeballed in the same signed-in session.
+4. **App icon** — `docs/design/app-icon-brief.md`.
+5. **App Store prep** (`docs/app-store/submission-copy.md`):
+   - owner's sample and screenshot art, a sample URL/attachment, and contact placeholders; recheck
+     every claim against the build that ships, §5 included;
+   - accept or drop the three candidate bullets #325 lists (per-title direction, ComicInfo +
+     series, Open in);
+   - decide whether third-party site logos belong in a no-content build. The asset catalog still
+     ships `SourceLogo-mangadex` and `SourceLogo-weebcentral`; `SourceLogoView` looks logos up as
+     `SourceLogo-<sourceID>`, so they now match only the legacy built-in ids, not installed
+     Sources' qualified ids.
+6. **The engine change, only after an App Store build with Host API 1.3 ships.** Made in
+   `proxy-link/mangacarta-sources`; push through the SSH alias only, and never commit as Elias.
    - Add `https://api.mangadex.network` to `httpOrigins`.
    - Add
      `"imageLoadReports": {"endpoint": "https://api.mangadex.network/report", "origins": ["https://*.mangadex.network"]}`.
@@ -75,39 +66,19 @@ them as issues after verifying each against `main`. Don't invent refactors.
      (`testIndexPinsThisEngine`).
    - If it ships too early, current builds see no version intersection and refuse the update.
    - Existing readers will see the update sheet (Amendment 10) the first time they update.
-3. **A real report reaching an endpoint.** Only the sheet is covered (#284). Delivery cannot be
+7. **A real report reaching an endpoint.** Only the sheet is covered (#284). Delivery cannot be
    tested locally (`HostURLPolicy` refuses non-public addresses, loopback included). Check it with
-   the real engine against MangaDex once item 2 ships.
-4. **Bare 429s (optional):** a 429 with no retry header does not pause. Amendment 8 chose that on
+   the real engine against MangaDex once item 6 ships.
+8. **Bare 429s (optional):** a 429 with no retry header does not pause. Amendment 8 chose that on
    purpose. Revisit only with evidence of a Source that sends bare 429s.
 
-## Other outstanding work
+## Watch list
 
-1. **App Store prep** (`docs/app-store/submission-copy.md`):
-   - still needs the owner's sample and screenshot art, a sample URL/attachment, and contact
-     placeholders; recheck every claim against the build that ships, §5 included;
-   - the asset catalog still ships `SourceLogo-mangadex` and `SourceLogo-weebcentral`.
-     `SourceLogoView` looks logos up as `SourceLogo-<sourceID>`, so they now match only the legacy
-     built-in ids, not installed Sources' qualified ids. Decide whether third-party site logos belong
-     in a no-content build before submitting;
-   - whether to add the three candidate bullets #325 lists (per-title direction, ComicInfo +
-     series, Open in). That is the owner's call.
-2. **Flaky tests:**
-   - `LocalImportUITests.testImportReadAndDelete` should be fixed by #263. If it goes red again,
-     suspect the test's own launch timeout.
-   - The loopback test now retries and logs. If it recurs, search the CI log for
-     `[loopback-flake]` (#289).
-3. **`@Sendable` on `AdultContentSetting.current` is not redundant:** the target is Swift 5 mode
-   without `InferSendableFromCaptures`. Keep it.
-4. **Human gates:**
-   - a VoiceOver device pass (#90) — #326's audit clears the mechanical findings first; traversal
-     order, announcements and focus restoration are still the person's;
-   - the MAL live-write check. **No agent holds a MAL token** — `scripts/mal_oauth_token.py` prints
-     one and never saves it, and the harness can't read the simulator keychain. The owner runs, in
-     their own terminal: `python3 scripts/mal_oauth_token.py`, `export MAL_ACCESS_TOKEN=…`,
-     `scripts/mal_live_write.py fire`. The MAL avatar change in #302 can be eyeballed in the same
-     signed-in session;
-   - the app icon brief (`docs/design/app-icon-brief.md`).
+- `LocalImportUITests.testImportReadAndDelete` should be fixed by #263. If it goes red again,
+  suspect the test's own launch timeout.
+- The loopback test retries and logs. If it recurs, search the CI log for `[loopback-flake]` (#289).
+- `@Sendable` on `AdultContentSetting.current` is **not** redundant: the target is Swift 5 mode
+  without `InferSendableFromCaptures`. Keep it.
 
 ## Operating notes
 
@@ -259,8 +230,8 @@ them as issues after verifying each against `main`. Don't invent refactors.
 - **Parallel workers must not run UI suites at the same time.** Two workers sharing the seeded
   simulator both got signal-killed hermetic UI runs on 2026-10-01 (#317's worker reported `failed`
   for it). Run alone, the same suites passed 19/19. Have parallel workers run unit tests only, then
-  run the CI-gated hermetic suites yourself (4, or 5 once #326 merges), one branch at a time:
-  `-only-testing:MangaCartaUITests/UpdatesUITests -only-testing:MangaCartaUITests/SourcePreferenceUITests -only-testing:MangaCartaUITests/RepositorySettingsUITests -only-testing:MangaCartaUITests/LocalImportUITests`.
+  run the 5 CI-gated hermetic suites yourself, one branch at a time:
+  `-only-testing:MangaCartaUITests/UpdatesUITests -only-testing:MangaCartaUITests/SourcePreferenceUITests -only-testing:MangaCartaUITests/RepositorySettingsUITests -only-testing:MangaCartaUITests/LocalImportUITests -only-testing:MangaCartaUITests/AccessibilityAuditUITests`.
 - **`Secrets.xcconfig` is not in a fresh worktree.** It is gitignored (it holds `MAL_CLIENT_ID`, read into `MALClientID`) and is
   the target's base configuration. #318's worker copied it in from the main checkout to build;
   builds in the #315 worktree passed without it. If a worktree build complains about it, copy it in
@@ -271,3 +242,14 @@ them as issues after verifying each against `main`. Don't invent refactors.
 - **A single-test `xcodebuild` run can hang after the result prints** (seen with a Swift Testing
   `-only-testing:'Suite/test()'` selector). Read the output file; if the verdict is there, kill the
   process instead of waiting.
+
+- **Reading an accessibility audit.** `performAccessibilityAudit`'s issue handler gets the element;
+  print `elementType.rawValue` (9 button, 43 image, 48 static text), label and identifier, and return
+  `true` to collect rather than fail. Judge every finding against a screenshot: here contrast fired
+  on text under the tab bar's blur, and text-clipped on labels that render whole.
+- **A `.plain` button's hit region is its label.** A frame, padding or fill applied to the `Button`
+  itself is drawn but not tappable; put them inside the label and end with `.contentShape(...)`
+  *after* the padding (#326).
+- **Viewing a UI test's screenshots:** run with `-resultBundlePath <scratch>/x.xcresult`, then
+  `xcrun xcresulttool export attachments --path <it> --output-path <dir>`; `manifest.json` maps
+  attachment names to files.
