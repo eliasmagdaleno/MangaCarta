@@ -110,12 +110,26 @@ final class LibraryStore: ObservableObject {
 
     // MARK: - Querying Items & Collections
 
-    func contains(_ id: String) -> Bool {
-        items.contains { $0.id == id }
+    private func listingKey(for item: LibraryItem) -> ListingKey {
+        ListingKey(sourceId: item.sourceId ?? LegacySourceID.unattributed, mangaId: item.id)
     }
 
+    func contains(_ manga: Manga) -> Bool {
+        item(for: ListingKey(manga)) != nil
+    }
+
+    func item(for key: ListingKey) -> LibraryItem? {
+        items.first { listingKey(for: $0) == key }
+    }
+
+    /// Legacy id-only lookup for local catalog operations and migration code.
     func item(for id: String) -> LibraryItem? {
         items.first { $0.id == id }
+    }
+
+    /// Legacy id-only membership for local catalog operations and migration code.
+    func contains(_ id: String) -> Bool {
+        item(for: id) != nil
     }
 
     /// Active enabled collections sorted by `sortOrder`.
@@ -131,22 +145,28 @@ final class LibraryStore: ObservableObject {
     }
 
     /// Returns whether a manga belongs to a specific collection ID.
+    func isManga(_ manga: Manga, in collectionId: String) -> Bool {
+        item(for: ListingKey(manga))?.collectionIds.contains(collectionId) ?? false
+    }
+
+    /// Legacy id-only collection lookup for migration and local catalog operations.
     func isManga(_ mangaId: String, in collectionId: String) -> Bool {
         item(for: mangaId)?.collectionIds.contains(collectionId) ?? false
     }
 
-    /// Returns the collection IDs assigned to a given manga.
-    func collectionIds(for mangaId: String) -> Set<String> {
-        item(for: mangaId)?.collectionIds ?? []
+    /// Returns the collection IDs assigned to a Listing.
+    func collectionIds(for manga: Manga) -> Set<String> {
+        item(for: ListingKey(manga))?.collectionIds ?? []
     }
 
     // MARK: - Managing Items & Collection Membership
 
     /// Toggle manga in/out of library: if present, removes from all collections; if absent, adds to default primary collection.
     func toggle(_ manga: Manga) {
-        if contains(manga.id) {
+        if contains(manga) {
             // Unsaving is not an anti-commitment: the Work stays (ADR-0007).
-            items.removeAll { $0.id == manga.id }
+            let key = ListingKey(manga)
+            items.removeAll { listingKey(for: $0) == key }
         } else {
             _ = works?.mint(from: manga)
             let primaryCollectionId = enabledCollections.first?.id ?? LibraryCollection.readingID
@@ -191,7 +211,8 @@ final class LibraryStore: ObservableObject {
 
     /// Toggle a specific collection membership for a manga.
     func toggleCollection(for manga: Manga, collectionId: String) {
-        if let idx = items.firstIndex(where: { $0.id == manga.id }) {
+        let key = ListingKey(manga)
+        if let idx = items.firstIndex(where: { listingKey(for: $0) == key }) {
             var updated = items[idx]
             if updated.collectionIds.contains(collectionId) {
                 updated.collectionIds.remove(collectionId)
@@ -225,12 +246,14 @@ final class LibraryStore: ObservableObject {
     func setCollections(for manga: Manga, collectionIds: Set<String>) {
         if collectionIds.isEmpty {
             // Clearing every collection is a removal — nothing to mint.
-            items.removeAll { $0.id == manga.id }
+            let key = ListingKey(manga)
+            items.removeAll { listingKey(for: $0) == key }
             saveItems()
             return
         }
         _ = works?.mint(from: manga)
-        if let idx = items.firstIndex(where: { $0.id == manga.id }) {
+        let key = ListingKey(manga)
+        if let idx = items.firstIndex(where: { listingKey(for: $0) == key }) {
             items[idx].collectionIds = collectionIds
         } else {
             items.insert(

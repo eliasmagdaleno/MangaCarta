@@ -312,8 +312,8 @@ struct MangaDetailView: View {
                 libraryToggle
             } else {
                 // No readable chapters — the library toggle gets its words back.
-                let inLibrary = library.contains(manga.id)
-                let assignedIds = library.collectionIds(for: manga.id)
+                let inLibrary = library.contains(manga)
+                let assignedIds = library.collectionIds(for: manga)
                 Menu {
                     Section {
                         Button {
@@ -419,8 +419,8 @@ struct MangaDetailView: View {
     }
 
     private var libraryToggle: some View {
-        let inLibrary = library.contains(manga.id)
-        let assignedIds = library.collectionIds(for: manga.id)
+        let inLibrary = library.contains(manga)
+        let assignedIds = library.collectionIds(for: manga)
 
         return Menu {
             Section {

@@ -20,10 +20,10 @@ final class LocalLibraryDeletion {
             // Work still need to converge on the user's requested deletion.
         }
         if let item = library.item(for: itemId) {
-            let manga = Manga(id: item.id, sourceId: item.sourceId ?? "local", title: item.title,
+            let manga = Manga(id: item.id, sourceId: item.sourceId ?? LegacySourceID.unattributed, title: item.title,
                               description: "", status: "completed", year: nil, coverURL: item.coverURL,
                               malId: nil, altTitles: nil, contentRating: nil)
-            if library.contains(itemId) { library.toggle(manga) }
+            if library.contains(manga) { library.toggle(manga) }
         }
         works.removeListing(ListingKey(sourceId: LocalSource.sourceID, mangaId: itemId))
     }
