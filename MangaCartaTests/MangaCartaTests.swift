@@ -620,6 +620,89 @@ final class MangaCartaTests: XCTestCase {
         XCTAssertNil(history.entry(for: groupTwo, in: manga))
     }
 
+    @MainActor func testSameChapterIdAcrossListingsKeepsReadAndResumeIndependent() {
+        let history = makeHistoryStore()
+        let a = sampleManga("same-id-a", sourceId: "source-a")
+        let b = sampleManga("same-id-b", sourceId: "source-b")
+        let chapter = Chapter(id: "shared", number: "?", title: nil)
+
+        history.record(manga: a, chapter: chapter, position: ReadingPosition(page: 2), pageCount: 8)
+        history.markRead(manga: a, chapter: chapter)
+        history.record(manga: b, chapter: chapter, position: ReadingPosition(page: 5), pageCount: 8)
+
+        XCTAssertTrue(history.isRead(chapter, in: a))
+        XCTAssertFalse(history.isRead(chapter, in: b))
+        XCTAssertEqual(history.entry(for: chapter, in: a)?.page, 2)
+        XCTAssertEqual(history.entry(for: chapter, in: b)?.page, 5)
+
+        history.markUnread(manga: a, chapter: chapter)
+
+        XCTAssertFalse(history.isRead(chapter, in: a))
+        XCTAssertFalse(history.isRead(chapter, in: b))
+        XCTAssertNil(history.entry(for: chapter, in: a))
+        XCTAssertEqual(history.entry(for: chapter, in: b)?.page, 5)
+    }
+
+    @MainActor func testSameChapterIdAndSourceAcrossMangaListingsStaysIndependent() {
+        let history = makeHistoryStore()
+        let a = sampleManga("manga-a", sourceId: "source-a")
+        let b = sampleManga("manga-b", sourceId: "source-a")
+        let chapter = Chapter(id: "shared", number: "?", title: nil)
+
+        history.markRead(manga: a, chapter: chapter)
+
+        XCTAssertTrue(history.isRead(chapter, in: a))
+        XCTAssertFalse(history.isRead(chapter, in: b))
+
+        history.markUnread(manga: b, chapter: chapter)
+        XCTAssertTrue(history.isRead(chapter, in: a))
+    }
+
+    /// The case the source check exists for: one manga id on two Sources, e.g. a legacy
+    /// MangaDex Listing beside the installed MangaDex Source, which share UUIDs.
+    @MainActor func testSameMangaAndChapterIdOnTwoSourcesStayIndependent() {
+        let history = makeHistoryStore()
+        let legacy = sampleManga("shared-manga", sourceId: "mangadex")
+        let installed = sampleManga("shared-manga", sourceId: "repo:mangadex")
+        let chapter = Chapter(id: "shared", number: "?", title: nil)
+
+        history.markRead(manga: legacy, chapter: chapter)
+        history.record(manga: installed, chapter: chapter, position: ReadingPosition(page: 3), pageCount: 8)
+
+        XCTAssertTrue(history.isRead(chapter, in: legacy))
+        XCTAssertFalse(history.isRead(chapter, in: installed))
+
+        history.markRead(manga: installed, chapter: chapter)
+        history.markUnread(manga: installed, chapter: chapter)
+
+        XCTAssertTrue(history.isRead(chapter, in: legacy))
+        XCTAssertFalse(history.isRead(chapter, in: installed))
+    }
+
+    func testLegacyReadMarkWithoutSourceIdDecodes() throws {
+        let legacy = #"[{"mangaId":"m","chapterId":"c","chapterNumber":"1"}]"#.data(using: .utf8)!
+        let mark = try JSONDecoder().decode([ReadMark].self, from: legacy).first
+        XCTAssertEqual(mark?.mangaId, "m")
+        XCTAssertNil(mark?.sourceId)
+    }
+
+    @MainActor func testLegacyHistoryWithoutSourceIdStillCountsForListing() throws {
+        let defaults = makeTestDefaults("test.history.legacy-listing")
+        let manga = sampleManga("m", sourceId: "source-a")
+        let chapter = Chapter(id: "c", number: "1", title: nil)
+        let entry = ReadingEntry(id: UUID(), mangaId: manga.id, mangaTitle: manga.title,
+                                 coverURL: nil, chapterId: chapter.id, chapterNumber: chapter.number,
+                                 page: 4, pageCount: 5, updatedAt: Date())
+        let mark = ReadMark(mangaId: manga.id, chapterId: chapter.id, chapterNumber: chapter.number)
+        defaults.set(try JSONEncoder().encode([entry]), forKey: "history.entries")
+        defaults.set(try JSONEncoder().encode([mark]), forKey: "history.readMarks")
+
+        let history = HistoryStore(defaults: defaults)
+
+        XCTAssertTrue(history.isRead(chapter, in: manga))
+        XCTAssertEqual(history.readChapterNumbers(for: ListingKey(manga)), [chapter.number])
+    }
+
     func testLibraryItemDecodesLegacyJSON() throws {
         // JSON saved before chapterNumbers existed (pre-migration installs).
         let legacy = #"{"id":"m1","title":"Old","coverURL":null}"#.data(using: .utf8)!
@@ -995,7 +1078,8 @@ final class MangaCartaTests: XCTestCase {
         XCTAssertEqual(c1.count, 1)
 
         let c2 = SyncCallCounter()
-        let cache2 = ImageCache(directory: dir, resolver: PublicImageResolver(), fetcher: { _ in c2.bump(); return png }) // fresh memory, same disk
+        let cache2 = ImageCache(directory: dir, resolver: PublicImageResolver(),
+                                fetcher: { _ in c2.bump(); return png }) // fresh memory, same disk
         let hit = await cache2.loadImage(for: url)         // disk hit
         XCTAssertNotNil(hit)
         XCTAssertEqual(c2.count, 0)                        // no network
