@@ -28,13 +28,18 @@ struct BookmarksView: View {
     @State private var localItemToDelete: LibraryItem?
     @State private var deletionError: String?
     @EnvironmentObject private var importer: LocalImportViewModel
+    @EnvironmentObject private var workNavigator: WorkNavigator
+    /// True only for the Library tab's own instance, so a copy pushed from Home never
+    /// answers a notification as well.
+    private let opensNotifiedWorks: Bool
 
     private let columns = [
         GridItem(.adaptive(minimum: 104, maximum: 180), spacing: Gutter.rail)
     ]
 
-    init(initialCollectionId: String = "all") {
+    init(initialCollectionId: String = "all", opensNotifiedWorks: Bool = false) {
         _selectedCollectionId = State(initialValue: initialCollectionId)
+        self.opensNotifiedWorks = opensNotifiedWorks
     }
 
     var body: some View {
@@ -166,6 +171,18 @@ struct BookmarksView: View {
             }
             .sheet(isPresented: $showingManagementSheet) {
                 CollectionManagementView()
+            }
+            // A tapped new-chapter notification opens the Work's detail page (#343).
+            .navigationDestination(item: notifiedWork) { workId in
+                if let manga = notifiedManga(workId) {
+                    MangaDetailView(manga: manga, registry: registry)
+                }
+            }
+            // A request for a Work no longer saved can't be answered; drop it rather than
+            // leave it pending to open the page by surprise if the Work is saved again.
+            .onReceive(workNavigator.$requestedWork) { workId in
+                guard opensNotifiedWorks, let workId, notifiedManga(workId) == nil else { return }
+                workNavigator.requestedWork = nil
             }
             .fileImporter(isPresented: $showingImporter,
                           allowedContentTypes: [UTType.zip, UTType.mangaCartaCBZ, UTType.pdf],
@@ -303,6 +320,26 @@ struct BookmarksView: View {
         .accessibilityValue(isSelected ? "Selected" : "Not selected")
     }
 
+    /// The navigator's request, while this instance answers it and the Work is still saved.
+    private var notifiedWork: Binding<WorkID?> {
+        Binding(
+            get: {
+                guard opensNotifiedWorks, let workId = workNavigator.requestedWork,
+                      notifiedManga(workId) != nil else { return nil }
+                return workId
+            },
+            set: { if $0 == nil, opensNotifiedWorks { workNavigator.requestedWork = nil } }
+        )
+    }
+
+    /// The same Listing the Updates row opens (`WorkUpdateRow`).
+    private func notifiedManga(_ workId: WorkID) -> Manga? {
+        LibraryUpdatesPresentation.summaries(
+            works: works, library: library, history: history,
+            updates: updates, registry: registry
+        ).first { $0.id == workId }?.displayManga
+    }
+
     private var updateMangaIDs: Set<String> {
         return Set(LibraryUpdatesPresentation.summaries(
             works: works, library: library, history: history,
@@ -337,4 +374,5 @@ private extension LibraryItem {
         .environmentObject(works)
         .environmentObject(LocalImportViewModel())
         .environmentObject(UpdateStateStore(works: works))
+        .environmentObject(WorkNavigator())
 }

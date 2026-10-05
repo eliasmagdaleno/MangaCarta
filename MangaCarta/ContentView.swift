@@ -33,6 +33,7 @@ struct ContentView: View {
     @StateObject private var webViewService = WebViewService.shared
     @StateObject private var extensionBrowserManager = ExtensionBrowserManager.shared
     @EnvironmentObject private var localImporter: LocalImportViewModel
+    @EnvironmentObject private var workNavigator: WorkNavigator
 
     var body: some View {
         Group {
@@ -43,7 +44,7 @@ struct ContentView: View {
                             Label("Home", systemImage: "house")
                         }
                         .tag(AppTab.home)
-                    BookmarksView()
+                    BookmarksView(opensNotifiedWorks: true)
                         .tabItem {
                             Label("Library", systemImage: "books.vertical")
                         }
@@ -72,7 +73,7 @@ struct ContentView: View {
                             Label("Home", systemImage: "house")
                         }
                         .tag(AppTab.home)
-                    BookmarksView()
+                    BookmarksView(opensNotifiedWorks: true)
                         .tabItem {
                             Label("Library", systemImage: "books.vertical")
                         }
@@ -97,6 +98,11 @@ struct ContentView: View {
             }
         }
         .environment(\.selectAppTab) { selectedTab = $0 }
+        // A tapped new-chapter notification opens its Work from the Library tab (#343).
+        // `onReceive` also sees a request made before this view existed (a cold launch).
+        .onReceive(workNavigator.$requestedWork) { workId in
+            if workId != nil { selectedTab = .bookmarks }
+        }
         .overlay(alignment: .top) {
             LocalImportBanner(model: localImporter, onCancel: localImporter.cancel)
                 .padding(.top, 8)
@@ -128,4 +134,5 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
+        .environmentObject(WorkNavigator())
 }
