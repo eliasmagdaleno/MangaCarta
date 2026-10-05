@@ -147,12 +147,19 @@ final class MangaDexEngineTests: XCTestCase {
                                showAdultContent: { true })
     }
 
-    func testTheDeclarationValidatesUnderHostAPI12() throws {
+    /// Host API 1.3 is the floor because image-load reports need it: MangaDex@Home asks
+    /// readers to report every page load from its network to `api.mangadex.network`.
+    func testTheDeclarationValidatesUnderHostAPI13WithImageLoadReports() throws {
         let declaration = try declaration()
-        XCTAssertEqual(declaration.network.httpOrigins, ["https://api.mangadex.org"])
+        XCTAssertEqual(declaration.network.httpOrigins,
+                       ["https://api.mangadex.org", "https://api.mangadex.network"])
         XCTAssertEqual(declaration.network.assetOrigins,
                        ["https://uploads.mangadex.org", "https://*.mangadex.network"])
         XCTAssertEqual(declaration.network.browserOrigins, ["https://mangadex.org"])
+        XCTAssertEqual(declaration.network.imageLoadReports,
+                       ImageLoadReportPolicy(endpoint: URL(string: "https://api.mangadex.network/report")!,
+                                             origins: ["https://*.mangadex.network"]))
+        XCTAssertEqual(declaration.selectedHostAPIVersion, HostAPIVersion(major: 1, minor: 3))
     }
 
     func testSearchMapsListingsWithCoverMalIdAndQualifiedSourceId() async throws {
