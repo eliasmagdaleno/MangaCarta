@@ -77,6 +77,10 @@ final class MALProgressCoordinator {
     private let client: any MALProgressDelivering
     private let account: any MALSyncAccount
     private let malID: (WorkID) -> Int?
+    /// The live id a Work id resolves to, following merge aliases; `nil` when it resolves
+    /// to nothing. Deferred progress is keyed by the id at completion time, and a merge
+    /// can retire that id afterwards.
+    private let canonicalWorkID: (WorkID) -> WorkID?
     private let now: () -> Date
     private let sleep: (TimeInterval) async throws -> Void
     private let jitter: (TimeInterval) -> TimeInterval
@@ -103,6 +107,7 @@ final class MALProgressCoordinator {
         client: any MALProgressDelivering,
         account: any MALSyncAccount,
         malID: @escaping (WorkID) -> Int?,
+        canonicalWorkID: @escaping (WorkID) -> WorkID? = { $0 },
         now: @escaping () -> Date = { Date() },
         sleep: @escaping (TimeInterval) async throws -> Void = {
             try await Task.sleep(nanoseconds: UInt64($0 * 1_000_000_000))
@@ -114,6 +119,7 @@ final class MALProgressCoordinator {
         self.client = client
         self.account = account
         self.malID = malID
+        self.canonicalWorkID = canonicalWorkID
         self.now = now
         self.sleep = sleep
         self.jitter = jitter
@@ -149,11 +155,17 @@ final class MALProgressCoordinator {
         scheduleDrainIfRunning()
     }
 
-    /// The signal that a Work has learned external ids. Promotes anything deferred for it.
+    /// The signal that a Work has learned external ids. Promotes anything deferred for it —
+    /// including rows deferred under a Work id since merged into it (#345), whichever path
+    /// did the merging, because each deferred id is resolved through the merge aliases.
     func workMetadataChanged(_ workID: WorkID) {
         guard account.syncEnabled, let userID = account.syncUserID,
               let mangaID = malID(workID) else { return }
-        try? outbox.promote(userID: userID, workID: workID, toMangaID: mangaID)
+        let survivor = canonicalWorkID(workID) ?? workID
+        for deferredID in outbox.deferredWorkIDs(userID: userID)
+        where deferredID == workID || canonicalWorkID(deferredID) == survivor {
+            try? outbox.promote(userID: userID, workID: deferredID, toMangaID: mangaID)
+        }
         scheduleDrainIfRunning()
     }
 
