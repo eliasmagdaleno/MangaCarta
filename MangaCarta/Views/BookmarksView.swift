@@ -69,7 +69,7 @@ struct BookmarksView: View {
                         ScrollView {
                             LazyVGrid(columns: columns, alignment: .leading, spacing: Gutter.section) {
                                 ForEach(displayedItems) { item in
-                                    let unread = item.unreadCount(readNumbers: history.readChapterNumbers(forManga: item.id))
+                                    let unread = history.unreadCount(for: item)
                                     NavigationLink(destination: MangaDetailView(manga: item.asManga, registry: registry)) {
                                         MangaCoverCard(
                                             title: item.title,

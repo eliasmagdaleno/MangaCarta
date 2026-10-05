@@ -344,6 +344,37 @@ final class MangaCartaTests: XCTestCase {
         XCTAssertEqual(item.unreadCount(readNumbers: ["1", "2"]), 0)
     }
 
+    // MARK: - Library badge is Work-wide (#331, ADR-0027)
+
+    /// Saved from A, read through B: B's finished chapters leave A's badge.
+    @MainActor func testLibraryBadgeCountsReadingOnAnotherListingOfTheWork() {
+        let (history, _, b) = makeWorkWideHistory()
+        let item = LibraryItem(id: "a", title: "T", coverURL: nil,
+                               chapterNumbers: ["1", "2", "3"], sourceId: "source-a")
+        history.record(manga: b, chapter: Chapter(id: "b1", number: "1", title: nil),
+                       position: ReadingPosition(page: 9), pageCount: 10)
+        history.markRead(manga: b, chapter: Chapter(id: "b2", number: "02", title: nil))
+        XCTAssertEqual(history.unreadCount(for: item), 1)
+    }
+
+    /// No Work: only the item's own Listing counts, matched by number as before.
+    @MainActor func testLibraryBadgeWithoutWorkCountsOwnListingOnly() {
+        let history = makeHistoryStore()
+        let item = LibraryItem(id: "a", title: "T", coverURL: nil,
+                               chapterNumbers: ["1", "2", "3"], sourceId: "source-a")
+        history.markRead(manga: sampleManga("a", sourceId: "source-a"),
+                         chapter: Chapter(id: "a1", number: "1", title: nil))
+        history.markRead(manga: sampleManga("b", sourceId: "source-b"),
+                         chapter: Chapter(id: "b2", number: "2", title: nil))
+        XCTAssertEqual(history.unreadCount(for: item), 2)
+    }
+
+    @MainActor func testLibraryBadgeNeverRefreshedIsZero() {
+        let (history, _, _) = makeWorkWideHistory()
+        let item = LibraryItem(id: "a", title: "T", coverURL: nil, sourceId: "source-a")
+        XCTAssertEqual(history.unreadCount(for: item), 0)
+    }
+
     @MainActor func testReadChapterNumbersForManga() throws {
         let store = makeHistoryStore()
         // Both read to the end — this test is about manga scoping, so keep the read rule
