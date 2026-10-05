@@ -109,6 +109,32 @@ final class MangaCartaTests: XCTestCase {
         XCTAssertNil(store.latestEntry(forManga: "zzz"))
     }
 
+    @MainActor func testLatestEntryForMangaIdsReturnsNewestAcrossListings() {
+        let store = makeHistoryStore()
+        store.record(manga: sampleManga("a", sourceId: "source-a"),
+                     chapter: Chapter(id: "old", number: "1", title: nil),
+                     position: ReadingPosition(page: 1), pageCount: 10)
+        store.record(manga: sampleManga("b", sourceId: "source-b"),
+                     chapter: Chapter(id: "new", number: "2", title: nil),
+                     position: ReadingPosition(page: 1), pageCount: 10)
+
+        XCTAssertEqual(store.latestEntry(forMangaIds: ["a", "b"])?.chapterId, "new")
+        XCTAssertNil(store.latestEntry(forMangaIds: ["missing"]))
+    }
+
+    @MainActor func testRecordFromRetargetedReaderKeepsListingIdentity() {
+        let store = makeHistoryStore()
+        let readerManga = Manga(id: "one-piece", sourceId: "source-b", title: "One Piece",
+                                description: "", status: "ongoing", year: nil, coverURL: nil, malId: 42)
+        store.record(manga: readerManga,
+                     chapter: Chapter(id: "b-chapter", number: "1", title: nil),
+                     position: ReadingPosition(page: 0), pageCount: 10)
+
+        XCTAssertEqual(store.entries.first?.mangaId, "one-piece")
+        XCTAssertEqual(store.entries.first?.sourceId, "source-b")
+        XCTAssertEqual(store.entries.first?.asManga.sourceId, "source-b")
+    }
+
     @MainActor func testDeleteAndClear() throws {
         let store = makeHistoryStore()
         store.record(manga: sampleManga(), chapter: Chapter(id: "c1", number: "1", title: nil),

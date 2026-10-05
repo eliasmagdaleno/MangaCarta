@@ -21,7 +21,7 @@ final class MangaDetailRetargetTests: XCTestCase {
 
     private let mangaDexListing = Manga(
         id: "op", sourceId: "mangadex", title: "One Piece", description: "",
-        status: "ongoing", year: nil, coverURL: nil, malId: nil)
+        status: "ongoing", year: nil, coverURL: URL(string: "https://example.com/cover.jpg"), malId: 42)
 
     private func registry() -> SourceRegistry {
         SourceRegistry(sources: [
@@ -67,6 +67,28 @@ final class MangaDetailRetargetTests: XCTestCase {
                                       source: registry().source(id: "mangadex"))
 
         XCTAssertEqual(vm.activeListing, ListingKey(sourceId: "mangadex", mangaId: "op"))
+    }
+
+    func testReaderMangaStartsAsTheOpenedListing() {
+        let vm = MangaDetailViewModel(manga: mangaDexListing,
+                                      source: registry().source(id: "mangadex"))
+
+        XCTAssertEqual(vm.readerManga, mangaDexListing)
+    }
+
+    func testReaderMangaFollowsRetargetedListingWhileKeepingDisplayedFields() {
+        let registry = registry()
+        let vm = MangaDetailViewModel(manga: mangaDexListing,
+                                      source: registry.source(id: "mangadex"))
+
+        vm.retarget(to: ListingKey(sourceId: "weebcentral", mangaId: "one-piece"), using: registry)
+
+        XCTAssertEqual(vm.readerManga.id, "one-piece")
+        XCTAssertEqual(vm.readerManga.sourceId, "weebcentral")
+        XCTAssertEqual(vm.readerManga.title, mangaDexListing.title)
+        XCTAssertEqual(vm.readerManga.coverURL, mangaDexListing.coverURL)
+        XCTAssertEqual(vm.readerManga.malId, mangaDexListing.malId)
+        XCTAssertEqual(registry.source(for: vm.readerManga)?.id, "weebcentral")
     }
 
     /// An unregistered source cannot fulfill anything, so retargeting to one is refused

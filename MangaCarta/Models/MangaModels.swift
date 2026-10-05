@@ -42,6 +42,15 @@ struct Manga: Identifiable, Codable, Equatable {    // Conform to Identifiable s
     /// Host API classification for this Listing. Missing means unknown, never safe.
     /// Optional keeps persisted `Manga` values from before extension support decodable.
     var contentRating: String?
+
+    /// Re-identifies the displayed Work's metadata for the Listing currently serving it.
+    /// The reader needs both ids to stay aligned with the chapter's Source, while the page
+    /// keeps every display field from the opened Listing (ADR-0001).
+    func relisted(as listing: ListingKey) -> Manga {
+        Manga(id: listing.mangaId, sourceId: listing.sourceId, title: title,
+              description: description, status: status, year: year, coverURL: coverURL,
+              malId: malId, altTitles: altTitles, contentRating: contentRating)
+    }
 }
 
 /// A small item representing “latest updates” (which chapter just arrived for a manga).

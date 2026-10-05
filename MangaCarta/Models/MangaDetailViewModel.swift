@@ -26,6 +26,12 @@ final class MangaDetailViewModel: ObservableObject {
     /// switching source changes where chapters come from, not what the reader is looking at.
     @Published private(set) var activeListing: ListingKey
 
+    /// Manga identity paired with the active fulfillment so reader requests and history
+    /// name the Listing that supplied the chapter, without changing the displayed Work.
+    var readerManga: Manga {
+        activeListing == ListingKey(manga) ? manga : manga.relisted(as: activeListing)
+    }
+
     @Published var authors: [String] = []
     @Published var description: String = ""
     @Published var tags: [String] = []

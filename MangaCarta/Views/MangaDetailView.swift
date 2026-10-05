@@ -285,7 +285,9 @@ struct MangaDetailView: View {
     // MARK: Actions — one primary (Continue), one compact library toggle.
 
     @ViewBuilder private var actionRow: some View {
-        let entry = history.latestEntry(forManga: manga.id)
+        let listingIds = Set((workID.flatMap { works.work($0)?.listings.map(\.mangaId) } ?? [])
+            + [manga.id, vm.activeListing.mangaId])
+        let entry = history.latestEntry(forMangaIds: listingIds)
         let action = resumeAction(entry: entry, chapters: vm.chapters)
         HStack(spacing: 10) {
             if let action {
@@ -365,8 +367,8 @@ struct MangaDetailView: View {
 
     private func continueLink(_ action: ResumeAction, progress: Double?) -> some View {
         NavigationLink {
-            if let source = registry.source(for: manga) {
-                ReaderView(manga: manga, chapter: action.chapter,
+            if let source = registry.source(for: vm.readerManga) {
+                ReaderView(manga: vm.readerManga, chapter: action.chapter,
                            source: source,
                            imageCache: imageCache,
                            initialPosition: action.startPosition, chapters: vm.chapters)
@@ -595,8 +597,8 @@ struct MangaDetailView: View {
                         NavigationLink {
                             // The row advertises a saved position (ChapterRow's resume marker),
                             // so tapping it has to honour one — ADR-0014 decision 11.
-                            if let source = registry.source(for: manga) {
-                                ReaderView(manga: manga, chapter: chapter,
+                            if let source = registry.source(for: vm.readerManga) {
+                                ReaderView(manga: vm.readerManga, chapter: chapter,
                                            source: source,
                                            imageCache: imageCache,
                                            initialPosition: history.entry(forChapter: chapter.id)?.position,
@@ -643,7 +645,7 @@ struct MangaDetailView: View {
 
                     if vm.chapters.count > 5 {
                         NavigationLink {
-                            ChapterListView(manga: manga, chapters: vm.chapters)
+                            ChapterListView(manga: vm.readerManga, chapters: vm.chapters)
                         } label: {
                             HStack {
                                 Text("Show all \(vm.chapters.count) chapters")

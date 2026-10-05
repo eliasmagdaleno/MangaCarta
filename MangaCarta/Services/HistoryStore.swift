@@ -193,6 +193,12 @@ final class HistoryStore: ObservableObject {
         entries.first { $0.mangaId == id }
     }
 
+    /// Newest entry across the Work's Listings. History is newest-first, so the first
+    /// matching entry wins even when a different Listing was read more recently.
+    func latestEntry(forMangaIds ids: Set<String>) -> ReadingEntry? {
+        entries.first { ids.contains($0.mangaId) }
+    }
+
     /// Newest history entry for a specific chapter, if any. Drives the "Page: N"
     /// resume label on a chapter row.
     func entry(forChapter chapterId: String) -> ReadingEntry? {
