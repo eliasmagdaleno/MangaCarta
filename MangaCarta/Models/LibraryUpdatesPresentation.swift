@@ -63,9 +63,7 @@ enum LibraryUpdatesPresentation {
                   let listing = work.listings.first(where: { saved[$0] != nil }),
                   let item = saved[listing] else { return nil }
             let state = updates.state(for: workId) ?? WorkUpdateState()
-            let readOrdinals = Set(work.listings.flatMap { linkedListing in
-                history.readChapterNumbers(forManga: linkedListing.mangaId).compactMap(ChapterOrdinal.parse)
-            })
+            let readOrdinals = history.readOrdinals(forListings: work.listings)
             let recovery: [String] = state.listings.compactMap { element -> String? in
                 let (listing, check) = element
                 guard check.consecutiveFailures > 0 else { return nil }

@@ -202,6 +202,18 @@ final class HistoryStore: ObservableObject {
 
     /// Newest history entry for a specific chapter, if any. Drives the "Page: N"
     /// resume label on a chapter row.
+    func entry(for chapter: Chapter, in manga: Manga) -> ReadingEntry? {
+        guard let ordinal = ChapterOrdinal.parse(chapter.number) else {
+            return entries.first { $0.chapterId == chapter.id }
+        }
+        let listingIDs = listingIDs(for: manga)
+        if let exact = entries.first(where: { $0.chapterId == chapter.id }) { return exact }
+        return entries.first {
+            listingIDs.contains($0.mangaId) && ChapterOrdinal.parse($0.chapterNumber) == ordinal
+        }
+    }
+
+    /// Legacy id-only lookup for storage maintenance callers that have no Manga value.
     func entry(forChapter chapterId: String) -> ReadingEntry? {
         entries.first { $0.chapterId == chapterId }
     }
@@ -213,6 +225,14 @@ final class HistoryStore: ObservableObject {
         var numbers = Set(entries.filter { $0.mangaId == id && $0.isComplete }.map(\.chapterNumber))
         numbers.formUnion(readMarks.filter { $0.mangaId == id }.map(\.chapterNumber))
         return numbers
+    }
+
+    /// Parsed chapter ordinals read on the supplied Listings. This is the shared
+    /// derivation used by Work-wide read state and update badges (ADR-0027).
+    func readOrdinals(forListings listings: [ListingKey]) -> Set<ChapterOrdinal> {
+        listings.reduce(into: Set<ChapterOrdinal>()) { result, listing in
+            result.formUnion(readChapterNumbers(forManga: listing.mangaId).compactMap(ChapterOrdinal.parse))
+        }
     }
 
     // MARK: Read / unread
@@ -227,6 +247,17 @@ final class HistoryStore: ObservableObject {
         readMarks.contains { $0.chapterId == chapterId }
     }
 
+    /// True when this chapter is complete or manually marked, either by id or by
+    /// ordinal on another Listing of the same Work. Without a Work, id matching is
+    /// intentionally unchanged.
+    func isRead(_ chapter: Chapter, in manga: Manga) -> Bool {
+        if isRead(chapterId: chapter.id) { return true }
+        guard let target = ChapterOrdinal.parse(chapter.number),
+              let workListings = workListings(for: manga) else { return false }
+        let ordinals = readOrdinals(forListings: workListings)
+        return ordinals.contains(target)
+    }
+
     func markRead(manga: Manga, chapter: Chapter) {
         guard !readMarks.contains(where: { $0.chapterId == chapter.id }) else { return }
         readMarks.append(ReadMark(mangaId: manga.id, chapterId: chapter.id,
@@ -237,13 +268,16 @@ final class HistoryStore: ObservableObject {
     /// Clear read state: drop the manual mark and any history entries for the
     /// chapter, so "opened" no longer counts it as read.
     func markUnread(manga: Manga, chapter: Chapter) {
-        readMarks.removeAll { $0.chapterId == chapter.id }
-        entries.removeAll { $0.chapterId == chapter.id }
+        let listingIDs = listingIDs(for: manga)
+        readMarks.removeAll { $0.chapterId == chapter.id ||
+            clearsOrdinal($0.mangaId, number: $0.chapterNumber, matching: chapter, listingIDs: listingIDs) }
+        entries.removeAll { $0.chapterId == chapter.id ||
+            clearsOrdinal($0.mangaId, number: $0.chapterNumber, matching: chapter, listingIDs: listingIDs) }
         save()
     }
 
     func toggleRead(manga: Manga, chapter: Chapter) {
-        if isRead(chapterId: chapter.id) {
+        if isRead(chapter, in: manga) {
             markUnread(manga: manga, chapter: chapter)
         } else {
             markRead(manga: manga, chapter: chapter)
@@ -265,10 +299,33 @@ final class HistoryStore: ObservableObject {
     /// Mark multiple chapters unread in one save: drops both manual marks and
     /// any history entries for exactly the given chapters, leaving others untouched.
     func markUnread(manga: Manga, chapters: [Chapter]) {
-        let ids = Set(chapters.map(\.id))
-        readMarks.removeAll { ids.contains($0.chapterId) }
-        entries.removeAll { ids.contains($0.chapterId) }
+        let listingIDs = listingIDs(for: manga)
+        for chapter in chapters {
+            readMarks.removeAll { $0.chapterId == chapter.id ||
+                clearsOrdinal($0.mangaId, number: $0.chapterNumber, matching: chapter, listingIDs: listingIDs) }
+            entries.removeAll { $0.chapterId == chapter.id ||
+                clearsOrdinal($0.mangaId, number: $0.chapterNumber, matching: chapter, listingIDs: listingIDs) }
+        }
         save()
+    }
+
+    private func workListings(for manga: Manga) -> [ListingKey]? {
+        guard let works, let id = works.workId(for: ListingKey(manga)),
+              let work = works.work(id) else { return nil }
+        return work.listings
+    }
+
+    private func listingIDs(for manga: Manga) -> Set<String> {
+        var ids = Set([manga.id])
+        if let listings = workListings(for: manga) { ids.formUnion(listings.map(\.mangaId)) }
+        return ids
+    }
+
+    private func clearsOrdinal(_ mangaID: String, number: String, matching chapter: Chapter,
+                               listingIDs: Set<String>) -> Bool {
+        guard listingIDs.contains(mangaID),
+              let target = ChapterOrdinal.parse(chapter.number) else { return false }
+        return ChapterOrdinal.parse(number) == target
     }
 
     func delete(_ entry: ReadingEntry) {

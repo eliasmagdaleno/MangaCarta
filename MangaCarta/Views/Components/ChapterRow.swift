@@ -11,6 +11,7 @@ import SwiftUI
 
 struct ChapterRow: View {
     let chapter: Chapter
+    let manga: Manga
     var selecting: Bool = false
     var selected: Bool = false
     @EnvironmentObject private var history: HistoryStore
@@ -23,9 +24,9 @@ struct ChapterRow: View {
         // The dimming and what VoiceOver says come from one value, so they cannot
         // disagree — this row used to dim silently, which is state by colour alone
         // (issue #90, DESIGN.md "Focus / State").
-        let progress = history.entry(forChapter: chapter.id)
+        let progress = history.entry(for: chapter, in: manga)
         let presentation = ChapterRowPresentation(chapter: chapter, progress: progress,
-                                                  isRead: history.isRead(chapterId: chapter.id))
+                                                  isRead: history.isRead(chapter, in: manga))
         let inProgress = presentation.isInProgress
         let dimmed = presentation.isDimmed
 
