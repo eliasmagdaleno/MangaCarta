@@ -193,8 +193,9 @@ final class HistoryStore: ObservableObject {
         entries.first { $0.mangaId == id }
     }
 
-    /// Newest entry across the Work's Listings. History is newest-first, so the first
-    /// matching entry wins even when a different Listing was read more recently.
+    /// Newest entry across a Work's Listings, so Continue still finds reading done through
+    /// a Listing other than the one the page was opened from (#328). History is
+    /// newest-first, so the first match is the most recent, whichever Listing it names.
     func latestEntry(forMangaIds ids: Set<String>) -> ReadingEntry? {
         entries.first { ids.contains($0.mangaId) }
     }
