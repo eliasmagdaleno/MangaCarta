@@ -398,6 +398,12 @@ Because commit is the only thing that changes `currentChapter`, that property ch
 trustworthy "we really moved" signal.
 _Avoid_: load, switch, advance — an **advance** is the attempt, a commit is the outcome.
 
+**Read** (of a chapter) — read to its end, or manually marked read. It belongs to the **Work**: a
+chapter is read if its own id is, or its chapter ordinal is read on any **Listing** of the same
+Work. Storage stays per Listing; the Work-wide answer is derived. See
+[ADR-0027](adr/0027-read-state-is-per-work.md).
+_Avoid_: opened, seen — opening a chapter records history but does not make it read.
+
 **Reading position** (`ReadingPosition`) — a place inside a chapter: a page index plus a `fraction`
 of the way down that page. The fraction is only meaningful against the page it was captured on, and
 is only ever non-zero in the vertical mode, where a page is a **strip**. Persisted flat on
