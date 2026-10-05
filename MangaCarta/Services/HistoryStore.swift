@@ -222,9 +222,9 @@ final class HistoryStore: ObservableObject {
         entries.first { $0.chapterId == chapterId }
     }
 
-    /// Chapter numbers considered read for a manga — read to the end, or manually
-    /// marked. Single source of truth shared by the chapter rows and `LibraryStore`
-    /// badge reconciliation.
+    /// Chapter numbers considered read on one Listing — read to the end, or manually
+    /// marked. The per-Listing building block: Work-wide answers (ADR-0027) go through
+    /// `readOrdinals(forListings:)`, `isRead(_:in:)` and `unreadCount(for:)`.
     func readChapterNumbers(forManga id: String) -> Set<String> {
         var numbers = Set(entries.filter { $0.mangaId == id && $0.isComplete }.map(\.chapterNumber))
         numbers.formUnion(readMarks.filter { $0.mangaId == id }.map(\.chapterNumber))
@@ -236,6 +236,19 @@ final class HistoryStore: ObservableObject {
     func readOrdinals(forListings listings: [ListingKey]) -> Set<ChapterOrdinal> {
         listings.reduce(into: Set<ChapterOrdinal>()) { result, listing in
             result.formUnion(readChapterNumbers(forManga: listing.mangaId).compactMap(ChapterOrdinal.parse))
+        }
+    }
+
+    /// A Library item's unread badge, Work-wide (ADR-0027, #331). A chapter number counts as
+    /// read when it is read on the item's own Listing, or when its ordinal is read on any
+    /// Listing of the item's Work — so a title saved from A and read through B still falls.
+    /// No Work: the item's own Listing only, as before. `nil` chapter numbers (never
+    /// refreshed) is 0, as `LibraryItem.unreadCount` has always said.
+    func unreadCount(for item: LibraryItem) -> Int {
+        let listing = ListingKey(sourceId: item.sourceId ?? LegacySourceID.unattributed, mangaId: item.id)
+        let workOrdinals = workListings(for: listing).map(readOrdinals(forListings:)) ?? []
+        return item.unreadCount(readNumbers: readChapterNumbers(forManga: item.id)) { number in
+            ChapterOrdinal.parse(number).map(workOrdinals.contains) ?? false
         }
     }
 
@@ -314,7 +327,11 @@ final class HistoryStore: ObservableObject {
     }
 
     private func workListings(for manga: Manga) -> [ListingKey]? {
-        guard let works, let id = works.workId(for: ListingKey(manga)),
+        workListings(for: ListingKey(manga))
+    }
+
+    private func workListings(for listing: ListingKey) -> [ListingKey]? {
+        guard let works, let id = works.workId(for: listing),
               let work = works.work(id) else { return nil }
         return work.listings
     }

@@ -68,9 +68,11 @@ struct LibraryItem: Codable, Identifiable, Hashable {
 extension LibraryItem {
     /// Chapters not yet read, given this manga's read chapter numbers from `HistoryStore`.
     /// Returns 0 until the first successful refresh populates `chapterNumbers`.
-    func unreadCount(readNumbers: Set<String>) -> Int {
+    /// `alsoRead` lets a caller count a number as read by a rule wider than exact string
+    /// match — `HistoryStore.unreadCount(for:)` passes the Work's read ordinals (#331).
+    func unreadCount(readNumbers: Set<String>, alsoRead: (String) -> Bool = { _ in false }) -> Int {
         guard let chapterNumbers else { return 0 }
-        return chapterNumbers.filter { !readNumbers.contains($0) }.count
+        return chapterNumbers.filter { !readNumbers.contains($0) && !alsoRead($0) }.count
     }
 }
 
