@@ -250,6 +250,68 @@ struct MALTokenManagerTests {
         await #expect(throws: MALTokenError.signedOut) { try await manager.accessToken() }
     }
 
+    @Test("Invalidation reloads a credential adopted by another owner")
+    func invalidationReloadsCredential() async throws {
+        let store = makeStore()
+        try store.save(credential(access: "a0", refresh: "r0", expiresIn: 3600, from: now))
+        let manager = makeManager(transport: ScriptedTokenTransport(steps: []), store: store)
+
+        #expect(try await manager.accessToken() == "a0")
+        try store.save(credential(access: "b0", refresh: "s0", expiresIn: 3600, from: now))
+        await manager.invalidate()
+
+        #expect(try await manager.accessToken() == "b0")
+    }
+
+    @Test("Invalidation after permanent refresh failure permits a new credential")
+    func invalidationAfterPermanentFailureReloadsCredential() async throws {
+        let transport = ScriptedTokenTransport(steps: [
+            .response(status: 400, body: #"{"error":"invalid_grant"}"#)
+        ])
+        let store = makeStore()
+        try store.save(credential(access: "a0", refresh: "r0", expiresIn: 60, from: now))
+        let manager = makeManager(transport: transport, store: store)
+
+        await #expect(throws: MALTokenError.server(status: 400, code: "invalid_grant")) {
+            try await manager.accessToken()
+        }
+        try store.save(credential(access: "b0", refresh: "s0", expiresIn: 3600, from: now))
+        await manager.invalidate()
+
+        #expect(try await manager.accessToken() == "b0")
+    }
+
+    @Test("Invalidation drops the cached credential")
+    func invalidationSignsOut() async throws {
+        let store = makeStore()
+        try store.save(credential(access: "a0", refresh: "r0", expiresIn: 3600, from: now))
+        let manager = makeManager(transport: ScriptedTokenTransport(steps: []), store: store)
+
+        _ = try await manager.accessToken()
+        try store.delete()
+        await manager.invalidate()
+
+        await #expect(throws: MALTokenError.signedOut) { try await manager.accessToken() }
+    }
+
+    @Test("An invalidated refresh cannot publish its old credential")
+    func invalidatedRefreshCannotPublish() async throws {
+        let transport = ScriptedTokenTransport(steps: [.hang])
+        let store = makeStore()
+        try store.save(credential(access: "a0", refresh: "r0", expiresIn: 60, from: now))
+        let manager = makeManager(transport: transport, store: store)
+
+        let oldRefresh = Task { try await manager.accessToken() }
+        while await transport.callCount == 0 {
+            await Task.yield()
+        }
+        await manager.invalidate()
+        try store.save(credential(access: "b0", refresh: "s0", expiresIn: 3600, from: now))
+        _ = await oldRefresh.result
+
+        #expect(try await manager.accessToken() == "b0")
+    }
+
     @Test("With nothing stored the manager reports signed out")
     func signedOut() async throws {
         let manager = makeManager(transport: ScriptedTokenTransport(steps: []), store: makeStore())
