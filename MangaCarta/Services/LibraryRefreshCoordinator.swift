@@ -44,7 +44,6 @@ final class LibraryRefreshCoordinator {
     private var pendingEvent: UpdateEvent?
     private var foregroundTask: Task<Void, Never>?
     private var foregroundRunID: UUID?
-    private(set) var latestChapterNumbers: [ListingKey: [String]] = [:]
 
     init(works: WorkStore,
          library: LibraryStore,
@@ -68,7 +67,6 @@ final class LibraryRefreshCoordinator {
         updates.reconcileMerges(using: works)
         pendingWorkIds = makeQueue(now: now())
         nextIndex = 0
-        latestChapterNumbers = [:]
         var events: [UpdateEvent] = []
         var processed = 0
 
@@ -114,12 +112,16 @@ final class LibraryRefreshCoordinator {
         let hadBaseline = updates.state(for: workId)?.hasBaseline == true
         let baselineNumbers = successes.flatMap { $0.chapters.map(\.number) }
         var released: Set<ChapterOrdinal> = []
+        var fetchedNumbers: [ListingKey: [String]] = [:]
         for (index, success) in successes.enumerated() {
             let numbers = index == 0 && !hadBaseline ? baselineNumbers : success.chapters.map(\.number)
-            latestChapterNumbers[success.listing] = success.chapters.map(\.number)
+            fetchedNumbers[success.listing] = success.chapters.map(\.number)
             released.formUnion(updates.absorb(workId: workId, listing: success.listing,
                                               rawNumbers: numbers, now: now()))
         }
+        // Applied per Work, on every run path, so the Library's unread badges follow an
+        // automatic refresh and a run cut off by its budget keeps what it completed (#330).
+        library.applyRefreshedChapterNumbers(fetchedNumbers)
 
         guard hadBaseline else { return .baselined(workId) }
         guard !released.isEmpty else { return .unchanged(workId) }
@@ -138,7 +140,6 @@ final class LibraryRefreshCoordinator {
 
     func refreshLibrary() async {
         _ = await run(budget: .foreground)
-        library.applyRefreshedChapterNumbers(latestChapterNumbers)
     }
 
     func startForeground(notify: @escaping ([UpdateEvent]) async -> Void) {

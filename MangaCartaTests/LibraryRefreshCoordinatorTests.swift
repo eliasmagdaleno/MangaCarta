@@ -140,6 +140,80 @@ struct LibraryRefreshCoordinatorTests {
     }
 
     @MainActor
+    @Test("A foreground run applies fetched chapter numbers to the Library (#330)")
+    func testForegroundRunAppliesChapterNumbersToLibrary() async throws {
+        let source = StubSource(id: "mangadex", chapters: ["saved": ["1", "2", "3"]])
+        let fixture = Fixture(sources: [source])
+        defer { fixture.suite.remove() }
+        fixture.save("saved", source: "mangadex", numbers: ["1"])
+
+        _ = await fixture.coordinator.run(budget: .foreground)
+
+        let item = try #require(fixture.library.item(for: "saved"))
+        #expect(item.chapterNumbers == ["1", "2", "3"])
+        #expect(item.unreadCount(readNumbers: ["1"]) == 2)
+    }
+
+    @MainActor
+    @Test("A background-task run applies fetched chapter numbers to the Library (#330)")
+    func testBackgroundRunAppliesChapterNumbersToLibrary() async throws {
+        let source = StubSource(id: "mangadex", chapters: ["saved": ["1", "2", "3"]])
+        let fixture = Fixture(sources: [source])
+        defer { fixture.suite.remove() }
+        fixture.save("saved", source: "mangadex", numbers: ["1"])
+        let coordinator = fixture.coordinator
+        let scheduler = UpdateScheduler(backgroundTasks: NoopBackgroundTasks(),
+                                        runRefresh: { await coordinator.run(budget: $0) },
+                                        notify: { _ in },
+                                        now: { fixture.now })
+
+        await scheduler.handle(CompletingBackgroundTask()).value
+
+        let item = try #require(fixture.library.item(for: "saved"))
+        #expect(item.chapterNumbers == ["1", "2", "3"])
+        #expect(item.unreadCount(readNumbers: ["1"]) == 2)
+    }
+
+    @MainActor
+    @Test("A run cut off by its budget keeps the chapter numbers of Works it completed (#330)")
+    func testCutOffRunKeepsAppliedChapterNumbersForCompletedWorks() async throws {
+        let source = StubSource(id: "mangadex", chapters: ["one": ["1", "2"], "two": ["1", "2"]])
+        let fixture = Fixture(sources: [source])
+        defer { fixture.suite.remove() }
+        fixture.save("one", source: "mangadex", numbers: ["1"])
+        fixture.save("two", source: "mangadex", numbers: ["1"])
+
+        _ = await fixture.coordinator.run(budget: .background(
+            deadline: fixture.now.addingTimeInterval(3_600), maxWorks: 1
+        ))
+
+        let asked = await source.askedIds()
+        let completed = try #require(asked.first)
+        #expect(asked.count == 1)
+        let unprocessed = completed == "one" ? "two" : "one"
+        #expect(fixture.library.item(for: completed)?.chapterNumbers == ["1", "2"])
+        #expect(fixture.library.item(for: unprocessed)?.chapterNumbers == ["1"])
+    }
+
+    @MainActor
+    @Test("Applying one Listing's numbers leaves every other Library item untouched (#330)")
+    func testPartialApplyLeavesOtherLibraryItemsUntouched() {
+        let fixture = Fixture(sources: [])
+        defer { fixture.suite.remove() }
+        fixture.save("fetched", source: "mangadex", numbers: ["1"])
+        fixture.save("other", source: "mangadex", numbers: ["1", "2"])
+        fixture.save("unknown", source: "mangadex", numbers: nil)
+
+        fixture.library.applyRefreshedChapterNumbers([
+            .init(sourceId: "mangadex", mangaId: "fetched"): ["1", "2", "3"]
+        ])
+
+        #expect(fixture.library.item(for: "fetched")?.chapterNumbers == ["1", "2", "3"])
+        #expect(fixture.library.item(for: "other")?.chapterNumbers == ["1", "2"])
+        #expect(fixture.library.item(for: "unknown")?.chapterNumbers == nil)
+    }
+
+    @MainActor
     @Test("Cancellation persists progress and the next run resumes at another Work")
     func cancellationPersistsCursorAndResumes() async throws {
         let source = StubSource(id: "mangadex", chapters: ["one": ["1"], "two": ["1"]])
@@ -210,6 +284,7 @@ private final class Fixture {
     let updates: UpdateStateStore
     let library: LibraryStore
     let coordinator: LibraryRefreshCoordinator
+    let now: Date
 
     deinit { testDirectory.remove() }
 
@@ -217,6 +292,7 @@ private final class Fixture {
          now: Date = Date(timeIntervalSince1970: 1_000),
          cancelAfterFirst: Bool = false) {
         let directory = testDirectory.url
+        self.now = now
         suite = TestDefaults("LibraryRefreshCoordinatorTests")
         let defaults = suite.defaults
         works = WorkStore(directory: directory)
@@ -247,10 +323,30 @@ private final class Fixture {
               status: "ongoing", year: nil, coverURL: nil, malId: malId)
     }
 
+    /// Saves a title to the Library, optionally with the chapter numbers it was last refreshed with.
+    func save(_ id: String, source: String, numbers: [String]?) {
+        library.toggle(manga(id, source: source))
+        guard let numbers else { return }
+        library.applyRefreshedChapterNumbers([.init(sourceId: source, mangaId: id): numbers])
+    }
+
     func seed(_ workId: WorkID, listing: ListingKey, numbers: [String]) {
         _ = updates.absorb(workId: workId, listing: listing, rawNumbers: numbers,
                            now: Date(timeIntervalSince1970: 1))
     }
+}
+
+@MainActor
+private struct NoopBackgroundTasks: BackgroundTaskScheduling {
+    func register(identifier: String, handler: @escaping (BGTaskLike) -> Void) -> Bool { true }
+    func submit(identifier: String, earliestBeginDate: Date) throws {}
+    func cancel(identifier: String) {}
+}
+
+@MainActor
+private final class CompletingBackgroundTask: BGTaskLike {
+    var expirationHandler: (() -> Void)?
+    func setTaskCompleted(success: Bool) {}
 }
 
 private struct StubSource: MangaSource, @unchecked Sendable {
