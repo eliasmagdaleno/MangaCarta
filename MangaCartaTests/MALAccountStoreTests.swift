@@ -95,6 +95,10 @@ private let exchangeBody = """
 {"token_type":"Bearer","expires_in":3600,"access_token":"a0","refresh_token":"r0"}
 """
 
+private let accountBExchangeBody = """
+{"token_type":"Bearer","expires_in":3600,"access_token":"b0","refresh_token":"s0"}
+"""
+
 private let elias = MALUserIdentity(id: 42, name: "elias", pictureURL: nil)
 
 @MainActor
@@ -105,6 +109,7 @@ private final class AccountFixture {
     let credentials: MALCredentialStore
     let preferences: InMemoryAccountPreferences
     let outbox: MALProgressOutbox
+    let manager: MALTokenManager
     let testDirectory = TestDirectory("MALAccountStoreTests")
     var directory: URL { testDirectory.url }
 
@@ -128,6 +133,13 @@ private final class AccountFixture {
         if let storedCredential { try? credentials.save(storedCredential) }
         self.preferences = preferences
         outbox = MALProgressOutbox(directory: directory)
+        let tokenManager = MALTokenManager(
+            client: MALTokenClient(configuration: accountConfiguration,
+                                   transport: tokenTransport,
+                                   now: { accountNow }),
+            store: credentials,
+            now: { accountNow })
+        manager = tokenManager
 
         store = MALAccountStore(
             configuration: accountConfiguration,
@@ -139,6 +151,7 @@ private final class AccountFixture {
             preferences: self.preferences,
             outbox: outbox,
             fetchIdentity: identity,
+            invalidateTokenCache: { await tokenManager.invalidate() },
             retryDelivery: retryDelivery,
             now: { accountNow }
         )
@@ -305,13 +318,17 @@ struct MALAccountStoreLifecycleTests {
         let fixture = AccountFixture()
         await fixture.store.signIn()
         try fixture.outbox.enqueue(userID: 42, mangaID: 7, desiredProgress: 3, completedAt: accountNow)
+        #expect(try await fixture.manager.accessToken() == "a0")
 
-        try fixture.store.signOut()
+        try await fixture.store.signOut()
 
         #expect(fixture.store.state == .signedOut)
         #expect(try fixture.credentials.load() == nil)
         #expect(fixture.preferences.record == nil)
         #expect(fixture.outbox.summary(userID: 42).pending == 0)
+        await #expect(throws: MALTokenError.signedOut) {
+            try await fixture.manager.accessToken()
+        }
     }
 }
 
@@ -320,6 +337,23 @@ struct MALAccountStoreLifecycleTests {
 @MainActor
 @Suite("MAL account reauthorization")
 struct MALAccountStoreReauthorizationTests {
+    @Test("Signing in after a cached credential was loaded switches the token manager")
+    func signInInvalidatesTokenManager() async throws {
+        let fixture = AccountFixture(
+            tokenSteps: [(200, accountBExchangeBody)],
+            storedCredential: MALStoredCredential(tokenType: "Bearer",
+                                                  accessToken: "a0",
+                                                  refreshToken: "r0",
+                                                  expiresAt: accountNow.addingTimeInterval(3600),
+                                                  malUserID: 42)
+        )
+        #expect(try await fixture.manager.accessToken() == "a0")
+
+        await fixture.store.signIn()
+
+        #expect(try await fixture.manager.accessToken() == "b0")
+    }
+
     @Test("Reauthorizing the same account keeps the queued work it had")
     func sameAccountResumesRetainedWork() async throws {
         // Two sign-ins: the original, then the one after reauthorization is demanded.

@@ -64,6 +64,7 @@ final class MALAccountStore: ObservableObject {
     private let preferences: any MALAccountPreferenceStore
     private let outbox: any MALProgressOutboxProtocol
     private let fetchIdentity: @Sendable (String) async throws -> MALUserIdentity
+    private let invalidateTokenCache: @Sendable () async -> Void
     /// **Retry now**. The account store owns no drain — the coordinator does — so this is
     /// the seam between the button and the queue.
     private let retryDelivery: () -> Void
@@ -83,6 +84,7 @@ final class MALAccountStore: ObservableObject {
         preferences: any MALAccountPreferenceStore,
         outbox: any MALProgressOutboxProtocol,
         fetchIdentity: @escaping @Sendable (String) async throws -> MALUserIdentity,
+        invalidateTokenCache: @escaping @Sendable () async -> Void = {},
         retryDelivery: @escaping () -> Void = {},
         now: @escaping @Sendable () -> Date = { Date() },
         makeVerifier: @escaping @Sendable () -> String = {
@@ -97,6 +99,7 @@ final class MALAccountStore: ObservableObject {
         self.preferences = preferences
         self.outbox = outbox
         self.fetchIdentity = fetchIdentity
+        self.invalidateTokenCache = invalidateTokenCache
         self.retryDelivery = retryDelivery
         self.now = now
         self.makeVerifier = makeVerifier
@@ -268,7 +271,7 @@ final class MALAccountStore: ObservableObject {
             // The identity read comes before anything is persisted: a credential is stored
             // only once it is known whose it is.
             let profile = try await fetchIdentity(credential.accessToken)
-            try adopt(credential: credential, profile: profile)
+            try await adopt(credential: credential, profile: profile)
         } catch is CancellationError {
             state = stable
         } catch {
@@ -276,12 +279,13 @@ final class MALAccountStore: ObservableObject {
         }
     }
 
-    private func adopt(credential: MALCredential, profile: MALUserIdentity) throws {
+    private func adopt(credential: MALCredential, profile: MALUserIdentity) async throws {
         try credentials.save(MALStoredCredential(tokenType: credential.tokenType,
                                                  accessToken: credential.accessToken,
                                                  refreshToken: credential.refreshToken,
                                                  expiresAt: credential.expiresAt,
                                                  malUserID: profile.id))
+        await invalidateTokenCache()
 
         // Sync and automatic addition default on for a new account, and a reauthorization of
         // the same account keeps whatever the user last chose.
@@ -355,13 +359,14 @@ final class MALAccountStore: ObservableObject {
     /// Sign out **on this device**: MAL publishes no revocation endpoint, so this deletes
     /// local account data and nothing else. History, Library, and Works are untouched — they
     /// are the user's own reading, not account data.
-    func signOut() throws {
+    func signOut() async throws {
         signInTask?.cancel()
         signInTask = nil
         pendingAccountSwitch = nil
 
         let userID = (try? credentials.load())??.malUserID
         try credentials.delete()
+        await invalidateTokenCache()
         preferences.clear()
         if let userID {
             try outbox.clear(userID: userID)

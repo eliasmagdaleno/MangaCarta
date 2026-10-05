@@ -514,6 +514,7 @@ struct AppComposition {
                 try await MALAuthenticatedClient.currentUser(accessToken: token,
                                                              transport: malTransport)
             },
+            invalidateTokenCache: { await tokens.invalidate() },
             retryDelivery: { drain.coordinator?.retryNow() })
         let malProgress = MALProgressCoordinator(
             outbox: outbox,

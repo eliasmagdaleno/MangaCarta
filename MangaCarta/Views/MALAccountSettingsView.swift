@@ -135,7 +135,9 @@ struct MALAccountSettingsView: View {
                     .disabled(isRefreshing || summary.isEmpty)
                 Spacer()
                 Button("Sign out on this device", role: .destructive) {
-                    do { try account.signOut() } catch { signOutFailed = true }
+                    Task {
+                        do { try await account.signOut() } catch { signOutFailed = true }
+                    }
                 }
                 .font(.subheadline)
                 .disabled(isRefreshing)
@@ -158,7 +160,9 @@ struct MALAccountSettingsView: View {
                 action("Sign in again") { Task { await account.signIn() } }
                 Spacer()
                 Button("Sign out on this device", role: .destructive) {
-                    do { try account.signOut() } catch { signOutFailed = true }
+                    Task {
+                        do { try await account.signOut() } catch { signOutFailed = true }
+                    }
                 }
                 .font(.subheadline)
             }
