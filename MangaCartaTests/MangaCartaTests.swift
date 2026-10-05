@@ -493,8 +493,29 @@ final class MangaCartaTests: XCTestCase {
         let bChapter = Chapter(id: "b7", number: "7", title: nil)
         history.record(manga: a, chapter: aChapter, position: ReadingPosition(page: 3), pageCount: 10)
         XCTAssertEqual(history.entry(for: bChapter, in: b)?.page, 3)
+    }
+
+    /// An entry for the chapter itself beats a newer same-ordinal entry on another Listing.
+    @MainActor func testWorkWideResumeEntryPrefersExactChapter() {
+        let (history, a, b) = makeWorkWideHistory()
+        let aChapter = Chapter(id: "a7", number: "7", title: nil)
+        let bChapter = Chapter(id: "b7", number: "7", title: nil)
         history.record(manga: b, chapter: bChapter, position: ReadingPosition(page: 1), pageCount: 10)
-        XCTAssertEqual(history.entry(for: bChapter, in: b)?.page, 1)
+        history.record(manga: a, chapter: aChapter, position: ReadingPosition(page: 3), pageCount: 10)
+        XCTAssertEqual(history.entry(for: bChapter, in: b)?.chapterId, "b7")
+    }
+
+    /// No Work: two groups' chapter 7 on one Listing stay separate chapters (ADR-0027).
+    @MainActor func testWithoutWorkSameListingOrdinalDoesNotMatch() {
+        let history = makeHistoryStore()
+        let manga = sampleManga("a", sourceId: "source-a")
+        let groupOne = Chapter(id: "a7-g1", number: "7", title: nil)
+        let groupTwo = Chapter(id: "a7-g2", number: "7", title: nil)
+        history.markRead(manga: manga, chapter: groupOne)
+        history.markUnread(manga: manga, chapter: groupTwo)
+        XCTAssertTrue(history.isRead(groupOne, in: manga))
+        XCTAssertFalse(history.isRead(groupTwo, in: manga))
+        XCTAssertNil(history.entry(for: groupTwo, in: manga))
     }
 
     func testLibraryItemDecodesLegacyJSON() throws {

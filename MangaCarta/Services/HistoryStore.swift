@@ -202,12 +202,13 @@ final class HistoryStore: ObservableObject {
 
     /// Newest history entry for a specific chapter, if any. Drives the "Page: N"
     /// resume label on a chapter row.
+    ///
+    /// An exact chapter-id match wins; otherwise the newest entry with the same ordinal on any
+    /// Listing of the Work (ADR-0027). Without a Work, or for an unparseable number, id only.
     func entry(for chapter: Chapter, in manga: Manga) -> ReadingEntry? {
-        guard let ordinal = ChapterOrdinal.parse(chapter.number) else {
-            return entries.first { $0.chapterId == chapter.id }
-        }
-        let listingIDs = listingIDs(for: manga)
         if let exact = entries.first(where: { $0.chapterId == chapter.id }) { return exact }
+        let listingIDs = listingIDs(for: manga)
+        guard !listingIDs.isEmpty, let ordinal = ChapterOrdinal.parse(chapter.number) else { return nil }
         return entries.first {
             listingIDs.contains($0.mangaId) && ChapterOrdinal.parse($0.chapterNumber) == ordinal
         }
@@ -315,10 +316,11 @@ final class HistoryStore: ObservableObject {
         return work.listings
     }
 
+    /// The Work's Listing ids, or empty when the Manga has no Work — which makes every
+    /// ordinal match fail and leaves id matching alone, as before ADR-0027.
     private func listingIDs(for manga: Manga) -> Set<String> {
-        var ids = Set([manga.id])
-        if let listings = workListings(for: manga) { ids.formUnion(listings.map(\.mangaId)) }
-        return ids
+        guard let listings = workListings(for: manga) else { return [] }
+        return Set(listings.map(\.mangaId)).union([manga.id])
     }
 
     private func clearsOrdinal(_ mangaID: String, number: String, matching chapter: Chapter,

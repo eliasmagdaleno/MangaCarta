@@ -138,7 +138,8 @@ The app builds and the core reading loop is implemented.
   import's ComicInfo `Manga` seeds it.
 - **Read state:** read/unread is per Work, matched by chapter ordinal across its Listings;
   storage remains Listing-keyed (ADR-0027). `isRead` means **read to the end, or manually
-  marked** — `ReadingEntry.isComplete` is `pageCount > 0 && page >= pageCount - 1`.
+  marked** — `ReadingEntry.isComplete` is `pageCount > 0 && page >= pageCount - 1`. An
+  opened-and-abandoned chapter is *not* read, so it still counts toward the unread badge.
 - **Background refresh:** ADR-0021 shipped 2026-08-30 (PR #101, issue #92). The library now
   polls for new chapters on its own — `LibraryRefreshCoordinator` runs the pipeline,
   `UpdateScheduler` drives it from `BGTaskScheduler` plus foreground activation, and
