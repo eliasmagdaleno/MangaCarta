@@ -538,7 +538,10 @@ struct AppComposition {
             account: accountStore,
             // The coordinator never resolves anything itself; it only reads what the Work
             // already knows, and waits for the queue's signal otherwise.
-            malID: { wk.work($0)?.externalIds.mal })
+            malID: { wk.work($0)?.externalIds.mal },
+            // Deferred progress is keyed by the Work id at completion time; a merge since
+            // then leaves that id resolving to its survivor only through the aliases.
+            canonicalWorkID: { wk.work($0)?.id })
         drain.coordinator = malProgress
         refreshHandle.account = accountStore
         return MALGraph(outbox: outbox, account: accountStore, progress: malProgress)
