@@ -148,6 +148,77 @@ final class MangaCartaTests: XCTestCase {
         XCTAssertTrue(store.entries.isEmpty)
     }
 
+    @MainActor func testClearHistoryKeepsFinishedChaptersRead() {
+        let suite = makeTestDefaults("test.history.clear-complete")
+        let store = HistoryStore(defaults: suite)
+        let manga = sampleManga()
+        let chapter = Chapter(id: "finished", number: "7", title: nil)
+        store.record(manga: manga, chapter: chapter, position: ReadingPosition(page: 4), pageCount: 5)
+
+        store.clear()
+
+        XCTAssertTrue(store.isRead(chapterId: chapter.id))
+        XCTAssertEqual(store.readChapterNumbers(forManga: manga.id), [chapter.number])
+        let reloaded = HistoryStore(defaults: suite)
+        XCTAssertTrue(reloaded.isRead(chapterId: chapter.id))
+        XCTAssertEqual(reloaded.readChapterNumbers(forManga: manga.id), [chapter.number])
+    }
+
+    @MainActor func testDeleteHistoryEntryKeepsFinishedChapterRead() {
+        let store = makeHistoryStore()
+        let manga = sampleManga()
+        let chapter = Chapter(id: "finished", number: "7", title: nil)
+        store.record(manga: manga, chapter: chapter, position: ReadingPosition(page: 4), pageCount: 5)
+        let entry = store.entries[0]
+
+        store.delete(entry)
+
+        XCTAssertTrue(store.isRead(chapterId: chapter.id))
+        XCTAssertEqual(store.readChapterNumbers(forManga: manga.id), [chapter.number])
+    }
+
+    @MainActor func testHistoryCapTrimKeepsFinishedChaptersRead() {
+        let store = makeHistoryStore()
+        let manga = sampleManga()
+        let finished = Chapter(id: "finished", number: "1", title: nil)
+        store.record(manga: manga, chapter: finished, position: ReadingPosition(page: 4), pageCount: 5)
+
+        for index in 2...501 {
+            let chapter = Chapter(id: "chapter-\(index)", number: "\(index)", title: nil)
+            store.record(manga: manga, chapter: chapter, position: ReadingPosition(page: 0), pageCount: 5)
+        }
+
+        XCTAssertEqual(store.entries.count, 500)
+        XCTAssertTrue(store.isRead(chapterId: finished.id))
+        XCTAssertEqual(store.readChapterNumbers(forManga: manga.id).intersection([finished.number]), [finished.number])
+    }
+
+    @MainActor func testClearHistoryDoesNotMarkAbandonedChapterRead() {
+        let store = makeHistoryStore()
+        let manga = sampleManga()
+        let chapter = Chapter(id: "abandoned", number: "7", title: nil)
+        store.record(manga: manga, chapter: chapter, position: ReadingPosition(page: 1), pageCount: 5)
+
+        store.clear()
+
+        XCTAssertFalse(store.isRead(chapterId: chapter.id))
+        XCTAssertFalse(store.readChapterNumbers(forManga: manga.id).contains(chapter.number))
+    }
+
+    @MainActor func testMarkUnreadAfterClearMakesChapterUnread() {
+        let store = makeHistoryStore()
+        let manga = sampleManga()
+        let chapter = Chapter(id: "finished", number: "7", title: nil)
+        store.record(manga: manga, chapter: chapter, position: ReadingPosition(page: 4), pageCount: 5)
+        store.clear()
+        XCTAssertTrue(store.isRead(chapterId: chapter.id))
+
+        store.markUnread(manga: manga, chapter: chapter)
+
+        XCTAssertFalse(store.isRead(chapterId: chapter.id))
+        XCTAssertFalse(store.readChapterNumbers(forManga: manga.id).contains(chapter.number))
+    }
+
     @MainActor func testReadingEntryRecordsSourceId() {
         let store = makeHistoryStore()
         let manga = sampleManga("m", sourceId: "weebcentral")
