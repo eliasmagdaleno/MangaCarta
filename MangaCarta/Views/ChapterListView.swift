@@ -32,7 +32,7 @@ struct ChapterListView: View {
                         Button {
                             toggleSelection(chapter.id)
                         } label: {
-                            ChapterRow(chapter: chapter, selecting: true,
+                            ChapterRow(chapter: chapter, manga: manga, selecting: true,
                                        selected: selectedIDs.contains(chapter.id))
                         }
                         .buttonStyle(.plain)
@@ -44,17 +44,17 @@ struct ChapterListView: View {
                                 ReaderView(manga: manga, chapter: chapter,
                                            source: source,
                                            imageCache: imageCache,
-                                           initialPosition: history.entry(forChapter: chapter.id)?.position,
+                                           initialPosition: history.entry(for: chapter, in: manga)?.position,
                                            chapters: chapters)
                             } else {
                                 UnavailableSourceView()
                             }
                         } label: {
-                            ChapterRow(chapter: chapter)
+                            ChapterRow(chapter: chapter, manga: manga)
                         }
                         .buttonStyle(.plain)
                         .contextMenu {
-                            let read = history.isRead(chapterId: chapter.id)
+                            let read = history.isRead(chapter, in: manga)
                             Button {
                                 history.toggleRead(manga: manga, chapter: chapter)
                             } label: {
@@ -194,7 +194,7 @@ struct ChapterListView: View {
     }
 
     private func readActionName(for chapter: Chapter) -> String {
-        history.isRead(chapterId: chapter.id) ? "Mark as unread" : "Mark as read"
+        history.isRead(chapter, in: manga) ? "Mark as unread" : "Mark as read"
     }
 
     private func markAllBelow(_ chapter: Chapter) {

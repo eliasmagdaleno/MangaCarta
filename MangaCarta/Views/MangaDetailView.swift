@@ -601,19 +601,19 @@ struct MangaDetailView: View {
                                 ReaderView(manga: vm.readerManga, chapter: chapter,
                                            source: source,
                                            imageCache: imageCache,
-                                           initialPosition: history.entry(forChapter: chapter.id)?.position,
+                                           initialPosition: history.entry(for: chapter, in: vm.readerManga)?.position,
                                            chapters: vm.chapters)
                             } else {
                                 UnavailableSourceView()
                             }
                         } label: {
-                            ChapterRow(chapter: chapter)
+                            ChapterRow(chapter: chapter, manga: vm.readerManga)
                         }
                         .buttonStyle(.plain)
                         .contextMenu {
-                            let read = history.isRead(chapterId: chapter.id)
+                            let read = history.isRead(chapter, in: vm.readerManga)
                             Button {
-                                history.toggleRead(manga: manga, chapter: chapter)
+                                history.toggleRead(manga: vm.readerManga, chapter: chapter)
                             } label: {
                                 Label(read ? "Mark as unread" : "Mark as read",
                                       systemImage: read ? "circle" : "checkmark.circle")
@@ -622,22 +622,22 @@ struct MangaDetailView: View {
                             Button {
                                 let sorted = sortChapters(vm.chapters, descending: true)
                                 if let idx = sorted.firstIndex(where: { $0.id == chapter.id }) {
-                                    history.markRead(manga: manga, chapters: Array(sorted[idx...]))
+                                    history.markRead(manga: vm.readerManga, chapters: Array(sorted[idx...]))
                                 }
                             } label: {
                                 Label("Mark all below as read", systemImage: "arrow.down.to.line")
                             }
                         }
-                        .accessibilityAction(named: history.isRead(chapterId: chapter.id)
+                        .accessibilityAction(named: history.isRead(chapter, in: vm.readerManga)
                                              ? "Mark as unread" : "Mark as read") {
-                            history.toggleRead(manga: manga, chapter: chapter)
+                            history.toggleRead(manga: vm.readerManga, chapter: chapter)
                         }
                         .accessibilityAction(named: "Mark this and all below as read") {
                             let sorted = sortChapters(vm.chapters, descending: true)
                             guard let index = sorted.firstIndex(where: { $0.id == chapter.id }) else {
                                 return
                             }
-                            history.markRead(manga: manga, chapters: Array(sorted[index...]))
+                            history.markRead(manga: vm.readerManga, chapters: Array(sorted[index...]))
                         }
                         Divider().overlay(Ink.hairline)
                             .padding(.leading, Gutter.page)

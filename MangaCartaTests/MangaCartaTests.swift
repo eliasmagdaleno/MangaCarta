@@ -56,6 +56,18 @@ final class MangaCartaTests: XCTestCase {
         return HistoryStore(defaults: suite)
     }
 
+    @MainActor
+    private func makeWorkWideHistory() -> (HistoryStore, Manga, Manga) {
+        let works = WorkStore(directory: makeTestDirectory("HistoryWorkWide-\(UUID().uuidString)"))
+        let a = sampleManga("a", sourceId: "source-a")
+        let b = sampleManga("b", sourceId: "source-b")
+        let winner = works.mint(from: a)
+        let loser = works.mint(from: b)
+        works.merge(loser, into: winner)
+        let history = HistoryStore(defaults: makeTestDefaults("test.history.work-wide"), works: works)
+        return (history, a, b)
+    }
+
     private func sampleManga(_ id: String = "m1", sourceId: String = "mangadex") -> Manga {
         Manga(id: id, sourceId: sourceId, title: "Title \(id)", description: "", status: "ongoing", year: nil, coverURL: nil, malId: nil)
     }
@@ -421,6 +433,89 @@ final class MangaCartaTests: XCTestCase {
         let reloaded = HistoryStore(defaults: suite)
         XCTAssertTrue(reloaded.isRead(chapterId: "c1"))
         XCTAssertEqual(reloaded.readChapterNumbers(forManga: "m"), ["7"])
+    }
+
+    // MARK: - Work-wide read state (ADR-0027)
+
+    @MainActor func testWorkWideReadFinishedOnListingAShowsReadOnListingB() {
+        let (history, a, b) = makeWorkWideHistory()
+        history.record(manga: a, chapter: Chapter(id: "a7", number: "7", title: nil),
+                       position: ReadingPosition(page: 9), pageCount: 10)
+        XCTAssertTrue(history.isRead(Chapter(id: "b7", number: "7", title: nil), in: b))
+    }
+
+    @MainActor func testWorkWideReadManualMarkOnAShowsReadOnB() {
+        let (history, a, b) = makeWorkWideHistory()
+        history.markRead(manga: a, chapter: Chapter(id: "a7", number: "7", title: nil))
+        XCTAssertTrue(history.isRead(Chapter(id: "b7", number: "7", title: nil), in: b))
+    }
+
+    @MainActor func testWorkWideReadMatchesRelabelledOrdinal() {
+        let (history, a, b) = makeWorkWideHistory()
+        history.markRead(manga: a, chapter: Chapter(id: "a7", number: "07", title: nil))
+        XCTAssertTrue(history.isRead(Chapter(id: "b7", number: "7", title: nil), in: b))
+    }
+
+    @MainActor func testWorkWideReadUnparseableNumbersMatchByIdOnly() {
+        let (history, a, b) = makeWorkWideHistory()
+        history.markRead(manga: a, chapter: Chapter(id: "a-shot", number: "Oneshot", title: nil))
+        XCTAssertFalse(history.isRead(Chapter(id: "b-shot", number: "Oneshot", title: nil), in: b))
+    }
+
+    @MainActor func testWorkWideReadWithoutWorkIsListingScoped() {
+        let history = makeHistoryStore()
+        let a = sampleManga("a", sourceId: "source-a")
+        let b = sampleManga("b", sourceId: "source-b")
+        history.markRead(manga: a, chapter: Chapter(id: "a7", number: "7", title: nil))
+        XCTAssertFalse(history.isRead(Chapter(id: "b7", number: "7", title: nil), in: b))
+    }
+
+    @MainActor func testWorkWideMarkUnreadOnBClearsA() {
+        let (history, a, b) = makeWorkWideHistory()
+        let aChapter = Chapter(id: "a7", number: "7", title: nil)
+        let bChapter = Chapter(id: "b7", number: "7", title: nil)
+        history.record(manga: a, chapter: aChapter, position: ReadingPosition(page: 9), pageCount: 10)
+        history.markRead(manga: a, chapter: aChapter)
+        history.markUnread(manga: b, chapter: bChapter)
+        XCTAssertFalse(history.isRead(aChapter, in: a))
+        XCTAssertFalse(history.isRead(bChapter, in: b))
+        XCTAssertTrue(history.entries.isEmpty)
+        XCTAssertTrue(history.readMarks.isEmpty)
+
+        history.markRead(manga: a, chapter: aChapter)
+        history.markUnread(manga: b, chapters: [bChapter])
+        XCTAssertFalse(history.isRead(aChapter, in: a))
+    }
+
+    @MainActor func testWorkWideResumeEntryFollowsOrdinal() {
+        let (history, a, b) = makeWorkWideHistory()
+        let aChapter = Chapter(id: "a7", number: "07", title: nil)
+        let bChapter = Chapter(id: "b7", number: "7", title: nil)
+        history.record(manga: a, chapter: aChapter, position: ReadingPosition(page: 3), pageCount: 10)
+        XCTAssertEqual(history.entry(for: bChapter, in: b)?.page, 3)
+    }
+
+    /// An entry for the chapter itself beats a newer same-ordinal entry on another Listing.
+    @MainActor func testWorkWideResumeEntryPrefersExactChapter() {
+        let (history, a, b) = makeWorkWideHistory()
+        let aChapter = Chapter(id: "a7", number: "7", title: nil)
+        let bChapter = Chapter(id: "b7", number: "7", title: nil)
+        history.record(manga: b, chapter: bChapter, position: ReadingPosition(page: 1), pageCount: 10)
+        history.record(manga: a, chapter: aChapter, position: ReadingPosition(page: 3), pageCount: 10)
+        XCTAssertEqual(history.entry(for: bChapter, in: b)?.chapterId, "b7")
+    }
+
+    /// No Work: two groups' chapter 7 on one Listing stay separate chapters (ADR-0027).
+    @MainActor func testWithoutWorkSameListingOrdinalDoesNotMatch() {
+        let history = makeHistoryStore()
+        let manga = sampleManga("a", sourceId: "source-a")
+        let groupOne = Chapter(id: "a7-g1", number: "7", title: nil)
+        let groupTwo = Chapter(id: "a7-g2", number: "7", title: nil)
+        history.markRead(manga: manga, chapter: groupOne)
+        history.markUnread(manga: manga, chapter: groupTwo)
+        XCTAssertTrue(history.isRead(groupOne, in: manga))
+        XCTAssertFalse(history.isRead(groupTwo, in: manga))
+        XCTAssertNil(history.entry(for: groupTwo, in: manga))
     }
 
     func testLibraryItemDecodesLegacyJSON() throws {

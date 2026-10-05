@@ -136,13 +136,10 @@ The app builds and the core reading loop is implemented.
   Reading mode is **per Work** (ADR-0026): `ReadingModeStore` holds each Work's own mode over a
   default set in Settings; the reader's mode menu sets or clears the Work's own, and a local
   import's ComicInfo `Manga` seeds it.
-- **Read state:** per-chapter read/unread marks ship (`HistoryStore`, since 2026-07-14) —
-  single and batch `markRead`/`markUnread`, mark-all-below, dimmed rows, unread badges.
-  `isRead` means **read to the end, or manually marked** — `ReadingEntry.isComplete` is
-  `pageCount > 0 && page >= pageCount - 1` (#65, 2026-08-20). Opening a chapter still
-  records an entry, which is what mints the Work and what makes the vertical reader record
-  anything at all; but an opened-and-abandoned chapter is *not* read, so it still counts
-  toward the unread badge.
+- **Read state:** read/unread is per Work, matched by chapter ordinal across its Listings;
+  storage remains Listing-keyed (ADR-0027). `isRead` means **read to the end, or manually
+  marked** — `ReadingEntry.isComplete` is `pageCount > 0 && page >= pageCount - 1`. An
+  opened-and-abandoned chapter is *not* read, so it still counts toward the unread badge.
 - **Background refresh:** ADR-0021 shipped 2026-08-30 (PR #101, issue #92). The library now
   polls for new chapters on its own — `LibraryRefreshCoordinator` runs the pipeline,
   `UpdateScheduler` drives it from `BGTaskScheduler` plus foreground activation, and
