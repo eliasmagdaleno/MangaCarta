@@ -240,4 +240,161 @@ final class AppCompositionTests: XCTestCase {
         XCTAssertEqual(composition.malOutbox.summary(userID: 7).pending, 0)
         XCTAssertEqual(composition.malOutbox.summary(userID: 7).deferred, 0)
     }
+
+    // MARK: - Update notifications (ADR-0021)
+
+    private func updatesComposition(_ source: GrowingSource) -> AppComposition {
+        AppComposition(defaults: defaults, directory: directory,
+                       registry: SourceRegistry(sources: [source], defaults: defaults))
+    }
+
+    private func savedManga(_ id: String, malId: Int? = nil) -> Manga {
+        Manga(id: id, sourceId: GrowingSource.sourceID, title: id, description: "",
+              status: "ongoing", year: nil, coverURL: nil, malId: malId)
+    }
+
+    /// #342: "Removing the Work from Library deletes that notification state" (ADR-0021).
+    func testUnsavingAWorkForgetsItsUpdateStateAndALaterRefreshEmitsNothing() async throws {
+        let source = GrowingSource(["series": ["1"]])
+        let composition = updatesComposition(source)
+        let manga = savedManga("series")
+        composition.library.toggle(manga)
+        let workId = try XCTUnwrap(composition.works.workId(for: ListingKey(manga)))
+        let baseline = await composition.refresh.run(budget: .foreground)
+        XCTAssertTrue(baseline.isEmpty)
+        XCTAssertNotNil(composition.updates.state(for: workId))
+
+        composition.library.toggle(manga)
+        source.set(["1", "2"], for: "series")
+        let events = await composition.refresh.run(budget: .foreground)
+
+        XCTAssertTrue(events.isEmpty)
+        XCTAssertNil(composition.updates.state(for: workId))
+    }
+
+    /// #342: "re-adding it establishes a fresh baseline" (ADR-0021).
+    func testResavingAWorkEstablishesAFreshBaseline() async {
+        let source = GrowingSource(["series": ["1"]])
+        let composition = updatesComposition(source)
+        let manga = savedManga("series")
+        composition.library.toggle(manga)
+        _ = await composition.refresh.run(budget: .foreground)
+        composition.library.toggle(manga)
+        source.set(["1", "2"], for: "series")
+
+        composition.library.toggle(manga)
+        let rebaseline = await composition.refresh.run(budget: .foreground)
+        source.set(["1", "2", "3"], for: "series")
+        let afterBaseline = await composition.refresh.run(budget: .foreground)
+
+        XCTAssertTrue(rebaseline.isEmpty, "the first refresh after re-saving is a baseline")
+        XCTAssertEqual(afterBaseline.map(\.newChapterCount), [1])
+    }
+
+    /// #342: every way a Work's last Library item can go forgets it, and removing one of
+    /// two saved Listings of the same Work forgets nothing.
+    func testEveryLibraryRemovalPathForgetsTheWorkOnlyWhenItsLastItemGoes() throws {
+        let composition = updatesComposition(GrowingSource([:]))
+        let library = composition.library
+        func seeded(_ manga: Manga) throws -> WorkID {
+            let workId = try XCTUnwrap(composition.works.workId(for: ListingKey(manga)))
+            _ = composition.updates.absorb(workId: workId, listing: ListingKey(manga),
+                                           rawNumbers: ["1"], now: Date())
+            return workId
+        }
+
+        let viaCollection = savedManga("via-collection")
+        library.toggle(viaCollection)
+        let collectionWork = try seeded(viaCollection)
+        library.toggleCollection(for: viaCollection, collectionId: LibraryCollection.readingID)
+        XCTAssertNil(composition.updates.state(for: collectionWork), "toggleCollection")
+
+        let viaSet = savedManga("via-set")
+        library.toggle(viaSet)
+        let setWork = try seeded(viaSet)
+        library.setCollections(for: viaSet, collectionIds: [])
+        XCTAssertNil(composition.updates.state(for: setWork), "setCollections")
+
+        library.addCustomCollection(name: "Shelf")
+        let shelf = try XCTUnwrap(library.collections.first { $0.name == "Shelf" })
+        let viaDelete = savedManga("via-delete")
+        library.setCollections(for: viaDelete, collectionIds: [shelf.id])
+        let deleteWork = try seeded(viaDelete)
+        library.deleteCustomCollection(id: shelf.id)
+        XCTAssertNil(composition.updates.state(for: deleteWork), "deleteCustomCollection")
+
+        let first = savedManga("first-copy", malId: 42)
+        let second = savedManga("second-copy", malId: 42)
+        library.toggle(first)
+        library.toggle(second)
+        let sharedWork = try seeded(first)
+        XCTAssertEqual(composition.works.workId(for: ListingKey(second)), sharedWork)
+        library.toggle(first)
+        XCTAssertNotNil(composition.updates.state(for: sharedWork),
+                        "the Work is still saved through its other Listing")
+        library.toggle(second)
+        XCTAssertNil(composition.updates.state(for: sharedWork))
+    }
+
+    /// #343: the composed notifier's `openWork` reaches the navigation sink the UI observes.
+    func testANotificationResponseReachesTheWorkNavigator() throws {
+        let composition = makeComposition()
+        let manga = savedManga("tapped")
+        composition.library.toggle(manga)
+        let workId = try XCTUnwrap(composition.works.workId(for: ListingKey(manga)))
+        XCTAssertNil(composition.workNavigator.requestedWork)
+
+        composition.notifier.handleResponse(
+            userInfo: [UpdateNotifier.workIdUserInfoKey: workId.raw.uuidString])
+
+        XCTAssertEqual(composition.workNavigator.requestedWork, workId)
+    }
+
+    /// #343: the delegate set at launch forwards a tapped notification's payload to the
+    /// composed notifier, and so to the navigator.
+    func testTheNotificationDelegateRoutesAResponseThroughTheComposedNotifier() throws {
+        let composition = makeComposition()
+        let manga = savedManga("tapped")
+        composition.library.toggle(manga)
+        let workId = try XCTUnwrap(composition.works.workId(for: ListingKey(manga)))
+
+        composition.notificationDelegate.receive(
+            userInfo: [UpdateNotifier.workIdUserInfoKey: workId.raw.uuidString])
+
+        XCTAssertEqual(composition.workNavigator.requestedWork, workId)
+    }
+
+    /// #343: a notification posted by the foreground pass is shown while the app is open.
+    func testForegroundNotificationsPresentAsBannerAndList() {
+        XCTAssertEqual(UpdateNotificationDelegate.foregroundPresentationOptions, [.banner, .list])
+    }
+}
+
+/// A source whose chapter lists a test can grow between refresh runs.
+private final class GrowingSource: MangaSource, @unchecked Sendable {
+    static let sourceID = "growing"
+    let id = sourceID
+    let name = "Growing"
+    private let lock = NSLock()
+    private var chapterNumbers: [String: [String]]
+
+    init(_ chapterNumbers: [String: [String]]) {
+        self.chapterNumbers = chapterNumbers
+    }
+
+    func set(_ numbers: [String], for mangaId: String) {
+        lock.withLock { chapterNumbers[mangaId] = numbers }
+    }
+
+    func chapters(mangaId: String) async throws -> [Chapter] {
+        lock.withLock { chapterNumbers[mangaId] ?? [] }
+            .map { Chapter(id: "\(mangaId)-\($0)", number: $0, title: nil) }
+    }
+
+    func search(title: String, limit: Int, offset: Int) async throws -> [Manga] { [] }
+    func popular(limit: Int, offset: Int) async throws -> [Manga] { [] }
+    func mangaDetail(id: String) async throws -> MangaDetail {
+        MangaDetail(description: "", authors: [], tags: [], contentRating: nil)
+    }
+    func pageURLs(chapterId: String, preferDataSaver: Bool) async throws -> [URL] { [] }
 }

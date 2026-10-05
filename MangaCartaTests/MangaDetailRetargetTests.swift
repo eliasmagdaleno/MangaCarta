@@ -102,6 +102,172 @@ final class MangaDetailRetargetTests: XCTestCase {
 
         XCTAssertEqual(vm.activeListing, ListingKey(sourceId: "mangadex", mangaId: "op"))
     }
+
+    func testSlowerPreviousLoadCannotOverwriteRetargetedListing() async {
+        let sourceA = DelayedRetargetSource(
+            id: "mangadex",
+            detailGate: AsyncGate(),
+            chaptersGate: AsyncGate(),
+            detail: MangaDetail(description: "A", authors: ["A"], tags: [Tag(id: "a", name: "A", group: nil)], contentRating: "safe"),
+            chapterNumbers: ["A"])
+        let sourceB = DelayedRetargetSource(
+            id: "weebcentral",
+            detailGate: AsyncGate(),
+            chaptersGate: AsyncGate(),
+            detail: MangaDetail(description: "B", authors: ["B"], tags: [Tag(id: "b", name: "B", group: nil)], contentRating: "safe"),
+            chapterNumbers: ["B"])
+        await sourceB.detailGate.open()
+        await sourceB.chaptersGate.open()
+        let registry = SourceRegistry(sources: [sourceA, sourceB], defaults: defaults)
+        let vm = MangaDetailViewModel(manga: mangaDexListing, source: sourceA)
+
+        let loadA = Task { await vm.loadAsync() }
+        await sourceA.detailGate.waitUntilEntered()
+
+        vm.retarget(to: ListingKey(sourceId: "weebcentral", mangaId: "one-piece"), using: registry)
+        let loadB = Task { await vm.loadAsync() }
+        await loadB.value
+
+        await sourceA.detailGate.open()
+        await loadA.value
+
+        XCTAssertEqual(vm.activeListing, ListingKey(sourceId: "weebcentral", mangaId: "one-piece"))
+        XCTAssertEqual(vm.description, "B")
+        XCTAssertEqual(vm.tags, ["B"])
+        XCTAssertEqual(vm.chapters.map(\.number), ["B"])
+        XCTAssertFalse(vm.isLoading)
+    }
+
+    /// The stale load can also be parked on its *chapters* request, after its detail
+    /// already landed; its chapter list must not replace the new Listing's either.
+    func testSlowerPreviousChapterLoadCannotOverwriteRetargetedListing() async {
+        let sourceA = DelayedRetargetSource(
+            id: "mangadex",
+            detailGate: AsyncGate(),
+            chaptersGate: AsyncGate(),
+            detail: MangaDetail(description: "A", authors: [], tags: [], contentRating: nil),
+            chapterNumbers: ["A"])
+        let sourceB = DelayedRetargetSource(
+            id: "weebcentral",
+            detailGate: AsyncGate(),
+            chaptersGate: AsyncGate(),
+            detail: MangaDetail(description: "B", authors: [], tags: [], contentRating: nil),
+            chapterNumbers: ["B"])
+        await sourceA.detailGate.open()
+        await sourceB.detailGate.open()
+        await sourceB.chaptersGate.open()
+        let registry = SourceRegistry(sources: [sourceA, sourceB], defaults: defaults)
+        let vm = MangaDetailViewModel(manga: mangaDexListing, source: sourceA)
+
+        let loadA = Task { await vm.loadAsync() }
+        await sourceA.chaptersGate.waitUntilEntered()
+
+        vm.retarget(to: ListingKey(sourceId: "weebcentral", mangaId: "one-piece"), using: registry)
+        let loadB = Task { await vm.loadAsync() }
+        await loadB.value
+
+        await sourceA.chaptersGate.open()
+        await loadA.value
+
+        XCTAssertEqual(vm.description, "B")
+        XCTAssertEqual(vm.chapters.map(\.number), ["B"])
+        XCTAssertFalse(vm.isLoading)
+    }
+
+    func testErrorFromSlowerPreviousLoadCannotOverwriteRetargetedListing() async {
+        let sourceA = DelayedRetargetSource(
+            id: "mangadex",
+            detailGate: AsyncGate(),
+            chaptersGate: AsyncGate(),
+            detail: MangaDetail(description: "A", authors: [], tags: [], contentRating: nil),
+            chapterNumbers: [],
+            detailError: TestRetargetError.stale)
+        let sourceB = DelayedRetargetSource(
+            id: "weebcentral",
+            detailGate: AsyncGate(),
+            chaptersGate: AsyncGate(),
+            detail: MangaDetail(description: "B", authors: [], tags: [], contentRating: nil),
+            chapterNumbers: ["B"])
+        await sourceB.detailGate.open()
+        await sourceB.chaptersGate.open()
+        let registry = SourceRegistry(sources: [sourceA, sourceB], defaults: defaults)
+        let vm = MangaDetailViewModel(manga: mangaDexListing, source: sourceA)
+
+        let loadA = Task { await vm.loadAsync() }
+        await sourceA.detailGate.waitUntilEntered()
+        vm.retarget(to: ListingKey(sourceId: "weebcentral", mangaId: "one-piece"), using: registry)
+        let loadB = Task { await vm.loadAsync() }
+        await loadB.value
+
+        await sourceA.detailGate.open()
+        await loadA.value
+
+        XCTAssertNil(vm.errorMessage)
+        XCTAssertFalse(vm.isLoading)
+    }
+}
+
+private actor AsyncGate {
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+    private var isOpen = false
+
+    func wait() async {
+        if isOpen { return }
+        await withCheckedContinuation { continuation in
+            waiters.append(continuation)
+        }
+    }
+
+    func open() {
+        isOpen = true
+        let pending = waiters
+        waiters.removeAll()
+        pending.forEach { $0.resume() }
+    }
+
+    func waitUntilEntered() async {
+        while waiters.isEmpty {
+            await Task.yield()
+        }
+    }
+}
+
+private enum TestRetargetError: Error {
+    case stale
+}
+
+private struct DelayedRetargetSource: MangaSource, @unchecked Sendable {
+    let id: String
+    var name: String { id }
+    let detailGate: AsyncGate
+    let chaptersGate: AsyncGate
+    let detail: MangaDetail
+    let chapterNumbers: [String]
+    let detailError: TestRetargetError?
+
+    init(id: String, detailGate: AsyncGate, chaptersGate: AsyncGate, detail: MangaDetail,
+         chapterNumbers: [String], detailError: TestRetargetError? = nil) {
+        self.id = id
+        self.detailGate = detailGate
+        self.chaptersGate = chaptersGate
+        self.detail = detail
+        self.chapterNumbers = chapterNumbers
+        self.detailError = detailError
+    }
+
+    func mangaDetail(id: String) async throws -> MangaDetail {
+        await detailGate.wait()
+        if let detailError { throw detailError }
+        return detail
+    }
+
+    func chapters(mangaId: String) async throws -> [Chapter] {
+        await chaptersGate.wait()
+        return chapterNumbers.map { Chapter(id: "\(id)-\($0)", number: $0, title: nil) }
+    }
+    func search(title: String, limit: Int, offset: Int) async throws -> [Manga] { [] }
+    func popular(limit: Int, offset: Int) async throws -> [Manga] { [] }
+    func pageURLs(chapterId: String, preferDataSaver: Bool) async throws -> [URL] { [] }
 }
 
 private struct RetargetStubSource: MangaSource, @unchecked Sendable {

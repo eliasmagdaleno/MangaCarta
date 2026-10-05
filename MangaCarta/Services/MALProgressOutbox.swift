@@ -50,6 +50,8 @@ protocol MALProgressOutboxProtocol: AnyObject {
     func enqueue(userID: Int, mangaID: Int, desiredProgress: Int, completedAt: Date) throws
     func `defer`(userID: Int, workID: WorkID, desiredProgress: Int, completedAt: Date) throws
     func promote(userID: Int, workID: WorkID, toMangaID mangaID: Int) throws
+    /// The Work ids an account has progress deferred under, as recorded at completion time.
+    func deferredWorkIDs(userID: Int) -> [WorkID]
     func nextEligible(userID: Int, at date: Date) -> MALProgressOutboxItem?
     func markDelivered(_ delivered: MALProgressOutboxItem) throws
     func reschedule(_ attempted: MALProgressOutboxItem,
@@ -156,6 +158,10 @@ final class MALProgressOutbox: MALProgressOutboxProtocol {
             ready[readyKey] = merged
         }
         try save()
+    }
+
+    func deferredWorkIDs(userID: Int) -> [WorkID] {
+        deferred.keys.filter { $0.userID == userID }.map(\.workID)
     }
 
     func nextEligible(userID: Int, at date: Date) -> MALProgressOutboxItem? {

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UserNotifications
 
 @main
 struct MangaCartaApp: App {
@@ -37,6 +38,8 @@ struct MangaCartaApp: App {
     /// The graph's registry, so views resolve sources from the same one the services do.
     @StateObject private var registry: SourceRegistry
     @StateObject private var localImporter: LocalImportViewModel
+    /// Where a tapped new-chapter notification lands; the Library tab observes it.
+    @StateObject private var workNavigator: WorkNavigator
 
     /// Plain properties rather than `@StateObject` — neither publishes anything, so a view
     /// that could reach one could only misuse it (ADR-0010). See `AppComposition` for why
@@ -50,6 +53,8 @@ struct MangaCartaApp: App {
     private let refresh: LibraryRefreshCoordinator
     private let notifier: UpdateNotifier
     private let scheduler: UpdateScheduler
+    /// Held because `UNUserNotificationCenter.delegate` is weak.
+    private let notificationDelegate: UpdateNotificationDelegate
     /// Installed Sources (Phase 4). Held for the app's lifetime so the registrar keeps
     /// `registry` current; views reach the sources through `registry`, never this.
     private let extensions: AppComposition.ExtensionComposition?
@@ -132,6 +137,10 @@ struct MangaCartaApp: App {
         self.refresh = composed.refresh
         self.notifier = composed.notifier
         self.scheduler = composed.scheduler
+        self.notificationDelegate = composed.notificationDelegate
+        _workNavigator = StateObject(wrappedValue: composed.workNavigator)
+        // Before launch finishes, so a tap that launched the app is delivered (ADR-0021).
+        UNUserNotificationCenter.current().delegate = composed.notificationDelegate
         self.extensions = composed.extensions
         self.extensionStorageError = composed.extensionStorageError
         self.imageCache = composed.imageCache
@@ -185,6 +194,7 @@ struct MangaCartaApp: App {
                 .environmentObject(fulfillment)
                 .environmentObject(registry)
                 .environmentObject(localImporter)
+                .environmentObject(workNavigator)
                 .environment(\.extensionComposition, extensions)
                 .environment(\.extensionStorageError, extensionStorageError)
                 .environment(\.imageCache, imageCache)

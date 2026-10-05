@@ -212,6 +212,87 @@ final class MALProgressCoordinatorTests: XCTestCase {
         XCTAssertEqual(outbox.nextEligible(userID: 7, at: now)?.mangaID, 99)
     }
 
+    // MARK: Deferred progress across merges (#345)
+
+    /// A coordinator reading the same `WorkStore` the app wires it to, so merge aliases
+    /// are real rather than scripted.
+    private func makeCoordinator(works: WorkStore) -> MALProgressCoordinator {
+        MALProgressCoordinator(
+            outbox: outbox,
+            client: client,
+            account: account,
+            malID: { works.work($0)?.externalIds.mal },
+            canonicalWorkID: { works.work($0)?.id },
+            now: { [unowned self] in self.now },
+            sleep: { [unowned self] seconds in self.now = self.now.addingTimeInterval(seconds) },
+            jitter: { $0 }
+        )
+    }
+
+    private func listing(_ id: String, source: String, malId: Int? = nil) -> Manga {
+        Manga(id: id, sourceId: source, title: "T", description: "",
+              status: "ongoing", year: nil, coverURL: nil, malId: malId)
+    }
+
+    /// The upgrade queue's seam: resolution writes the MAL id onto Work A, which merges A
+    /// into Work B (the incumbent already carrying it), and the queue announces only the
+    /// survivor B. Progress deferred under A must still be promoted.
+    func testDeferredProgressUnderAWorkMergedAwayByResolutionIsPromoted() {
+        let works = WorkStore(directory: makeTestDirectory("MALProgressCoordinatorTests.merge"))
+        let workB = works.mint(from: listing("md-1", source: "mangadex", malId: 123))
+        let workA = works.mint(from: listing("wc-1", source: "weebcentral"))
+        let coordinator = makeCoordinator(works: works)
+        coordinator.chapterCompleted(completion(workID: workA, progress: 10))
+        XCTAssertEqual(outbox.summary(userID: 7).deferred, 1)
+
+        works.setExternalIds(ExternalIDs(mal: 123, anilist: nil), on: workA)
+        let survivor = works.work(workA)?.id
+        XCTAssertEqual(survivor, workB)
+        coordinator.workMetadataChanged(workB)
+
+        let next = outbox.nextEligible(userID: 7, at: now)
+        XCTAssertEqual(next?.mangaID, 123)
+        XCTAssertEqual(next?.desiredProgress, 10)
+        XCTAssertEqual(outbox.summary(userID: 7).deferred, 0)
+        XCTAssertEqual(outbox.summary(userID: 7).pending, 1)
+    }
+
+    /// Any merge path, not only resolution: A is merged into B before either has a MAL id,
+    /// and B learns one later. The row under A is promoted when B is announced.
+    func testDeferredProgressUnderAWorkMergedByAnotherPathIsPromotedWhenTheSurvivorLearnsItsMALID() {
+        let works = WorkStore(directory: makeTestDirectory("MALProgressCoordinatorTests.link"))
+        let workB = works.mint(from: listing("md-1", source: "mangadex"))
+        let workA = works.mint(from: listing("wc-1", source: "weebcentral"))
+        let coordinator = makeCoordinator(works: works)
+        coordinator.chapterCompleted(completion(workID: workA, progress: 8))
+
+        works.merge(workA, into: workB)
+        works.setExternalIds(ExternalIDs(mal: 77, anilist: nil), on: workB)
+        coordinator.workMetadataChanged(workB)
+
+        XCTAssertEqual(outbox.nextEligible(userID: 7, at: now)?.mangaID, 77)
+        XCTAssertEqual(outbox.nextEligible(userID: 7, at: now)?.desiredProgress, 8)
+        XCTAssertEqual(outbox.summary(userID: 7).deferred, 0)
+    }
+
+    /// Promotion is scoped to the announced Work and what was merged into it.
+    func testPromotingAMergedWorkLeavesAnUnrelatedWorksDeferredProgressAlone() {
+        let works = WorkStore(directory: makeTestDirectory("MALProgressCoordinatorTests.scope"))
+        let workB = works.mint(from: listing("md-1", source: "mangadex", malId: 123))
+        let workA = works.mint(from: listing("wc-1", source: "weebcentral"))
+        let unrelated = works.mint(from: listing("wc-2", source: "weebcentral"))
+        let coordinator = makeCoordinator(works: works)
+        coordinator.chapterCompleted(completion(workID: workA, progress: 10))
+        coordinator.chapterCompleted(completion(workID: unrelated, progress: 4))
+
+        works.setExternalIds(ExternalIDs(mal: 123, anilist: nil), on: workA)
+        coordinator.workMetadataChanged(workB)
+
+        XCTAssertEqual(outbox.summary(userID: 7).deferred, 1)
+        XCTAssertEqual(outbox.summary(userID: 7).pending, 1)
+        XCTAssertEqual(outbox.nextEligible(userID: 7, at: now)?.mangaID, 123)
+    }
+
     // MARK: Reconciliation
 
     func testRemoteProgressAtOrAboveDesiredDropsTheItemWithoutWriting() async {

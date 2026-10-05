@@ -4,7 +4,7 @@
   "bundles": [
     {
       "id": "mangadex-api",
-      "version": 2,
+      "version": 3,
       "script": "https://raw.githubusercontent.com/proxy-link/mangacarta-sources/main/mangadex/engine.js",
       "scriptSHA256": "014e994ec44764ca87477a08464ac4b932df3330facd567e48f353cecf7f2c73",
       "sources": [
@@ -28,9 +28,13 @@
           },
           "languages": { "mode": "fixed", "values": ["en"] },
           "network": {
-            "httpOrigins": ["https://api.mangadex.org"],
+            "httpOrigins": ["https://api.mangadex.org", "https://api.mangadex.network"],
             "browserOrigins": ["https://mangadex.org"],
-            "assetOrigins": ["https://uploads.mangadex.org", "https://*.mangadex.network"]
+            "assetOrigins": ["https://uploads.mangadex.org", "https://*.mangadex.network"],
+            "imageLoadReports": {
+              "endpoint": "https://api.mangadex.network/report",
+              "origins": ["https://*.mangadex.network"]
+            }
           },
           "presentation": {
             "feeds": {
@@ -39,7 +43,7 @@
               "newTitles": { "eyebrow": "Just added" }
             }
           },
-          "hostAPI": { "minimum": "1.2", "maximumExclusive": "2.0" },
+          "hostAPI": { "minimum": "1.3", "maximumExclusive": "2.0" },
           "configuration": {
             "apiBaseURL": "https://api.mangadex.org",
             "coverBaseURL": "https://uploads.mangadex.org",

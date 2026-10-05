@@ -56,6 +56,12 @@ struct AppComposition {
     let refresh: LibraryRefreshCoordinator
     let notifier: UpdateNotifier
     let scheduler: UpdateScheduler
+    /// Where a tapped new-chapter notification lands (#343). The notifier's `openWork`
+    /// writes it and the Library tab observes it.
+    let workNavigator: WorkNavigator
+    /// Set as `UNUserNotificationCenter.current().delegate` at launch; held here because
+    /// that property is weak.
+    let notificationDelegate: UpdateNotificationDelegate
 
     /// The one attempt memory. Exposed because it is *shared* — see `init` — and a shared
     /// instance is exactly the kind of thing a test needs to reach to prove the sharing.
@@ -315,8 +321,16 @@ struct AppComposition {
         let refreshCoordinator = LibraryRefreshCoordinator(
             works: wk, library: lib, history: hist, updates: updateState, registry: resolvedRegistry)
         lib.configureRefreshCoordinator(refreshCoordinator)
+        let navigator = WorkNavigator()
         let updateNotifier = UpdateNotifier(updates: updateState, works: wk, library: lib,
-                                            defaults: defaults)
+                                            defaults: defaults,
+                                            openWork: { navigator.open($0) })
+        // ADR-0021: removing a Work from the Library deletes its notification state, so
+        // re-adding it establishes a fresh baseline (#342).
+        lib.configureWorkLeftLibrary { [weak updateNotifier] in updateNotifier?.forget(workId: $0) }
+        let notificationDelegate = UpdateNotificationDelegate(handleResponse: { [weak updateNotifier] in
+            updateNotifier?.handleResponse(userInfo: $0)
+        })
         let updateScheduler = UpdateScheduler(
             coordinator: refreshCoordinator,
             notifier: updateNotifier,
@@ -410,6 +424,8 @@ struct AppComposition {
         self.updates = updateState
         self.refresh = refreshCoordinator
         self.notifier = updateNotifier
+        self.workNavigator = navigator
+        self.notificationDelegate = notificationDelegate
         self.scheduler = updateScheduler
         self.engine = rec
         self.vocabularyStore = vocab
@@ -514,6 +530,7 @@ struct AppComposition {
                 try await MALAuthenticatedClient.currentUser(accessToken: token,
                                                              transport: malTransport)
             },
+            invalidateTokenCache: { await tokens.invalidate() },
             retryDelivery: { drain.coordinator?.retryNow() })
         let malProgress = MALProgressCoordinator(
             outbox: outbox,
@@ -521,7 +538,10 @@ struct AppComposition {
             account: accountStore,
             // The coordinator never resolves anything itself; it only reads what the Work
             // already knows, and waits for the queue's signal otherwise.
-            malID: { wk.work($0)?.externalIds.mal })
+            malID: { wk.work($0)?.externalIds.mal },
+            // Deferred progress is keyed by the Work id at completion time; a merge since
+            // then leaves that id resolving to its survivor only through the aliases.
+            canonicalWorkID: { wk.work($0)?.id })
         drain.coordinator = malProgress
         refreshHandle.account = accountStore
         return MALGraph(outbox: outbox, account: accountStore, progress: malProgress)
