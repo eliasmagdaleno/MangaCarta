@@ -32,6 +32,8 @@ final class MangaDetailViewModel: ObservableObject {
         activeListing == ListingKey(manga) ? manga : manga.relisted(as: activeListing)
     }
 
+    private var loadGeneration = 0
+
     @Published var authors: [String] = []
     @Published var description: String = ""
     @Published var tags: [String] = []
@@ -65,6 +67,7 @@ final class MangaDetailViewModel: ObservableObject {
         guard let source = registry.source(id: listing.sourceId) else { return }
         self.source = source
         self.activeListing = listing
+        loadGeneration += 1
     }
 
     func load() {
@@ -76,6 +79,10 @@ final class MangaDetailViewModel: ObservableObject {
     /// Internal (not private) so tests can await it deterministically instead of racing
     /// the fire-and-forget `Task` in `load()`.
     func loadAsync() async {
+        loadGeneration += 1
+        let generation = loadGeneration
+        let listing = activeListing
+        let source = source
         isLoading = true
         errorMessage = nil
         guard let source else {
@@ -83,21 +90,26 @@ final class MangaDetailViewModel: ObservableObject {
             // before it loads. Stated rather than assumed, because a silent empty chapter
             // list reads as "this manga has none".
             errorMessage = "No source is available for this title."
-            isLoading = false
+            if generation == loadGeneration { isLoading = false }
             return
         }
         do {
-            let detail = try await source.mangaDetail(id: activeListing.mangaId)
+            let detail = try await source.mangaDetail(id: listing.mangaId)
+            guard generation == loadGeneration, activeListing == listing else { return }
             self.description = detail.description
             self.authors = detail.authors
             self.detailTags = detail.tags
             self.tags = detail.tags.map(\.name)
             self.contentRating = detail.contentRating
 
-            self.chapters = try await source.chapters(mangaId: activeListing.mangaId)
+            let chapters = try await source.chapters(mangaId: listing.mangaId)
+            guard generation == loadGeneration, activeListing == listing else { return }
+            self.chapters = chapters
         } catch {
+            guard generation == loadGeneration, activeListing == listing else { return }
             self.errorMessage = error.localizedDescription
         }
+        guard generation == loadGeneration, activeListing == listing else { return }
         isLoading = false
 
     }
