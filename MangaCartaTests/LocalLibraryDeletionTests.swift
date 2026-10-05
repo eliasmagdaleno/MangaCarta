@@ -4,6 +4,62 @@ import Foundation
 
 @Suite("LocalLibraryDeletionTests")
 struct LocalLibraryDeletionTests {
+    @Test @MainActor func librarySeparatesLegacyListingFromInstalledSource() throws {
+        let suite = TestDefaults("LibraryStoreListingKeyTests")
+        defer { suite.remove() }
+        let legacy = LibraryItem(id: "X", title: "Legacy", coverURL: nil, sourceId: nil)
+        suite.defaults.set(try JSONEncoder().encode([legacy]), forKey: "library.items")
+        let library = LibraryStore(defaults: suite.defaults)
+        let installed = Manga(id: "X", sourceId: "repo:mangadex", title: "Installed",
+                              description: "", status: "ongoing", year: nil, coverURL: nil, malId: nil)
+
+        #expect(library.contains(installed) == false)
+        #expect(library.item(for: ListingKey(installed)) == nil)
+        library.toggle(installed)
+
+        #expect(library.items.count == 2)
+        #expect(library.items.contains { $0.id == "X" && $0.sourceId == nil })
+        #expect(library.items.contains { $0.id == "X" && $0.sourceId == "repo:mangadex" })
+    }
+
+    @Test @MainActor func togglingLegacyListingRemovesOnlyLegacyItem() throws {
+        let suite = TestDefaults("LibraryStoreListingKeyTests")
+        defer { suite.remove() }
+        let legacy = LibraryItem(id: "X", title: "Legacy", coverURL: nil, sourceId: nil)
+        suite.defaults.set(try JSONEncoder().encode([legacy]), forKey: "library.items")
+        let library = LibraryStore(defaults: suite.defaults)
+        let installed = Manga(id: "X", sourceId: "repo:mangadex", title: "Installed",
+                              description: "", status: "ongoing", year: nil, coverURL: nil, malId: nil)
+        library.toggle(installed)
+        let legacyListing = installed.relisted(as: ListingKey(sourceId: LegacySourceID.unattributed, mangaId: "X"))
+
+        library.toggle(legacyListing)
+
+        #expect(library.items.count == 1)
+        #expect(library.item(for: ListingKey(installed)) != nil)
+        #expect(library.item(for: ListingKey(legacyListing)) == nil)
+    }
+
+    @Test @MainActor func collectionChangesDoNotTouchAnotherListing() throws {
+        let suite = TestDefaults("LibraryStoreListingKeyTests")
+        defer { suite.remove() }
+        let legacy = LibraryItem(id: "X", title: "Legacy", coverURL: nil, sourceId: nil,
+                                 collectionIds: [LibraryCollection.readingID])
+        suite.defaults.set(try JSONEncoder().encode([legacy]), forKey: "library.items")
+        let library = LibraryStore(defaults: suite.defaults)
+        let installed = Manga(id: "X", sourceId: "repo:mangadex", title: "Installed",
+                              description: "", status: "ongoing", year: nil, coverURL: nil, malId: nil)
+        let collection = "custom"
+
+        library.toggleCollection(for: installed, collectionId: collection)
+        #expect(library.item(for: ListingKey(installed))?.collectionIds == [collection])
+        let legacyKey = ListingKey(sourceId: LegacySourceID.unattributed, mangaId: "X")
+        #expect(library.item(for: legacyKey)?.collectionIds == [LibraryCollection.readingID])
+
+        library.setCollections(for: installed, collectionIds: ["other"])
+        #expect(library.item(for: ListingKey(installed))?.collectionIds == ["other"])
+        #expect(library.item(for: legacyKey)?.collectionIds == [LibraryCollection.readingID])
+    }
     @Test @MainActor func removeListingDeletesLastWork() async {
         let directory = TestDirectory("LocalLibraryDeletionTests").url
         defer { try? FileManager.default.removeItem(at: directory) }
