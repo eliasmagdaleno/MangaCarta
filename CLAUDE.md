@@ -196,7 +196,8 @@ The app builds and the core reading loop is implemented.
   **Views must use the `\.imageCache` environment value, not `ImageCache.shared`**, which has no
   reporter and survives only as that key's default for previews. The install sheet discloses
   reports on install and on the update that adds them, and the privacy label declares them.
-  No published Source declares them yet.
+  The published MangaDex engine (bundle v3, Host API 1.3 minimum) declares them since 2026-10-05
+  (#341); delivery to a live endpoint is not yet verified.
 - Design/spec/plan for shipped work live in `docs/superpowers/{specs,plans}/`.
 
 Still minimal: no cross-device sync. Content refresh is no longer manual-only (see above);
