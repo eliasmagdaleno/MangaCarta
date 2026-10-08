@@ -55,6 +55,7 @@ struct AppComposition {
     let updates: UpdateStateStore
     let refresh: LibraryRefreshCoordinator
     let notifier: UpdateNotifier
+    let notificationPrompt: NotificationAuthorizationPrompt
     let scheduler: UpdateScheduler
     /// Where a tapped new-chapter notification lands (#343). The notifier's `openWork`
     /// writes it and the Library tab observes it.
@@ -325,6 +326,10 @@ struct AppComposition {
         let updateNotifier = UpdateNotifier(updates: updateState, works: wk, library: lib,
                                             defaults: defaults,
                                             openWork: { navigator.open($0) })
+        let notificationPrompt = NotificationAuthorizationPrompt(notifier: updateNotifier)
+        lib.configureLibraryBecameNonEmpty { [weak notificationPrompt] in
+            notificationPrompt?.libraryBecameNonEmpty()
+        }
         // ADR-0021: removing a Work from the Library deletes its notification state, so
         // re-adding it establishes a fresh baseline (#342).
         lib.configureWorkLeftLibrary { [weak updateNotifier] in updateNotifier?.forget(workId: $0) }
@@ -424,6 +429,7 @@ struct AppComposition {
         self.updates = updateState
         self.refresh = refreshCoordinator
         self.notifier = updateNotifier
+        self.notificationPrompt = notificationPrompt
         self.workNavigator = navigator
         self.notificationDelegate = notificationDelegate
         self.scheduler = updateScheduler

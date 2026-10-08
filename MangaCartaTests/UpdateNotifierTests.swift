@@ -135,6 +135,99 @@ struct UpdateNotifierTests {
     }
 
     @MainActor
+    @Test("A first save offers notification authorization and continue requests once")
+    func firstSaveOffersAuthorization() async {
+        let fixture = Fixture(status: .notDetermined)
+        defer { fixture.suite.remove() }
+        var offers = 0
+        fixture.library.configureLibraryBecameNonEmpty {
+            offers += 1
+        }
+
+        fixture.library.toggle(fixture.manga("Saved"))
+        #expect(offers == 1)
+        #expect(await fixture.notifier.shouldOfferAuthorization())
+
+        await fixture.notifier.requestAuthorizationIfNeeded()
+        #expect(fixture.notifications.authorizationRequests == 1)
+    }
+
+    @MainActor
+    @Test("A second save does not offer authorization again")
+    func secondSaveDoesNotOfferAuthorization() async {
+        let fixture = Fixture(status: .notDetermined)
+        defer { fixture.suite.remove() }
+        var offers = 0
+        fixture.library.configureLibraryBecameNonEmpty { offers += 1 }
+
+        fixture.library.toggle(fixture.manga("First"))
+        await fixture.notifier.requestAuthorizationIfNeeded()
+        fixture.library.toggle(fixture.manga("Second"))
+
+        #expect(offers == 1)
+        #expect(fixture.notifications.authorizationRequests == 1)
+    }
+
+    @MainActor
+    @Test("A relaunch with a saved Library does not offer authorization")
+    func relaunchWithSavedLibraryDoesNotOfferAuthorization() {
+        let fixture = Fixture(status: .notDetermined)
+        defer { fixture.suite.remove() }
+        fixture.library.toggle(fixture.manga("Saved"))
+
+        let relaunched = Fixture(defaults: fixture.defaults, status: .notDetermined)
+        var offers = 0
+        relaunched.library.configureLibraryBecameNonEmpty { offers += 1 }
+
+        #expect(relaunched.library.items.count == 1)
+        #expect(offers == 0)
+    }
+
+    @MainActor
+    @Test("Not Now prevents a later first-save offer")
+    func notNowPreventsLaterOffer() async {
+        let fixture = Fixture(status: .notDetermined)
+        defer { fixture.suite.remove() }
+        fixture.library.toggle(fixture.manga("Saved"))
+        fixture.notifier.markAuthorizationNotNow()
+        fixture.library.toggle(fixture.manga("Saved"))
+        fixture.library.toggle(fixture.manga("Saved again"))
+
+        #expect(await fixture.notifier.shouldOfferAuthorization() == false)
+        #expect(fixture.notifications.authorizationRequests == 0)
+    }
+
+    @MainActor
+    @Test("Determined notification authorization never offers on first save")
+    func determinedAuthorizationDoesNotOffer() async {
+        for status in [UNAuthorizationStatus.authorized, .denied] {
+            let fixture = Fixture(status: status)
+            defer { fixture.suite.remove() }
+            fixture.library.toggle(fixture.manga("Saved"))
+
+            #expect(await fixture.notifier.shouldOfferAuthorization() == false)
+            #expect(fixture.notifications.authorizationRequests == 0)
+        }
+    }
+
+    @MainActor
+    @Test("Library empty-to-non-empty callback fires once per transition")
+    func libraryFirstSaveCallbackFiresPerTransition() {
+        let fixture = Fixture(status: .notDetermined)
+        defer { fixture.suite.remove() }
+        var transitions = 0
+        fixture.library.configureLibraryBecameNonEmpty { transitions += 1 }
+
+        fixture.library.toggle(fixture.manga("First"))
+        fixture.library.toggle(fixture.manga("Second"))
+        fixture.library.toggle(fixture.manga("First"))
+        fixture.library.toggle(fixture.manga("Second"))
+        fixture.library.toggle(fixture.manga("Third"))
+
+        #expect(transitions == 2)
+    }
+
+    @MainActor
     @Test("A response routes to the surviving Work rather than opening a chapter")
     func responseRoutesToResolvedWork() {
         var opened: WorkID?
@@ -169,19 +262,20 @@ private final class Fixture {
     let library: LibraryStore
     let notifier: UpdateNotifier
 
-    init(status: UNAuthorizationStatus = .authorized,
+    init(defaults: UserDefaults? = nil,
+         status: UNAuthorizationStatus = .authorized,
          sources: [NoticeSource] = [NoticeSource(id: "mangadex", isNSFW: false)],
          openWork: @escaping (WorkID) -> Void = { _ in }) {
         let directory = testDirectory.url
         suite = TestDefaults("UpdateNotifierTests")
-        defaults = suite.defaults
+        self.defaults = defaults ?? suite.defaults
         notifications = FakeNotificationCenter(status: status)
         works = WorkStore(directory: directory)
         updates = UpdateStateStore(directory: directory, works: works)
-        library = LibraryStore(defaults: defaults, works: works)
+        library = LibraryStore(defaults: self.defaults, works: works)
         notifier = UpdateNotifier(notifications: notifications, updates: updates, works: works,
-                                  library: library, registry: SourceRegistry(sources: sources, defaults: defaults),
-                                  defaults: defaults, openWork: openWork)
+                                  library: library, registry: SourceRegistry(sources: sources, defaults: self.defaults),
+                                  defaults: self.defaults, openWork: openWork)
     }
 
     deinit { testDirectory.remove() }

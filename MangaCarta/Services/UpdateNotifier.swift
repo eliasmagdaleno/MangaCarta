@@ -99,11 +99,19 @@ final class UpdateNotifier {
     }
 
     func requestAuthorizationIfNeeded() async {
-        guard !library.items.isEmpty,
-              !defaults.bool(forKey: Self.requestedAuthorizationKey),
-              await notifications.authorizationStatus() == .notDetermined else { return }
+        guard await shouldOfferAuthorization() else { return }
         defaults.set(true, forKey: Self.requestedAuthorizationKey)
         _ = await notifications.requestAuthorization()
+    }
+
+    func shouldOfferAuthorization() async -> Bool {
+        guard !library.items.isEmpty,
+              !defaults.bool(forKey: Self.requestedAuthorizationKey) else { return false }
+        return await notifications.authorizationStatus() == .notDetermined
+    }
+
+    func markAuthorizationNotNow() {
+        defaults.set(true, forKey: Self.requestedAuthorizationKey)
     }
 
     func authorizationSummary() async -> NotificationAuthorizationSummary {
@@ -139,6 +147,39 @@ final class UpdateNotifier {
                 $0.isNSFW || $0.declaresAdultTitles
             } == true
         }
+    }
+}
+
+@MainActor
+final class NotificationAuthorizationPrompt: ObservableObject {
+    @Published var isPresented = false
+
+    private let notifier: UpdateNotifier
+
+    init(notifier: UpdateNotifier) {
+        self.notifier = notifier
+    }
+
+    func libraryBecameNonEmpty() {
+#if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        guard arguments.contains("-uitest-notification-explainer")
+                || !arguments.contains(where: { $0.hasPrefix("-uitest-") }) else { return }
+#endif
+        Task { [weak self] in
+            guard let self, await notifier.shouldOfferAuthorization() else { return }
+            isPresented = true
+        }
+    }
+
+    func continueToAuthorization() {
+        isPresented = false
+        Task { await notifier.requestAuthorizationIfNeeded() }
+    }
+
+    func notNow() {
+        notifier.markAuthorizationNotNow()
+        isPresented = false
     }
 }
 
