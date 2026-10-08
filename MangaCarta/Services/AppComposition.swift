@@ -511,6 +511,12 @@ struct AppComposition {
                 if isRefreshing { account.refreshBegan() } else { account.refreshEnded() }
             }
         }
+#if DEBUG
+        if MALDebugTokenExport.isRequested() {
+            Task { await MALDebugTokenExport.export(token: { try await tokens.accessToken() },
+                                                    to: MALDebugTokenExport.fileURL) }
+        }
+#endif
         // The verb is the client's verified default now — see `MALListUpdateVerb`.
         // Only this client takes the simulated outage; `tokenClient` above keeps the real
         // transport so a `-uitest-mal-offline` run cannot disturb a real account's credentials.
