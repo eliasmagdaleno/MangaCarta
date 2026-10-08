@@ -212,6 +212,9 @@ def do_fire(manga_id: int) -> int:
         "xcodebuild",
         "-scheme", "MangaCarta",
         "-destination", f"id={SIMULATOR}",
+        # Serial, on the seeded device itself. A parallel run executes on a clone, which
+        # need not hold the MAL sign-in or the unread chapter this test depends on.
+        "-parallel-testing-enabled", "NO",
         "test",
         f"-only-testing:{TEST}",
     ]
