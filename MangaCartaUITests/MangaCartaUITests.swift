@@ -203,9 +203,8 @@ final class MangaCartaUITests: XCTestCase {
     /// a real title to the end, which is the only thing that may move MyAnimeList progress —
     /// manual mark-as-read deliberately cannot. Run only with explicit approval, and only
     /// with the account's list entry recorded first and put back afterwards, including when
-    /// the run fails. `scripts/mal_live_write.py fire` automates that, but its token comes
-    /// from `scripts/mal_oauth_token.py`, which MAL's approval page currently rejects with a
-    /// 400; recording and restoring the entry by hand on the website works (2026-10-07).
+    /// the run fails. `scripts/mal_live_write.py fire` automates that, with the token the
+    /// signed-in app exports in DEBUG (`MALDebugTokenExport`, issue #360).
     ///
     /// Chapter **124** is not arbitrary: the account must sit below 124 chapters, and the
     /// coordinator treats a desired progress at or below the remote value as already
