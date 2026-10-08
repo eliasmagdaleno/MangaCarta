@@ -1,8 +1,9 @@
 # App icon — commissioning brief
 
 **Status:** ready to send. Written 2026-09-16 so that ordering the icon is a copy-paste, not a
-thirteenth handoff line. The placeholder (#165, `scripts/make-app-icon.swift`) is what ships until
-this lands; **replace it, do not refine it.**
+thirteenth handoff line. Until this lands, a temporary image-generated icon ships (2026-10-07:
+brush "M" with a 漫 seal; light, dark and tinted in `AppIcon.appiconset`). It replaced #165's drawn
+placeholder. **Replace the temporary icon, do not refine it.**
 
 Owner of the *visual system* this must fit is `DESIGN.md` ("Ink & Seal"). This brief restates only
 what a designer outside the repository needs.
