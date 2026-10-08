@@ -1,50 +1,59 @@
-# Handoff: owner checks run on the simulator; temporary app icon; notification-permission bug filed
+# Handoff: notification permission fixed, MAL live write verified, temporary icon shipped
 
-Date: 2026-10-07. This is the one live handoff. The prior one (`2026-10-05-sweep-two-shipped.md`) is
-in `archive/`, and every open item in it is carried here. Recheck GitHub and the working tree before
-acting.
+Date: 2026-10-07 (evening). This is the one live handoff. The prior one
+(`2026-10-05-sweep-two-shipped.md`) is in `archive/`, and every open item in it is carried here.
+Recheck GitHub and the working tree before acting.
 
 ## State
 
-- **#355 merged** (`c059b8a`): the 2026-10-05 handoff, after the second defect sweep (#342–#348,
-  fixed in #349–#354) and MangaDex engine v3.
-- **#351's notification tap is verified on the simulator.** A `simctl push` payload carrying a real
-  `workId` was tapped once with the app backgrounded (Vagabond) and once on a cold launch (Dorohedoro).
-  Both opened the Work's detail page on the Library tab. The technique is in Operating notes.
-- **#356 filed:** the app never asks for notification permission.
-  `UpdateNotifier.requestAuthorizationIfNeeded()` has no caller in the app, and there is no explainer
-  sheet, against ADR-0021's "after the first save" rule. A new user never gets notifications unless
-  they switch "Notify about new chapters" off and on. Found while verifying #351.
-- **Image-load reports: the client works, but MangaDex's endpoint is down.** MangaDex was updated to
-  bundle v3 on the seeded simulator (the disclosure sheet showed), and Dorohedoro ch. 2 was read to
-  page 4. All 27 reports were dropped with `HostCapabilityError(code: timeout)`. From the Mac,
-  `POST https://api.mangadex.network/report` returns **Cloudflare 522** after about 19.5 s over IPv4
-  and IPv6, while `api.mangadex.org/ping` answers 200 in 60 ms. That is MangaDex's origin failing,
-  not the app. The reader was unaffected.
-- **PR #357 is open: a temporary app icon** (concept A1, a brush "M" with a 漫 seal; light, dark and
-  tinted). It also deletes `scripts/make-app-icon.swift` and updates `docs/design/app-icon-brief.md`.
-  Auto-merge is **off**; the owner merges. It's built locally on Xcode 26, and CI's Xcode 16.4 hasn't
-  been seen on it yet. The dark and tinted icons were confirmed only in the compiled asset catalog
-  (`assetutil`), not on a home screen, because the simulator's home-screen icon style is pinned to
-  Light.
-- **Asking for age again on the MangaDex update is intended,** not a bug: turning "Show adult content"
-  off clears `settings.declaredAgeOver18` (`RepositorySettingsViewModel.setAdultSourcesVisible`).
+Merged 2026-10-07, at the owner's request: #357, #359, #361, and this handoff (#358).
+
+- **#356 is fixed (#361).** After the first save, the app presents `NotificationExplainerSheet`.
+  "Turn On Notifications" calls `UpdateNotifier.requestAuthorizationIfNeeded()`. "Not Now" or a
+  swipe-away records the one ask, so the explainer never returns (ADR-0021). `LibraryStore` reports
+  the empty-to-non-empty transition through `configureLibraryBecameNonEmpty`, and
+  `NotificationAuthorizationPrompt` owns the sheet's state. In DEBUG, any `-uitest-` launch
+  argument suppresses the sheet unless `-uitest-notification-explainer` is passed, because CI's
+  simulator has never been asked. `AppComposition` takes an optional `notifications:` dependency.
+  The composition test is the one that catches the missing caller; the worker's own tests did not.
+  **Not yet seen:** the real system prompt on a fresh install (the seeded simulator is already
+  granted).
+- **MAL live write is verified.** MAL's history shows Horimiya set to 124 at 19:36 from
+  `testLiveHorimiyaCompletionPushesProgress`, and the owner restored the entry by hand. #359 fixed
+  the test: it found the page indicator by a stale ` · ` label (it is "Page n of total" since #104),
+  and it assumed the chapter opened on page 1. Its doc comment now gives the preconditions.
+- **#360 filed: `mal_oauth_token.py` can't get a token.** MAL's approval page answers 400. Ruled out
+  so far: a stale tab, the client id, the request parameters, the challenge length, and the browser's
+  user agent. App sign-in with the same client works. So `mal_live_write.py` can't run; record and
+  restore the entry by hand instead.
+- **#357 merged: the temporary app icon** (concept A1, a brush "M" with a 漫 seal; light, dark and
+  tinted). CI's Xcode 16.4 accepted the asset catalog. The dark and tinted icons were confirmed only
+  in the compiled catalog (`assetutil`), not on a home screen.
+- **#351's notification tap is verified on the simulator,** both backgrounded (Vagabond) and on a
+  cold launch (Dorohedoro). The technique is in Operating notes.
+- **Image-load reports: the client works, but MangaDex's endpoint is down.** All 27 reports from a
+  v3 read were dropped with `HostCapabilityError(code: timeout)`. `POST
+  https://api.mangadex.network/report` returns Cloudflare 522 from the Mac, while
+  `api.mangadex.org/ping` answers 200. That is MangaDex's origin failing, not the app.
+- **Asking for age again on the MangaDex update is intended:** turning "Show adult content" off
+  clears `settings.declaredAgeOver18` (`RepositorySettingsViewModel.setAdultSourcesVisible`).
 
 **Working tree:** the main checkout still has the owner's uncommitted `.agents/skills/*` and
-`skills-lock.json` edits; leave them. `stash@{0}` is old `project.pbxproj` churn (drop is fine).
-Worktrees: `~/orca/workspaces/Manga-Reader/icon-concepts` (Orca, branch `feat/temp-app-icon-a1`, #357)
-and this handoff's own.
+`skills-lock.json` edits; leave them. `stash@{0}` is old `project.pbxproj` churn (drop is fine). The
+#356 and #359 worktrees and branches are removed. One worktree remains:
+`~/orca/workspaces/Manga-Reader/icon-concepts`, whose local branch `feat/temp-app-icon-a1` is merged
+and whose remote branch is deleted (see Next).
 
 ## Next
 
-1. **#356 is ready for an agent.** It's small: present an explainer on the first save, call the
-   existing `requestAuthorizationIfNeeded()`, and work test-first. The acceptance list and a required
-   mutation are in the issue.
-2. **After #357 merges** (check `state == MERGED` first): delete branch `feat/temp-app-icon-a1` and
-   remove the Orca worktree (`orca worktree rm --worktree path:/Users/eliasmagdaleno/orca/workspaces/Manga-Reader/icon-concepts --force --json`).
-   It holds untracked concept files (`icon-concepts/`, `icon-concepts/round2/`, `ICON-TASK*.md`) that
-   go with it. Ask the owner first if they want the round-2 PNGs kept anywhere. If CI fails on the
-   asset catalog's dark or tinted entries (Xcode 16.4), that's the likely cause.
+1. **Remove the icon-concepts worktree, after asking the owner** whether the round-2 icon PNGs should
+   be kept anywhere. It holds untracked concept files (`icon-concepts/`, `icon-concepts/round2/`,
+   `ICON-TASK*.md`). Then run
+   `orca worktree rm --worktree path:/Users/eliasmagdaleno/orca/workspaces/Manga-Reader/icon-concepts --force --json`
+   and delete the local branch `feat/temp-app-icon-a1`.
+2. **#360** needs a decision before an agent takes it: a DEBUG-only way to export the app's own
+   token for the harness, or drop the harness's token step and print the manual record/restore
+   steps.
 3. Otherwise, as before: ask the owner, or run another defect sweep (method in Operating notes).
    Don't invent refactors.
 
@@ -61,40 +70,43 @@ the next signal for that Work (#352's PR body). File it only with evidence a rea
      tap opens and that Open With lists MangaCarta.
 2. **VoiceOver device pass (#90).** `scripts/voiceover-pass.sh` walks the 8 checklist sections and
    writes `docs/accessibility/voiceover-results-<date>.md`. Close #90 when every row has a verdict.
-3. **MAL live-write check.** Sign the simulator app into MAL first. Then, in the owner's own
-   terminal: `python3 scripts/mal_oauth_token.py`, `export MAL_ACCESS_TOKEN=…`,
-   `python3 scripts/mal_live_write.py fire` (it snapshots the Horimiya entry, runs the test, restores).
-   Meaningful only if the list is below 124 chapters. Eyeball #302's MAL avatar in the same session.
-4. **Merge #357** (temporary icon) when CI is green. The commissioned icon is still the real
-   replacement: `docs/design/app-icon-brief.md` is ready to send, and its status line now names the
-   temporary icon.
-5. **A real image-load report reaching MangaDex**: blocked on MangaDex. Recheck the endpoint with
+3. **#361 on a fresh install:** install the app on a simulator that has never granted it
+   notifications, save one title, and confirm the explainer and then the system prompt appear.
+4. **Eyeball #302's MAL avatar** in Settings; it was not confirmed during the MAL check.
+5. **App icon:** the temporary icon is shipped; the commissioned icon is still the real
+   replacement, and `docs/design/app-icon-brief.md` is ready to send.
+6. **A real image-load report reaching MangaDex**: blocked on MangaDex. Recheck the endpoint with
    `curl -s -o /dev/null -w "%{http_code}\n" -X POST -H "Content-Type: application/json" --data '{}' https://api.mangadex.network/report`.
    While it returns 522 there's nothing to test. Once it doesn't, read a chapter on the seeded
    simulator (already on v3) and confirm no `Image-load report dropped` lines appear in
    `log stream --level debug --predicate 'process == "MangaCarta" AND category == "ImageLoadReporter"'`.
    Success is silent, so also check that the endpoint answers a POST with 2xx.
-6. **App Store prep** (`docs/app-store/submission-copy.md`): not until the owner says so.
+7. **App Store prep** (`docs/app-store/submission-copy.md`): not until the owner says so.
    - the owner's sample and screenshot art, a sample URL or attachment, and contact placeholders;
      recheck every claim against the build that ships, §5 included;
    - accept or drop the three candidate bullets #325 lists (per-title direction, ComicInfo +
      series, Open in);
    - decide whether third-party site logos belong in a no-content build (`SourceLogo-mangadex` and
      `SourceLogo-weebcentral` match only legacy ids, not installed Sources' qualified ids).
-7. **Bare 429s (optional):** a 429 with no retry header does not pause (Amendment 8, on purpose).
+8. **Bare 429s (optional):** a 429 with no retry header does not pause (Amendment 8, on purpose).
    Revisit only with evidence of a Source that sends bare 429s.
 
 ## Seeded simulator: changed 2026-10-07
 
 - Backup before today's changes: `~/Manga-Reader-sim-backup-2026-10-07-pre-notif` (Application
   Support + Preferences).
-- **The installed build is #357's branch** (`feat/temp-app-icon-a1`, built from `c059b8a` plus the
-  icon).
-- Notification permission is **granted**. `settings.declaredAgeOver18` is **true** (confirmed on the
-  v3 update). `settings.showAdultSources` is still false.
+- **The installed build is `main` at `c059b8a`** (from the serial live MAL run). #361's runs were
+  parallel, on clones, so they didn't replace it.
+- **Signed into MAL as Proxylink** (user 10146880), sync on. The "iPhone 16 Pro (CI repro)"
+  simulator is signed in too.
+- Horimiya ch. 124 is **read** in history (page 24 of 25). Mark it unread before the next live run.
+- Notification permission is **granted**. `settings.declaredAgeOver18` is **true**.
+  `settings.showAdultSources` is still false.
 - The MangaDex Source is on **bundle v3** (declares image-load reports). WeebCentral is unchanged.
 - History gained Dorohedoro ch. 2, read to page 4 of 26.
-- Appearance was switched dark and back to light. The home-screen icon style is pinned to Light.
+- Four leftover worker simulators (`Luna-R186`, `Luna-230`, `Luna-190`, `Luna-removal2-final`) are
+  also iPhone 17 Pros, so **name-based destinations are ambiguous**. Target the seeded simulator by
+  id.
 
 ## Watch list
 
@@ -158,7 +170,7 @@ the next signal for that Work (#352's PR body). File it only with evidence a rea
   `worker_done`'s task, dispatch and outcome live in the message's `payload` string.
 - **Swift Testing and actors.** `#expect(... store.root ...)` on an actor's `let` fails to compile
   inside the macro expansion. Hold the value in a local before the `#expect`.
-- **Merging.** The owner asks for merges by PR number (#292–#294, #297–#302, #309, #311, #341, #349–#355 so far). Treat each
+- **Merging.** The owner asks for merges by PR number (#292–#294, #297–#302, #309, #311, #341, #349–#355, #357–#359, #361 so far). Treat each
   request as covering the PRs it names, not as a standing permission. Use
   `gh pr merge <n> --squash` once all four checks pass, or `--squash --auto` to wait for CI; gate
   branch cleanup on `state == MERGED`.
@@ -216,8 +228,7 @@ the next signal for that Work (#352's PR body). File it only with evidence a rea
     "In Place Check"); Files still holds the test `.cbz`/`.zip`/`.pdf` files.
   - `tmp/` holds 18 known entries plus `MangaCartaTests/` (the #303 sweep's folder) after the
     2026-09-30 cleanup.
-  - The installed build is unverified: #305's branch build as of the last serial run, but #307's
-    tests ran in parallel (clones), so check before relying on which build is installed.
+  - Which build is installed: see "Seeded simulator: changed 2026-10-07" above.
   - Older backups: `~/Manga-Reader-sim-backup-2026-09-29-pre-openin/` and
     `~/Manga-Reader-sim-backup-2026-09-27-post-smoke/`.
 - **The app's data container moves on every reinstall, and every test run reinstalls.** Look it up
@@ -355,3 +366,14 @@ the next signal for that Work (#352's PR body). File it only with evidence a rea
   ("Irreversible Local Destruction") when it overwrites a tracked file and `git rm`s another.
   Splitting it into single, reversible steps went through, and the `git rm` ran once the owner
   approved it.
+
+- **A live MAL run proves nothing by passing.** Progress is queued only on an unread-to-read
+  transition, and the drain checks MAL first and skips when MAL is already at or past the target.
+  Check the account's MAL history (`myanimelist.net/history/<user>/manga`); a hard-refreshed list
+  page can still lag. A run whose app was closed before sending sends on the next launch.
+- **Reading the app's MAL traffic:** `log show` CFNetwork lines name a URL only when a connection
+  opens, so a request reusing a connection looks like nothing happened. Match the `Task <uuid>`
+  lines instead (`sent request, body N 0` is a GET; the summary line has the status).
+- **A worker's tests can all pass while the bug stays.** #356's worker tested the notifier and the
+  Library callback, but nothing between them and the composition, which was the missing caller.
+  Mutate the wiring the issue is actually about.
