@@ -80,4 +80,5 @@ variants is typically a few hundred USD; the deliverables list above is what to 
 - `AppIcon.appiconset/` gets the 1024 PNG (and dark/tinted slots filled); `Contents.json` updated.
 - `xcodebuild -scheme MangaCarta -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build`
   succeeds; icon visible on the simulator home screen in light and dark.
-- `scripts/make-app-icon.swift` and #165's placeholder are removed in the same PR.
+- The temporary icon's three PNGs are replaced in the same PR. (`scripts/make-app-icon.swift`, which
+  drew #165's placeholder, was already deleted with the temporary icon.)
