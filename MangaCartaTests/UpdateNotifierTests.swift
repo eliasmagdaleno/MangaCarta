@@ -228,6 +228,55 @@ struct UpdateNotifierTests {
     }
 
     @MainActor
+    @Test("The prompt presents on a first save, and continuing requests authorization once")
+    func promptPresentsOnFirstSaveAndContinueRequestsOnce() async {
+        let fixture = Fixture(status: .notDetermined)
+        defer { fixture.suite.remove() }
+        let prompt = NotificationAuthorizationPrompt(notifier: fixture.notifier)
+        fixture.library.configureLibraryBecameNonEmpty { prompt.libraryBecameNonEmpty() }
+
+        fixture.library.toggle(fixture.manga("Saved"))
+        #expect(await eventually { prompt.isPresented })
+
+        prompt.continueToAuthorization()
+        // The sheet's onDismiss follows a button; it must not undo the choice.
+        prompt.dismissed()
+        #expect(await eventually { fixture.notifications.authorizationRequests == 1 })
+        #expect(prompt.isPresented == false)
+    }
+
+    @MainActor
+    @Test("Swiping the explainer away counts as Not Now")
+    func swipingTheExplainerAwayCountsAsNotNow() async {
+        let fixture = Fixture(status: .notDetermined)
+        defer { fixture.suite.remove() }
+        let prompt = NotificationAuthorizationPrompt(notifier: fixture.notifier)
+        fixture.library.configureLibraryBecameNonEmpty { prompt.libraryBecameNonEmpty() }
+
+        fixture.library.toggle(fixture.manga("Saved"))
+        #expect(await eventually { prompt.isPresented })
+        prompt.isPresented = false
+        prompt.dismissed()
+
+        #expect(await fixture.notifier.shouldOfferAuthorization() == false)
+        #expect(fixture.notifications.authorizationRequests == 0)
+    }
+
+    @MainActor
+    @Test("The prompt stays hidden when authorization is already determined")
+    func promptStaysHiddenWhenDetermined() async {
+        let fixture = Fixture(status: .denied)
+        defer { fixture.suite.remove() }
+        let prompt = NotificationAuthorizationPrompt(notifier: fixture.notifier)
+        fixture.library.configureLibraryBecameNonEmpty { prompt.libraryBecameNonEmpty() }
+
+        fixture.library.toggle(fixture.manga("Saved"))
+
+        #expect(await eventually { prompt.isPresented } == false)
+        #expect(fixture.notifications.authorizationRequests == 0)
+    }
+
+    @MainActor
     @Test("A response routes to the surviving Work rather than opening a chapter")
     func responseRoutesToResolvedWork() {
         var opened: WorkID?
@@ -302,6 +351,16 @@ private final class Fixture {
         UpdateEvent(workId: workId, title: works.work(workId)?.displayTitle ?? "",
                     newChapterCount: count, didExceedCap: false, isAdult: false)
     }
+}
+
+/// Waits up to two seconds for work the prompt hands to a `Task`.
+@MainActor
+private func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
+    for _ in 0..<200 {
+        if condition() { return true }
+        try? await Task.sleep(for: .milliseconds(10))
+    }
+    return condition()
 }
 
 @MainActor

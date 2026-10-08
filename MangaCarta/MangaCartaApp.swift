@@ -200,7 +200,8 @@ struct MangaCartaApp: App {
                 .environment(\.extensionComposition, extensions)
                 .environment(\.extensionStorageError, extensionStorageError)
                 .environment(\.imageCache, imageCache)
-                .sheet(isPresented: $notificationPrompt.isPresented) {
+                .sheet(isPresented: $notificationPrompt.isPresented,
+                       onDismiss: notificationPrompt.dismissed) {
                     NotificationExplainerSheet(
                         onContinue: notificationPrompt.continueToAuthorization,
                         onNotNow: notificationPrompt.notNow)

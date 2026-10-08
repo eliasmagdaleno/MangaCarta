@@ -290,7 +290,8 @@ struct AppComposition {
          anilist injectedAniList: AniListAPI? = nil,
          malResolver: MALEntityResolver? = nil,
          registry: SourceRegistry? = nil,
-         repositoryTransport: (any RepositoryTransport)? = nil) {
+         repositoryTransport: (any RepositoryTransport)? = nil,
+         notifications: NotificationScheduling? = nil) {
         let identityMigrationError = Self.runIdentityMigrations(directory: directory, defaults: defaults)
         let resolvedRegistry = registry ?? .shared
         let resolvedMALResolver = malResolver ?? MALEntityResolver(
@@ -323,9 +324,11 @@ struct AppComposition {
             works: wk, library: lib, history: hist, updates: updateState, registry: resolvedRegistry)
         lib.configureRefreshCoordinator(refreshCoordinator)
         let navigator = WorkNavigator()
-        let updateNotifier = UpdateNotifier(updates: updateState, works: wk, library: lib,
+        let updateNotifier = UpdateNotifier(notifications: notifications,
+                                            updates: updateState, works: wk, library: lib,
                                             defaults: defaults,
                                             openWork: { navigator.open($0) })
+        // ADR-0021: the first save explains notifications before the system asks (#356).
         let notificationPrompt = NotificationAuthorizationPrompt(notifier: updateNotifier)
         lib.configureLibraryBecameNonEmpty { [weak notificationPrompt] in
             notificationPrompt?.libraryBecameNonEmpty()

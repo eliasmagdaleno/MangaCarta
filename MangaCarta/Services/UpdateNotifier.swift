@@ -150,11 +150,16 @@ final class UpdateNotifier {
     }
 }
 
+/// The contextual explainer ADR-0021 asks for after the first save (#356). Every way the
+/// sheet can close settles the one ask: continuing requests authorization, while "Not Now"
+/// and swiping the sheet away both record it, so the explainer never returns.
 @MainActor
 final class NotificationAuthorizationPrompt: ObservableObject {
     @Published var isPresented = false
 
     private let notifier: UpdateNotifier
+    /// Set by either button, so the dismissal that follows one is not read as a decline.
+    private var choiceMade = false
 
     init(notifier: UpdateNotifier) {
         self.notifier = notifier
@@ -168,18 +173,27 @@ final class NotificationAuthorizationPrompt: ObservableObject {
 #endif
         Task { [weak self] in
             guard let self, await notifier.shouldOfferAuthorization() else { return }
+            choiceMade = false
             isPresented = true
         }
     }
 
     func continueToAuthorization() {
+        choiceMade = true
         isPresented = false
         Task { await notifier.requestAuthorizationIfNeeded() }
     }
 
     func notNow() {
+        choiceMade = true
         notifier.markAuthorizationNotNow()
         isPresented = false
+    }
+
+    /// The sheet's `onDismiss`. A swipe away is a decline, recorded like "Not Now".
+    func dismissed() {
+        guard !choiceMade else { return }
+        notifier.markAuthorizationNotNow()
     }
 }
 
