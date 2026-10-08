@@ -202,13 +202,20 @@ final class MangaCartaUITests: XCTestCase {
     /// **A one-off live verification for MAL Task 12, not a CI test.** It reads a chapter of
     /// a real title to the end, which is the only thing that may move MyAnimeList progress —
     /// manual mark-as-read deliberately cannot. Run only with explicit approval, and only
-    /// through `scripts/mal_live_write.py fire` — that harness records the account's list
-    /// entry before the run and puts it back afterwards, including when the run fails.
+    /// with the account's list entry recorded first and put back afterwards, including when
+    /// the run fails. `scripts/mal_live_write.py fire` automates that, but its token comes
+    /// from `scripts/mal_oauth_token.py`, which MAL's approval page currently rejects with a
+    /// 400; recording and restoring the entry by hand on the website works (2026-10-07).
     ///
-    /// Chapter **124** is not arbitrary: the account sits at 100 chapters, and the coordinator
-    /// treats a desired progress at or below the remote value as already delivered
-    /// (`MALProgressCoordinator.swift:281`), so anything lower would verify nothing. 101 does
-    /// not exist — MangaDex's English list for this title jumps from 30 to 123.1.
+    /// Chapter **124** is not arbitrary: the account must sit below 124 chapters, and the
+    /// coordinator treats a desired progress at or below the remote value as already
+    /// delivered (`MALProgressCoordinator.swift:297`), so anything lower would verify nothing.
+    /// 101 does not exist — MangaDex's English list for this title jumps from 30 to 123.1.
+    ///
+    /// **Mark chapter 124 unread in the app first.** Progress is queued only when a chapter
+    /// goes from unread to read (`HistoryStore.record`), so a run over an already-read
+    /// chapter passes while sending nothing. Passing is not the evidence either way: check
+    /// the account's MAL history for the update.
     func testLiveHorimiyaCompletionPushesProgress() throws {
         // **Cannot run by accident.** This one writes to a real MyAnimeList account, so a
         // plain `xcodebuild test` must skip it — the variable has to be set deliberately,
@@ -273,10 +280,10 @@ final class MangaCartaUITests: XCTestCase {
         attach(app, name: "30-chapter-124-row")
         chapter.tap()
 
-        // Read it to the last page. The indicator reads "n · total" and is part of the
-        // reader chrome, which is hidden until tapped — so reveal it before looking.
-        let indicator = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", " · "))
-            .firstMatch
+        // Read it to the last page. The indicator is part of the reader chrome, which is
+        // hidden until tapped — so reveal it before looking. Found by identifier: its
+        // label is the spoken "Page n of total", not the "n · total" it renders.
+        let indicator = app.staticTexts["readerPageIndicator"]
         for _ in 0..<12 where !indicator.exists {
             app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
             usleep(1_500_000)
@@ -288,11 +295,14 @@ final class MangaCartaUITests: XCTestCase {
         XCTAssertGreaterThan(pages, 1, "a one-page chapter would not prove paging")
 
         // Direction is a property of the title's reading direction, so probe rather than
-        // assume: R→L is implemented as reversed page order, not a mirror.
-        var advancing = false
+        // assume: R→L is implemented as reversed page order, not a mirror. Compare against
+        // the page the reader opened on, which is the resume page for a chapter read before.
+        let start = Self.indicatorCurrent(indicator.label) ?? 1
         app.swipeLeft()
         usleep(600_000)
-        if Self.indicatorCurrent(indicator.label) ?? 1 > 1 { advancing = true }
+        let afterSwipe = Self.indicatorCurrent(indicator.label) ?? start
+        // No movement means the swipe hit an end: at the last page that end is forward.
+        let advancing = afterSwipe > start || (afterSwipe == start && start >= pages)
 
         for _ in 0..<(pages + 5) {
             if (Self.indicatorCurrent(indicator.label) ?? 0) >= pages { break }

@@ -1,8 +1,9 @@
 # App icon — commissioning brief
 
 **Status:** ready to send. Written 2026-09-16 so that ordering the icon is a copy-paste, not a
-thirteenth handoff line. The placeholder (#165, `scripts/make-app-icon.swift`) is what ships until
-this lands; **replace it, do not refine it.**
+thirteenth handoff line. Until this lands, a temporary image-generated icon ships (2026-10-07:
+brush "M" with a 漫 seal; light, dark and tinted in `AppIcon.appiconset`). It replaced #165's drawn
+placeholder. **Replace the temporary icon, do not refine it.**
 
 Owner of the *visual system* this must fit is `DESIGN.md` ("Ink & Seal"). This brief restates only
 what a designer outside the repository needs.
@@ -79,4 +80,5 @@ variants is typically a few hundred USD; the deliverables list above is what to 
 - `AppIcon.appiconset/` gets the 1024 PNG (and dark/tinted slots filled); `Contents.json` updated.
 - `xcodebuild -scheme MangaCarta -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build`
   succeeds; icon visible on the simulator home screen in light and dark.
-- `scripts/make-app-icon.swift` and #165's placeholder are removed in the same PR.
+- The temporary icon's three PNGs are replaced in the same PR. (`scripts/make-app-icon.swift`, which
+  drew #165's placeholder, was already deleted with the temporary icon.)

@@ -40,6 +40,7 @@ struct MangaCartaApp: App {
     @StateObject private var localImporter: LocalImportViewModel
     /// Where a tapped new-chapter notification lands; the Library tab observes it.
     @StateObject private var workNavigator: WorkNavigator
+    @StateObject private var notificationPrompt: NotificationAuthorizationPrompt
 
     /// Plain properties rather than `@StateObject` — neither publishes anything, so a view
     /// that could reach one could only misuse it (ADR-0010). See `AppComposition` for why
@@ -139,6 +140,7 @@ struct MangaCartaApp: App {
         self.scheduler = composed.scheduler
         self.notificationDelegate = composed.notificationDelegate
         _workNavigator = StateObject(wrappedValue: composed.workNavigator)
+        _notificationPrompt = StateObject(wrappedValue: composed.notificationPrompt)
         // Before launch finishes, so a tap that launched the app is delivered (ADR-0021).
         UNUserNotificationCenter.current().delegate = composed.notificationDelegate
         self.extensions = composed.extensions
@@ -198,6 +200,12 @@ struct MangaCartaApp: App {
                 .environment(\.extensionComposition, extensions)
                 .environment(\.extensionStorageError, extensionStorageError)
                 .environment(\.imageCache, imageCache)
+                .sheet(isPresented: $notificationPrompt.isPresented,
+                       onDismiss: notificationPrompt.dismissed) {
+                    NotificationExplainerSheet(
+                        onContinue: notificationPrompt.continueToAuthorization,
+                        onNotNow: notificationPrompt.notNow)
+                }
                 .preferredColorScheme(appearance.colorScheme)
                 // `onChange` does not fire for the initial value, so launch needs its
                 // own start. `start()` is idempotent, so the `.active` case below

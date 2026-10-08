@@ -95,6 +95,7 @@ final class LibraryStore: ObservableObject {
     /// register stub sources; the app uses the shared registry.
     private let registryOverride: SourceRegistry?
     private weak var refreshCoordinator: LibraryRefreshCoordinator?
+    private var libraryBecameNonEmpty: () -> Void = {}
     /// Called with a Work whose last Library item was just removed, by any path. The
     /// composition wires it to `UpdateNotifier.forget(workId:)` (ADR-0021, #342).
     private var workLeftLibrary: (WorkID) -> Void = { _ in }
@@ -338,6 +339,9 @@ final class LibraryStore: ObservableObject {
 
     /// Every removal path assigns `items`, so diffing here covers all of them.
     private func reportWorksThatLeft(_ previous: [LibraryItem]) {
+        if previous.isEmpty, !items.isEmpty {
+            libraryBecameNonEmpty()
+        }
         guard let works else { return }
         func key(_ item: LibraryItem) -> ListingKey {
             ListingKey(sourceId: item.sourceId ?? LegacySourceID.unattributed, mangaId: item.id)
@@ -348,6 +352,13 @@ final class LibraryStore: ObservableObject {
         let stillSaved = Set(remaining.compactMap { works.workId(for: $0) })
         let left = Set(removed.compactMap { works.workId(for: $0) }).subtracting(stillSaved)
         for workId in left { workLeftLibrary(workId) }
+    }
+
+    /// Called once whenever a mutation transitions the Library from empty to non-empty.
+    /// The callback is configured after initialization, so loading persisted items at launch
+    /// cannot look like a first save.
+    func configureLibraryBecameNonEmpty(_ handler: @escaping () -> Void) {
+        libraryBecameNonEmpty = handler
     }
 
     /// Refresh every saved manga's full chapter-number list concurrently. Best-effort:

@@ -99,11 +99,19 @@ final class UpdateNotifier {
     }
 
     func requestAuthorizationIfNeeded() async {
-        guard !library.items.isEmpty,
-              !defaults.bool(forKey: Self.requestedAuthorizationKey),
-              await notifications.authorizationStatus() == .notDetermined else { return }
+        guard await shouldOfferAuthorization() else { return }
         defaults.set(true, forKey: Self.requestedAuthorizationKey)
         _ = await notifications.requestAuthorization()
+    }
+
+    func shouldOfferAuthorization() async -> Bool {
+        guard !library.items.isEmpty,
+              !defaults.bool(forKey: Self.requestedAuthorizationKey) else { return false }
+        return await notifications.authorizationStatus() == .notDetermined
+    }
+
+    func markAuthorizationNotNow() {
+        defaults.set(true, forKey: Self.requestedAuthorizationKey)
     }
 
     func authorizationSummary() async -> NotificationAuthorizationSummary {
@@ -139,6 +147,53 @@ final class UpdateNotifier {
                 $0.isNSFW || $0.declaresAdultTitles
             } == true
         }
+    }
+}
+
+/// The contextual explainer ADR-0021 asks for after the first save (#356). Every way the
+/// sheet can close settles the one ask: continuing requests authorization, while "Not Now"
+/// and swiping the sheet away both record it, so the explainer never returns.
+@MainActor
+final class NotificationAuthorizationPrompt: ObservableObject {
+    @Published var isPresented = false
+
+    private let notifier: UpdateNotifier
+    /// Set by either button, so the dismissal that follows one is not read as a decline.
+    private var choiceMade = false
+
+    init(notifier: UpdateNotifier) {
+        self.notifier = notifier
+    }
+
+    func libraryBecameNonEmpty() {
+#if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        guard arguments.contains("-uitest-notification-explainer")
+                || !arguments.contains(where: { $0.hasPrefix("-uitest-") }) else { return }
+#endif
+        Task { [weak self] in
+            guard let self, await notifier.shouldOfferAuthorization() else { return }
+            choiceMade = false
+            isPresented = true
+        }
+    }
+
+    func continueToAuthorization() {
+        choiceMade = true
+        isPresented = false
+        Task { await notifier.requestAuthorizationIfNeeded() }
+    }
+
+    func notNow() {
+        choiceMade = true
+        notifier.markAuthorizationNotNow()
+        isPresented = false
+    }
+
+    /// The sheet's `onDismiss`. A swipe away is a decline, recorded like "Not Now".
+    func dismissed() {
+        guard !choiceMade else { return }
+        notifier.markAuthorizationNotNow()
     }
 }
 
