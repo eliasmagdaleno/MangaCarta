@@ -21,6 +21,7 @@
 //  identifier `forYouUnavailableNotice` is in place if that trade is ever revisited.
 //
 
+import UserNotifications
 import XCTest
 @testable import MangaCarta
 
@@ -336,6 +337,31 @@ final class AppCompositionTests: XCTestCase {
         XCTAssertNil(composition.updates.state(for: sharedWork))
     }
 
+    /// #356: the composed Library's first save reaches the explainer, and continuing asks the
+    /// system once. This is the wiring that was missing: the request existed, with no caller.
+    func testAFirstSaveInTheComposedGraphPresentsTheExplainerAndContinuingAsksOnce() async {
+        let center = PromptTestNotificationCenter()
+        let composition = AppComposition(defaults: defaults, directory: directory,
+                                         notifications: center)
+        XCTAssertFalse(composition.notificationPrompt.isPresented)
+
+        composition.library.toggle(savedManga("first"))
+
+        let presented = await waitUntil { composition.notificationPrompt.isPresented }
+        XCTAssertTrue(presented, "the first save should present the explainer")
+        composition.notificationPrompt.continueToAuthorization()
+        let asked = await waitUntil { center.authorizationRequests == 1 }
+        XCTAssertTrue(asked, "continuing should request authorization exactly once")
+    }
+
+    private func waitUntil(_ condition: @MainActor () -> Bool) async -> Bool {
+        for _ in 0..<200 {
+            if condition() { return true }
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        return condition()
+    }
+
     /// #343: the composed notifier's `openWork` reaches the navigation sink the UI observes.
     func testANotificationResponseReachesTheWorkNavigator() throws {
         let composition = makeComposition()
@@ -397,4 +423,19 @@ private final class GrowingSource: MangaSource, @unchecked Sendable {
         MangaDetail(description: "", authors: [], tags: [], contentRating: nil)
     }
     func pageURLs(chapterId: String, preferDataSaver: Bool) async throws -> [URL] { [] }
+}
+
+/// Authorization not yet determined, counting requests. Nothing is ever delivered.
+@MainActor
+private final class PromptTestNotificationCenter: NotificationScheduling {
+    var authorizationRequests = 0
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        authorizationRequests == 0 ? .notDetermined : .authorized
+    }
+    func requestAuthorization() async -> Bool {
+        authorizationRequests += 1
+        return true
+    }
+    func add(_ request: UNNotificationRequest) async {}
+    func removePending(withIdentifiers identifiers: [String]) {}
 }
