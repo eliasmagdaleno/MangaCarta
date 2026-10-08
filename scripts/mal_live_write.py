@@ -151,7 +151,9 @@ def do_fire(manga_id: int) -> int:
     command = [
         "xcodebuild",
         "-scheme", "MangaCarta",
-        "-destination", "platform=iOS Simulator,name=iPhone 17 Pro",
+        # By id: a name matches every simulator of that model (worker clones included),
+        # and xcodebuild refuses an ambiguous destination. This is the seeded device.
+        "-destination", "id=ADDAB2F8-38C7-4D44-97EA-4E98281CF691",
         "test",
         f"-only-testing:{TEST}",
     ]
