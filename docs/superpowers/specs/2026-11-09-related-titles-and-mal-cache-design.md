@@ -1,7 +1,7 @@
 # Related titles and MAL detail caching — Design
 
 **Date:** 2026-11-09  
-**Status:** Proposed; owner decisions are listed at the end.  
+**Status:** Accepted owner decisions (2026-11-09) are recorded at the end.
 **Scope:** the detail-page Related section and a read-through cache for the one MAL detail
 payload consumed by both detail-page rails.
 
@@ -41,6 +41,12 @@ These references were opened while drafting this document.
 - `MangaCarta/Models/MyAnimeListAPI.swift:74-98` defines
   `MyAnimeListMangaDetail`, including `Relation` (`node`, `relationType`,
   `relationTypeFormatted`) and `Recommendation` (`node`, `numRecommendations`).
+- Those declarations, including `MyAnimeListManga`, `MainPicture`, and the nested
+  `Genre`/`Relation`/`Recommendation` value types, are `Decodable` only today. The cache
+  slice must change every cached DTO to `Codable`; the cache's `JSONDecoder` must use the
+  API decoder's `.convertFromSnakeCase` strategy (the API decoder is at
+  `MyAnimeListAPI.swift:113-118`) and its `JSONEncoder` must use the corresponding
+  `.convertToSnakeCase` strategy, so disk round-trips preserve the decoded model losslessly.
 - `MangaCarta/Models/MyAnimeListAPI.swift:171-180` requests
   `alternative_titles,synopsis,main_picture,genres,related_manga,recommendations` in one
   `mangaDetail(id:)` call. There is therefore no additional MAL request for Related.
@@ -89,6 +95,8 @@ Add a `MALDetailStore` read-through cache and make the MAL detail result the sha
 both projections:
 
 ```swift
+// All DTOs reachable from `MyAnimeListMangaDetail` are Codable in the cache slice:
+// MyAnimeListManga, MainPicture, AlternativeTitles, Genre, Relation, and Recommendation.
 struct MALDetailRecord: Codable, Equatable {
     let detail: MyAnimeListMangaDetail
     let fetchedAt: Date
@@ -161,7 +169,9 @@ struct RelatedTitle: Identifiable, Equatable {
 }
 ```
 
-The provider maps each `Relation` to a reverse target `(malId: node.id, titles: [node.title])`,
+The provider maps each `Relation` to the existing reverse target initializer
+`.init(malId: node.id, title: node.title)` (the current call site is
+`MoreLikeThisProvider.swift:46-47`),
 calls `MALReverseResolver.resolve`, and then joins the returned Manga by MAL id. It must not
 write Works or links merely because a card resolved; this remains discovery and uses the
 existing precision-biased resolver. A relation with no confident MangaDex/installed-Source
@@ -214,8 +224,8 @@ payload twice. Keep the existing More Like This `items` API for the home candida
 add a focused `relatedTitles(for:)` projection or a combined `DetailDiscovery` value rather
 than making `RelatedTitle` leak into `MALCandidateProvider`.
 
-Place Related after the existing More Like This rail at the bottom of the page, with a shared
-horizontal `MangaRail`-like component that accepts an item label. Header: **“Related”** with
+Place **Related before the existing More Like This rail** at the bottom of the page, with a
+shared horizontal `MangaRail`-like component that accepts an item label. Header: **“Related”** with
 eyebrow **“From the same series”**. The section is hidden when no relation resolves. It must
 not show an empty bordered panel, a spinner after loading, or the “unmatched” notice; an
 unresolved relation is an omission, not an error. A title with no `related_manga`, no MAL id,
@@ -224,8 +234,9 @@ remains otherwise unchanged.
 
 **Options considered:** one mixed rail loses the distinction between continuation and
 collaborative similarity; a tab/segmented control adds navigation and was explicitly deferred
-by the original spec; a second bottom section is selected because it communicates the
-difference with one glance and reuses the shipped detail layout.
+by the original spec; two bottom sections are selected, with Related first, because this
+prioritizes series continuity while communicating the distinction with one glance and
+reusing the shipped detail layout.
 
 ## Persistence and graph changes
 
@@ -277,7 +288,10 @@ announcement behind.
 
 ## Acceptance criteria and named tests
 
-1. **The cached DTO decodes and round-trips** — `MALDetailStoreTests.testRecordRoundTripsAcrossInstances`.
+1. **A real decoded MAL detail fixture round-trips through the disk cache** — decode the
+   representative JSON fixture with the API's snake-case decoder, persist it, reload it in a
+   fresh store, and compare the complete value including relations and recommendations in
+   `MALDetailStoreTests.testRealDecodedFixtureRoundTripsAcrossInstances`.
 2. **Fresh detail is served without invoking the fetch closure** —
    `MALDetailStoreTests.testFreshEntryAvoidsFetchWithin24Hours`.
 3. **Expired detail fetches once and concurrent callers coalesce** —
@@ -299,10 +313,10 @@ announcement behind.
 10. **Resolved relations are joined in semantic order, self/duplicates/unadmitted Sources
     are omitted, and the original relation label survives** —
     `RelatedTitlesTests.testProjectionFiltersAndPreservesRelationLabels`.
-11. **The detail page hides Related when no relation resolves and exposes each card's title
-    and relation to VoiceOver** — hermetic UI test
+11. **The detail page renders Related before More Like This, hides Related when no relation
+    resolves, and exposes each card's title and relation to VoiceOver** — hermetic UI test
     `MangaDetailRelatedUITests.testRelatedSectionIsAbsentWhenNoRelationResolves` and
-    `testRelatedCardAnnouncesRelation`.
+    `testRelatedCardAnnouncesRelationAndPrecedesMoreLikeThis`.
 12. **The existing More Like This rail keeps recommendation-weight ordering and uses the same
     cached payload** — `MangaCartaTests.testMoreLikeThisAndRelatedShareOneDetailFetch`.
 13. **All new tests pass under the iPhone 17 Pro destination and Swift 6.0-compatible APIs**;
@@ -311,29 +325,25 @@ announcement behind.
 
 ## Implementation slices
 
-1. **Cache seam:** add the Codable record/store, graph injection, fetch coalescing, and unit
+This is intentionally **three PRs in order**, each mergeable on its own:
+
+1. **PR 1 — cache seam:** add the Codable record/store, graph injection, fetch coalescing, and unit
    tests; refactor More Like This to use it. This slice is useful independently because it
    removes duplicate MAL calls without changing UI.
-2. **Related projection:** add pure relation ordering/join logic and resolver integration,
-   with unit tests. The UI can remain hidden until the projection is proven.
-3. **Detail UI and accessibility:** add the Related rail, labels, empty-state behavior, and
-   hermetic UI coverage. Each slice can merge independently and all stay within one PR.
+2. **PR 2 — Related projection:** add pure relation ordering/join logic and resolver
+   integration, with unit tests. The UI can remain hidden until the projection is proven.
+3. **PR 3 — Detail UI and accessibility:** add the Related rail, labels, empty-state behavior,
+   and hermetic UI coverage. No slice depends on an unmerged later slice.
 
-## Open questions for the owner
+## Owner decisions (2026-11-09)
 
-1. **Recommended:** Keep the 24-hour TTL and stale-if-offline fallback. Should an expired
-   cached payload be allowed to render when the refresh fails, or should offline show no
-   discovery rails at all? Recommendation: allow stale results because they are harmless
-   discovery data and preserve useful offline navigation.
-2. **Recommended:** Show Related as a second bottom rail after More Like This. Should it be
-   placed before More Like This to prioritize series continuity? Recommendation: keep More
-   Like This first because it is the established surface and Related is the newly added
-   companion; revisit if device observation shows continuation is the dominant task.
-3. **Recommended:** Use MAL's supplied `relation_type_formatted` only after normalizing it
-   through the fixed mapping above. Should unknown future relation values be hidden until
-   explicitly mapped? Recommendation: show them as “Other” plus the readable raw label, so
-   new MAL data is not silently lost while keeping ordering deterministic.
-4. **Recommended:** Keep the cache in `Caches/` and never expose a “Clear MAL cache” control
-   in this PR. Is a user-facing invalidation control required for privacy or debugging?
-   Recommendation: no; the cache contains no credentials or personal data and the OS may
-   evict it at any time.
+1. Keep the 24-hour TTL and stale-if-offline fallback. An expired cached payload may render
+   when refresh fails because it is harmless discovery data and preserves useful offline
+   navigation.
+2. Show Related as the first of the two bottom rails, before More Like This, to prioritize
+   series continuity while retaining More Like This as the established companion surface.
+3. Use MAL's supplied `relation_type_formatted` only after normalizing it through the fixed
+   mapping above. Unknown future relation values are shown with their readable title-cased
+   label and sorted after `Other`; they are not hidden until explicitly mapped.
+4. Keep the cache in `Caches/` and do not expose a “Clear MAL cache” control in this PR. The
+   cache contains no credentials or personal data and the OS may evict it at any time.
