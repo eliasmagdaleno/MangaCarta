@@ -7,7 +7,8 @@ Slug: `updates-screen`
 
 Give a returning reader one durable place to answer “what changed in the titles I
 follow?” The destination lists newly discovered chapters from the Work-level update
-state, newest first, grouped by calendar day and Work. A reader can open a chapter
+state, newest first, grouped by the local calendar day of each Work's newest
+discovery and then by Work. A reader can open a chapter
 directly in the reader or open the Work's detail/chapter list, refresh the same
 source-aware pipeline used elsewhere, and explicitly mark the visible discoveries as
 seen.
@@ -20,9 +21,9 @@ Library filter cannot provide the triage task without another network fetch.
 
 - No change to chapter-frontier equivalence, refresh scheduling, notification
   authorization, muting, or adult lock-screen copy; ADR-0021 remains authoritative.
-- No notification actions (“Mark read” or “Mute”). A separate spec owns those
+- No notification actions (“Mark read” or “Mute/Unmute”). A separate spec owns those
   actions; this screen only names their future interaction point in the Work row's
-  context menu/action area.
+  trailing menu.
 - No sixth top-level tab, cross-device sync, server polling, or new source capability.
 - No use of `isRead` as acknowledgement. Newly discovered state and read state remain
   independent.
@@ -55,8 +56,9 @@ That filter cannot do the new job well:
 
 1. It is Work/card-level, not chapter-level. It cannot tell a reader which newly
    discovered chapter to start, nor offer a direct chapter-to-reader action.
-2. It is not a chronological timeline. It inherits Work summary ordering but has no
-   day grouping, per-chapter discovery grouping, or a stable “today/yesterday” scan.
+2. It is not a useful update timeline. It inherits Work summary ordering but has no
+   day sections, Work grouping within those sections, or a stable “today/yesterday”
+   scan of the newly discovered chapter ordinals.
 3. It is a projection of Library listings. `displayedLibraryItems` matches IDs in
    `library.items`, so one Work with multiple Listings can produce a single grid card
    rather than a Work section with its discovered chapters. The Work-level identity
@@ -135,19 +137,22 @@ Use a large navigation title “Updates”. Below it:
 - A recoverable partial-failure notice naming the affected Sources, reusing the
   existing `recoverySummaries` contract. Known discoveries remain visible.
 - A `ScrollView`/`LazyVStack` of day sections. The day label is “Today”, “Yesterday”,
-  or a locale-formatted date. Within a day, group by Work. A Work group includes its
-  cover/title, “N new chapters”, optional source/freshness metadata, and its chapter
-  rows sorted newest-first by source chapter date/ordinal.
+  or a locale-formatted date derived from each Work's `newestDiscoveryAt`. Within a
+  day, group by Work. A Work group includes its cover/title, “N new chapters”,
+  optional source/freshness metadata, and its newly discovered chapter rows sorted by
+  newest ordinal first. There is no per-chapter discovery date: `updates.json` stores
+  only the Work-level `newestDiscoveryAt`.
 - Each chapter row is a native `NavigationLink` to the existing reader path, carrying
   the resolved `Manga`, `Chapter`, source, current history position, and Work's
   chapter collection. The Work header/title is a separate link to the existing detail
   path. If chapter metadata cannot be resolved, show the Work row and a “View chapter
   list” action rather than dropping the discovery.
 
-The chapter date is presentation-only: use `Chapter.date` where available, otherwise
-the Work's `newestDiscoveryAt` for grouping. Do not persist a second timestamp per
-chapter in v1. `newlyDiscovered` remains the durable membership set; the screen may
-fetch current chapters to map ordinals to IDs/titles.
+`Chapter.date` is optional release-date metadata, not discovery time; if shown, label
+it as a release date. Grouping uses only the Work's `newestDiscoveryAt`, and there is
+no “date unknown” per chapter. `newlyDiscovered` remains the durable membership set;
+the screen may fetch current chapters to map ordinals to IDs/titles. No second
+timestamp is persisted in v1.
 
 ### Empty/loading/error states
 
@@ -172,25 +177,28 @@ History, `isRead`, and notification mute state unchanged. A focused Work row may
 offer “Mark seen” with the same separation. The operation is idempotent and only
 affects Works still in the Library.
 
-Opening UpdatesScreen does not mark anything seen. Opening a Work detail or chapter
-list retains existing behavior, which may clear that Work's discovery set; direct
-chapter-reader links should clear only after the reader navigation has successfully
-resolved its chapter context, matching the existing “viewed chapter list” intent.
-This distinction is called out in the UI copy and tests so a refresh or view redraw
-cannot acknowledge updates accidentally.
+Opening UpdatesScreen, tapping a Work row, and following its detail or chapter link do
+not mark anything seen. Only the explicit screen-level or per-Work Mark seen action
+clears discovery state. This is a deliberate change from the current detail/chapter
+list appearance hooks; the implementation must remove or bypass those hooks for this
+flow so a refresh or view redraw cannot acknowledge updates accidentally.
 
-The separate notification-actions spec may add “Mark read” and “Mute” to the Work
-row/context-menu action area later. Those actions are not part of this PR; their
-interaction point is the trailing Work-row menu, alongside (but distinct from)
-“Mark seen”.
+The Work-row trailing menu is the interaction point for Mark seen. The same menu is
+reserved for the separate notification-actions spec's future Mute/Unmute item; this
+spec does not design that action or its persistence behavior.
+
+The separate notification-actions spec adds a future Mute/Unmute item to the Work-row
+trailing menu. That action is not part of this PR; its interaction point is the same
+menu, alongside (but distinct from) “Mark seen”.
 
 ## Data and persistence changes
 
 1. Add a presentation model (for example `UpdateChapterGroup` and
    `UpdateDaySection`) derived from `LibraryUpdatesPresentation`, WorkStore,
    HistoryStore, UpdateStateStore, and the injected SourceRegistry. It must carry
-   WorkID, ListingKey/Manga, ChapterOrdinal, resolved Chapter if available, grouping
-   date, and a resolution/error state. Keep it pure enough for unit tests.
+   WorkID, ListingKey/Manga, ChapterOrdinal, resolved Chapter if available, the Work's
+   `newestDiscoveryAt`/local-day grouping key, and a resolution/error state. Keep it
+   pure enough for unit tests.
 2. Add `UpdateStateStore.clearNewlyDiscovered(workIds:)` (or equivalent bulk method)
    that performs one dirty/save cycle and never calls HistoryStore. Do not change the
    JSON shape of `updates.json` unless implementation evidence requires migration.
@@ -226,8 +234,10 @@ interaction point is the trailing Work-row menu, alongside (but distinct from)
 - A source returns chapters in an order different from the frontier: sort by parsed
   chapter ordinal/date using existing chapter ordering rules; never treat view order as
   discovery order.
-- A discovery has no `newestDiscoveryAt`: place it in “Date unknown” after dated
-  sections, with deterministic Work-title ordering.
+- A Work has no `newestDiscoveryAt`: place the whole Work in “Date unknown” after
+  dated sections, with deterministic Work-title ordering. Never infer a discovery day
+  from `Chapter.date`; that is the source's release date and may be absent or differ
+  from local discovery time.
 - A refresh fails for one Listing: keep known rows and show the recoverable Source
   notice; failed data is unknown, not evidence that a chapter disappeared.
 - A Work is removed while Updates is open: drop it from the next presentation pass;
@@ -259,9 +269,10 @@ interaction point is the trailing Work-row menu, alongside (but distinct from)
 Each criterion maps to a named Swift Testing unit test in `MangaCartaTests/` or a
 hermetic XCTest in `MangaCartaUITests/`.
 
-1. `UpdatesPresentationTests.groupsNewDiscoveriesByLocalDayThenWork`: two Works with
-   three discovered ordinals produce deterministic day sections and one Work group per
-   day; same-day ordering is newest discovery/date, then title.
+1. `UpdatesPresentationTests.groupsWorksByNewestDiscoveryLocalDayThenOrdinal`: two
+   Works with three discovered ordinals produce deterministic sections based only on
+   each Work's `newestDiscoveryAt` local day; within each Work, chapters are ordered
+   newest ordinal first, and `Chapter.date` does not affect grouping.
 2. `UpdatesPresentationTests.keepsUnknownChapterOrdinalVisible`: an ordinal missing
    from fetched chapter metadata remains visible with a fallback action.
 3. `UpdatesPresentationTests.multipleListingsProduceOneWorkGroup`: two Listings for
@@ -308,24 +319,19 @@ churn.
 Each slice can merge independently after its tests pass; no schema migration is
 expected.
 
-## Open questions for the owner
+## Owner decisions (2026-11-09)
 
-1. **Mark-seen timing:** Recommended: explicit screen-level “Mark all seen” (and a
-   per-Work “Mark seen”), while retaining existing detail/chapter-list clearing for
-   compatibility. This makes acknowledgement discoverable and prevents a redraw from
-   silently clearing the inbox. Owner choice: should opening a Work row on Updates also
-   mark that Work seen immediately?
-2. **Notification landing:** Recommended: route to Updates focused on the Work, then
-   let the reader choose detail or a chapter. This preserves ADR-0021's “never open the
-   newest chapter directly” rule while making the new destination the canonical inbox.
-   Owner choice: should a notification tap skip the Updates screen and push detail
-   directly after the focused route is established?
-3. **Day timezone:** Recommended: group using the device's current calendar/time zone,
+1. **Mark-seen timing — decided:** use an explicit screen-level “Mark all seen” and a
+   per-Work “Mark seen”; opening a Work row does not mark it seen. The Work-row trailing
+   menu is where Mark seen lives, alongside the future Mute/Unmute item owned by the
+   separate notification-actions spec.
+2. **Notification landing — decided:** route a notification tap to Updates focused on
+   the Work, then let the reader choose detail or a chapter. This preserves ADR-0021's
+   “never open the newest chapter directly” rule and makes Updates the canonical inbox.
+3. **Day timezone — decided:** group by the device's current calendar/time zone,
    because “Today” is a reader-facing local concept; keep the stored discovery
-   timestamp absolute. Owner choice: should a Work discovered near midnight use device
-   time (recommended) or a fixed UTC day for deterministic cross-device behavior?
-4. **Metadata fetch scope:** Recommended: fetch only updated Works on first appearance,
-   cap concurrent chapter requests at four, and lazily fetch a Work's chapters when its
-   group expands. Owner choice: should the initial screen eagerly resolve every visible
-   Work for a fully populated first paint, accepting more network activity?
-
+   timestamp absolute. Group Works by the local day of `newestDiscoveryAt`, never by
+   `Chapter.date`.
+4. **Metadata fetch scope — decided:** lazily fetch each Work's chapters when its group
+   expands, fetching only updated Works and capping concurrent chapter requests at
+   four. No change to the `updates.json` persistence shape.
