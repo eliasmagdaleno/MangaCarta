@@ -177,11 +177,13 @@ History, `isRead`, and notification mute state unchanged. A focused Work row may
 offer “Mark seen” with the same separation. The operation is idempotent and only
 affects Works still in the Library.
 
-Opening UpdatesScreen, tapping a Work row, and following its detail or chapter link do
-not mark anything seen. Only the explicit screen-level or per-Work Mark seen action
-clears discovery state. This is a deliberate change from the current detail/chapter
-list appearance hooks; the implementation must remove or bypass those hooks for this
-flow so a refresh or view redraw cannot acknowledge updates accidentally.
+Opening UpdatesScreen or tapping a Work row does not mark anything seen. Following a
+Work into its detail or chapter list retains the existing clearing behavior in
+`MangaDetailView.swift:119-122, :165-173` and
+`ChapterListView.swift:167-169, :206-209`, including when reached from Updates. The
+screen-level and per-Work Mark seen actions are the explicit acknowledgement controls
+owned by this destination; the existing destination hooks remain unchanged for
+compatibility.
 
 The Work-row trailing menu is the interaction point for Mark seen. The same menu is
 reserved for the separate notification-actions spec's future Mute/Unmute item; this
@@ -322,9 +324,11 @@ expected.
 ## Owner decisions (2026-11-09)
 
 1. **Mark-seen timing — decided:** use an explicit screen-level “Mark all seen” and a
-   per-Work “Mark seen”; opening a Work row does not mark it seen. The Work-row trailing
-   menu is where Mark seen lives, alongside the future Mute/Unmute item owned by the
-   separate notification-actions spec.
+   per-Work “Mark seen”; opening a Work row does not mark it seen. Reaching the detail
+   or chapter list retains the existing clearing hooks unchanged for compatibility,
+   including when reached from Updates. The Work-row trailing menu is where Mark seen
+   lives, alongside the future Mute/Unmute item owned by the separate
+   notification-actions spec.
 2. **Notification landing — decided:** route a notification tap to Updates focused on
    the Work, then let the reader choose detail or a chapter. This preserves ADR-0021's
    “never open the newest chapter directly” rule and makes Updates the canonical inbox.
