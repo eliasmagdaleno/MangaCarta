@@ -9,7 +9,7 @@
 Add two actions to the delivered Work-level new-chapter notification:
 
 - **Mark read** marks exactly the chapters represented by that notification as read through the
-  normal per-Work read path, including the existing MAL progress side effect.
+  normal per-Work read path. It is a manual mark and deliberately produces no MAL progress event.
 - **Mute** suppresses future notifications for that Work while leaving refresh, in-app Updates,
   the frontier, and unread state intact.
 
@@ -59,10 +59,13 @@ The following facts were checked in the current worktree.
 - The completion callback used by the normal reader path is in `HistoryStore.record`: when a
   chapter first becomes complete it calls `chapterCompleted` (`MangaCarta/Services/HistoryStore.swift:
   146-151`, `:194-199`). App composition connects that callback to `MALProgressCoordinator`
-  (`MangaCarta/Services/AppComposition.swift:311-316`). A manual mark does not currently call that
-  completion callback, so the action design must explicitly preserve the existing MAL contract by
-  routing through the same manual-read coordinator used by the chapter-list UI, or by extending
-  that path with a completion notification for each newly marked chapter.
+  (`MangaCarta/Services/AppComposition.swift:311-316`). The MAL progress design explicitly says
+  that single/batch manual marks produce no MAL event (`docs/superpowers/specs/2026-08-21-mal-oauth-
+  progress-design.md:28`, `:266`), and the existing chapter-list/detail manual marks call
+  `HistoryStore.markRead` directly (`MangaCarta/Views/ChapterListView.swift:68,186,203`,
+  `MangaCarta/Views/MangaDetailView.swift:625,640`). The notification action follows that same
+  rule: it calls `HistoryStore.markRead(manga:chapters:)`, full stop, and does not extract or invoke
+  a MAL enqueue sink.
 - `MangaSource` can fetch the source's Listing and chapter list (`MangaCarta/Models/MangaSource.swift:
   57-64`). `FulfillmentCoordinator.chosenListing` applies the same pin/ranking choice the detail
   page uses (`MangaCarta/Services/FulfillmentCoordinator.swift:37-51`). A `LibraryItem` stores only
@@ -138,13 +141,7 @@ The action targets one Work and its captured ordinals. The handler:
 5. Calls the existing multi-chapter manual-read operation
    `HistoryStore.markRead(manga:chapters:)` on the active Listing's `Manga`, never directly edits
    `readMarks`, `ReadingEntry`, or `UpdateStateStore` read-like fields.
-6. Enqueues the same MAL progress work used by the chapter-list manual-mark path for each newly
-   marked chapter (a small injected `ChapterReadAction`/completion sink is preferable to calling
-   MAL directly). This preserves the normal outbox behavior even when the reader never opened the
-   chapter. If the current UI path does not expose that sink, the implementation must first extract
-   the shared manual-mark command from the chapter-list view model; it must not fake completion by
-   writing `ReadingEntry`.
-7. Removes those exact ordinals from `newlyDiscovered`, via a new targeted store method. It must not
+6. Removes those exact ordinals from `newlyDiscovered`, via a new targeted store method. It must not
    call `clearNewlyDiscovered` because that would erase discoveries from later notifications. This
    operation is presentation cleanup after the read mark; it never creates read state.
 
@@ -169,22 +166,25 @@ Mute is scoped to the payload Work, is indefinite, and is persisted in the exist
 - already delivered notifications are not retroactively changed, but the pending request for this
   Work is removed after the action succeeds.
 
-The existing `setMuted(_:workId:)` is the persistence seam. The app needs one visible unmute route:
-the Updates row's existing action menu gets “Unmute notifications” when muted, with an accessible
-label that includes the Work title and state. Settings may mirror the control, but the row is the
-primary route because it is where the state is already presented. Unmute is explicit and takes
-effect for the next release only; it does not replay old `newlyDiscovered` chapters.
+The existing `setMuted(_:workId:)` is the persistence seam, but there is no mute UI today: a repo-wide
+search found no caller of `setMuted`, and `WorkUpdateRow` currently has no action menu
+(`MangaCarta/Views/Components/WorkUpdateRow.swift:3-51`). The app must add new UI in both the Home
+`WorkUpdateRow` (`MangaCarta/Views/HomeView.swift:92-114`) and the Library Updates card/context-menu
+surface (`MangaCarta/Views/BookmarksView.swift:265-269,335-347`). Each gets “Mute notifications”
+or, when muted, “Unmute notifications.” The separate Updates-screen design being revised in parallel
+will put the same item in its Work-row trailing menu. Settings may mirror the control, but the row
+menus are the primary route. Unmute is explicit and takes effect for the next release only; it does
+not replay old `newlyDiscovered` chapters.
 
 **Fork considered:** mute for one week, mute until the current backlog is read, or mute indefinitely.
 Indefinite is selected because the shipped model already persists a Boolean, existing copy says
-“per-title mute,” and automatic expiry would surprise readers and require a new date/migration. The
-owner can change this in the open questions if product intent is temporary snoozing.
+“per-title mute,” and automatic expiry would surprise readers and require a new date/migration.
 
 ### Composition, lifetime, and bounded work
 
 Add a small `NotificationActionHandler` owned by `AppComposition`, injected with the shared
 `WorkStore`, `HistoryStore`, `UpdateStateStore`, `LibraryStore`, `FulfillmentCoordinator`, and
-`SourceRegistry` (plus the existing read/MAL command seam). `UpdateNotifier` remains responsible
+`SourceRegistry`. `UpdateNotifier` remains responsible
 for request construction; the delegate forwards action responses to the handler.
 
 Composition construction remains synchronous and main-actor-owned. The action handler may create a
@@ -196,8 +196,9 @@ Work, source failure, cancellation, and success.
 
 The handler must finish within the notification action's system window. It may fetch one selected
 Listing and its chapter list; it must not run a Library refresh, start `UpdateScheduler`, present a
-WebView challenge, or drain unrelated MAL network work. Manual-read MAL enqueue is local and
-network-free; the existing outbox drain can run later when the app becomes active.
+WebView challenge, or drain unrelated MAL network work. Manual marks write only through
+`HistoryStore.markRead(manga:chapters:)`; they do not enqueue MAL progress, as required by the MAL
+progress design.
 
 The system can terminate the process after the action window. Therefore the handler flushes
 `HistoryStore` and `UpdateStateStore` before calling completion. A successful mark is durable even
@@ -206,9 +207,9 @@ if the process ends immediately afterward; an unsuccessful fetch leaves state un
 ### Hermetic test drive
 
 Unit tests use the current injected `NotificationScheduling` fake and direct delegate seams. They
-assert the category/action identifiers, captured ordinals, alias resolution, exact Work scoping,
-mute persistence, no-op failure behavior, targeted `newlyDiscovered` cleanup, and that the normal
-manual-read/MAL outbox path was invoked.
+  assert the category/action identifiers, captured ordinals, alias resolution, exact Work scoping,
+  mute persistence, no-op failure behavior, targeted `newlyDiscovered` cleanup, and that no MAL
+  outbox row was written by the manual mark.
 
 The cold/background path is a hermetic UI test on the iPhone 17 Pro simulator:
 
@@ -237,8 +238,8 @@ design remains buildable by CI's Xcode 16.4 / Swift 6.0 toolchain.
   and `isMuted` unchanged.
 - Keep `WorkUpdateState.isMuted` as the indefinite per-Work preference in `updates.json`. Existing
   JSON without the new action fields decodes unchanged.
-- Persist read marks through `HistoryStore` and MAL work through its existing outbox. Never encode
-  `isRead` or a notification acknowledgement into `UpdateStateStore`.
+- Persist read marks through `HistoryStore`; no MAL outbox row is written by this action. Never
+  encode `isRead` or a notification acknowledgement into `UpdateStateStore`.
 - No schema migration is needed beyond Codable defaults; if a future mute duration is accepted,
   add a new optional expiry date and an explicit migration rather than repurposing the Boolean.
 
@@ -265,10 +266,11 @@ design remains buildable by CI's Xcode 16.4 / Swift 6.0 toolchain.
 ## Accessibility
 
 Use the system notification action titles “Mark Read” and “Mute”; they are spoken automatically and
-must not rely on color. The in-app muted row exposes “Unmute notifications for <title>” as a native
-button with a 44pt target and includes “Muted” in its accessibility value, matching the existing
-`WorkUpdateSummary.accessibilityLabel` contract (`MangaCarta/Models/LibraryUpdatesPresentation.swift:
-23-37`). If the action cannot complete, the app's next visible Updates row should state that the
+must not rely on color. The new mute/unmute controls in Home `WorkUpdateRow` and the Library Updates
+card/context menu, plus the parallel Updates-screen trailing menu, are native controls with 44pt
+targets and labels that include the Work title and state. The row continues to include “Muted” in
+its accessibility value, matching the existing `WorkUpdateSummary.accessibilityLabel` contract
+(`MangaCarta/Models/LibraryUpdatesPresentation.swift:23-37`). If the action cannot complete, the app's next visible Updates row should state that the
 chapter remains unread and offer the normal chapter-list route; do not announce failure using a
 notification containing adult title details.
 
@@ -282,8 +284,9 @@ notification containing adult title details.
 3. A grouped notification action affects only its payload Work. Test:
    `NotificationActionTests.groupedNotificationsNeverCrossWorkBoundaries`.
 4. Mark read uses `HistoryStore.markRead(manga:chapters:)` through the active fulfillment Listing,
-   preserves Work-wide ordinal matching, and enqueues normal MAL progress. Test:
-   `NotificationActionTests.markReadUsesNormalReadAndMALPath`.
+   preserves Work-wide ordinal matching, and writes no MAL outbox row, matching the explicit manual-
+   mark rule (`docs/superpowers/specs/2026-08-21-mal-oauth-progress-design.md:28,266`). Test:
+   `NotificationActionTests.markReadUsesNormalReadPathWithoutMALProgress`.
 5. A failed source fetch, missing Work, unavailable Listing, malformed action, or cancellation
    leaves read and newly discovered state unchanged and calls completion. Test:
    `NotificationActionTests.failuresAreNoOpsAndComplete`.
@@ -291,8 +294,10 @@ notification containing adult title details.
    request, and does not change frontier, newly discovered, unread, or refresh behavior. Test:
    `UpdateStateStoreTests.muteRoundTripsAndRetainsDiscovery` and
    `UpdateNotifierTests.muteActionCancelsPendingRequest`.
-7. The Updates row exposes an accessible unmute action; unmute allows the next event and does not
-   replay old events. Hermetic UI test: `UpdatesUITests.unmuteRestoresFutureNotifications`.
+7. The new Home `WorkUpdateRow` and Library Updates card/context menu expose accessible mute/unmute
+   actions (and the parallel Updates-screen Work-row trailing menu does the same); unmute allows the
+   next event and does not replay old events. Hermetic UI test:
+   `UpdatesUITests.unmuteRestoresFutureNotifications`.
 8. Alias resolution, cold launch, and background delivery use the same composed stores and do not
    create a second registry/store. Test: `AppCompositionTests.coldNotificationActionUsesComposedGraph`.
 9. A force-quit/background simulator run driven by an `.apns` payload carrying `workId` proves the
@@ -307,16 +312,13 @@ and needs no project-file edit. If the implementation creates a new
 both directories are plain Xcode groups and each new file must be added with `xcp add-file` to its
 target; otherwise extend the existing test files and avoid new project entries.
 
-## Open questions for the owner
+## Owner decisions (2026-11-09)
 
-1. **Mute duration:** should “Mute” be indefinite until explicit “Unmute notifications” (recommended,
-   matching the existing persisted Boolean and per-title mute), or should it snooze for a product-
-   chosen duration? If temporary, choose the duration and approve adding an expiry date to
-   `WorkUpdateState`.
-2. **Unmute placement:** should the primary undo live in each Updates row's action menu (recommended,
-   discoverable next to the muted state), or only in Settings? The design recommends the row and may
-   mirror it in Settings.
-3. **Missing ordinals:** should an action with a payload lacking `discoveredOrdinals` use the current
-   `newlyDiscovered` fallback (recommended for backward compatibility and the requested `workId`-
-   only simulator fixture), or be a strict no-op requiring every request to carry the new field?
-
+1. **Mute duration:** “Mute” is indefinite until explicit “Unmute notifications,” matching the
+   existing persisted Boolean and per-title mute. No expiry date is added.
+2. **Unmute placement:** the primary undo lives in the Home `WorkUpdateRow` and Library Updates card
+   context menus, with the same item in the separate Updates-screen Work-row trailing menu; a Settings
+   mirror is optional.
+3. **Missing ordinals:** an action whose payload lacks `discoveredOrdinals` falls back to the Work's
+   current `newlyDiscovered` set, preserving backward compatibility and the requested `workId`-only
+   simulator fixture.
