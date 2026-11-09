@@ -267,23 +267,22 @@ A failed automatic update records a diagnostic (`repository`, `bundle`, offered 
 reason) for Settings but does not modify the installed version or retry in a tight loop.  A later
 manual refresh may retry after the repository changes.
 
-### 6.1 ADR amendment required before changing the default
+### 6.1 ADR amendment records the automatic-update default
 
 Format 1's section 6.4 and §9, plus ADR-0003 Amendment 4's decision 5, make update application
 reader-confirmed and explicitly defer automatic application to a later product decision.  The
-implementation must therefore first write **ADR-0003 Amendment 11 — signed automatic Source
-updates**.  That amendment must state that, for format 2 only, the owner may choose whether
-low-risk updates are automatically applied, while disclosures, adult-class changes, and image-load
-report additions remain reader-confirmed; it must explain that signatures, pinned keys, digest
-checks, transaction rollback, and the rotation notice reduce the risk but do not make a stolen key
-safe.  It must also record the compatibility rule that format-1 repositories remain
-reader-confirmed and unsigned.
+owner decided on 2026-11-09 that signed format-2 updates which pass the existing rules are
+automatically applied by default, so the implementation must first write **ADR-0003 Amendment 11
+— signed automatic Source updates** recording that decision.  The amendment must state that the
+per-device **Automatically update Sources** switch disables this default, while disclosures,
+adult-class changes, and image-load-report additions remain reader-confirmed; it must explain that
+signatures, pinned keys, digest checks, transaction rollback, and the rotation notice reduce the
+risk but do not make a stolen key safe.  It must also record the compatibility rule that format-1
+repositories remain reader-confirmed and unsigned.
 
-This spec recommends enabling automatic application by default for signed, low-risk format-2
-updates, with a per-device **Automatically update Sources** switch to disable it, because that
-delivers security and engine fixes without requiring readers to monitor Settings.  The default is
-intentionally not decided here; the owner question below must be answered in Amendment 11 before
-the app changes behavior.
+This spec recommends the owner’s decision: enable automatic application by default for signed,
+low-risk format-2 updates, with a per-device **Automatically update Sources** switch to disable it,
+because that delivers security and engine fixes without requiring readers to monitor Settings.
 
 ### 7. The raw.githubusercontent / GitHub Pages timing window
 
@@ -434,18 +433,16 @@ message without opening a network log.  Respect Reduce Motion and do not use tim
 Each slice can merge independently behind the existing format-1 behavior, with automatic apply
    enabled only once slices 1–3 are present.
 
-## Open questions for the owner
+## Owner decisions (2026-11-09)
 
-1. **Should TOFU trust be required at first add, or should format-2 repositories be trusted after
-   a verified signature with the fingerprint shown informationally?** Recommended: require the
-   explicit **Trust this key** action; it makes the security boundary legible and matches the
-   existing reader-confirmed repository identity model.
-2. **Should automatic updates be enabled by default, or exposed as a Settings switch?** Recommended:
-   enabled by default for signed, low-risk updates, with a per-device “Automatically update
-   Sources” switch to disable; this preserves unattended fixes while respecting reader control.
-   The owner must answer this in ADR-0003 Amendment 11 because format 1 is explicitly
-   reader-confirmed.
-3. **What is the owner’s operational key-retention window after rotation?** Recommended: retain the
-   old CI secret until the new key has been served successfully for at least one normal background
+1. **TOFU trust is required at first add.** The reader must explicitly choose **Trust this key**;
+   a verified signature with an informational fingerprint is not sufficient.  This makes the
+   security boundary legible and matches the existing reader-confirmed repository identity model.
+2. **Automatic updates are ON by default for signed, low-risk format-2 updates.** A per-device
+   **Automatically update Sources** switch turns them off; added image-load reports and changed
+   adult classes still require the existing consent sheet.  ADR-0003 Amendment 11 records this
+   change from format 1’s reader-confirmed behavior.
+3. **The key-retention window is the recommended seven-day transition window.** Retain the old CI
+   secret until the new key has been served successfully for at least one normal background
    refresh interval plus seven days, then revoke it; the app itself accepts the old key only for
    the single signed transition.
