@@ -143,17 +143,48 @@ Routine rotation is one signed `previousKeys` statement, served in an index sign
 1. The maintainer signs the statement with the old private key, publishes the new index and `.sig`,
    and keeps the old key available long enough for readers to receive the transition.
 2. The app verifies the new index with the new key, verifies the statement with the stored old
-   key, and atomically replaces `boundKey` with the new key.
-3. Subsequent indexes must use the new key.  An old-key index after rotation is refused as stale;
+   key, and atomically replaces `boundKey` with the new key.  It also persists a rotation notice
+   containing the old fingerprint, new fingerprint, and acceptance date.
+3. The repository row immediately shows a dismissible **Signing key changed** notice with both
+   fingerprints and the date.  Automatic bundle updates for this repository are suspended until
+   the reader acknowledges the notice once; manual refresh and manually initiated updates remain
+   available after their ordinary checks and consent.  Dismissing the notice is the
+   acknowledgement, not approval of any bundle update.
+4. Subsequent indexes must use the new key.  An old-key index after rotation is refused as stale;
    it cannot roll the pin backward.
 
-If the old private key is compromised, it cannot silently rotate the repository to an arbitrary
-key without a reader-visible event: the app accepts only the bound key or a new key named by a
-statement signed by the bound key.  The maintainer must publish the emergency rotation while the
-old key remains available.  If the old key is lost, there is no cryptographic recovery path; the
-owner can use Change repository URL to add a replacement repository under a new UUID, or remove
-and re-add it after the reader explicitly trusts a new key.  Existing Listings, pins, and stored
-Source data are retained unless the reader chooses Erase data.
+The notice does not make a stolen bound key safe: possession of that key is a full compromise of
+the repository's authenticity, and TOFU cannot prevent it.  A thief can sign a valid malicious
+index or a valid rotation, so the notice only makes the event noticeable and gives the reader a
+chance to suspend automatic updates.  The maintainer must publish the emergency rotation while
+the old key remains available.  If the old key is lost, there is no cryptographic recovery path;
+the owner can use Change repository URL to add a replacement repository under a new UUID, or
+remove and re-add it after the reader explicitly trusts a new key.  Existing Listings, pins, and
+stored Source data are retained unless the reader chooses Erase data.
+
+#### Rotation statement serialization
+
+The signed rotation payload is a deliberately small canonical-JSON contract, even though the
+index signature itself covers raw response bytes.  Its exact UTF-8 bytes are the JSON object with
+keys in this order and no whitespace:
+
+```text
+{"publicKey":"<base64url>","replacement":"<base64url>","reason":"<reason>"}
+```
+
+`publicKey`, `replacement`, and `reason` are JSON strings encoded per RFC 8259: quote and escape
+quotation mark, reverse solidus, and control characters U+0000 through U+001F using the short
+escapes where RFC 8259 defines them (`\\b`, `\\f`, `\\n`, `\\r`, `\\t`) and `\\u00XX` otherwise;
+do not escape ordinary Unicode scalars, and do not add a final newline.  The two key strings use
+canonical base64url without padding; `reason` is the validated trimmed string.  The old key signs
+these exact bytes with Ed25519.  A parser must reject duplicate keys, reordered keys, extra keys,
+whitespace, alternate escapes, or a non-UTF-8 representation rather than normalizing them.
+
+The engines repository keeps a checked-in cross-implementation vector containing the exact UTF-8
+payload bytes (shown as hex), old public key, replacement public key, signature, and expected
+fingerprints.  `scripts/sign-repository-index.swift` must generate and verify this vector, and the
+app's `RepositoryKeyRotationTests` consumes the same fixture bytes and signature.  This catches
+Swift-vs-script escaping or key-order drift before a rotation is published.
 
 **Rotation options:** accept multiple future keys in a threshold set (more resilient, larger and
 harder to explain); pin only the URL (no cryptographic move proof); or the one-step signed
@@ -236,6 +267,24 @@ A failed automatic update records a diagnostic (`repository`, `bundle`, offered 
 reason) for Settings but does not modify the installed version or retry in a tight loop.  A later
 manual refresh may retry after the repository changes.
 
+### 6.1 ADR amendment required before changing the default
+
+Format 1's section 6.4 and §9, plus ADR-0003 Amendment 4's decision 5, make update application
+reader-confirmed and explicitly defer automatic application to a later product decision.  The
+implementation must therefore first write **ADR-0003 Amendment 11 — signed automatic Source
+updates**.  That amendment must state that, for format 2 only, the owner may choose whether
+low-risk updates are automatically applied, while disclosures, adult-class changes, and image-load
+report additions remain reader-confirmed; it must explain that signatures, pinned keys, digest
+checks, transaction rollback, and the rotation notice reduce the risk but do not make a stolen key
+safe.  It must also record the compatibility rule that format-1 repositories remain
+reader-confirmed and unsigned.
+
+This spec recommends enabling automatic application by default for signed, low-risk format-2
+updates, with a per-device **Automatically update Sources** switch to disable it, because that
+delivers security and engine fixes without requiring readers to monitor Settings.  The default is
+intentionally not decided here; the owner question below must be answered in Amendment 11 before
+the app changes behavior.
+
 ### 7. The raw.githubusercontent / GitHub Pages timing window
 
 The signed index does not remove the need for atomic publishing.  If raw.githubusercontent serves
@@ -257,6 +306,10 @@ place of the signature and digest checks.
 
 Extend `RepositoryRecord` with the canonical bound public key (the existing `boundKey` string is
 used), the last verified format, and optionally the last accepted key fingerprint for display.
+Persist a rotation notice with old fingerprint, new fingerprint, accepted-at date, and a boolean
+acknowledged flag; while it is unacknowledged, the automatic-update coordinator must skip that
+repository.  The notice survives app restarts until dismissed and is cleared only after the reader
+acknowledges it (or the repository is erased).
 Do not store private keys.  Extend the in-memory/persisted index listing with verification state,
 pending consent, and last automatic-update error; these are repository metadata, not Source
 identity.  Extend installed bundle state with the last-known-good version/digest and retain the
@@ -344,8 +397,11 @@ message without opening a network log.  Respect Reduce Motion and do not use tim
    repository requires explicit consent before binding its first format-2 key.
    **Test:** `RepositoryTrustTests` (new unit file in `MangaCartaTests/`).
 4. A one-step `previousKeys` statement rotates the bound key atomically; an unsigned, conflicting,
-   backward, or two-hop rotation is rejected and does not change the pin.
-   **Test:** `RepositoryKeyRotationTests` (new unit file in `MangaCartaTests/`).
+   backward, or two-hop rotation is rejected and does not change the pin.  The accepted rotation
+   persists and displays the old/new fingerprints and date, suspends automatic updates until one
+   acknowledgement, and the shared cross-implementation vector verifies the exact RFC 8259 bytes.
+   **Test:** `RepositoryKeyRotationTests` (new unit file in `MangaCartaTests/`) plus the engines-repo
+   signing-script vector test.
 5. A signed higher-version bundle with unchanged adult/report declarations auto-applies through
    the shared scheduler path; no update occurs for an untrusted key, format 1, equal version, or
    a missing Source.
@@ -387,8 +443,9 @@ Each slice can merge independently behind the existing format-1 behavior, with a
 2. **Should automatic updates be enabled by default, or exposed as a Settings switch?** Recommended:
    enabled by default for signed, low-risk updates, with a per-device “Automatically update
    Sources” switch to disable; this preserves unattended fixes while respecting reader control.
+   The owner must answer this in ADR-0003 Amendment 11 because format 1 is explicitly
+   reader-confirmed.
 3. **What is the owner’s operational key-retention window after rotation?** Recommended: retain the
    old CI secret until the new key has been served successfully for at least one normal background
    refresh interval plus seven days, then revoke it; the app itself accepts the old key only for
    the single signed transition.
-
