@@ -172,7 +172,7 @@ site. Amendment 6 itself cites Paperback as an App Store app positioned as "An A
 for iOS" (`:655-657`). So this is not an exception to Amendment 6; it is the case Amendment 6 points
 to as acceptable.
 
-This argument needs to be recorded in a new ADR (proposed **ADR-0028 — A reader's own server is a
+This argument needs to be recorded in a new ADR (proposed **ADR-0029 — A reader's own server is a
 compiled Source**) before slice 2 merges. This spec does not write it (open question 1).
 
 ### 2.3 One Source per server
@@ -651,7 +651,7 @@ Each merges on its own and leaves the app working. Slices 1–5 are v1.
 1. **Parser + ids (pure).** `OPDSFeed`, `OPDSFeedParser`, `ServerMangaID`, `ServerChapterID`,
    fixtures. Plus the ATS device check (AC 13, manual half). *Accept:* AC 1–4.
 2. **Store, Keychain, transport, `ServerSource`, registry slot, capability split.** No UI;
-   registered only from tests. Requires ADR-0028 merged first. *Accept:* AC 5–8, 10–12, 14–16.
+   registered only from tests. Requires ADR-0029 merged first. *Accept:* AC 5–8, 10–12, 14–16.
 3. **`ImageCache` authorization seam + Info.plist keys.** *Accept:* AC 9.
 4. **Settings UI: add, test, edit, remove; local-network hint; Source stamp naming.** *Accept:*
    AC 13 (unit half), 17.
@@ -663,7 +663,7 @@ Slices 1–3 together are one engineer-week-sized PR if preferred; 4 and 5 are b
 
 ## 10. Open questions for the owner
 
-1. **Record "a reader's own server is a compiled Source" as a new ADR-0028 (rather than amend
+1. **Record "a reader's own server is a compiled Source" as a new ADR-0029 (rather than amend
    ADR-0025 or ADR-0003)?** Recommended: yes, a new ADR, accepted before slice 2. It is a new
    decision about a new kind of Source, citing Amendment 6 and ADR-0025; amending either would bury
    it.
