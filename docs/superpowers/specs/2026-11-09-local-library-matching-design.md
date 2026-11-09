@@ -105,30 +105,37 @@ struct ScoredCandidate: Equatable {
     let matchedTitle: String
     let score: Double
     let titles: [String]
+    let isAmbiguous: Bool
 }
 
 func candidates(for work: Work) async throws -> [ScoredCandidate]
 ```
 
-`candidates(for:)` returns candidates that clear the acceptance threshold, ordered by descending
-score and then ascending MAL ID. It returns an empty array for a confident refusal, and throws on
-an incomplete/transient search exactly as `resolve(_:)` does. It must not persist cache entries,
-attempt memory, IDs or harvested titles. The sheet can therefore show the same evidence the
-resolver would use without mutating the Work.
+`candidates(for:)` returns every candidate that clears the 0.90 acceptance threshold (with the
+ADR-0017 novel filter still applied), ordered by descending score and then ascending MAL ID. Each
+candidate sets `isAmbiguous` when another threshold-clearing candidate is within the 0.05 ambiguity
+guard. It does not discard ambiguous candidates; it throws on an incomplete/transient search
+exactly as `resolve(_:)` does, and must not persist cache entries, attempt memory, IDs or harvested
+titles. The sheet can therefore show the same evidence the resolver would use without mutating the
+Work.
 
 Implement this without a second matcher: extract the MAL pool construction currently inline at
 `MALEntityResolver.swift:117-139` into a shared private `malCandidatePool(for:)`, and extract
 the title cross-product scoring/threshold/ambiguity decision currently delegated to
 `MALTitleMatcher.bestMatch` (`MALTitleMatcher.swift:75-109`) into a shared ranked result helper.
-`resolve(_:)` consumes that helper's top accepted result; `candidates(for:)` consumes the same
-ranked results. Both continue to share `isBridgeable` and `bridged(sourceTitles:)` for the
+The helper computes scores, threshold eligibility and `isAmbiguous`; `resolve(_:)` consumes its
+top result only when that result is not ambiguous, while `candidates(for:)` returns all eligible
+results. Both continue to share `isBridgeable` and `bridged(sourceTitles:)` for the
 ADR-0019 path, including its id-bearing/id-less partition at `MALEntityResolver.swift:211-245`.
 If the bridge is needed to produce a candidate list, its id-bearing MAL candidates use the same
 shared ranking; id-less MangaDex rows are displayed as Listing suggestions but cannot be a MAL
 progress match. The required regression test is
 `MALEntityResolverTests.candidatesTopEqualsResolvePickWhenGuardClears`: inject one unique
 threshold-clearing candidate, assert `candidates(for:).first.malID` equals `resolve(_:)`'s
-`malId`, and assert the ambiguous case returns no accepted top candidate.
+`malId`. A second test,
+`MALEntityResolverTests.ambiguousCandidatesAreListedButResolveRefuses`, asserts both
+threshold-clearing candidates are returned with `isAmbiguous == true` while `resolve(_:)` returns
+no ID.
 
 ## Design
 
@@ -144,10 +151,12 @@ The local detail page shows a section titled **Metadata and sync**. Before confi
 Tapping Match… runs the resolver's read-only `candidates(for:)` seam with the Work's title evidence.
 It never changes identity or
   sends progress. A sheet presents zero or more candidates. Each candidate states its provider,
-  title, alternate title if it was the deciding spelling, MAL/AniList IDs when known, publication
-  type/status, and (if a registered Source supplied it) the MangaDex Listing/source name. The
-  sheet has **Use this match**, **Search again** (which permits a different title spelling but
-  still uses the same resolver rules), and **Cancel**.
+title, alternate title if it was the deciding spelling, MAL/AniList IDs when known, publication
+type/status, and (if a registered Source supplied it) the MangaDex Listing/source name. The
+ambiguous candidates are shown side by side with their IDs, types and an “Ambiguous” label; the
+sheet never pre-selects one of them. The
+sheet has **Use this match**, **Search again** (which permits a different title spelling but
+still uses the same resolver rules), and **Cancel**.
 
 There are three policy options:
 
@@ -317,9 +326,11 @@ not silently attach it; Match… must be opened again.
 
 - MAL/AniList/network failure: keep the Work unmatched, show “Couldn’t search right now,” and do
   not persist a negative resolver answer. Retry from Match…; no automatic progress is sent.
-- No candidate or ambiguity guard refusal: show no confident match; never choose the top row.
-- Two candidates with the same title: show both IDs/types and require explicit choice; novel and
-  light-novel candidates must remain filtered as ADR-0017 requires.
+- No threshold-clearing candidate: show no confident match. An ambiguity guard refusal still shows
+  every threshold-clearing candidate, each flagged ambiguous; never choose the top row.
+- Two candidates with the same title: show both candidates side by side with IDs/types, mark both
+  ambiguous, and require an explicit choice without pre-selecting either; novel and light-novel
+  candidates must remain filtered as ADR-0017 requires.
 - Candidate has no MAL ID: it may be shown as a MangaDex title but cannot satisfy MAL progress
   matching until the reader confirms a provider ID.
 - Existing Work owns the confirmed MAL ID: pause before writing and require Combine/Cancel with the
@@ -368,10 +379,11 @@ not silently attach it; Match… must be opened again.
    Volume/Number never become title spellings. **Test:** `LocalMatchingCoordinatorTests`
    `localEvidenceUsesTitlesNotChapterNumbers`.
 2. Matching exposes `candidates(for:)` as a read-only seam and shares the resolver's MAL pool,
-   bridge partition and matcher ranking; `resolve` chooses the same top accepted candidate, and no
-   match is auto-accepted. **Test:** `MALEntityResolverTests`
+   bridge partition and matcher ranking; `resolve` chooses the same top non-ambiguous candidate,
+   while ambiguous candidates remain listed and no match is auto-accepted. **Test:**
+   `MALEntityResolverTests`
    `candidatesTopEqualsResolvePickWhenGuardClears`, `localMatchRequiresConfirmationForUniqueExactCandidate`
-   and `localMatchRefusesAmbiguousCandidates`.
+   and `ambiguousCandidatesAreListedButResolveRefuses`.
 3. Confirming a candidate persists a durable match, external IDs and optional remote Listing; a
    relaunch restores it. **Test:** `LocalMatchStoreTests`
    `confirmedMatchRoundTripsAndUnmatchKeepsLocalWork`.
