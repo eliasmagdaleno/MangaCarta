@@ -97,6 +97,39 @@ when the Work is not already MangaDex-backed. The resolver returns an ID/evidenc
 Listing. A MangaDex Listing is selected separately from candidates returned by the installed
 Source through the injected `SourceRegistry`.
 
+The match sheet needs more than the resolver's one `WorkResolution`, so add this read-only seam:
+
+```swift
+struct ScoredCandidate: Equatable {
+    let malID: Int
+    let matchedTitle: String
+    let score: Double
+    let titles: [String]
+}
+
+func candidates(for work: Work) async throws -> [ScoredCandidate]
+```
+
+`candidates(for:)` returns candidates that clear the acceptance threshold, ordered by descending
+score and then ascending MAL ID. It returns an empty array for a confident refusal, and throws on
+an incomplete/transient search exactly as `resolve(_:)` does. It must not persist cache entries,
+attempt memory, IDs or harvested titles. The sheet can therefore show the same evidence the
+resolver would use without mutating the Work.
+
+Implement this without a second matcher: extract the MAL pool construction currently inline at
+`MALEntityResolver.swift:117-139` into a shared private `malCandidatePool(for:)`, and extract
+the title cross-product scoring/threshold/ambiguity decision currently delegated to
+`MALTitleMatcher.bestMatch` (`MALTitleMatcher.swift:75-109`) into a shared ranked result helper.
+`resolve(_:)` consumes that helper's top accepted result; `candidates(for:)` consumes the same
+ranked results. Both continue to share `isBridgeable` and `bridged(sourceTitles:)` for the
+ADR-0019 path, including its id-bearing/id-less partition at `MALEntityResolver.swift:211-245`.
+If the bridge is needed to produce a candidate list, its id-bearing MAL candidates use the same
+shared ranking; id-less MangaDex rows are displayed as Listing suggestions but cannot be a MAL
+progress match. The required regression test is
+`MALEntityResolverTests.candidatesTopEqualsResolvePickWhenGuardClears`: inject one unique
+threshold-clearing candidate, assert `candidates(for:).first.malID` equals `resolve(_:)`'s
+`malId`, and assert the ambiguous case returns no accepted top candidate.
+
 ## Design
 
 ### 1. Explicit match flow
@@ -108,7 +141,8 @@ The local detail page shows a section titled **Metadata and sync**. Before confi
 - a short explanation: “Find this title in your services to add metadata and sync reading
   progress. MangaCarta will ask before linking it.”
 
-Tapping Match… runs the resolver with the Work's title evidence. It never changes identity or
+Tapping Match… runs the resolver's read-only `candidates(for:)` seam with the Work's title evidence.
+It never changes identity or
   sends progress. A sheet presents zero or more candidates. Each candidate states its provider,
   title, alternate title if it was the deciding spelling, MAL/AniList IDs when known, publication
   type/status, and (if a registered Source supplied it) the MangaDex Listing/source name. The
@@ -133,16 +167,24 @@ was made. It offers **Search by another title…**, prefilled with the collected
 
 After confirmation the detail page shows **Matched to [provider title]**, the external IDs, and,
 when selected, **Reading source: [Source]**. The action becomes **Change match…** and **Unmatch**.
-Unmatch removes the local match record and remote Listing link, leaves local chapters, history,
-and the Work itself intact, and suppresses automatic re-prompting until the reader explicitly
-chooses Match… again. Unmatch does not delete metadata already fetched; it marks that metadata
-stale/unsupported for this local Work and removes the remote identity used for future sync.
+If the selected external ID already belongs to another Work, confirmation pauses before any write
+and shows: **“This will combine with <title> in your library. This can't be undone.”** The reader
+must choose **Combine** or **Cancel**. Cancel leaves the local Work, match record and history
+unchanged. There is no un-merge or split operation in `WorkStore` (`WorkStore.swift:299-329` is
+the one-way merge path; a repository-wide search found no `unmerge` or `split` API).
+
+Unmatch removes the local match record, external IDs and remote Listing link from the surviving
+Work, leaves local chapters, history and the surviving Work intact, and suppresses automatic
+re-prompting until the reader explicitly chooses Match… again. If confirmation previously merged
+two Works, Unmatch **does not separate them**: the alias and combined Listings/history remain one
+Work, and only the active external identity/link is removed. Unmatch does not delete metadata
+already fetched; it marks that metadata stale/unsupported for this local Work and removes the
+remote identity used for future sync.
 
 ### 2. What confirmation writes
 
 Persist a separate `local-matches.json` owned by a new `LocalMatchStore`, not `LocalItemRecord`:
 
-```text
 LocalMatchRecord
   localWorkID: WorkID
   confirmedAt: Date
@@ -163,8 +205,9 @@ Confirmation performs these steps in order:
 1. Resolve the local Work ID through aliases.
 2. Persist the confirmed MAL/AniList IDs and any chosen remote Listing in the match store.
 3. Call `WorkStore.setExternalIds` with the confirmed external IDs. If another Work owns one of
-   them, use the existing external-ID merge path; do not title-merge. The incumbent Work survives,
-   and the local Listing and history follow the Work alias.
+   them, this step happens only after the reader chooses **Combine** in the irreversible warning;
+   use the existing external-ID merge path, never title-merge. The incumbent Work survives, and
+   the local Listing and history follow the Work alias.
 4. Add the selected remote Listing to that surviving Work. This is an explicit Listing link, not
    a new local replacement; it must preserve the local Listing as the bytes source and must never
    route through a different source because the selected Source is unavailable.
@@ -179,8 +222,9 @@ fulfillment is an opt-in source choice, not an implicit replacement of local fil
 ### 3. Work identity and read state
 
 Do not create a second “matched local” Work. A local Work is an ordinary ADR-0001 Work with a
-`local` Listing. When the confirmed external ID is already owned, merge into that Work using the
-existing aliasing merge behavior. This is the only safe deduplication key: equal titles are not
+`local` Listing. When the confirmed external ID is already owned, first require the explicit
+Combine step above, then merge into that Work using the existing aliasing merge behavior. This is
+the only safe deduplication key: equal titles are not
 identity, and a local title can be a translation or a different edition.
 
 ADR-0027 then applies without a new storage format. History and read marks remain Listing-keyed;
@@ -278,8 +322,9 @@ not silently attach it; Match… must be opened again.
   light-novel candidates must remain filtered as ADR-0017 requires.
 - Candidate has no MAL ID: it may be shown as a MangaDex title but cannot satisfy MAL progress
   matching until the reader confirms a provider ID.
-- Existing Work owns the confirmed MAL ID: merge by external ID, preserve the incumbent Work ID,
-  union Listings/known titles, and rely on ADR-0027's Work-wide ordinal derivation. The UI reports
+- Existing Work owns the confirmed MAL ID: pause before writing and require Combine/Cancel with the
+  irreversible warning. After Combine, merge by external ID, preserve the incumbent Work ID, union
+  Listings/known titles, and rely on ADR-0027's Work-wide ordinal derivation. The UI reports
   “Already matched; combined with your existing title.”
 - Remote Source unavailable, disabled or uninstalled: keep the local Listing, match record and
   external IDs; metadata that can be fetched by provider ID remains usable; do not fall back to a
@@ -291,9 +336,11 @@ not silently attach it; Match… must be opened again.
 - Volume/Number are missing, non-decimal, or fractional: preserve local chapter ordering and use
   exact numeric `ChapterOrdinal` behavior; do not invent MAL progress for labels that
   `MALChapterProgress.map` rejects.
-- Unmatch after queued progress: leave already-delivered MAL progress alone; remove only future
-  local completions from this Work's MAL mapping. Existing outbox rows need an explicit product-safe
-  policy (see Open questions).
+- Unmatch after queued progress: cancel only undelivered MAL outbox rows for this Work; leave
+  already-delivered MAL progress alone. After a merge, this applies to the surviving Work and does
+  not undo the merge or split its outbox/history.
+- Unmatch after a merge: remove the external IDs and remote link from the survivor, but do not
+  separate the Works; the alias, combined Listings and Work-wide read state remain.
 - Deleting the local library item: preserve the Work/history rules from the local-import design;
   the match record is retained only while the Work still has a local Listing. If the Work is
   deleted because it had no other Listing, remove the match record with it.
@@ -309,7 +356,9 @@ not silently attach it; Match… must be opened again.
   consequences, primary action, secondary actions. Dynamic Type must allow candidate details to
   wrap; no fixed-height row may clip IDs or status.
 - Unmatch confirmation states exactly what remains (“Your local chapters and read history stay on
-  this device”) and what stops (“future progress sync for this match”).
+  this device”), what stops (“future progress sync for this match”), and, after a merge, that
+  “This does not separate the combined Works.” The pre-confirmation merge warning is read in full:
+  “This will combine with <title> in your library. This can't be undone.”
 - Follow DESIGN.md's Ink & Seal system: native sheets/controls, serif identity title, body copy in
   Dynamic Type, and vermilion only for the primary action or destructive Unmatch confirmation.
 
@@ -318,16 +367,19 @@ not silently attach it; Match… must be opened again.
 1. A local Work's distinct Series, ComicInfo Title and filename stem become ordered matcher input;
    Volume/Number never become title spellings. **Test:** `LocalMatchingCoordinatorTests`
    `localEvidenceUsesTitlesNotChapterNumbers`.
-2. Matching calls `MALEntityResolver.resolve(Work)` and preserves the existing three-spelling
-   union, novel filter, threshold and ambiguity guard; no match is auto-accepted. **Test:**
-   `MALEntityResolverTests` `localMatchRequiresConfirmationForUniqueExactCandidate` and
-   `localMatchRefusesAmbiguousCandidates`.
+2. Matching exposes `candidates(for:)` as a read-only seam and shares the resolver's MAL pool,
+   bridge partition and matcher ranking; `resolve` chooses the same top accepted candidate, and no
+   match is auto-accepted. **Test:** `MALEntityResolverTests`
+   `candidatesTopEqualsResolvePickWhenGuardClears`, `localMatchRequiresConfirmationForUniqueExactCandidate`
+   and `localMatchRefusesAmbiguousCandidates`.
 3. Confirming a candidate persists a durable match, external IDs and optional remote Listing; a
    relaunch restores it. **Test:** `LocalMatchStoreTests`
    `confirmedMatchRoundTripsAndUnmatchKeepsLocalWork`.
-4. Confirming an ID already owned by another Work uses external-ID merge, preserves the incumbent
-   Work ID, keeps both Listings, and follows aliases. **Test:** `WorkStoreTests`
-   `confirmedLocalIDMergesByExternalIDNotTitle`.
+4. Confirming an ID already owned by another Work pauses with the exact irreversible Combine/Cancel
+   warning; Combine uses external-ID merge, preserves the incumbent Work ID, keeps both Listings,
+   and follows aliases, while Cancel makes no change. **Test:** hermetic `LocalMatchingUITests`
+   `existingWorkShowsIrreversibleCombineWarning`, plus `LocalMatchingCoordinatorTests`
+   `cancelledCombineDoesNotWrite`.
 5. A local-only Work remains excluded from browse, update polling and notifications; a confirmed
    local Work is eligible only for metadata upgrade, not local content refresh. **Test:**
    `LibraryRefreshCoordinatorTests` `matchedLocalWorkIsNeverContentRefreshed` and
@@ -341,7 +393,9 @@ not silently attach it; Match… must be opened again.
    labels exact-ID-only, and does not migrate Listing-keyed storage. **Test:**
    `HistoryStoreTests` `matchedListingsShareNumericReadOrdinals`.
 9. Unmatch removes the active remote association without deleting local pages, Work identity,
-   history, or read marks. **Test:** `LocalMatchingCoordinatorTests` `unmatchPreservesLocalData`.
+   history, or read marks; after a merge it removes external IDs/link but does not split the
+   combined Works or aliases. **Test:** `LocalMatchingCoordinatorTests`
+   `unmatchPreservesLocalData` and `unmatchAfterMergeDoesNotSplitWorks`.
 10. The detail page exposes Match…/Unmatch and the confirmation sheet remains operable at larger
     Dynamic Type with VoiceOver labels and no color-only state. **Test:** hermetic
     `LocalMatchingUITests` `matchSheetIsAccessibleAndUnmatchIsExplicit`.
@@ -363,15 +417,13 @@ not silently attach it; Match… must be opened again.
 5. **Ordinal/progress hardening:** exercise local/remote ordinal presentation and MAL outbox behavior;
    document the AniList write seam without implementing an AniList write protocol.
 
-## Open questions for the owner
+## Owner decisions (2026-11-09)
 
-1. **Should Unmatch cancel already queued but not yet delivered MAL progress?** Recommended: yes,
-   remove only undelivered outbox rows for this Work and preserve delivered history; this avoids a
-   deliberate unlink still causing a later write while keeping server state irreversible and honest.
-2. **Should a confirmed local Work default its detail page to Local or the selected remote Listing?**
-   Recommended: Local, because the user imported files to read those bytes; let the existing source
-   picker offer the remote Listing explicitly.
-3. **Should AniList progress sync ship in this PR?** Recommended: no; ship MAL metadata/progress and
-   the provider-neutral completion seam first, then add AniList writes as a separately reviewable
-   outbox with its own authentication and conflict policy.
-
+1. **Unmatch cancels already queued but not yet delivered MAL progress.** Only undelivered outbox
+   rows for this Work are removed; delivered history is preserved. This prevents a deliberate unlink
+   from causing a later write while keeping server state irreversible and honest.
+2. **A confirmed local Work defaults its detail page to Local.** The reader imported files to read
+   those bytes; the existing source picker offers the remote Listing explicitly.
+3. **AniList progress sync does not ship in this work.** Ship MAL metadata/progress and the
+   provider-neutral completion seam first; AniList writes are a separately reviewable outbox with
+   its own authentication and conflict policy.
