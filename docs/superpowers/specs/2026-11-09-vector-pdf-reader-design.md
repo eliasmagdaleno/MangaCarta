@@ -316,9 +316,10 @@ drafting this spec.
 7. **Webtoon uses existing rows.** The same fixture can switch to webtoon mode, exposes one
    VoiceOver page element per PDF page with “Page n of total”, restores a saved ordinal, and
    reaches the existing end marker. **Test:** `LocalPDFReaderUITests`.
-8. **R→L is page reversal only.** The UI fixture verifies page 3 is the first logical page in
-   right-to-left mode and that zoom/pan coordinates are not mirrored. **Test:**
-   `LocalPDFReaderUITests`.
+8. **R→L is page reversal only.** The UI fixture verifies the page array is reversed while the
+   reader still opens on logical page 1 at the right end, with page 2 reached by swiping in the
+   R→L direction, and that zoom/pan coordinates are not mirrored; this follows the existing
+   `ReaderView.swift:522-528` page-order logic. **Test:** `LocalPDFReaderUITests`.
 9. **Cleanup and open-in behavior are safe.** Deleting a vector local item removes its document
    and metadata; an open-in-place URL outside the app container remains on disk after import.
    **Test:** `PDFVectorImportTests` plus the existing open-in importer test seam.
