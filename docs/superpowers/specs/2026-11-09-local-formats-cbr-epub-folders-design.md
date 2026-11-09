@@ -140,12 +140,13 @@ language requirement. It is therefore source-compatible with the project's Xcode
 RAR5 fixture test, proving that Swift 6.0 resolves and builds the pinned package rather than
 relying on the local Xcode 26 toolchain.
 
-CI must use the repository's existing package cache strategy: `xcodebuild` receives
-`-clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages"` (or the workflow's equivalent
-cached path), and the cache key includes the lockfile hash, Xcode version, and platform. A cache
-miss must still resolve from the pinned URL/revision; a cache hit must not silently change the
-resolved revision. The normal iPhone 17 Pro destination and parallel testing rule remain in
-force.
+The current `.github/workflows/ci.yml` has no package-cache or `SourcePackages` handling (verified
+by reading the workflow). The CBR PR must add it: cache a dedicated path such as
+`$RUNNER_TEMP/SourcePackages` with `actions/cache`, keyed by the `Package.resolved` hash, Xcode
+version, and platform; pass `-clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages"` to every
+relevant `xcodebuild`; and let a cache miss resolve the pinned URL/revision. Add
+`-skipPackagePluginValidation` only if package resolution actually requires it, not as a blanket
+workaround. The normal iPhone 17 Pro destination and parallel testing rule remain in force.
 
 ### 3. RAR adapter and safety
 
@@ -182,14 +183,28 @@ size limits, and per-entry reads. Do not add an EPUB or HTML dependency.
 1. Require `META-INF/container.xml`, parse its `rootfile full-path`, and locate the OPF.
 2. Parse OPF metadata and manifest with `XMLParser`. Resolve relative paths against the OPF
    directory after normalizing without allowing `..` to escape the archive.
-3. Require a spine. Walk spine itemrefs in spine order, retaining only manifest items whose
-   media type is an image (`image/jpeg`, `image/png`, `image/webp`, `image/gif`, `image/avif`,
-   `image/heic`). Ignore HTML/XHTML pages unless they point to an image is explicitly deferred;
-   v1 does not render HTML or CSS.
-4. Accept only fixed-layout comic EPUBs: OPF `rendition:layout` or package metadata must say
-   `pre-paginated`, or the EPUB must have a valid comic image spine and the owner-approved
-   fallback below. A reflowable text EPUB is **out of scope** and must fail with **“This EPUB
-   is a reflowable text book; MangaCarta supports image-based comic EPUBs.”**
+3. Require a spine and walk its itemrefs in spine order. For each `idref`, resolve the manifest
+   item and accept one of these page shapes:
+   - an XHTML item (`application/xhtml+xml`) or SVG item (`image/svg+xml`) whose XML document
+     body/root contains exactly one raster image reference: XHTML `body` → `img[src]`, or SVG
+     `svg` → `image` with `xlink:href`/`href`; resolve that reference relative to the document and
+     require a supported raster manifest entry (`image/jpeg`, `image/png`, `image/webp`,
+     `image/gif`, `image/avif`, or `image/heic`);
+   - a bare raster manifest item through the OPF fallback chain (`fallback`), when the spine item
+     itself is a document item whose fallback eventually names that raster item, or when the
+     `idref` directly names a raster item.
+
+   Parse XHTML/SVG with Foundation `XMLParser`, not WebKit or another dependency. The parser
+   counts image references and non-whitespace text. A document with zero images, more than one
+   image, or text content beyond whitespace is reflowable/unsupported; do not guess from ZIP
+   entry order or scrape arbitrary image tags outside the document body. Reject unsupported
+   raster media types and broken relative references with a clear import error.
+4. Accept a comic EPUB when OPF/package metadata declares `rendition:layout=pre-paginated`, or
+   when **every spine item resolves to exactly one raster image page** using the rules above
+   (including XHTML/SVG wrappers and fallback-to-image items). The latter is the explicit
+   fixed-layout fallback for real manga EPUBs that omit the metadata. A reflowable text EPUB is
+   **out of scope** and must fail with **“This EPUB is a reflowable text book; MangaCarta supports
+   image-based comic EPUBs.”**
 5. Choose title/series/number/volume from OPF metadata, falling back to filename. If a root
    `ComicInfo.xml` exists, merge it using existing ComicInfo precedence and use it for series,
    reading mode, and cover metadata. CBR and EPUB may therefore carry ComicInfo.xml too.
@@ -199,11 +214,12 @@ size limits, and per-entry reads. Do not add an EPUB or HTML dependency.
 
 Options considered: (a) render XHTML/CSS with WebKit, rejected because it turns the importer into
 a browser and makes text EPUBs a second product; (b) scan all images in ZIP order, rejected
-because EPUB spine order is authoritative; (c) image-only spine with fixed-layout metadata,
-chosen for predictable manga behavior and no dependency. The owner must approve whether the
-fallback accepts an image-only spine when the publisher omitted the fixed-layout metadata; the
-recommended answer is yes only when every spine item is a supported image and there is no
-reflowable XHTML.
+because EPUB spine order is authoritative and would scramble wrapped pages; (c) accept only bare
+image manifest items, rejected because valid EPUB 2/3 comic spines normally reference XHTML/SVG
+documents; (d) parse each spine document for exactly one raster image and follow OPF fallback
+chains, chosen because it handles real fixed-layout manga without a dependency while rejecting
+reflowable content. The owner question is now whether to accept the metadata-free fallback when
+every spine document resolves to exactly one raster image; the recommended answer is yes.
 
 ### 5. Folder watching is foreground reconciliation
 
@@ -345,14 +361,17 @@ external Files provider.
    `RARArchiveReaderTests.extractsPerEntry`.
 5. **Dependency/CI compatibility** builds the app with the exact 0.5.4 revision under Xcode
    16.4/Swift 6.0 and runs the RAR4/RAR5 tests. CI workflow package-cache smoke step.
-6. **EPUB spine order** imports a fixed-layout image EPUB whose ZIP order differs from spine order
-   and stores pages in spine order. `EPUBImportTests.usesOPFSpineOrder`.
+6. **EPUB spine order and wrappers** imports an XHTML-wrapped fixed-layout manga EPUB whose ZIP
+   order differs from spine order, resolves each `img[src]` relative to its XHTML document, and
+   stores pages in spine order. `EPUBImportTests.importsXHTMLWrappedPagesInOPFSpineOrder`.
 7. **EPUB metadata and cover** uses OPF title/cover, merges root ComicInfo, groups by Series,
    and falls back to the first decodable page when cover metadata is absent.
    `EPUBImportTests.metadataAndCoverPrecedence`.
-8. **EPUB scope** rejects reflowable text EPUBs and malformed containers/OPFs, while accepting an
-   image-only fixed-layout EPUB. `EPUBImportTests.rejectsReflowableText` and
-   `EPUBImportTests.acceptsImageOnlyFixedLayout`.
+8. **EPUB scope** accepts XHTML/SVG documents containing exactly one raster image, accepts a bare
+   raster item through a valid OPF fallback chain, and rejects documents with text beyond
+   whitespace, zero images, multiple images, malformed containers/OPFs, or reflowable text.
+   `EPUBImportTests.acceptsXHTMLAndSVGSingleImagePages`,
+   `EPUBImportTests.resolvesFallbackToBareImage`, and `EPUBImportTests.rejectsReflowableText`.
 9. **Folder permission** stores a picked directory bookmark, resolves it on a later launch,
    balances security-scoped access, and presents a recoverable stale/revoked state.
    `LocalFolderBookmarkStoreTests.roundTripsBookmark` and
@@ -386,8 +405,8 @@ external Files provider.
 ## Open questions for the owner
 
 1. **EPUB fallback:** Approve the recommended rule that an EPUB with no explicit fixed-layout
-   metadata is accepted only when every spine item is a supported image and no reflowable XHTML
-   appears? Recommended: yes.
+   metadata is accepted only when every spine item resolves to exactly one supported raster image
+   page, whether directly, through XHTML/SVG, or through an OPF fallback chain? Recommended: yes.
 2. **Watched-folder removal:** When an archive disappears, should MangaCarta retain the copied
    local item and mark the source missing, or immediately delete the imported copy? Recommended:
    retain it and require an explicit **Delete imported copy** action.
@@ -401,4 +420,3 @@ external Files provider.
 5. **RAR multi-volume:** Should v1 reject all multi-volume RAR sets, or require the user to select
    a complete set in one import? Recommended: reject in v1 with a clear error; add complete-set
    support only as a later slice with dedicated fixtures.
-
