@@ -1,7 +1,7 @@
 # Repository format 2 — signed indexes and automatic Source updates
 
 **Date:** 2026-11-09  
-**Status:** Design specification.  
+**Status:** Accepted — owner sign-off 2026-11-10.  
 **Slug:** `repository-format-2`
 
 ## Goal
