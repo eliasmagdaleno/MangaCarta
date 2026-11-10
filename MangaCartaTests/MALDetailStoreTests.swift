@@ -42,6 +42,32 @@ final class MALDetailStoreTests: XCTestCase {
         XCTAssertEqual(loaded, original)
     }
 
+    func testNSFWDecodesKnownAndUnknownValues() throws {
+        let values: [(String, MALNSFW)] = [("white", .white), ("gray", .gray),
+                                           ("black", .black), ("purple", .unknown("purple"))]
+        for (raw, expected) in values {
+            let data = "\"\(raw)\"".data(using: .utf8)!
+            XCTAssertEqual(try decoder.decode(MALNSFW.self, from: data), expected)
+            let encoded = try JSONEncoder().encode(expected)
+            XCTAssertEqual(try JSONDecoder().decode(MALNSFW.self, from: encoded), expected)
+        }
+    }
+
+    func testRecordWithoutNSFWStillDecodes() async throws {
+        let directory = makeTestDirectory(#function)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let json = "{\"2\":{\"detail\":{\"id\":2,\"title\":\"Berserk\",\"synopsis\":null,"
+            + "\"main_picture\":null,\"genres\":null,\"related_manga\":null,"
+            + "\"recommendations\":null},\"fetched_at\":0}}"
+        try Data(json.utf8).write(to: directory.appendingPathComponent("mal-detail.json"))
+        let store = MALDetailStore(directory: directory)
+        let replacement = MyAnimeListMangaDetail(id: 2, title: "Berserk", synopsis: nil,
+                                                  mainPicture: nil, genres: nil,
+                                                  relatedManga: nil, recommendations: nil)
+        let loaded = await store.detail(for: 2, now: Date(timeIntervalSince1970: 1)) { _ in XCTFail("must use cache"); return replacement }
+        XCTAssertNil(loaded?.nsfw)
+    }
+
     func testFreshEntryAvoidsFetchWithin24Hours() async {
         let store = MALDetailStore(directory: makeTestDirectory(#function))
         let value = detail()

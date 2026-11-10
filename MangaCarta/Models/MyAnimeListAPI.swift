@@ -79,6 +79,8 @@ struct MyAnimeListMangaDetail: Codable, Equatable {
     let genres: [Genre]?
     let relatedManga: [Relation]?
     let recommendations: [Recommendation]?
+    /// Optional, with a default, so records cached before the field existed still decode.
+    var nsfw: MALNSFW? = nil
 
     struct Genre: Codable, Equatable {
         let id: Int
@@ -94,6 +96,35 @@ struct MyAnimeListMangaDetail: Codable, Equatable {
     struct Recommendation: Codable, Equatable {
         let node: MyAnimeListManga
         let numRecommendations: Int
+    }
+}
+
+/// MAL's `nsfw` rating. Only a top-level detail carries it (nested nodes never do), and an
+/// unfamiliar value decodes as `.unknown` instead of failing the whole cached record.
+enum MALNSFW: Codable, Equatable, Sendable {
+    case white
+    case gray
+    case black
+    case unknown(String)
+
+    init(from decoder: Decoder) throws {
+        let value = try decoder.singleValueContainer().decode(String.self)
+        switch value {
+        case "white": self = .white
+        case "gray": self = .gray
+        case "black": self = .black
+        default: self = .unknown(value)
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .white: try container.encode("white")
+        case .gray: try container.encode("gray")
+        case .black: try container.encode("black")
+        case .unknown(let value): try container.encode(value)
+        }
     }
 }
 
@@ -175,7 +206,7 @@ struct MyAnimeListAPI {                              // Namespace-style struct f
             path: "/manga/\(id)",
             queryItems: [
                 URLQueryItem(name: "fields",
-                             value: "alternative_titles,synopsis,main_picture,genres,related_manga,recommendations"),
+                             value: "alternative_titles,synopsis,main_picture,genres,related_manga,recommendations,nsfw"),
             ]
         )
     }
