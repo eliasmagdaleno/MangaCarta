@@ -1,7 +1,7 @@
 # Detail page sections — Design
 
 **Date:** 2026-11-09
-**Status:** Draft for owner review. The owner questions are at the end, each with a recommended answer.
+**Status:** Accepted — owner sign-off 2026-11-10.
 **Evidence baseline:** `main` at `b57c356`. Two parallel specs that are not on `main` yet are
 read from their branches: `eliasmagdaleno/spec-related-mal-cache` (`a26903c`, the Related rail)
 and `eliasmagdaleno/spec-local-matching` (`f5de6c3`, the local "Metadata and sync" section).
@@ -517,8 +517,9 @@ Hermetic UI tests use the `detail-discovery` fixture, make no network request, a
     `UpdatesUITests`, `SourcePreferenceUITests`, `RepositorySettingsUITests`,
     `LocalImportUITests` and `AccessibilityAuditUITests`, passes unchanged on the PR.
 
-## Open questions for the owner
+## Owner decisions (2026-11-10)
 
+The owner accepted every recommended answer below at sign-off.
 1. **Go ahead, given that the rails are already reachable?** The five-row preview already
    fixed the "unreachable" problem the brief describes (see "A correction to the premise").
    What is left is the distance at AX sizes, the second rail, and the fact that nothing at the
