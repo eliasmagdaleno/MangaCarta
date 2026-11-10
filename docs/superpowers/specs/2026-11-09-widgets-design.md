@@ -1,6 +1,6 @@
 # Home Screen widgets (and why no Live Activity) — Design
 
-- **Status:** Draft for owner review (2026-11-09). Handoff feature queue item 5.
+**Status:** Accepted — owner sign-off 2026-11-10.
 - **Builds on:** ADR-0001 (Work identity), ADR-0021 (background refresh + notifications), ADR-0022
   (adult content), ADR-0027 (read state is per Work), the background-refresh design
   (`2026-08-24-adr-0021-background-refresh-design.md`), which deferred "Widgets and Live
@@ -583,8 +583,9 @@ Each merges on its own and leaves `main` shippable.
    `ContentView.onOpenURL` routing, the UI test and its fixture state, the `ci.yml` hermetic-list
    line, and the manual screenshot pass. ACs 16–18.
 
-## Open questions for the owner
+## Owner decisions (2026-11-10)
 
+The owner accepted every recommended answer below at sign-off.
 1. **Saved Works only?** `WorkNavigator`'s route only opens saved Works, so the design shows only
    saved Works in both widgets. The alternative is to let Continue Reading include unsaved titles
    you've been reading and teach the link route to open them from History (a second route, more
