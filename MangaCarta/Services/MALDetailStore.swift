@@ -12,13 +12,17 @@ actor MALDetailStore {
 
     private let directory: URL
     private var entries: [Int: Entry] = [:]
-    private var inFlight: [Int: Task<MyAnimeListMangaDetail?, Never>] = [:]
+    /// Keyed by MAL id; the token tells a finishing fetch whether it is still the current
+    /// one, so a fetch orphaned by `invalidate` can neither write nor clear a newer fetch.
+    private var inFlight: [Int: (token: UUID, task: Task<MyAnimeListMangaDetail?, Never>)] = [:]
     private var loaded = false
 
     private var fileURL: URL { directory.appendingPathComponent("mal-detail.json") }
 
+    /// `Caches/MALDetail/`: disposable, so the OS may evict it and the next fetch repairs it.
     nonisolated static func cachesDirectory() -> URL {
         FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("MALDetail", isDirectory: true)
     }
 
     init(directory: URL = MALDetailStore.cachesDirectory()) {
@@ -32,42 +36,44 @@ actor MALDetailStore {
         if let entry = entries[malID], now.timeIntervalSince(entry.fetchedAt) < Self.ttl {
             return entry.detail
         }
-        if let task = inFlight[malID] { return await task.value }
+        if let current = inFlight[malID] { return await current.task.value }
 
+        // A failed refresh serves the expired record (stale-if-offline) and leaves its
+        // `fetchedAt` alone, so the next call still sees it as expired and retries.
         let stale = entries[malID]?.detail
+        let token = UUID()
         let task: Task<MyAnimeListMangaDetail?, Never> = Task { [weak self] in
             do {
                 let value = try await fetch(malID)
-                await self?.succeed(malID: malID, detail: value, fetchedAt: now)
+                await self?.succeed(malID: malID, token: token, detail: value, fetchedAt: now)
                 return value
-            } catch is CancellationError {
-                await self?.failed(malID: malID)
-                return stale
             } catch {
-                await self?.failed(malID: malID)
+                // Cancellation included: nothing is written, and no negative entry exists.
+                await self?.finish(malID: malID, token: token)
                 return stale
             }
         }
-        inFlight[malID] = task
+        inFlight[malID] = (token, task)
         return await task.value
     }
 
     func invalidate(malID: Int) {
         loadIfNeeded()
         entries.removeValue(forKey: malID)
-        inFlight[malID]?.cancel()
+        inFlight[malID]?.task.cancel()
         inFlight.removeValue(forKey: malID)
         save()
     }
 
-    private func succeed(malID: Int, detail: MyAnimeListMangaDetail, fetchedAt: Date) {
-        guard inFlight[malID] != nil else { return }
+    private func succeed(malID: Int, token: UUID, detail: MyAnimeListMangaDetail, fetchedAt: Date) {
+        guard inFlight[malID]?.token == token else { return }
         entries[malID] = Entry(detail: detail, fetchedAt: fetchedAt)
         save()
         inFlight.removeValue(forKey: malID)
     }
 
-    private func failed(malID: Int) {
+    private func finish(malID: Int, token: UUID) {
+        guard inFlight[malID]?.token == token else { return }
         inFlight.removeValue(forKey: malID)
     }
 

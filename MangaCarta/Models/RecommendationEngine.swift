@@ -101,7 +101,7 @@ final class RecommendationEngine: ObservableObject {
          workStore: WorkStore,
          source: @escaping () -> MangaSource?,
          makeProvider: @escaping (MangaSource) -> CandidateProvider = { @MainActor source in
-                 CompositeCandidateProvider(
+             CompositeCandidateProvider(
                  tag: TagCandidateProvider(source: source),
                  mal: MALCandidateProvider(similar: MoreLikeThisProvider(
                      detailStore: MALDetailStore(), source: { source })))

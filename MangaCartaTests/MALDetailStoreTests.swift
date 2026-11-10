@@ -126,10 +126,13 @@ final class MALDetailStoreTests: XCTestCase {
         let store = MALDetailStore(directory: makeTestDirectory(#function))
         let manga = Manga(id: "source", sourceId: "source", title: "Berserk", description: "",
                           status: "unknown", year: nil, coverURL: nil, malId: 2)
-        let resolver = MALEntityResolver(store: .shared)
+        let resolutions = EntityResolutionStore(defaults: makeTestDefaults(#function))
+        let resolver = MALEntityResolver(store: resolutions)
         let target = Manga(id: "target", sourceId: "source", title: "Vagabond", description: "",
                            status: "unknown", year: nil, coverURL: nil, malId: nil)
-        let reverse = MALReverseResolver(search: { _ in [target] }, fetchByIds: { _ in [] })
+        let reverse = MALReverseResolver(store: resolutions, search: { _ in [target] },
+                                         fetchByIds: { _ in [] }, fetchTitles: { _ in [] },
+                                         source: { nil })
         let counter = CallCounter()
         let fetched = detail()
         let provider = MoreLikeThisProvider(resolver: resolver, reverse: reverse, detailStore: store,
@@ -138,6 +141,46 @@ final class MALDetailStoreTests: XCTestCase {
         _ = await provider.recommendations(for: manga)
         let callCount = await counter.value
         XCTAssertEqual(callCount, 1)
+    }
+
+    /// Guards the view model's provider closure: it must capture the registry, not the VM,
+    /// or every detail page opened leaks its view model.
+    func testMoreLikeThisViewModelIsReleasedAfterLoad() async {
+        let store = MALDetailStore(directory: makeTestDirectory(#function))
+        let empty = MyAnimeListMangaDetail(id: 2, title: "Berserk", synopsis: nil, mainPicture: nil,
+                                           genres: nil, relatedManga: nil, recommendations: [])
+        _ = await store.detail(for: 2) { _ in empty }
+        let registry = SourceRegistry(sources: [], defaults: makeTestDefaults(#function))
+        let manga = Manga(id: "source", sourceId: "source", title: "Berserk", description: "",
+                          status: "unknown", year: nil, coverURL: nil, malId: 2)
+        var viewModel: MoreLikeThisViewModel? = MoreLikeThisViewModel(registry: registry)
+        weak var weakViewModel = viewModel
+        await viewModel?.load(for: manga, detailStore: store)
+        viewModel = nil
+        XCTAssertNil(weakViewModel)
+    }
+
+    /// A fetch orphaned by `invalidate` must not write its result over, or clear, the
+    /// fetch that replaced it.
+    func testInvalidatedFetchCannotOverwriteItsReplacement() async {
+        let store = MALDetailStore(directory: makeTestDirectory(#function))
+        let orphan = detail(recommendationID: 111)
+        let replacement = detail(recommendationID: 222)
+        let gate = FetchGate()
+        let first = Task {
+            await store.detail(for: 2) { _ in
+                await gate.enter()
+                await gate.waitForRelease()
+                return orphan
+            }
+        }
+        try? await gate.waitUntilEntered(deadline: Date().addingTimeInterval(5))
+        await store.invalidate(malID: 2)
+        _ = await store.detail(for: 2) { _ in replacement }
+        await gate.release()
+        _ = await first.value
+        let loaded = await store.detail(for: 2) { _ in XCTFail("fresh replacement refetched"); return replacement }
+        XCTAssertEqual(loaded, replacement)
     }
 }
 
@@ -151,6 +194,7 @@ private actor CallCounter {
 
 private actor FetchGate {
     private var entered = false
+    private var released = false
     private var continuation: CheckedContinuation<Void, Never>?
 
     func enter() {
@@ -164,12 +208,16 @@ private actor FetchGate {
         }
     }
 
+    /// Records the release even when no one is waiting yet, so a `release()` that lands
+    /// before `waitForRelease()` can't strand the fetch forever.
     func release() {
+        released = true
         continuation?.resume()
         continuation = nil
     }
 
     func waitForRelease() async {
+        if released { return }
         await withCheckedContinuation { continuation = $0 }
     }
 }

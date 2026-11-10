@@ -34,8 +34,11 @@ final class MoreLikeThisViewModel: ObservableObject {
         loadedFor = manga.id
         isLoading = true
         defer { isLoading = false }
+        // Capture the registry, not `self`: the VM holds the provider, so a `self` capture
+        // here would be a retain cycle leaking one VM per detail page opened.
+        let registry = registry
         let provider = provider ?? MoreLikeThisProvider(detailStore: detailStore,
-                                                        source: { self.registry.externalIdSource })
+                                                        source: { registry.externalIdSource })
         self.provider = provider
         let recommendations = await provider.recommendations(for: manga)
         items = recommendations.filter {
