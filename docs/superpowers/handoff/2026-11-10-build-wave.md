@@ -15,6 +15,7 @@ Merged on 2026-11-10:
 
 Their worktrees and branches are deleted, local and remote.
 
+**Open, awaiting the owner's merge:** this handoff (#382) and the research (#383).
 **Open: [#381](https://github.com/eliasmagdaleno/MangaCarta/pull/381)**, MAL-hub slice 1 (the cached MAL-native
 projection; no UI). It was verified locally: the full unit suite passed on a clean build and all five mutations went
 red. Auto-fix is watching CI. Merge only when the owner asks. After it merges, remove worktree
@@ -55,14 +56,28 @@ churn and safe to drop. Leave `.worktrees/device-build`, the uncommitted `.cbz` 
    - no per-IP limiting, and Cloudflare's own request logging disabled as a slice-2 requirement;
    - uploads only while the app is active.
 
-   §5 (regional consent) is **deliberately unchanged**. It waits for the legal research. Then ask the owner
-   plainly: on by default everywhere (their original decision), or opt-in in the EU, EEA, UK and Switzerland (the
-   design's departure)? Once they decide, open the docs PR.
-4. **Legal research**, running at hand-off time: an Orca Claude worker in worktree `research-legal`, run
-   `run_f7807eb4d218`, dispatch `ctx_a601f68cdff4`. Its deliverable is
-   `docs/superpowers/research/2026-11-09-unrar-licence-and-analytics-consent.md`. If it stopped on a session limit
-   again, check the worktree before retrying; the brief is in the dispatch. Review its verdicts against the
-   analytics design's §5, §6 and §8, and against the local-formats design's RAR dependency.
+   §5 (regional consent) is **deliberately unchanged** so far. The legal research has landed (item 4), so the
+   next step is the owner's decision. **Ask them plainly first:**
+
+   > Should analytics send nothing until the reader taps "OK" on the first-launch card, in every region?
+
+   Recommend yes. Apple's Guideline 5.1.1(ii) requires consent "even if such data is considered to be
+   anonymous", and it applies everywhere, US included. Record events locally until "OK" arms collection. Keep the
+   EU, EEA and UK as a real "Share" / "Not now" opt-in. The owner had NOT answered when this session ended.
+
+   Then fold the research's corrections into the design and open its docs PR. The worktree is `spec-analytics`,
+   with head `3f6f80f`, unpushed. The corrections:
+   - Switzerland moves to opt-out (TCA 45c), unless reading histories count as high-risk profiling, which is a
+     lawyer question.
+   - Device ID becomes **Linked: Yes**.
+   - CNIL's 13-month limit and the ICO's no-individual-rows condition: neither consent-free stream is available
+     with a persistent id and 12-month raw retention.
+   - The UnRAR attribution note goes into the local-formats design's dependency section.
+
+   Slice 2 still needs a lawyer, or an App Review query, on what counts as "consent".
+4. **Legal research: done.** It is on [#383](https://github.com/eliasmagdaleno/MangaCarta/pull/383), a docs
+   PR awaiting the owner's merge: `docs/superpowers/research/2026-11-09-unrar-licence-and-analytics-consent.md`.
+   Once it merges, remove worktree `research-legal` and its branch.
 5. **Item 12, per-Source refresh cadence:** still blocked on measured device data. Don't guess.
 
 The rest of the feature queue is specced and on `main`: notification actions, Updates screen, widgets, detail
