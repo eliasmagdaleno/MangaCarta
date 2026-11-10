@@ -1,7 +1,7 @@
 # New-chapter notification actions design
 
 **Date:** 2026-11-09  
-**Status:** Proposed; owner decisions are collected at the end.  
+**Status:** Accepted — owner sign-off 2026-11-10.  
 **Slug:** `notification-actions`
 
 ## Goal
