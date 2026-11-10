@@ -1,6 +1,9 @@
 # Updates Screen — Design Spec
 
 Date: 2026-11-09
+
+Status: Accepted — owner sign-off 2026-11-10.
+
 Slug: `updates-screen`
 
 ## Goal
