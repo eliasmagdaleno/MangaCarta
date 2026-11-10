@@ -1,7 +1,7 @@
 # Related titles and MAL detail caching — Design
 
 **Date:** 2026-11-09  
-**Status:** Accepted owner decisions (2026-11-09) are recorded at the end.
+**Status:** Accepted — owner sign-off 2026-11-10.
 **Scope:** the detail-page Related section and a read-through cache for the one MAL detail
 payload consumed by both detail-page rails.
 
