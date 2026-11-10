@@ -17,13 +17,21 @@ import Foundation
 final class MoreLikeThisProvider {
     private let resolver: MALEntityResolver
     private let reverse: MALReverseResolver
+    private let detailStore: MALDetailStore
+    private let fetchDetail: @Sendable (Int) async throws -> MyAnimeListMangaDetail
 
     init(store: EntityResolutionStore = .shared,
          resolver: MALEntityResolver? = nil,
          reverse: MALReverseResolver? = nil,
+         detailStore: MALDetailStore,
+         fetchDetail: @escaping @Sendable (Int) async throws -> MyAnimeListMangaDetail = {
+             try await MyAnimeListAPI.mangaDetail(id: $0)
+         },
          source: @escaping () -> MangaSource?) {
         self.resolver = resolver ?? MALEntityResolver(store: store, source: source)
         self.reverse = reverse ?? MALReverseResolver(store: store, source: source)
+        self.detailStore = detailStore
+        self.fetchDetail = fetchDetail
     }
 
     /// The top `limit` recommendations by weight (descending). Pure — no network. Marked
@@ -39,7 +47,7 @@ final class MoreLikeThisProvider {
     /// reverse-resolve. Never throws — network failures degrade to fewer/zero cards.
     func recommendations(for manga: Manga, limit: Int = 8) async -> [Manga] {
         guard let malId = await resolver.malId(for: manga) else { return [] }
-        guard let detail = try? await MyAnimeListAPI.mangaDetail(id: malId) else { return [] }
+        guard let detail = await detailStore.detail(for: malId, fetch: fetchDetail) else { return [] }
         let recs = Self.topRecommendations(detail.recommendations ?? [], limit: limit)
         guard !recs.isEmpty else { return [] }
 

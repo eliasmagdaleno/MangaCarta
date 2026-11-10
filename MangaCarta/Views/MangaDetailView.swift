@@ -22,6 +22,7 @@ struct MangaDetailView: View {
     @EnvironmentObject private var registry: SourceRegistry
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.imageCache) private var imageCache
+    @Environment(\.malDetailStore) private var malDetailStore
     @ScaledMetric(relativeTo: .title) private var coverWidth: CGFloat = 132
     @ScaledMetric(relativeTo: .title) private var coverHeight: CGFloat = 188
     @StateObject private var moreLikeThis: MoreLikeThisViewModel
@@ -169,7 +170,7 @@ struct MangaDetailView: View {
         .task { await reconcileListingCounts() }
         .task { await loadLocalSize() }
         .task { mangaWebURL = try? await mangaSource?.webURL(forManga: manga.id) }
-        .task { await moreLikeThis.load(for: manga) }
+        .task { await moreLikeThis.load(for: manga, detailStore: malDetailStore) }
         .task { clearNewlyDiscovered() }
         .onChange(of: vm.detailTags) { _, tags in
             // Ungated: every source has tags, and this is what makes non-MangaDex
