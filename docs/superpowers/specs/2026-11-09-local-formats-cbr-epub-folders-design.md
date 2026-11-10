@@ -1,7 +1,7 @@
 # Local library formats: CBR/RAR, fixed-layout EPUB, and folder watching
 
 **Date:** 2026-11-09  
-**Status:** Proposed design; owner decisions are listed at the end.  
+**Status:** Accepted — owner sign-off 2026-11-10.  
 **Slug:** `local-formats-cbr-epub-folders`
 
 ## Goal
@@ -402,8 +402,9 @@ external Files provider.
    reporting, conservative deletion UI, accessibility, and hermetic tests. It consumes the
    format adapters from slices 1–2 but can merge independently after those slices.
 
-## Open questions for the owner
+## Owner decisions (2026-11-10)
 
+The owner accepted every recommended answer below at sign-off.
 1. **EPUB fallback:** Approve the recommended rule that an EPUB with no explicit fixed-layout
    metadata is accepted only when every spine item resolves to exactly one supported raster image
    page, whether directly, through XHTML/SVG, or through an OPF fallback chain? Recommended: yes.
