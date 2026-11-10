@@ -1,7 +1,7 @@
 # Local-library matching design
 
 **Date:** 2026-11-09  
-**Status:** Proposed  
+**Status:** Accepted — owner sign-off 2026-11-10.  
 **Slug:** `local-library-matching`
 
 ## Goal
