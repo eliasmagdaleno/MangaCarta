@@ -39,7 +39,29 @@ final class MoreLikeThisProvider {
     /// (it touches no actor-isolated state); tests call it directly.
     nonisolated static func topRecommendations(_ recs: [MyAnimeListMangaDetail.Recommendation],
                                                limit: Int) -> [MyAnimeListMangaDetail.Recommendation] {
-        Array(recs.sorted { $0.numRecommendations > $1.numRecommendations }.prefix(limit))
+        Array(recs.enumerated().sorted { lhs, rhs in
+            lhs.element.numRecommendations != rhs.element.numRecommendations
+                ? lhs.element.numRecommendations > rhs.element.numRecommendations
+                : lhs.offset < rhs.offset
+        }.map(\.element).prefix(limit))
+    }
+
+    func detailDiscovery(for manga: Manga, showAdultContent: Bool,
+                         admits: (Manga) -> Bool) async -> MALDetailDiscovery? {
+        guard let malId = await resolver.malId(for: manga) else { return nil }
+        guard let detail = await detailStore.detail(for: malId, fetch: fetchDetail) else { return nil }
+        var targets: [MALReverseResolver.ReverseTarget] = []
+        var seen = Set<Int>()
+        for relation in detail.relatedManga ?? [] where seen.insert(relation.node.id).inserted {
+            targets.append(.init(malId: relation.node.id, title: relation.node.title))
+        }
+        for recommendation in Self.topRecommendations(detail.recommendations ?? [], limit: 8) where seen.insert(recommendation.node.id).inserted {
+            targets.append(.init(malId: recommendation.node.id, title: recommendation.node.title))
+        }
+        let resolved = await reverse.resolve(targets)
+        return MALDiscoveryProjection.project(detail: detail, parentMALID: malId, parentListingID: manga.id,
+                                              resolutions: resolved, showAdultContent: showAdultContent,
+                                              admits: admits, recommendationLimit: 8)
     }
 
     /// Up to `limit` openable MangaDex titles similar to `manga`, in MAL-recommendation
