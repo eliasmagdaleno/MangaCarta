@@ -1,7 +1,7 @@
 # Vector PDF reader path
 
 **Date:** 2026-11-09  
-**Status:** Proposed design  
+**Status:** Accepted — owner sign-off 2026-11-10.  
 **Slug:** `vector-pdf-reader`  
 **Build baseline:** current branch at design time; no code or tests changed for this spec
 
@@ -345,8 +345,9 @@ must be added with `xcp add-file` for their respective targets. A new renderer u
 5. **Cleanup and manual verification:** verify Files open-in-place and Share paths, duplicate and
    delete behavior, low-memory redraw, rotated pages, and R→L on an iPhone 17 Pro simulator.
 
-## Open questions for the owner
+## Owner decisions (2026-11-10)
 
+The owner accepted every recommended answer below at sign-off.
 1. **Recommended: approve delete-and-reimport for legacy raster PDFs.** Old imports do not retain
    the source PDF, and silently replacing their page files would change stored page URLs and disk
    state. Should the product explicitly tell a user to delete the old item and re-import the
