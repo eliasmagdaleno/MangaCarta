@@ -1,8 +1,8 @@
 # Product analytics design
 
 **Date:** 2026-11-09
-**Status:** Draft for owner review. The default (collect unless the reader opts out) is the owner's
-decision of 2026-11-09. Every other choice below is a recommendation until the owner approves it in
+**Status:** Draft for owner review, revised after coordinator review 2026-11-10. §5 awaits the legal research.
+The default (collect unless the reader opts out) is the owner's decision of 2026-11-09. Every other choice below is a recommendation until the owner approves it in
 "Open questions for the owner".
 **Evidence baseline:** `main` at `b57c356`.
 **Slug:** `analytics`. **Handoff queue item:** 15.
@@ -67,7 +67,7 @@ Every reference below was opened at `b57c356`.
 | Unsave | `LibraryStore.items` `didSet` → `reportWorksThatLeft` (`LibraryStore.swift:82`, `:341-355`) → `configureWorkLeftLibrary` handler (`:336`), at Work granularity across every removal path | The unsave event hooks here, so all removal paths are covered. Only a `WorkID` is in hand, which drives the ledger in §11.4. |
 | Feedback | `RecommendationEngine.markNotInterested` / `markMoreLikeThis` (`RecommendationEngine.swift:145-157`), reached from the For You card context menu (`RecommendationRail.swift:32-39`, `HomeView.swift:160-161`) | Explicit taste signals. |
 | For You card tap | `NavigationLink` per card (`RecommendationRail.swift:22`) | Needs an `onOpen` hook to log a tap with its rank. |
-| More Like This rail | `MangaDetailView.swift:558-564` renders `MangaRail(items:)`. The tap is a bare `NavigationLink` (`MangaRail.swift:22`) | Needs an optional `onOpen` hook. Items come from MAL recommendations reverse-resolved to openable titles (`docs/superpowers/specs/2026-07-21-more-like-this-design.md`). |
+| More Like This and Related rails | `MangaDetailView.swift:558-564` renders the detail-page MAL-native candidate rails. The tap hook receives a `MALDiscoveryCandidate`, not a `Manga`; `to` is the candidate's MAL id. | Needs an optional `onOpen` hook. Candidates come from the shared MAL detail cache (`docs/superpowers/specs/2026-11-09-mal-hub-recommendations-design.md`). |
 | On-device recommender | `CandidateProvider` protocol (`CandidateProvider.swift:21-26`), `TagCandidateProvider`, and `TasteProfile.build` with the ×2 "more like this" boost at `TasteProfile.swift:116` | §9: what aggregate data can tune, and where a new provider slots in. |
 | Public catalogue ids | `ExternalIDs { mal: Int?, anilist: Int? }` on every `Work` (`Work.swift:44-55`, `:112-124`); `Manga.malId` (`MangaModels.swift:26`) | The only ids analytics ever sends. |
 | Adult gate | `AdultContentFilter.admits(rating:sourceDeclaresAdultTitles:showAdultContent:)` (`AdultContentFilter.swift:13-20`); `AdultClassification` `none/mixed/adultOnly` (`SourceDeclaration.swift:98-102`); `MangaSource.isNSFW` / `declaresAdultTitles` (`MangaSource.swift:24-27`); `Manga.contentRating` (`MangaModels.swift:113`); `TagVocabularyStore.isAdult(_:)` (`TagVocabularyStore.swift:65`) | §3 reuses this predicate with the switch pinned off. |
@@ -114,8 +114,11 @@ included. D1's free plan allows 100,000 rows written a day and 5 GB of storage
 ([Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/)). Batching means one
 request per upload, not per event, so a few thousand readers fit in the free tier. The operational
 cost is one small deploy, one secret-free endpoint (so abuse is a risk, see §13), and owning the
-retention purge. Cloudflare is a US company, which the privacy policy must name. Where the data
-lives is a configuration detail the implementer must confirm, not a claim made here.
+retention purge. This design does not rely on per-IP limits: Cloudflare Workers may run many
+short-lived isolates, so an in-memory counter is ineffective; validation, batch-size limits, schema
+rejection and the k-thresholds in §13 are the abuse controls. Cloudflare is a US company, which the
+privacy policy must name. Where the data lives is a configuration detail the implementer must
+confirm, not a claim made here.
 
 **C. Apple App Analytics only.** It gives downloads, sessions, retention and crashes, but only "from
 users who have agreed to share their diagnostics and usage information with app developers", and it
@@ -169,7 +172,7 @@ title.** Each event also passes the eligibility checks in §3 and §4 first.
 | `rec_more_like_this` | `ids` | `RecommendationEngine.markMoreLikeThis` (`:153`) | Positive label |
 | `for_you_opened` | `ids`, `rank: Int` (0-based position), `reason: String` (closed set: the tag-name reason is replaced by its **kind**, `"tag"` or `"explore"`) | `RecommendationRail` card `onOpen` | Click-through by rank, for weight tuning |
 | `for_you_shown` | `count: Int` | when `railState` becomes `.ready`, at most once per UTC day | The denominator for click-through. It carries no ids. |
-| `mlt_opened` | `from: ids` (the detail page's Work), `to: ids` (the opened item) | `MangaRail` `onOpen` on the More Like This rail | Whether MAL's "readers also liked" lands for our readers |
+| `mlt_opened` | `from: ids` (the detail page's Work), `to: ids` (the opened `MALDiscoveryCandidate`'s MAL id) | detail-page MAL-native More Like This candidate `onOpen` | Whether MAL's "readers also liked" lands for our readers |
 
 **Why ids, not titles or Listing ids.** MAL and AniList ids are public catalogue facts that name a
 series, not a site. A MangaDex UUID or WeebCentral slug would reveal which installed Source the reader
@@ -229,8 +232,11 @@ in hand:
 4. The Source cannot be found in the registry (uninstalled or disabled). **Unknown means excluded.**
 
 This is one pure function, `AnalyticsEligibility.admits(manga:source:work:vocabulary:)`, so the
-choice is made in one place (ADR-0022 Amendment 6, decision 5). `mlt_opened` checks both `from` and
-`to`. If either fails, the whole event is dropped.
+choice is made in one place (ADR-0022 Amendment 6, decision 5). `mlt_opened` checks `from` and the
+candidate's `resolvedListing` through the same eligibility predicate. An unresolved candidate is
+ineligible: it has no Source, and §3 rule 4 says unknown means excluded. If either side fails, the
+whole event is dropped. The home `RecommendationRail` hook is unchanged and still receives
+`(Manga, Int)`.
 
 Two options were rejected:
 
@@ -258,6 +264,8 @@ a bucketed file count and nothing about the content. Test:
 ## 5. Consent and regions (question 5)
 
 ### 5.1 What the law says, as far as this research reaches
+
+Pending: `docs/superpowers/research/2026-11-09-unrar-licence-and-analytics-consent.md` re-checks this section; the owner decides §5.2 after it.
 
 - **EU/EEA.** Article 5(3) of the ePrivacy Directive requires consent to store information on, or
   read it from, the reader's device, unless doing so is strictly necessary for the service the
@@ -315,13 +323,14 @@ exception. It would mean two toggles, and the owner asked for one clear toggle. 
 
 `await Storefront.current?.countryCode` (StoreKit 2, iOS 15+; "the three-letter code that represents
 the country or region associated with the App Store storefront",
-[Apple](https://developer.apple.com/documentation/storekit/storefront/countrycode)). If that is
-`nil` (no App Store account, or a simulator), fall back to `Locale.current.region?.identifier`
-(alpha-2). If both are unknown, treat the region as a consent region.
-
-`AnalyticsRegionPolicy.requiresOptIn(countryCode:) -> Bool` is pure and takes either alpha-2 or
-alpha-3 codes. **The storefront is never sent** (§2.1). Using storefront first is deliberate: it is
-the jurisdiction the reader bought the app under, and a traveller's phone locale is a weaker signal.
+[Apple](https://developer.apple.com/documentation/storekit/storefront/countrycode)). If the storefront
+is `nil` (no App Store account, or a simulator), treat it as a consent region, whatever the locale
+says. Otherwise, `Locale.current.region?.identifier` (alpha-2) may only make the result stricter:
+a consent-region locale with a non-consent storefront still requires opt-in, but a non-consent locale
+can never remove the requirement from a consent storefront. This fail-closed rule prevents a
+user-settable locale from making an undecided reader collect by default. **Neither value is sent**
+(§2.1). `AnalyticsRegionPolicy.requiresOptIn(storefrontCountryCode:localeRegionCode:) -> Bool` is
+pure and takes either alpha-2 or alpha-3 codes.
 
 **Re-evaluation.** The region is read on every launch. If the reader has **never chosen** and the
 region has changed into a consent region, the default moves to off and the notice is shown again. An
@@ -360,7 +369,9 @@ explicit choice is never overridden. Test: `AnalyticsConsentTests.testUndecidedR
 - **Derived aggregates** (the §9 pair-count table) are kept for as long as they are useful. That is
   defensible only because each published pair needs at least *k* = 20 distinct installs and the
   table carries no install ids.
-- **The server never stores the request IP or the user agent.** The Worker reads only the body.
+- **The server never stores the request IP or the user agent.** The Worker reads only the body. Slice
+  2 must disable Cloudflare Workers request logging, Workers Logs/observability and Logpush; otherwise
+  Cloudflare's own logs may retain IP addresses and this promise would be false.
 
 ### 7.2 Deletion, and what opting out does
 
@@ -461,7 +472,7 @@ Outside consent regions:
 > **Help improve recommendations**
 > MangaCarta shares which titles you save and finish — by their MyAnimeList and AniList numbers, never
 > their names — plus which features you use. Adult titles and your own files are never included.
-> Nothing identifies you. You can turn this off any time in Settings.
+> It isn't linked to your name or your accounts. You can turn this off any time in Settings.
 > [ OK ]  [ Turn off ]
 
 In consent regions, with the default off:
@@ -501,7 +512,8 @@ The policy itself does not exist yet (`docs/superpowers/research/2026-09-11-issu
    consent inside them. How to turn it off.
 3. The exact §2 fields, and the §2.4 list of what is never collected, including the adult and local
    exclusions.
-4. Where the data goes (the provider and its country), and that no IP address is stored.
+4. Where the data goes (the provider and its country), and that no IP address is stored; this is
+   true only with Cloudflare Workers request logging, Workers Logs/observability and Logpush disabled.
 5. The purposes: improving recommendations, both offline weight tuning and aggregated co-occurrence,
    and understanding feature use. **Not advertising. Not sold. Not shared with data brokers.**
 6. Retention: 12 months for raw events. Aggregates are kept and contain no identifiers.
@@ -518,12 +530,12 @@ The policy itself does not exist yet (`docs/superpowers/research/2026-09-11-issu
 |---|---|---|---|
 | `AnalyticsEvent`, `CatalogueIDs` | `MangaCarta/Models/AnalyticsEvent.swift` | value types and the wire encoder (§2.5) | 1 |
 | `AnalyticsEligibility` | `MangaCarta/Models/AnalyticsEligibility.swift` | pure predicate (§3, §4) | 1 |
-| `AnalyticsRegionPolicy` | `MangaCarta/Models/AnalyticsRegionPolicy.swift` | pure: `requiresOptIn(countryCode:)` | 1 |
+| `AnalyticsRegionPolicy` | `MangaCarta/Models/AnalyticsRegionPolicy.swift` | pure: `requiresOptIn(storefrontCountryCode:localeRegionCode:)`, with locale only able to add opt-in | 1 |
 | `AnalyticsConsentStore` | `MangaCarta/Services/AnalyticsConsentStore.swift` | `@MainActor ObservableObject`: consent state, notice-shown flag, region re-evaluation | 1 |
 | `AnalyticsEventBuffer` | `MangaCarta/Services/AnalyticsEventBuffer.swift` | file-backed FIFO, capped at 500, plus the install id | 1 |
 | `AnalyticsRecorder` | `MangaCarta/Services/AnalyticsRecorder.swift` | `@MainActor`. `record(_:)` is **synchronous and network-free**, like the completion sink. It checks consent, then eligibility, then appends. Owns the sent ledger (§11.4). | 1 |
 | `AnalyticsTransport`, `URLSessionAnalyticsTransport` | `MangaCarta/Services/AnalyticsTransport.swift` | protocol plus production `POST /v1/events` and `DELETE /v1/installs/{id}` | 2 |
-| `AnalyticsUploader` | `MangaCarta/Services/AnalyticsUploader.swift` | `@MainActor`. Drains the buffer on `scenePhase` active and background, at most once every 15 minutes, 100 events per batch. Also sends queued deletes. | 2 |
+| `AnalyticsUploader` | `MangaCarta/Services/AnalyticsUploader.swift` | `@MainActor`. Drains the buffer on `scenePhase == .active`, at most once every 15 minutes, 100 events per batch. Also sends queued deletes. | 2 |
 | `AnalyticsNotice` | `MangaCarta/Views/Components/AnalyticsNotice.swift` | the §10.1 card | 1 |
 | `AnalyticsSettingsSection` | `MangaCarta/Views/Components/AnalyticsSettingsSection.swift` | the §10.2 card and "What is sent" | 1 |
 | `CoOccurrenceCandidateProvider` | `MangaCarta/Models/CoOccurrenceCandidateProvider.swift` | `CandidateProvider` over a downloaded table | 3 |
@@ -538,12 +550,19 @@ The policy itself does not exist yet (`docs/superpowers/research/2026-09-11-issu
   composition already chains handlers like this.
 - `LibraryStore` gains a `configureWorkSaved((Manga, WorkID) -> Void)` hook, called from `toggle`'s add
   branch. `RecommendationEngine` gains an optional `feedbackRecorded` closure. `RecommendationRail` and
-  `MangaRail` gain `onOpen: ((Manga, Int) -> Void)? = nil`, which defaults to nil so every existing
-  call site compiles unchanged.
+  `MangaRail` and the detail-page MAL-native candidate rails gain optional `onOpen` hooks, defaulting
+  to nil so existing call sites compile unchanged. The candidate hook receives
+  `(MALDiscoveryCandidate, Int)`; its `to` is the candidate's MAL id, and only a candidate with an
+  eligible `resolvedListing` may produce `mlt_opened`. The home `RecommendationRail` hook remains
+  `(Manga, Int)` unchanged.
 - Eligibility needs the registry (Source class), the `WorkStore` (Listings, external ids, snapshot)
   and `TagVocabularyStore`. These are passed as closures, following `listingParticipates`
   (`MALProgressCoordinator.swift:116`). The recorder never reads `SourceRegistry.shared`.
 - `AnalyticsConsentStore` goes into the environment for the Settings section and the notice.
+
+Related candidate opens do not emit an analytics event: they are navigation/context signals, not the
+MAL recommendation signal measured by `mlt_opened`. This keeps the closed event set small and is the
+recommended answer to Open question 9.
 
 No `isolated` conformances, `nonisolated(nonsending)`, `@concurrent` or `Task.immediate` are used.
 Everything is `@MainActor` classes and plain `Task {}` uploads, as `MALProgressCoordinator` does. That
@@ -567,13 +586,17 @@ so a future material change to §2 can raise it and show the notice again.
 
 The buffer is JSON in `Application Support/analytics/buffer.json`, an array of encoded events, written
 atomically on each append. Writes are tiny and infrequent: save, complete, feedback, and a few per day.
-Upload sends `{ "v": 1, "events": [...] }`. Responses are handled as follows:
+Upload sends `{ "v": 1, "events": [...] }`. The uploader runs only when `scenePhase == .active`,
+so iOS cannot suspend an upload that began in the background. Responses are handled as follows:
 
 - **2xx:** delete the sent events.
 - **4xx:** drop the batch, so a schema rejection cannot loop.
 - **5xx, or offline:** keep the events and retry next time, with backoff of 15 minutes doubling to 24
   hours.
 - **Never during the reader's page loads.** Uploads start only on scene transitions.
+
+An active-only upload can still be cut off by termination or connectivity loss; the existing 5xx/offline
+retry path keeps the unsent batch and makes that cutoff safe.
 
 ### 11.4 Sent ledger
 
@@ -615,10 +638,11 @@ or `updates.json`. Nothing is migrated.
   rows whose MAL id appears in a server-side adult list. Open question 7.
 - **Two Works merge** (ADR-0007). The ledger re-keys to the surviving `WorkID`, as other per-Work
   stores do.
-- **Endpoint abuse.** There is no secret in an app binary. The Worker limits requests per IP *in
-  memory only* and rejects unknown `v`, unknown `name`, oversized batches (more than 100 events) and
-  non-integer ids. Poisoned aggregates are bounded by k-thresholds on distinct installs, and a flood
-  from one id counts once.
+- **Endpoint abuse.** There is no secret in an app binary. The Worker does not use per-IP limiting:
+  Cloudflare isolates are short-lived and an in-memory counter would not provide a reliable limit.
+  It rejects unknown `v`, unknown `name`, oversized batches (more than 100 events) and non-integer
+  ids. Poisoned aggregates are bounded by k-thresholds on distinct installs, and a flood from one id
+  counts once.
 - **Delete for an unknown id** returns 204. The response never reveals whether an id existed.
 - **A UI test or the simulator fixture** must never send. `-uitest-*` launch arguments, and any build
   without `ANALYTICS_ENDPOINT` in Info.plist, select a no-op transport. Debug builds default to the
@@ -649,8 +673,10 @@ Each slice merges on its own.
    nothing, so the privacy label does not change. "What is sent" makes the behaviour visible for review
    on a real device. Includes the glossary entry and the `PRODUCT.md:38-39` link-back.
 2. **Provider integration.** Transport, uploader, deletes, the Worker and its purge job, the manifest
-   and label changes (§8), `submission-copy.md` §5, and the privacy-policy URL in Settings. **Blocked on
-   the hosted privacy policy and the legal review.**
+   and label changes (§8), `submission-copy.md` §5, and the privacy-policy URL in Settings. The slice-2
+   setup checklist must confirm Cloudflare Workers request logging, Workers Logs/observability and
+   Logpush are disabled, so the policy's no-IP promise is true. **Blocked on the hosted privacy policy
+   and the legal review.**
 3. **Recommendation use.** The aggregate job, the published `cooccurrence-v1.json`,
    `CoOccurrenceCandidateProvider` behind `CandidateProvider` with k = 20, and its merge into the For
    You candidate list after the tag provider's. A golden test in the style of
@@ -661,18 +687,18 @@ Each slice merges on its own.
 
 | # | Criterion | Test |
 |---|---|---|
-| 1 | Outside consent regions, an undecided reader collects. In a consent region, or with the region unknown, an undecided reader does not. | `MangaCartaTests/AnalyticsConsentTests.testRegionDefaults` |
-| 2 | An undecided reader whose region moves into a consent region stops collecting. An explicit choice is never overridden. | `AnalyticsConsentTests.testUndecidedReaderMovingIntoConsentRegionStopsCollecting`, `.testExplicitChoiceSurvivesRegionChange` |
+| 1 | An undecided reader collects only when both the storefront and locale are non-consent regions. A nil storefront is consent, and a consent-region locale with a non-consent storefront still requires opt-in. | `MangaCartaTests/AnalyticsConsentTests.testRegionDefaults` |
+| 2 | An undecided reader whose storefront or locale moves into a consent region stops collecting. An explicit choice is never overridden, and locale changes cannot loosen a storefront requirement. | `AnalyticsConsentTests.testUndecidedReaderMovingIntoConsentRegionStopsCollecting`, `.testLocaleCannotLoosenAMissingStorefront`, `.testExplicitChoiceSurvivesRegionChange` |
 | 3 | The encoded wire form of every `AnalyticsEvent` case contains only the envelope keys and closed-set strings. No title, Source id, Listing id or chapter id appears. | `MangaCartaTests/AnalyticsEventTests.testWireFormHasOnlyClosedStrings` (encodes a fixture event with a distinctive title and Source id in the `Manga`, and asserts neither substring is in the JSON) |
 | 4 | An `erotica` or `pornographic` title, an unrated title from a `mixed` Source, an `isNSFW` Source, an adult vocabulary tag and a missing Source each make the event ineligible, with the "Show adult content" switch on **and** off. | `MangaCartaTests/AnalyticsEligibilityTests.testAdultClassesAreIneligibleRegardlessOfSwitch` |
 | 5 | A Work with any `local` Listing is ineligible, including when the event's own Listing is a remote one. | `AnalyticsEligibilityTests.testWorkWithAnyLocalListingIsIneligible` |
 | 6 | An event whose Work has neither a MAL nor an AniList id is dropped. | `AnalyticsEligibilityTests.testWorkWithoutCatalogueIDIsDropped` |
-| 7 | Saving, unsaving, completing a chapter, Not interested, More like this and the two `onOpen` taps each append exactly one event while collecting, and none while not collecting. A manual Mark read appends nothing. | `MangaCartaTests/AnalyticsRecorderTests.testEachHookAppendsOnceWhenCollecting`, `.testNothingRecordedWhenNotCollecting`, `.testMarkReadRecordsNothing` |
+| 7 | Saving, unsaving, completing a chapter, Not interested, More Like This and the home `onOpen` taps each append exactly one event while collecting; Related opens do not emit an event. Nothing records while not collecting. A manual Mark read appends nothing. | `MangaCartaTests/AnalyticsRecorderTests.testEachHookAppendsOnceWhenCollecting`, `.testRelatedOpenIsNotRecorded`, `.testNothingRecordedWhenNotCollecting`, `.testMarkReadRecordsNothing` |
 | 8 | `work_unsaved` is recorded only for a Work in the sent ledger. | `AnalyticsRecorderTests.testUnsaveRequiresLedgerEntry` |
 | 9 | Opting out deletes the buffer, the id and the ledger. Opting in again mints a different id. | `AnalyticsRecorderTests.testOptOutErasesLocalState` |
 | 10 | MAL progress sync behaves exactly as before with the fanned-out completion closure. | the existing `MALProgressCoordinatorTests`, unchanged and green, plus `AppCompositionTests.testCompletionReachesBothSinks` |
 | 11 | The buffer caps at 500, dropping the oldest, and recovers from a corrupt file by starting empty. | `MangaCartaTests/AnalyticsEventBufferTests.testCapDropsOldest`, `.testCorruptFileStartsEmpty` |
-| 12 | `requiresOptIn` is true for every EEA, UK and Swiss code (alpha-2 and alpha-3) and for nil, and false for `USA` and `US`. | `AnalyticsConsentTests.testRegionTable` |
+| 12 | `requiresOptIn(storefrontCountryCode:localeRegionCode:)` is true for every EEA, UK and Swiss code (alpha-2 and alpha-3), for a nil storefront regardless of locale, and for a consent locale with a non-consent storefront; locale never removes a storefront requirement. It is false only for non-consent storefront and locale codes. | `AnalyticsConsentTests.testRegionTable`, `AnalyticsConsentTests.testLocaleCannotLoosenAMissingStorefront` |
 | 13 | The first-launch notice is inline, dismisses on either button, does not reappear, and its two buttons have equal styling. The Settings toggle reflects and changes consent. | `MangaCartaUITests/AnalyticsSettingsUITests.testNoticeDismissesAndToggleReflectsChoice` (hermetic: `-uitest-analytics-region GBR` / `USA` launch argument, no-op transport) |
 | 14 | (slice 2) A 2xx deletes the sent events, a 4xx drops them, and a 5xx keeps them. Opting out queues a delete for the old id, which is retried until it succeeds. | `MangaCartaTests/AnalyticsUploaderTests` (stub `AnalyticsTransport`) |
 | 15 | (slice 2) UI tests and Debug builds never construct the network transport. | `AnalyticsUploaderTests.testUITestLaunchUsesNoOpTransport` |
@@ -721,3 +747,6 @@ Each has a recommended answer, so the whole list can be approved in one pass.
 8. **Legal review before slice 2, plus the hosted privacy policy URL.** *Recommended: required.*
    Slice 2 does not merge without both. Also confirm that the 16+ age rating means no
    children's-privacy flow is needed.
+9. **Should a Related-rail open emit an event?** *Recommended: no.* Related is contextual navigation,
+   while `mlt_opened` measures the MAL recommendation rail; keeping Related out avoids adding a
+   second open event without a settled product question.
