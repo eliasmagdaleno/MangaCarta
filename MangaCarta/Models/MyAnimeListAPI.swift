@@ -79,6 +79,7 @@ struct MyAnimeListMangaDetail: Codable, Equatable {
     let genres: [Genre]?
     let relatedManga: [Relation]?
     let recommendations: [Recommendation]?
+    /// Optional, with a default, so records cached before the field existed still decode.
     var nsfw: MALNSFW? = nil
 
     struct Genre: Codable, Equatable {
@@ -98,6 +99,8 @@ struct MyAnimeListMangaDetail: Codable, Equatable {
     }
 }
 
+/// MAL's `nsfw` rating. Only a top-level detail carries it (nested nodes never do), and an
+/// unfamiliar value decodes as `.unknown` instead of failing the whole cached record.
 enum MALNSFW: Codable, Equatable, Sendable {
     case white
     case gray

@@ -46,6 +46,13 @@ final class MoreLikeThisProvider {
         }.map(\.element).prefix(limit))
     }
 
+    /// How many recommendations the detail page's More Like This rail draws from.
+    static let detailRecommendationLimit = 8
+
+    /// Both detail-page MAL-native rails from ONE cached MAL detail and ONE reverse-resolution pass
+    /// over their union. A separate API from `recommendations(for:limit:)`, which the home rail
+    /// consumes and which keeps returning resolved Listings only. Nil when there is no MAL identity
+    /// or no detail — the caller hides both rails.
     func detailDiscovery(for manga: Manga, showAdultContent: Bool,
                          admits: (Manga) -> Bool) async -> MALDetailDiscovery? {
         guard let malId = await resolver.malId(for: manga) else { return nil }
@@ -55,13 +62,16 @@ final class MoreLikeThisProvider {
         for relation in detail.relatedManga ?? [] where seen.insert(relation.node.id).inserted {
             targets.append(.init(malId: relation.node.id, title: relation.node.title))
         }
-        for recommendation in Self.topRecommendations(detail.recommendations ?? [], limit: 8) where seen.insert(recommendation.node.id).inserted {
+        let recommendations = Self.topRecommendations(detail.recommendations ?? [],
+                                                      limit: Self.detailRecommendationLimit)
+        for recommendation in recommendations where seen.insert(recommendation.node.id).inserted {
             targets.append(.init(malId: recommendation.node.id, title: recommendation.node.title))
         }
         let resolved = await reverse.resolve(targets)
         return MALDiscoveryProjection.project(detail: detail, parentMALID: malId, parentListingID: manga.id,
                                               resolutions: resolved, showAdultContent: showAdultContent,
-                                              admits: admits, recommendationLimit: 8)
+                                              admits: admits,
+                                              recommendationLimit: Self.detailRecommendationLimit)
     }
 
     /// Up to `limit` openable MangaDex titles similar to `manga`, in MAL-recommendation
