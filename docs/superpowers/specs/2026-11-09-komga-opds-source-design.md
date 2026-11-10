@@ -1,7 +1,7 @@
 # Komga / OPDS server Source design
 
 **Date:** 2026-11-09
-**Status:** Draft for owner review. Nothing here is decided until the owner answers the open
+**Status:** Accepted — owner sign-off 2026-11-10.
 questions at the end. For current implementation state, see `CLAUDE.md` and the live handoff.
 **Evidence baseline:** branch `eliasmagdaleno/spec-komga-opds` at `34c2257` (main after #365).
 **Slug:** `komga-opds-source` (handoff queue item 10,
@@ -661,8 +661,9 @@ Each merges on its own and leaves the app working. Slices 1–5 are v1.
 
 Slices 1–3 together are one engineer-week-sized PR if preferred; 4 and 5 are best as one PR.
 
-## 10. Open questions for the owner
+## 10. Owner decisions (2026-11-10)
 
+The owner accepted every recommended answer below at sign-off.
 1. **Record "a reader's own server is a compiled Source" as a new ADR-0029 (rather than amend
    ADR-0025 or ADR-0003)?** Recommended: yes, a new ADR, accepted before slice 2. It is a new
    decision about a new kind of Source, citing Amendment 6 and ADR-0025; amending either would bury
