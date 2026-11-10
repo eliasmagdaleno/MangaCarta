@@ -1,6 +1,6 @@
 # ADR-0028 — Cross-device sync uses the CloudKit private database, record by record
 
-- **Status:** Proposed (2026-11-09)
+- **Status:** Accepted (2026-11-10, owner sign-off)
 - **Related:** ADR-0001, ADR-0003 (Amendments 4, 7, 10), ADR-0007, ADR-0008, ADR-0021,
   ADR-0022, ADR-0025, ADR-0026, ADR-0027
 - **Handoff queue:** item 13
@@ -276,8 +276,9 @@ read state, library and per-Work reading mode, plus the default mode through the
 **Slice 3:** pins, primary source, taste feedback (after re-keying it to Works), mute, and
 notification dedupe as an amendment to ADR-0021.
 
-## Open questions for the owner
+## Owner decisions (2026-11-10)
 
+The owner accepted every recommended answer below at sign-off.
 1. **Is this worth a slice that shows nothing yet?** Slice 1 is plumbing. *Recommended:* yes. The
    alternative is syncing history first and getting duplicate Works for every installed Source.
    The other ordering cannot be made safe.
