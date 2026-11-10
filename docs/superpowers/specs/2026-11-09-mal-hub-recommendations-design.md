@@ -437,8 +437,11 @@ no title or confidence label is truncated.
 1. **Decided 2026-11-10 — option B.** With "Show adult content" off, only cards the existing
    external-id reverse resolver resolved to an admitted Listing are shown; unresolved cards appear only
    with the switch on, under Source admission and the declared-age gate; no per-card MAL adult fetches.
-   Still open, and small: in the preview, should MAL's adult genres be exactly `Hentai` and `Erotica`,
-   or a broader centrally-owned list?
+   The genre set is `Hentai` and `Erotica` (coordinator, 2026-11-10): `Ecchi` is suggestive, not
+   explicit, and MAL's own `nsfw` rating already covers what it marks `gray`.
+   **Known cost, accepted:** with the switch off — the default — this adds no new cards over today's
+   resolve-then-show rails; the all-Source tap search, remembered choices and Related still ship for
+   everyone. See "Follow-up: per-card adult check" below.
 2. **Recommended:** show one MAL-native mixed rail per section, with a quiet `NOT ON YOUR SOURCES`
    stamp and no disabled treatment. Owner: should unavailable cards be visually dimmed slightly, or use
    the same card treatment as available cards for a calmer rail?
@@ -450,3 +453,24 @@ no title or confidence label is truncated.
    chooser omit chapter counts entirely for the first PR?
 5. **Recommended:** keep MAL as the only rail provider and hide rails without a MAL id. Owner: should a
    future AniList fallback be tracked as a separate proposal, rather than weakening this MAL-hub scope?
+
+## Follow-up: per-card adult check (option A, deferred)
+
+Owner decision 2026-11-10: ship option B, and treat option A as a follow-up rather than a rejection.
+Option A fetches each unresolved candidate's MAL rating so that, with the switch off, a candidate MAL
+rates `white` can render as `NOT ON YOUR SOURCES` too. It layers onto B without rework: B's rule stays
+the fallback for any candidate whose rating is absent, unknown, `gray` or `black`.
+
+Deferred because of its costs, which want evidence before they are paid:
+
+- **MAL rate limits.** Up to ~16 extra requests per cold detail page, sharing MAL's unpublished budget
+  with forward resolution and `MetadataUpgradeQueue`. A 429 burst would quietly slow those.
+- **Pop-in.** A card cannot render until its rating arrives; showing then removing would flash adult
+  covers.
+- **Fail-closed reach.** `gray` and unrated titles stay hidden, so A recovers fewer cards than its
+  request count suggests.
+
+If it is picked up: request only `fields=nsfw` per id (not the full detail), cache it in its own
+24-hour store beside `MALDetailStore`, bound it to four in flight, and measure 429s on the device
+before enabling it. Pick it up only if B leaves the hub visibly empty for switch-off readers.
+
