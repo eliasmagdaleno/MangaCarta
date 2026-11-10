@@ -30,7 +30,7 @@ enum MyAnimeListError: LocalizedError {
     }
 }
 
-struct MyAnimeListManga: Decodable {
+struct MyAnimeListManga: Codable, Equatable {
     let id: Int
     let title: String
     let mainPicture: MainPicture?
@@ -47,12 +47,12 @@ struct MyAnimeListManga: Decodable {
         mediaType == "novel" || mediaType == "light_novel"
     }
 
-    struct MainPicture: Decodable {
+    struct MainPicture: Codable, Equatable {
         let medium: String?
         let large: String?
     }
 
-    struct AlternativeTitles: Decodable {
+    struct AlternativeTitles: Codable, Equatable {
         let synonyms: [String]?
         let en: String?
         let ja: String?
@@ -71,7 +71,7 @@ struct MyAnimeListManga: Decodable {
     }
 }
 
-struct MyAnimeListMangaDetail: Decodable {
+struct MyAnimeListMangaDetail: Codable, Equatable {
     let id: Int
     let title: String
     let synopsis: String?
@@ -80,18 +80,18 @@ struct MyAnimeListMangaDetail: Decodable {
     let relatedManga: [Relation]?
     let recommendations: [Recommendation]?
 
-    struct Genre: Decodable {
+    struct Genre: Codable, Equatable {
         let id: Int
         let name: String
     }
 
-    struct Relation: Decodable {
+    struct Relation: Codable, Equatable {
         let node: MyAnimeListManga
         let relationType: String
         let relationTypeFormatted: String
     }
 
-    struct Recommendation: Decodable {
+    struct Recommendation: Codable, Equatable {
         let node: MyAnimeListManga
         let numRecommendations: Int
     }

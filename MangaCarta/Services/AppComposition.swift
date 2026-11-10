@@ -27,6 +27,10 @@ private struct ExtensionStorageErrorEnvironmentKey: EnvironmentKey {
     static let defaultValue: String? = nil
 }
 
+private struct MALDetailStoreEnvironmentKey: EnvironmentKey {
+    static let defaultValue = MALDetailStore()
+}
+
 extension EnvironmentValues {
     var extensionComposition: AppComposition.ExtensionComposition? {
         get { self[ExtensionCompositionEnvironmentKey.self] }
@@ -36,6 +40,11 @@ extension EnvironmentValues {
     var extensionStorageError: String? {
         get { self[ExtensionStorageErrorEnvironmentKey.self] }
         set { self[ExtensionStorageErrorEnvironmentKey.self] = newValue }
+    }
+
+    var malDetailStore: MALDetailStore {
+        get { self[MALDetailStoreEnvironmentKey.self] }
+        set { self[MALDetailStoreEnvironmentKey.self] = newValue }
     }
 }
 
@@ -101,6 +110,7 @@ struct AppComposition {
     /// The graph's image cache. Views read it from the environment (`\.imageCache`);
     /// `ImageCache.shared` survives only as that key's default for previews.
     let imageCache: ImageCache
+    let malDetailStore: MALDetailStore
 
     /// The extension subsystem's four owners, built together because they share one
     /// `SourceLifecycleRegistry`: the installer drives it, the registrar mirrors it.
@@ -378,6 +388,7 @@ struct AppComposition {
 
         let vocab = TagVocabularyStore(fetch: { try await limiter.run { try await anilist.tagVocabulary() } })
         let pool = AniListPoolStore()
+        let malDetailStore = MALDetailStore()
 
         // The engine pushes, the queue never pulls: pulling would mean the queue
         // building a profile, and building one mints Works (ADR-0009).
@@ -397,7 +408,8 @@ struct AppComposition {
                 return CompositeCandidateProvider(
                     tag: TagCandidateProvider(source: source),
                     mal: MALCandidateProvider(similar: MoreLikeThisProvider(
-                        reverse: reverse, source: { resolvedRegistry.externalIdSource })),
+                        reverse: reverse, detailStore: malDetailStore,
+                        source: { resolvedRegistry.externalIdSource })),
                     ani: AniListCandidateProvider(
                         // Hops to the `@MainActor` `WorkStore`; the provider deliberately
                         // is not main-actor-isolated. Same one-way shape as `PriorityPush`.
@@ -446,6 +458,7 @@ struct AppComposition {
         self.hostRateLimiters = HostRateLimiterRegistry()
         self.imageLoadReporter = ImageLoadReporter(rateLimiters: self.hostRateLimiters)
         self.imageCache = ImageCache(reporter: self.imageLoadReporter)
+        self.malDetailStore = malDetailStore
         (self.listingCounts, self.sourcePreferences, self.fulfillment) =
             Self.makeFulfillment(works: wk, registry: self.registry, defaults: defaults)
         self.readingModes = ReadingModeStore(defaults: defaults, works: wk)
