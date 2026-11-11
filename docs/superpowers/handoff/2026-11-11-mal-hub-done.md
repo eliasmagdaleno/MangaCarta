@@ -35,9 +35,16 @@ safe to drop. Leave `.worktrees/device-build`, the uncommitted `.cbz` UTI fix, a
 
 ## Next
 
-1. **Two owner questions, asked plainly, one at a time:**
-   - **Remembered choices** (MAL-hub design, open question 3): they are changed only from the preview ("Choose
-     another Source"), with no Settings list. Applied as the design's recommendation; it needs the owner's yes.
+0. **Per-title Sources (Add a Source / Remove a Source).** The owner asked for it on 2026-11-11, "similarly to
+   Paperback without copying them outright". The design is **accepted** with both open questions decided (Remove
+   asks why; offer both Combine and Move). It is in PR #388: `docs/superpowers/specs/2026-11-11-per-title-sources-design.md`,
+   plus ADR-0005 Amendment 2 and a glossary entry. Build it as its three slices (model, Add, Remove), one PR
+   each, never stacked, once #388 merges. Library-wide switching to another Source (Paperback's "Migrate") is
+   the owner's item 3, and it gets its own design afterwards.
+1. **Owner question still open:**
+   - **Remembered choices** (MAL-hub design, open question 3) are settled: they stay on the preview, with no
+     Settings list. The per-title Sources design records it the same way. Mark open question 3 decided in the
+     MAL-hub design when next touching it.
    - **Analytics:** "Should analytics send nothing until the reader taps 'OK' on the first-launch card, in every
      region?" See item 2.
 2. **Analytics.** Worktree `spec-analytics`, revised design committed at `3f6f80f`, not pushed and with no PR.
