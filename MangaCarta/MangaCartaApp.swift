@@ -67,9 +67,8 @@ struct MangaCartaApp: App {
     private let entityResolutionStore: EntityResolutionStore
     private let listingCountCache: ListingCountCache
 
-    // The graph itself lives in `AppComposition`, where it can be built against temp
-    // storage and asserted on. This initializer does nothing but adopt what it built.
-    // swiftlint:disable:next cyclomatic_complexity
+    /// The graph itself lives in `AppComposition`, where it can be built against temp
+    /// storage and asserted on. This initializer does nothing but adopt what it built.
     init() {
         // A UI test asserting the signed-out MyAnimeList section must not read this
         // device's real account, or it passes on fresh CI and fails on any machine that
@@ -83,6 +82,7 @@ struct MangaCartaApp: App {
         var fixtureDetailStore: MALDetailStore?
         var fixtureChoiceStore: MALSourceChoiceStore?
         var fixtureEntityStore: EntityResolutionStore?
+        var fixtureCountDirectory: URL?
         var fixtureDetailFetch: @Sendable (Int) async throws -> MyAnimeListMangaDetail = {
             try await MyAnimeListAPI.mangaDetail(id: $0)
         }
@@ -94,6 +94,7 @@ struct MangaCartaApp: App {
             fixtureDetailStore = storage.detailStore
             fixtureChoiceStore = storage.choiceStore
             fixtureEntityStore = storage.entityStore
+            fixtureCountDirectory = storage.directory.appendingPathComponent("ListingCounts")
             fixtureDetailFetch = MALHubUITestFixture.fetchDetail
             updateRegistry = MALHubUITestFixture.registry(state: fixtureState, defaults: defaults)
         } else if ProcessInfo.processInfo.arguments.contains("-uitest-local-import") {
@@ -147,11 +148,11 @@ struct MangaCartaApp: App {
                                       malDetailFetch: fixtureDetailFetch,
                                       registry: updateRegistry,
                                       repositoryTransport: repositoryTransport,
-                                      malSourceChoiceStore: fixtureChoiceStore)
+                                      malSourceChoiceStore: fixtureChoiceStore,
+                                      listingCountDirectory: fixtureCountDirectory)
 #if DEBUG
         if MALHubUITestFixture.state != nil {
-            let workID = MALHubUITestFixture.seed(composed)
-            if MALHubUITestFixture.opensDetail { composed.workNavigator.open(workID) }
+            MALHubUITestFixture.seed(composed)
         }
         if let updateState = UpdatesUITestFixture.state {
             UpdatesUITestFixture.seed(updateState, in: composed)

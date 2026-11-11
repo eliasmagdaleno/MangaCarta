@@ -25,14 +25,14 @@ final class MALHubRailsViewModel: ObservableObject {
 
     func load(for manga: Manga, detailStore: MALDetailStore,
               fetchDetail: (@Sendable (Int) async throws -> MyAnimeListMangaDetail)? = nil,
-              entityStore: EntityResolutionStore = .shared) async {
+              entityStore: EntityResolutionStore? = nil) async {
         guard loadedFor != manga.id else { return }
         loadedFor = manga.id
         isLoading = true
         defer { isLoading = false }
         let registry = registry
         let provider = provider ?? MoreLikeThisProvider(
-            store: entityStore,
+            store: entityStore ?? .shared,
             detailStore: detailStore,
             fetchDetail: fetchDetail ?? self.fetchDetail,
             source: { registry.externalIdSource })

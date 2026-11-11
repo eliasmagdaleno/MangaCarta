@@ -1,22 +1,21 @@
 import Foundation
 
+/// Chapter counts for the chooser's top three choices (design §3), so a "possible match"
+/// is informative. Reads `ListingCountCache` first and writes what it counts back, in the
+/// same distinct-chapter units fulfillment ranks on. A Listing missing from the result is
+/// **unknown** — shown as "Chapter count unknown", never as zero.
 @MainActor
 final class MALHubChapterCountLoader {
-    private struct CountContext {
-        let registry: SourceRegistry
-        let cache: ListingCountCache
-        let challengeActive: @Sendable () async -> Bool
-        let deadline: TimeInterval
-    }
+    static let countedChoices = 3
+    private static let maxInFlight = 4
+
     private let registry: SourceRegistry
     private let cache: ListingCountCache
     private let challengeActive: @Sendable () async -> Bool
     private let deadline: TimeInterval
 
     init(registry: SourceRegistry, cache: ListingCountCache,
-         challengeActive: @escaping @Sendable () async -> Bool = {
-             await MainActor.run { WebViewService.shared.isChallengeActive }
-         },
+         challengeActive: @escaping @Sendable () async -> Bool = MALHubChallenge.isActive,
          deadline: TimeInterval = 8) {
         self.registry = registry
         self.cache = cache
@@ -24,65 +23,73 @@ final class MALHubChapterCountLoader {
         self.deadline = deadline
     }
 
-    func load(_ groups: [MALHubSourceGroup]) async -> [String: Int?] {
-        let choices = groups.flatMap { group in
-            group.choices.map { (group.sourceId, $0) }
-        }
-        .sorted { lhs, rhs in
-            let lhsRank = lhs.1.kind == .exact ? 0 : 1
-            let rhsRank = rhs.1.kind == .exact ? 0 : 1
+    /// Exact matches first, then the registry's Source order — the order the chooser shows.
+    func load(_ groups: [MALHubSourceGroup]) async -> [ListingKey: Int] {
+        let order = Dictionary(registry.sources.enumerated().map { ($1.id, $0) },
+                               uniquingKeysWith: { first, _ in first })
+        let choices = groups.flatMap(\.choices).sorted { lhs, rhs in
+            let lhsRank = lhs.kind == .exact ? 0 : 1
+            let rhsRank = rhs.kind == .exact ? 0 : 1
             if lhsRank != rhsRank { return lhsRank < rhsRank }
-            let lhsSource = registry.sources.firstIndex { $0.id == lhs.0 } ?? .max
-            let rhsSource = registry.sources.firstIndex { $0.id == rhs.0 } ?? .max
-            return lhsSource < rhsSource
+            return (order[lhs.manga.sourceId] ?? .max) < (order[rhs.manga.sourceId] ?? .max)
         }
-        let selected = Array(choices.prefix(3))
-        var output = Dictionary(uniqueKeysWithValues: choices.map { ($0.1.manga.id, nil as Int?) })
-        await withTaskGroup(of: (String, Int?).self) { group in
-            var pending = selected.makeIterator()
-            var active = 0
+
+        // The cache is main-actor state: read it here, and record below, never in a child task.
+        var counts: [ListingKey: Int] = [:]
+        var toFetch: [(ListingKey, any MangaSource)] = []
+        for choice in choices.prefix(Self.countedChoices) {
+            let listing = ListingKey(choice.manga)
+            if let cached = cache.count(for: listing) {
+                counts[listing] = cached
+            } else if let source = registry.source(id: listing.sourceId) {
+                toFetch.append((listing, source))
+            }
+        }
+
+        let challengeActive = challengeActive
+        let deadline = deadline
+        await withTaskGroup(of: (ListingKey, Int?).self) { group in
+            var pending = toFetch.makeIterator()
             func addNext() {
-                guard active < 4, let next = pending.next() else { return }
-                active += 1
-                let context = CountContext(registry: registry, cache: cache,
-                                           challengeActive: challengeActive, deadline: deadline)
-                group.addTask { [context] in
-                    let value = await Self.count(next.1.manga, sourceID: next.0, context: context)
-                    return (next.1.manga.id, value)
+                guard let (listing, source) = pending.next() else { return }
+                group.addTask {
+                    let count = await Self.count(listing, on: source, deadline: deadline,
+                                                 challengeActive: challengeActive)
+                    return (listing, count)
                 }
             }
-            for _ in 0..<4 { addNext() }
-            while let result = await group.next() {
-                active -= 1
-                output[result.0] = result.1
+            for _ in 0..<Self.maxInFlight { addNext() }
+            while let (listing, count) = await group.next() {
+                if let count {
+                    counts[listing] = count
+                    cache.record(count, for: listing)
+                }
                 addNext()
             }
         }
-        return output
+        return counts
     }
 
-    private static func count(_ manga: Manga, sourceID: String, context: CountContext) async -> Int? {
-        let listing = ListingKey(manga)
-        if let cached = context.cache.count(for: listing) { return cached }
-        guard let source = context.registry.source(id: sourceID) else { return nil }
+    /// `nil` on a throw or after `deadline` seconds — time with a challenge sheet up doesn't count.
+    private nonisolated static func count(_ listing: ListingKey, on source: any MangaSource,
+                                          deadline: TimeInterval,
+                                          challengeActive: @escaping @Sendable () async -> Bool) async -> Int? {
         do {
             let chapters = try await withThrowingTaskGroup(of: [Chapter].self) { group in
-                group.addTask { try await source.chapters(mangaId: manga.id) }
+                group.addTask { try await source.chapters(mangaId: listing.mangaId) }
                 group.addTask {
                     var elapsed = 0.0
-                    while elapsed < context.deadline {
+                    while elapsed < deadline {
                         try await Task.sleep(nanoseconds: 250_000_000)
-                        if !(await context.challengeActive()) { elapsed += 0.25 }
+                        if !(await challengeActive()) { elapsed += 0.25 }
                     }
                     throw CancellationError()
                 }
-                let result = try await group.next()!
-                group.cancelAll()
+                defer { group.cancelAll() }
+                guard let result = try await group.next() else { throw CancellationError() }
                 return result
             }
-            let count = FulfillmentRouter.distinctChapterCount(chapters)
-            context.cache.record(count, for: listing)
-            return count
+            return FulfillmentRouter.distinctChapterCount(chapters)
         } catch {
             return nil
         }

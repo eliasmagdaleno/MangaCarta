@@ -349,7 +349,8 @@ struct AppComposition {
          registry: SourceRegistry? = nil,
          repositoryTransport: (any RepositoryTransport)? = nil,
          notifications: NotificationScheduling? = nil,
-         malSourceChoiceStore: MALSourceChoiceStore? = nil) {
+         malSourceChoiceStore: MALSourceChoiceStore? = nil,
+         listingCountDirectory: URL? = nil) {
         let identityMigrationError = Self.runIdentityMigrations(directory: directory, defaults: defaults)
         let resolvedRegistry = registry ?? .shared
         let resolvedMALResolver = malResolver ?? MALEntityResolver(
@@ -515,7 +516,8 @@ struct AppComposition {
         self.malDetailFetch = malDetailFetch
         self.entityResolutionStore = entityResolutionStore ?? .shared
         (self.listingCounts, self.sourcePreferences, self.fulfillment) =
-            Self.makeFulfillment(works: wk, registry: self.registry, defaults: defaults)
+            Self.makeFulfillment(works: wk, registry: self.registry, defaults: defaults,
+                                 countDirectory: listingCountDirectory)
         self.readingModes = ReadingModeStore(defaults: defaults, works: wk)
         let extensionResult = Self.makeExtensions(directory: directory,
                                                    defaults: defaults,
@@ -677,9 +679,12 @@ struct AppComposition {
     private static func makeFulfillment(
         works: WorkStore,
         registry: SourceRegistry,
-        defaults: UserDefaults
+        defaults: UserDefaults,
+        countDirectory: URL?
     ) -> (ListingCountCache, SourcePreferenceStore, FulfillmentCoordinator) {
-        let counts = ListingCountCache()
+        // `nil` is the real Caches directory. A hermetic UI fixture passes its own, or counts
+        // recorded by one run (a 24-hour cache) answer the next run's fixture.
+        let counts = countDirectory.map { ListingCountCache(directory: $0) } ?? ListingCountCache()
         let preferences = SourcePreferenceStore(defaults: defaults, works: works)
         return (counts, preferences,
                 FulfillmentCoordinator(works: works, registry: registry,

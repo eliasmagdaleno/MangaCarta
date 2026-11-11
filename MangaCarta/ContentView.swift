@@ -30,8 +30,6 @@ extension EnvironmentValues {
 
 struct ContentView: View {
     @State private var selectedTab: AppTab = .home
-    @StateObject private var webViewService = WebViewService.shared
-    @StateObject private var extensionBrowserManager = ExtensionBrowserManager.shared
     @EnvironmentObject private var localImporter: LocalImportViewModel
     @EnvironmentObject private var workNavigator: WorkNavigator
 
@@ -110,25 +108,9 @@ struct ContentView: View {
         .onOpenURL { url in
             localImporter.importOpenedURL(url)
         }
-        .sheet(isPresented: $webViewService.isChallengeActive,
-               onDismiss: { webViewService.cancelChallenge() },
-               content: { CloudflareChallengeView() })
-        .sheet(isPresented: extensionChallengePresented,
-               onDismiss: { extensionBrowserManager.cancelActiveChallenge() },
-               content: {
-                   if let challenge = extensionBrowserManager.activeChallenge {
-                       ExtensionBrowserChallengeView(challenge: challenge)
-                   }
-               })
-    }
-
-    private var extensionChallengePresented: Binding<Bool> {
-        Binding(
-            get: { extensionBrowserManager.activeChallenge != nil },
-            set: { presented in
-                if !presented { extensionBrowserManager.cancelActiveChallenge() }
-            }
-        )
+        // The root presents challenges unless a sheet of ours that searches Sources is up;
+        // that sheet presents them itself (`ChallengeSheets`).
+        .challengeSheets(nested: false)
     }
 }
 

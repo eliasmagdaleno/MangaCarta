@@ -69,7 +69,7 @@ struct MALHubPreviewView: View {
     @State private var resolutionTask: Task<Void, Never>?
     @State private var rememberedChoice: MALSourceChoice?
     @State private var didOpenResolution = false
-    @State private var chapterCounts: [String: Int?] = [:]
+    @State private var chapterCounts: [ListingKey: Int] = [:]
     @Environment(\.dismiss) private var dismiss
     @Environment(\.listingCountCache) private var listingCountCache
     private let resolver: MALHubResolver
@@ -98,19 +98,22 @@ struct MALHubPreviewView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     CachedAsyncImage(url: model.coverURL) { phase in
                         if case .success(let image) = phase {
-                            image.resizable().scaledToFit()
+                            image.resizable().scaledToFill()
                         } else {
                             CoverPlaceholder(showsSpinner: model.isLoading && model.coverURL != nil)
                         }
                     }
-                    .frame(maxWidth: 180, maxHeight: 260)
+                    // A fixed cover shape: the placeholder has no size of its own and
+                    // collapsed to a strip when MAL had no picture.
+                    .frame(width: 180, height: 260)
                     .clipShape(RoundedRectangle(cornerRadius: Gutter.cardRadius))
                     .frame(maxWidth: .infinity)
                     Text(model.title)
                         .font(.inkDisplay(28))
                         .foregroundStyle(Ink.primary)
                         .fixedSize(horizontal: false, vertical: true)
-                    Text("MAL title · \(candidate.malId)")
+                    // `String(_:)`: a bare Int interpolation is localized, and "1,600" is not an id.
+                    Text("MAL title · \(String(candidate.malId))")
                         .font(.inkMono(11, weight: .semibold))
                         .foregroundStyle(Ink.secondary)
                     if model.detailsUnavailable {
@@ -182,6 +185,9 @@ struct MALHubPreviewView: View {
                 resolution = nil
             }
         }
+        // `Read on…` searches Sources from inside this sheet, and the root can't present a
+        // challenge over it (`ChallengeSheets`).
+        .challengeSheets(nested: true)
     }
 
     @ViewBuilder private func resolutionView(_ value: MALHubResolution) -> some View {
@@ -197,13 +203,7 @@ struct MALHubPreviewView: View {
                 }
         case .chooser(let groups):
             ForEach(groups, id: \.sourceId) { group in
-                if group.status == .couldNotCheckFailed || group.status == .couldNotCheckTimedOut {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(group.sourceName).font(.headline)
-                        Text("Couldn't check").foregroundStyle(Ink.secondary)
-                    }
-                    Button("Try again") { resolve(sourceID: group.sourceId) }
-                }
+                if Self.couldNotCheck(group) { couldNotCheckRow(group) }
                 if !group.choices.isEmpty {
                     Text(group.sourceName).font(.headline)
                     if group.ambiguous { Text("Choose a match").foregroundStyle(Ink.secondary) }
@@ -218,30 +218,64 @@ struct MALHubPreviewView: View {
                             open(choice.manga)
                         }
                     } label: {
-                        chooserRow(choice, count: chapterCounts[choice.manga.id] ?? nil)
+                        chooserRow(choice, count: chapterCounts[ListingKey(choice.manga)])
                     }
                     .buttonStyle(.bordered)
+                    // A capsule balloons into an oval once rows wrap at large Dynamic Type.
+                    .buttonBorderShape(.roundedRectangle(radius: Gutter.cardRadius))
+                    .multilineTextAlignment(.leading)
                     .accessibilityElement(children: .combine)
-                    .accessibilityLabel(choiceAccessibilityLabel(choice))
+                    .accessibilityLabel(choiceAccessibilityLabel(choice, count: chapterCounts[ListingKey(choice.manga)]))
                 }
             }
         case .notFound(let groups):
-            Text("Not on your Sources").font(.headline)
-            Text("Add a repository in Settings to add more places to read.")
-            ForEach(groups.filter { $0.status == .couldNotCheckFailed || $0.status == .couldNotCheckTimedOut }, id: \.sourceId) { group in
-                Button("Try again · \(group.sourceName)") { resolve(sourceID: group.sourceId) }
+            // A Source that couldn't be checked is not evidence of absence (design §5), so
+            // the headline only claims what the Sources that answered said.
+            let failed = groups.filter(Self.couldNotCheck)
+            if failed.isEmpty {
+                Text("Not on your Sources").font(.headline)
+            } else if failed.count < groups.count {
+                Text("Not on the Sources that answered").font(.headline)
             }
+            ForEach(failed, id: \.sourceId) { couldNotCheckRow($0) }
+            Text("Add a repository in Settings to add more places to read.")
         }
     }
 
+    private static func couldNotCheck(_ group: MALHubSourceGroup) -> Bool {
+        group.status == .couldNotCheckFailed || group.status == .couldNotCheckTimedOut
+    }
+
+    @ViewBuilder private func couldNotCheckRow(_ group: MALHubSourceGroup) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(group.sourceName).font(.headline)
+            Text("Couldn't check").foregroundStyle(Ink.secondary)
+        }
+        Button("Try again") { resolve(sourceID: group.sourceId) }
+            .frame(minHeight: 44)
+            .accessibilityLabel("Try again, \(group.sourceName)")
+    }
+
+    /// `sourceID` is a "Try again" on that one Source, merged into the groups on screen.
     private func resolve(sourceID: String? = nil) {
+        let shown: [MALHubSourceGroup]
+        switch resolution {
+        case .chooser(let groups), .notFound(let groups): shown = groups
+        default: shown = []
+        }
         cancelResolution()
         isResolving = true
         resolutionTask = Task {
-            defer { isResolving = false }
-            let result = await resolver.resolve(candidate: candidate, detail: model.detail,
-                                                sourceIDs: sourceID.map { [$0] })
+            let result: MALHubResolution
+            if let sourceID {
+                result = await resolver.retry(sourceID: sourceID, candidate: candidate,
+                                              detail: model.detail, keeping: shown)
+            } else {
+                result = await resolver.resolve(candidate: candidate, detail: model.detail)
+            }
+            // A cancelled task must not touch state: a newer resolve may own it by now.
             guard !Task.isCancelled else { return }
+            isResolving = false
             resolution = result
         }
     }
@@ -266,7 +300,7 @@ struct MALHubPreviewView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(choice.manga.title)
                     .fixedSize(horizontal: false, vertical: true)
-                let alternateTitles = (choice.manga.altTitles ?? []).filter { $0 != choice.manga.title }
+                let alternateTitles = Self.alternateTitles(of: choice)
                 if !alternateTitles.isEmpty {
                     Text(alternateTitles.joined(separator: ", "))
                         .font(.footnote)
@@ -277,7 +311,7 @@ struct MALHubPreviewView: View {
                       systemImage: choice.kind == .exact ? "checkmark.seal" : "questionmark")
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(Ink.secondary)
-                Text(count.map { "\($0) chapters" } ?? "Chapter count unknown")
+                Text(Self.chapterCountText(count))
                     .font(.footnote)
                     .foregroundStyle(Ink.secondary)
             }
@@ -286,8 +320,26 @@ struct MALHubPreviewView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func choiceAccessibilityLabel(_ choice: MALHubChoice) -> String {
+    /// Design "Accessibility": Source, title, confidence, alternate titles, chapter count.
+    private func choiceAccessibilityLabel(_ choice: MALHubChoice, count: Int?) -> String {
         let confidence = choice.kind == .exact ? "exact match" : "possible match"
-        return "\(choice.manga.title), \(choice.sourceName), \(confidence)"
+        var parts = [choice.manga.title, choice.sourceName, confidence]
+        let alternates = Self.alternateTitles(of: choice)
+        if !alternates.isEmpty { parts.append("also known as \(alternates.joined(separator: ", "))") }
+        parts.append(Self.chapterCountText(count))
+        return parts.joined(separator: ", ")
+    }
+
+    private static func alternateTitles(of choice: MALHubChoice) -> [String] {
+        (choice.manga.altTitles ?? []).filter { $0 != choice.manga.title }
+    }
+
+    /// Unknown is never shown as zero (ADR-0004's `nil` rule).
+    static func chapterCountText(_ count: Int?) -> String {
+        switch count {
+        case nil: return "Chapter count unknown"
+        case 1: return "1 chapter"
+        case let count?: return "\(count) chapters"
+        }
     }
 }

@@ -21,10 +21,11 @@ struct MALHubChapterCountTests {
         let groups = [MALHubSourceGroup(sourceId: source.id, sourceName: source.name,
                                         choices: choices, ambiguous: false, status: .choices)]
         let result = await loader.load(groups)
-        #expect(result["0"] == 3)
-        #expect(result["1"] == 3)
-        #expect(result["2"] == 3)
-        #expect((result["3"] ?? nil) == nil)
+        func key(_ id: String) -> ListingKey { ListingKey(sourceId: source.id, mangaId: id) }
+        #expect(result[key("0")] == 3)
+        #expect(result[key("1")] == 3)
+        #expect(result[key("2")] == 3)
+        #expect(result[key("3")] == nil)
         #expect(source.calls == 3)
     }
 
@@ -44,7 +45,7 @@ struct MALHubChapterCountTests {
         let group = MALHubSourceGroup(sourceId: source.id, sourceName: source.name,
                                       choices: [choice], ambiguous: false, status: .choices)
         let result = await loader.load([group])
-        #expect(result[listing.mangaId] == 42)
+        #expect(result[listing] == 42)
         #expect(source.calls == 0)
     }
 
@@ -62,7 +63,7 @@ struct MALHubChapterCountTests {
         let group = MALHubSourceGroup(sourceId: source.id, sourceName: source.name,
                                       choices: [choice], ambiguous: false, status: .choices)
         let result = await loader.load([group])
-        #expect((result["unknown"] ?? nil) == nil)
+        #expect(result[ListingKey(sourceId: source.id, mangaId: "unknown")] == nil)
     }
 
     @Test func testCountsDistinctChaptersLikeFulfillment() async {
@@ -84,7 +85,46 @@ struct MALHubChapterCountTests {
         let group = MALHubSourceGroup(sourceId: source.id, sourceName: source.name,
                                       choices: [choice], ambiguous: false, status: .choices)
         let result = await loader.load([group])
-        #expect(result["distinct"] == 2)
+        #expect(result[ListingKey(sourceId: source.id, mangaId: "distinct")] == 2)
+    }
+
+    /// A count fetched for the chooser lands in `ListingCountCache`, in fulfillment's units,
+    /// so the next open (and fulfillment ranking) reads it instead of recounting.
+    @Test func testFetchedCountIsRecordedInCache() async {
+        let directory = TestDirectory("MALHubChapterCountRecord")
+        let defaults = TestDefaults("MALHubChapterCountRecord")
+        defer { directory.remove() }
+        defer { defaults.remove() }
+        let source = CountFixtureSource(id: "count-a", count: 5)
+        let cache = ListingCountCache(directory: directory.url)
+        let loader = MALHubChapterCountLoader(registry: SourceRegistry(
+            sources: [source], defaults: defaults.defaults), cache: cache)
+        let choice = MALHubChoice(manga: source.manga(id: "fresh", title: "Fresh"),
+                                  sourceName: source.name, kind: .exact)
+        _ = await loader.load([MALHubSourceGroup(sourceId: source.id, sourceName: source.name,
+                                                 choices: [choice], ambiguous: false, status: .choices)])
+        #expect(cache.count(for: ListingKey(sourceId: source.id, mangaId: "fresh")) == 5)
+    }
+
+    /// Source-local ids are only unique within a Source; two Sources' "1" are two Listings.
+    @Test func testSameMangaIdOnTwoSourcesIsCountedSeparately() async {
+        let directory = TestDirectory("MALHubChapterCountTwoSources")
+        let defaults = TestDefaults("MALHubChapterCountTwoSources")
+        defer { directory.remove() }
+        defer { defaults.remove() }
+        let a = CountFixtureSource(id: "count-a", count: 2)
+        let b = CountFixtureSource(id: "count-b", count: 9)
+        let loader = MALHubChapterCountLoader(registry: SourceRegistry(
+            sources: [a, b], defaults: defaults.defaults), cache: ListingCountCache(directory: directory.url))
+        let groups = [a, b].map { source in
+            MALHubSourceGroup(sourceId: source.id, sourceName: source.name,
+                              choices: [MALHubChoice(manga: source.manga(id: "1", title: "Same"),
+                                                     sourceName: source.name, kind: .exact)],
+                              ambiguous: false, status: .choices)
+        }
+        let result = await loader.load(groups)
+        #expect(result[ListingKey(sourceId: "count-a", mangaId: "1")] == 2)
+        #expect(result[ListingKey(sourceId: "count-b", mangaId: "1")] == 9)
     }
 }
 

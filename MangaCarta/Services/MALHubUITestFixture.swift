@@ -29,10 +29,6 @@ enum MALHubUITestFixture {
         return nil
     }
 
-    static var opensDetail: Bool {
-        ProcessInfo.processInfo.arguments.contains("-uitest-mal-hub-open-detail")
-    }
-
     @MainActor static func storage() -> Storage {
         let id = ProcessInfo.processInfo.environment["MANGACARTA_UI_TEST_STORAGE_ID"] ?? UUID().uuidString
         let suite = "mal-hub-ui-test.\(id)"
@@ -49,7 +45,8 @@ enum MALHubUITestFixture {
     }
 
     @MainActor static func registry(state: State, defaults: UserDefaults) -> SourceRegistry {
-        SourceRegistry(sources: [MALHubFixtureSourceA(), MALHubFixtureSourceB(), MALHubFixtureSourceC(), MALHubFixtureSourceD()],
+        SourceRegistry(sources: [MALHubFixtureSourceA(), MALHubFixtureSourceB(), MALHubFixtureSourceC(),
+                                 MALHubFixtureSourceD(), MALHubFixtureSourceE()],
                        defaults: defaults, showAdultContent: { state.adult })
     }
 
@@ -61,22 +58,23 @@ enum MALHubUITestFixture {
                 recommendation(id: 1200, title: "Fixture Resolved", weight: 30),
                 recommendation(id: 1300, title: "Fixture Chooser", weight: 20),
                 recommendation(id: 1400, title: "Fixture Nowhere", weight: 10),
-                recommendation(id: 1500, title: "Fixture Single Exact", weight: 5)
+                recommendation(id: 1500, title: "Fixture Single Exact", weight: 5),
+                recommendation(id: 1600, title: "Fixture Challenge", weight: 4)
             ])
         }
         let titles = [1200: "Fixture Resolved", 1300: "Fixture Chooser", 1400: "Fixture Nowhere",
-                      1500: "Fixture Single Exact", 1100: "Fixture Related"]
+                      1500: "Fixture Single Exact", 1600: "Fixture Challenge", 1100: "Fixture Related"]
         let title = titles[id] ?? "Fixture"
         return detail(id: id, title: title, related: [], recommendations: [])
     }
 
     @MainActor
-    static func seed(_ composition: AppComposition) -> WorkID {
+    static func seed(_ composition: AppComposition) {
         let manga = Manga(id: "hub-fixture-title", sourceId: MALHubFixtureSourceA.idValue,
                           title: "Hub Fixture Title", description: "", status: "ongoing",
                           year: 2026, coverURL: nil, malId: 1000)
         composition.library.toggle(manga)
-        return composition.works.mint(from: manga)
+        _ = composition.works.mint(from: manga)
     }
 
     private static func detail(id: Int, title: String,
@@ -115,9 +113,12 @@ private struct MALHubFixtureSourceA: MangaSource {
 
     func mangaDetail(id: String) async throws -> MangaDetail { .init(description: "", authors: [], tags: [], contentRating: nil) }
     func popular(limit: Int, offset: Int) async throws -> [Manga] { [] }
-    func chapters(mangaId: String) async throws -> [Chapter] { [] }
     func pageURLs(chapterId: String, preferDataSaver: Bool) async throws -> [URL] { [] }
     func manga(id: String) async throws -> Manga? { nil }
+    /// Three distinct chapters, so the chooser shows a real count ("3 chapters").
+    func chapters(mangaId: String) async throws -> [Chapter] {
+        ["1", "2", "3"].map { Chapter(id: "\(mangaId)-\($0)", number: $0, title: nil) }
+    }
 
     private func manga(id: String, title: String, malId: Int?) -> Manga {
         Manga(id: id, sourceId: self.id, title: title, description: "", status: "ongoing",
@@ -154,7 +155,8 @@ private struct MALHubFixtureSourceC: MangaSource {
     }
     func mangaDetail(id: String) async throws -> MangaDetail { .init(description: "", authors: [], tags: [], contentRating: nil) }
     func popular(limit: Int, offset: Int) async throws -> [Manga] { [] }
-    func chapters(mangaId: String) async throws -> [Chapter] { [] }
+    /// Throws, so this choice's count stays unknown — shown as "Chapter count unknown", never 0.
+    func chapters(mangaId: String) async throws -> [Chapter] { throw SourceError.unavailable("fixture chapters") }
     func pageURLs(chapterId: String, preferDataSaver: Bool) async throws -> [URL] { [] }
 }
 
@@ -164,6 +166,24 @@ private struct MALHubFixtureSourceD: MangaSource {
 
     func search(title: String, limit: Int, offset: Int) async throws -> [Manga] {
         if title == "Fixture Chooser" { throw SourceError.unavailable("fixture search") }
+        return []
+    }
+    func mangaDetail(id: String) async throws -> MangaDetail { .init(description: "", authors: [], tags: [], contentRating: nil) }
+    func popular(limit: Int, offset: Int) async throws -> [Manga] { [] }
+    func chapters(mangaId: String) async throws -> [Chapter] { [] }
+    func pageURLs(chapterId: String, preferDataSaver: Bool) async throws -> [URL] { [] }
+}
+/// Puts the real Cloudflare challenge wait on screen when the reader searches for
+/// "Fixture Challenge", with no site behind it. The sheet's Cancel fails the wait, so this
+/// Source then shows "Couldn't check" while the others' results stand (design §5).
+private struct MALHubFixtureSourceE: MangaSource {
+    let id = "mal-hub-fixture-e"
+    let name = "Fixture Source E"
+
+    func search(title: String, limit: Int, offset: Int) async throws -> [Manga] {
+        if title == "Fixture Challenge" && limit == 20 {
+            try await WebViewService.shared.uiTestAwaitChallenge()
+        }
         return []
     }
     func mangaDetail(id: String) async throws -> MangaDetail { .init(description: "", authors: [], tags: [], contentRating: nil) }
