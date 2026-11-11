@@ -35,6 +35,16 @@ private struct MALSourceChoiceStoreEnvironmentKey: EnvironmentKey {
     static let defaultValue = MALSourceChoiceStore()
 }
 
+private struct MALDetailFetchEnvironmentKey: EnvironmentKey {
+    static let defaultValue: @Sendable (Int) async throws -> MyAnimeListMangaDetail = {
+        try await MyAnimeListAPI.mangaDetail(id: $0)
+    }
+}
+
+private struct EntityResolutionStoreEnvironmentKey: EnvironmentKey {
+    static let defaultValue = EntityResolutionStore.shared
+}
+
 extension EnvironmentValues {
     var extensionComposition: AppComposition.ExtensionComposition? {
         get { self[ExtensionCompositionEnvironmentKey.self] }
@@ -54,6 +64,16 @@ extension EnvironmentValues {
     var malSourceChoiceStore: MALSourceChoiceStore {
         get { self[MALSourceChoiceStoreEnvironmentKey.self] }
         set { self[MALSourceChoiceStoreEnvironmentKey.self] = newValue }
+    }
+
+    var malDetailFetch: @Sendable (Int) async throws -> MyAnimeListMangaDetail {
+        get { self[MALDetailFetchEnvironmentKey.self] }
+        set { self[MALDetailFetchEnvironmentKey.self] = newValue }
+    }
+
+    var entityResolutionStore: EntityResolutionStore {
+        get { self[EntityResolutionStoreEnvironmentKey.self] }
+        set { self[EntityResolutionStoreEnvironmentKey.self] = newValue }
     }
 }
 
@@ -121,6 +141,8 @@ struct AppComposition {
     let imageCache: ImageCache
     let malDetailStore: MALDetailStore
     let malSourceChoiceStore: MALSourceChoiceStore
+    let malDetailFetch: @Sendable (Int) async throws -> MyAnimeListMangaDetail
+    let entityResolutionStore: EntityResolutionStore
 
     /// The extension subsystem's four owners, built together because they share one
     /// `SourceLifecycleRegistry`: the installer drives it, the registrar mirrors it.
@@ -309,6 +331,11 @@ struct AppComposition {
          malPreferences: MALAccountPreferenceStore? = nil,
          anilist injectedAniList: AniListAPI? = nil,
          malResolver: MALEntityResolver? = nil,
+         entityResolutionStore: EntityResolutionStore? = nil,
+         malDetailStore: MALDetailStore? = nil,
+         malDetailFetch: @escaping @Sendable (Int) async throws -> MyAnimeListMangaDetail = {
+             try await MyAnimeListAPI.mangaDetail(id: $0)
+         },
          registry: SourceRegistry? = nil,
          repositoryTransport: (any RepositoryTransport)? = nil,
          notifications: NotificationScheduling? = nil,
@@ -316,7 +343,7 @@ struct AppComposition {
         let identityMigrationError = Self.runIdentityMigrations(directory: directory, defaults: defaults)
         let resolvedRegistry = registry ?? .shared
         let resolvedMALResolver = malResolver ?? MALEntityResolver(
-            store: .shared,
+            store: entityResolutionStore ?? .shared,
             source: { resolvedRegistry.externalIdResolutionSource })
         // Built first: the three commitment paths below (read, save, feedback) all
         // mint into it, so they must share this one instance (ADR-0007).
@@ -399,7 +426,7 @@ struct AppComposition {
 
         let vocab = TagVocabularyStore(fetch: { try await limiter.run { try await anilist.tagVocabulary() } })
         let pool = AniListPoolStore()
-        let malDetailStore = MALDetailStore()
+        let malDetailStore = malDetailStore ?? MALDetailStore()
         let malSourceChoiceStore = malSourceChoiceStore ?? MALSourceChoiceStore()
 
         // The engine pushes, the queue never pulls: pulling would mean the queue
@@ -416,11 +443,14 @@ struct AppComposition {
                 // has a single implementation (ADR-0011). It needs no identity of its own —
                 // all its durable state is in `EntityResolutionStore.shared` — so unlike
                 // the two actors above, rebuilding it per rail build would also be correct.
-                let reverse = MALReverseResolver(source: { resolvedRegistry.externalIdSource })
+                let reverse = MALReverseResolver(store: entityResolutionStore ?? .shared,
+                                                 source: { resolvedRegistry.externalIdSource })
                 return CompositeCandidateProvider(
                     tag: TagCandidateProvider(source: source),
                     mal: MALCandidateProvider(similar: MoreLikeThisProvider(
+                        store: entityResolutionStore ?? .shared,
                         reverse: reverse, detailStore: malDetailStore,
+                        fetchDetail: malDetailFetch,
                         source: { resolvedRegistry.externalIdSource })),
                     ani: AniListCandidateProvider(
                         // Hops to the `@MainActor` `WorkStore`; the provider deliberately
@@ -472,6 +502,8 @@ struct AppComposition {
         self.imageCache = ImageCache(reporter: self.imageLoadReporter)
         self.malDetailStore = malDetailStore
         self.malSourceChoiceStore = malSourceChoiceStore
+        self.malDetailFetch = malDetailFetch
+        self.entityResolutionStore = entityResolutionStore ?? .shared
         (self.listingCounts, self.sourcePreferences, self.fulfillment) =
             Self.makeFulfillment(works: wk, registry: self.registry, defaults: defaults)
         self.readingModes = ReadingModeStore(defaults: defaults, works: wk)

@@ -334,10 +334,19 @@ struct BookmarksView: View {
 
     /// The same Listing the Updates row opens (`WorkUpdateRow`).
     private func notifiedManga(_ workId: WorkID) -> Manga? {
-        LibraryUpdatesPresentation.summaries(
+        if let summary = LibraryUpdatesPresentation.summaries(
             works: works, library: library, history: history,
             updates: updates, registry: registry
-        ).first { $0.id == workId }?.displayManga
+        ).first(where: { $0.id == workId }) {
+            return summary.displayManga
+        }
+        guard let work = works.work(workId) else { return nil }
+        return work.listings.lazy.compactMap { key in
+            library.item(for: key).map { item in
+                Manga(id: item.id, sourceId: item.sourceId ?? key.sourceId, title: item.title,
+                      description: "", status: "unknown", year: nil, coverURL: item.coverURL, malId: 1000)
+            }
+        }.first
     }
 
     private var updateMangaIDs: Set<String> {

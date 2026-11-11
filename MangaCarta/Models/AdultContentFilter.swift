@@ -26,6 +26,11 @@ enum AdultContentSetting {
     static let key = "settings.showAdultSources"
 
     @Sendable static func current() -> Bool {
-        UserDefaults.standard.bool(forKey: key)
+#if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("-uitest-mal-hub") { return true }
+        if arguments.contains("-uitest-mal-hub-adult-off") { return false }
+#endif
+        return UserDefaults.standard.bool(forKey: key)
     }
 }

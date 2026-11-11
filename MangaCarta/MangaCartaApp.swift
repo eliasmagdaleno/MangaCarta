@@ -63,9 +63,12 @@ struct MangaCartaApp: App {
     private let imageCache: ImageCache
     private let malDetailStore: MALDetailStore
     private let malSourceChoiceStore: MALSourceChoiceStore
+    private let malDetailFetch: @Sendable (Int) async throws -> MyAnimeListMangaDetail
+    private let entityResolutionStore: EntityResolutionStore
 
-    /// The graph itself lives in `AppComposition`, where it can be built against temp
-    /// storage and asserted on. This initializer does nothing but adopt what it built.
+    // The graph itself lives in `AppComposition`, where it can be built against temp
+    // storage and asserted on. This initializer does nothing but adopt what it built.
+    // swiftlint:disable:next cyclomatic_complexity
     init() {
         // A UI test asserting the signed-out MyAnimeList section must not read this
         // device's real account, or it passes on fresh CI and fails on any machine that
@@ -76,8 +79,23 @@ struct MangaCartaApp: App {
         var directory = WorkStore.applicationSupportDirectory()
         var updateRegistry: SourceRegistry?
         var repositoryTransport: (any RepositoryTransport)?
+        var fixtureDetailStore: MALDetailStore?
+        var fixtureChoiceStore: MALSourceChoiceStore?
+        var fixtureEntityStore: EntityResolutionStore?
+        var fixtureDetailFetch: @Sendable (Int) async throws -> MyAnimeListMangaDetail = {
+            try await MyAnimeListAPI.mangaDetail(id: $0)
+        }
 #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("-uitest-local-import") {
+        if let fixtureState = MALHubUITestFixture.state {
+            let storage = MALHubUITestFixture.storage()
+            defaults = storage.defaults
+            directory = storage.directory
+            fixtureDetailStore = storage.detailStore
+            fixtureChoiceStore = storage.choiceStore
+            fixtureEntityStore = storage.entityStore
+            fixtureDetailFetch = MALHubUITestFixture.fetchDetail
+            updateRegistry = MALHubUITestFixture.registry(state: fixtureState, defaults: defaults)
+        } else if ProcessInfo.processInfo.arguments.contains("-uitest-local-import") {
             let storageID = ProcessInfo.processInfo.environment["MANGACARTA_UI_TEST_STORAGE_ID"] ?? UUID().uuidString
             let suite = "local-import-ui-test-\(storageID)"
             defaults = UserDefaults(suiteName: suite)!
@@ -123,9 +141,17 @@ struct MangaCartaApp: App {
         let composed = AppComposition(defaults: defaults, directory: directory,
                                       malCredentials: ephemeralCredentials,
                                       malPreferences: ephemeralPreferences,
+                                      entityResolutionStore: fixtureEntityStore,
+                                      malDetailStore: fixtureDetailStore,
+                                      malDetailFetch: fixtureDetailFetch,
                                       registry: updateRegistry,
-                                      repositoryTransport: repositoryTransport)
+                                      repositoryTransport: repositoryTransport,
+                                      malSourceChoiceStore: fixtureChoiceStore)
 #if DEBUG
+        if MALHubUITestFixture.state != nil {
+            let workID = MALHubUITestFixture.seed(composed)
+            if MALHubUITestFixture.opensDetail { composed.workNavigator.open(workID) }
+        }
         if let updateState = UpdatesUITestFixture.state {
             UpdatesUITestFixture.seed(updateState, in: composed)
         }
@@ -150,6 +176,8 @@ struct MangaCartaApp: App {
         self.imageCache = composed.imageCache
         self.malDetailStore = composed.malDetailStore
         self.malSourceChoiceStore = composed.malSourceChoiceStore
+        self.malDetailFetch = composed.malDetailFetch
+        self.entityResolutionStore = composed.entityResolutionStore
         _library = StateObject(wrappedValue: composed.library)
         _history = StateObject(wrappedValue: composed.history)
         _taste = StateObject(wrappedValue: composed.taste)
@@ -206,6 +234,8 @@ struct MangaCartaApp: App {
                 .environment(\.imageCache, imageCache)
                 .environment(\.malDetailStore, malDetailStore)
                 .environment(\.malSourceChoiceStore, malSourceChoiceStore)
+                .environment(\.malDetailFetch, malDetailFetch)
+                .environment(\.entityResolutionStore, entityResolutionStore)
                 .sheet(isPresented: $notificationPrompt.isPresented,
                        onDismiss: notificationPrompt.dismissed) {
                     NotificationExplainerSheet(

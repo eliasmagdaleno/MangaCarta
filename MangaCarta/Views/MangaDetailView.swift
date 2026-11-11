@@ -23,6 +23,8 @@ struct MangaDetailView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.imageCache) private var imageCache
     @Environment(\.malDetailStore) private var malDetailStore
+    @Environment(\.malDetailFetch) private var malDetailFetch
+    @Environment(\.entityResolutionStore) private var entityResolutionStore
     @ScaledMetric(relativeTo: .title) private var coverWidth: CGFloat = 132
     @ScaledMetric(relativeTo: .title) private var coverHeight: CGFloat = 188
     @StateObject private var malHubRails: MALHubRailsViewModel
@@ -170,7 +172,10 @@ struct MangaDetailView: View {
         .task { await reconcileListingCounts() }
         .task { await loadLocalSize() }
         .task { mangaWebURL = try? await mangaSource?.webURL(forManga: manga.id) }
-        .task { await malHubRails.load(for: manga, detailStore: malDetailStore) }
+        .task {
+            await malHubRails.load(for: manga, detailStore: malDetailStore,
+                                   fetchDetail: malDetailFetch, entityStore: entityResolutionStore)
+        }
         .task { clearNewlyDiscovered() }
         .onChange(of: vm.detailTags) { _, tags in
             // Ungated: every source has tags, and this is what makes non-MangaDex
