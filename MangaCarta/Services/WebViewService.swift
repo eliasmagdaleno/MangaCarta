@@ -125,6 +125,14 @@ final class WebViewService: NSObject, ObservableObject, WebViewExtracting {
         resumeChallenge(.failure(SourceError.cloudflareUnsolved))
     }
 
+#if DEBUG
+    /// UI tests only: the real challenge wait, with no site behind it, so a hermetic test
+    /// can put the sheet up from a fixture Source (`MALHubUITests`). Same timeout and Cancel.
+    func uiTestAwaitChallenge() async throws {
+        try await awaitChallengeResolution()
+    }
+#endif
+
     // MARK: - Navigation plumbing
 
     private func load(_ url: URL) async throws {

@@ -188,6 +188,28 @@ struct MALHubResolutionTests {
         _ = await makeResolver(sources: [source], store: store).resolve(candidate: candidate(42, title: "MAL"))
         #expect(await store.choice(for: 42) != nil)
     }
+
+    /// "Try again" re-searches only that Source and keeps every other answer on screen. Its
+    /// lone exact match must not open over another Source's exact match (design §3).
+    @Test func testRetryMergesIntoShownGroupsWithoutReSearchingOthers() async {
+        let other = FakeMALSource(id: "other")
+        let flaky = FakeMALSource(id: "flaky", results: [manga("f1", source: "flaky", title: "MAL", malId: 42)])
+        let shown = [
+            MALHubSourceGroup(sourceId: "other", sourceName: "other",
+                              choices: [MALHubChoice(manga: manga("o1", source: "other", title: "MAL", malId: 42),
+                                                     sourceName: "other", kind: .exact)],
+                              ambiguous: false, status: .choices),
+            MALHubSourceGroup(sourceId: "flaky", sourceName: "flaky", choices: [], ambiguous: false,
+                              status: .couldNotCheckFailed)
+        ]
+        let result = await makeResolver(sources: [other, flaky])
+            .retry(sourceID: "flaky", candidate: candidate(42, title: "MAL"), detail: nil, keeping: shown)
+        guard case .chooser(let groups) = result else { Issue.record("expected chooser, got \(result)"); return }
+        #expect(groups.map(\.sourceId) == ["other", "flaky"])
+        #expect(groups.flatMap(\.choices).map(\.manga.id) == ["o1", "f1"])
+        #expect(await other.recorder.calls == 0)
+        #expect(await flaky.recorder.calls == 1)
+    }
 }
 
 private enum TestError: Error { case failed }

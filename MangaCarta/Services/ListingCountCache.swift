@@ -41,7 +41,9 @@ final class ListingCountCache {
         FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
     }
 
-    init(directory: URL = ListingCountCache.cachesDirectory()) {
+    /// `nonisolated` so the environment key's default can build one: it only stores
+    /// `directory`, and every read or write of the entries still happens on the main actor.
+    nonisolated init(directory: URL = ListingCountCache.cachesDirectory()) {
         self.directory = directory
     }
 

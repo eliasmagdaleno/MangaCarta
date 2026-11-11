@@ -102,6 +102,18 @@ private final class MALHubWatchdogBox: @unchecked Sendable {
     }
 }
 
+/// Whether an interactive challenge is on screen, which suspends the tap-time deadlines
+/// (design §5). Both presenters count: `WebViewService`'s and the extension browser's —
+/// every remote Source is an extension now, so checking only the first exempted nothing.
+enum MALHubChallenge {
+    @Sendable static func isActive() async -> Bool {
+        await MainActor.run {
+            WebViewService.shared.isChallengeActive
+                || ExtensionBrowserManager.shared.activeChallenge != nil
+        }
+    }
+}
+
 @MainActor
 final class MALHubResolver {
     private let registry: SourceRegistry
@@ -115,9 +127,7 @@ final class MALHubResolver {
 
     init(registry: SourceRegistry, store: MALSourceChoiceStore, showAdultContent: Bool,
          matcher: MALTitleMatcher = .init(),
-         challengeActive: @escaping @Sendable () async -> Bool = {
-             await MainActor.run { WebViewService.shared.isChallengeActive }
-         },
+         challengeActive: @escaping @Sendable () async -> Bool = MALHubChallenge.isActive,
          deadline: TimeInterval = 8, probeInterval: TimeInterval = 0.25,
          alternativeTitles: @escaping @Sendable (Int) async throws -> [String] = {
              try await MyAnimeListAPI.alternativeTitles(id: $0)
@@ -159,13 +169,35 @@ final class MALHubResolver {
         return await search(candidate: candidate, detail: detail, sourceIDs: sourceIDs)
     }
 
+    /// "Try again" on one Source: re-search it alone and put its answer in place of its old
+    /// group, so the other Sources' answers stand and the one-exact-match rule still sees
+    /// every Source — a retried Source's lone exact match must not open over others'.
+    func retry(sourceID: String, candidate: MALDiscoveryCandidate, detail: MyAnimeListMangaDetail?,
+               keeping groups: [MALHubSourceGroup]) async -> MALHubResolution {
+        let fresh = await searchGroups(candidate: candidate, detail: detail, sourceIDs: [sourceID])
+        guard let replacement = fresh.first else { return Self.classify(groups) }
+        let merged = groups.map { $0.sourceId == sourceID ? replacement : $0 }
+        return Self.classify(merged)
+    }
+
+    private static func classify(_ groups: [MALHubSourceGroup]) -> MALHubResolution {
+        let exact = groups.flatMap(\.choices).filter { $0.kind == .exact }
+        if exact.count == 1 { return .open(exact[0].manga) }
+        return groups.contains { !$0.choices.isEmpty } ? .chooser(groups) : .notFound(groups)
+    }
+
     private func search(candidate: MALDiscoveryCandidate, detail: MyAnimeListMangaDetail?,
                         sourceIDs: Set<String>?) async -> MALHubResolution {
+        Self.classify(await searchGroups(candidate: candidate, detail: detail, sourceIDs: sourceIDs))
+    }
+
+    private func searchGroups(candidate: MALDiscoveryCandidate, detail: MyAnimeListMangaDetail?,
+                              sourceIDs: Set<String>?) async -> [MALHubSourceGroup] {
         let sources = registry.visibleSources(includeAdult: showAdultContent).filter { source in
             source.id != LocalSource.sourceID &&
                 (sourceIDs == nil || sourceIDs!.contains(source.id))
         }
-        guard !sources.isEmpty else { return .notFound([]) }
+        guard !sources.isEmpty else { return [] }
         var spellings = [detail?.title ?? candidate.title]
         let alternates = detail?.allTitles.dropFirst() ?? []
         if !alternates.isEmpty {
@@ -178,7 +210,7 @@ final class MALHubResolver {
         var seen = Set<String>()
         spellings = spellings.filter { seen.insert(MALTitleMatcher.normalize($0)).inserted }
         let limiter = MALHubSearchLimiter(4)
-        return await withTaskGroup(of: MALHubSourceGroup.self, returning: MALHubResolution.self) { group in
+        return await withTaskGroup(of: MALHubSourceGroup.self, returning: [MALHubSourceGroup].self) { group in
             for source in sources {
                 group.addTask {
                     await self.resolve(source: source, spellings: spellings, candidate: candidate,
@@ -191,9 +223,7 @@ final class MALHubResolver {
                 sources.firstIndex(where: { $0.id == lhs.sourceId })!
                     < sources.firstIndex(where: { $0.id == rhs.sourceId })!
             }
-            let exact = groups.flatMap(\.choices).filter { $0.kind == .exact }
-            if exact.count == 1 { return .open(exact[0].manga) }
-            return groups.contains { !$0.choices.isEmpty } ? .chooser(groups) : .notFound(groups)
+            return groups
         }
     }
 
