@@ -31,14 +31,20 @@ struct MALHubPreviewTests {
         await second.load()
         #expect(await calls.value == 1)
         #expect(second.synopsis == "Synopsis")
+        #expect(second.genres == ["Action"])
         #expect(second.alternativeTitles == ["Alt"])
+        #expect(second.nsfw == .white)
     }
 
     @Test func testPreviewDetailFailureKeepsCoverAndTitle() async {
         let candidate = MALDiscoveryCandidate(malId: 42, title: "Card title",
                                               coverURL: URL(string: "https://example.com/cover.jpg"),
                                               reason: .recommendation, resolvedListing: nil)
-        let model = MALHubPreviewModel(candidate: candidate, detailStore: MALDetailStore(), showAdultContent: false) { _ in
+        let directory = TestDirectory(#function)
+        defer { directory.remove() }
+        let model = MALHubPreviewModel(candidate: candidate,
+                                       detailStore: MALDetailStore(directory: directory.url),
+                                       showAdultContent: false) { _ in
             throw PreviewError.failed
         }
         await model.load()

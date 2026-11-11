@@ -19,13 +19,16 @@ struct MALHubAdultTests {
     }
 
     private func makeModel(nsfw: MALNSFW?, genres: [String], showAdultContent: Bool = false) async -> MALHubPreviewModel {
+        let directory = TestDirectory("MALHubAdult")
+        defer { directory.remove() }
         let candidate = MALDiscoveryCandidate(malId: Int.random(in: 1...100_000), title: "Title",
                                               coverURL: nil, reason: .recommendation, resolvedListing: nil)
         let detail = MyAnimeListMangaDetail(id: candidate.malId, title: "Title", synopsis: nil,
                                             mainPicture: nil,
                                             genres: genres.enumerated().map { .init(id: $0.offset, name: $0.element) },
                                             relatedManga: nil, recommendations: nil, nsfw: nsfw)
-        let model = MALHubPreviewModel(candidate: candidate, detailStore: MALDetailStore(),
+        let model = MALHubPreviewModel(candidate: candidate,
+                                       detailStore: MALDetailStore(directory: directory.url),
                                        showAdultContent: showAdultContent) { _ in detail }
         await model.load()
         return model

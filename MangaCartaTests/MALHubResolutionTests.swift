@@ -48,14 +48,18 @@ struct MALHubResolutionTests {
     }
 
     @Test func testSearchesEveryAdmittedSourceWithBoundedConcurrency() async {
-        let sources = (0..<6).map { FakeMALSource(id: "s\($0)", results: []) }
+        let recorder = SearchRecorder()
+        let sources = (0..<6).map {
+            FakeMALSource(id: "s\($0)", results: [], delay: 0.3, recorder: recorder)
+        }
         let result = await makeResolver(sources: sources, deadline: 2, probeInterval: 0.01)
             .resolve(candidate: candidate(42, title: "Missing"))
         guard case .notFound = result else { Issue.record("expected not found"); return }
         for source in sources {
-            #expect(await source.recorder.calls == 1)
-            #expect(await source.recorder.maxConcurrent <= 4)
+            #expect(await source.recorder.calls(for: source.id) == 1)
         }
+        #expect(await recorder.maxConcurrent == 4)
+        #expect(await recorder.calls == 6)
     }
 
     @Test func testSearchSpellingsComeFromTappedDetailNotNestedNode() async {
@@ -85,10 +89,14 @@ struct MALHubResolutionTests {
 
     @Test func testSourceFailureIsPerSourceAndTransient() async {
         let failed = FakeMALSource(id: "failed", error: TestError.failed)
-        let good = FakeMALSource(id: "good", results: [manga("good", source: "good", title: "Good", malId: 42)])
-        let store = MALSourceChoiceStore(directory: TestDirectory(#function).url)
+        let good = FakeMALSource(id: "good", results: [manga("good", source: "good", title: "Good", malId: nil)])
+        let directory = TestDirectory(#function)
+        defer { directory.remove() }
+        let store = MALSourceChoiceStore(directory: directory.url)
         let result = await makeResolver(sources: [failed, good], store: store).resolve(candidate: candidate(42, title: "Good"))
-        guard case .open = result else { Issue.record("good source should still open"); return }
+        guard case .chooser(let groups) = result else { Issue.record("expected chooser"); return }
+        #expect(groups.first(where: { $0.sourceId == "failed" })?.status == .couldNotCheckFailed)
+        #expect(groups.first(where: { $0.sourceId == "good" })?.choices.first?.kind == .possible)
         #expect(await store.choice(for: 42) == nil)
     }
 
@@ -111,7 +119,9 @@ struct MALHubResolutionTests {
 
     @Test func testCancellationLeavesNoPendingWorkOrWrite() async {
         let sources = (0..<6).map { FakeMALSource(id: "cancel\($0)", delay: 30) }
-        let store = MALSourceChoiceStore(directory: TestDirectory(#function).url)
+        let directory = TestDirectory(#function)
+        defer { directory.remove() }
+        let store = MALSourceChoiceStore(directory: directory.url)
         let resolver = makeResolver(sources: sources, store: store, deadline: 30)
         let task = Task { await resolver.resolve(candidate: candidate(42, title: "Cancel")) }
         try? await Task.sleep(for: .milliseconds(80))
@@ -124,7 +134,9 @@ struct MALHubResolutionTests {
     @Test func testRememberedChoiceOpensDirectlyWhileValid() async {
         let source = FakeMALSource(id: "remembered", detailRating: "safe")
         let value = manga("m", source: "remembered", title: "Remembered", malId: nil)
-        let store = MALSourceChoiceStore(directory: TestDirectory(#function).url)
+        let directory = TestDirectory(#function)
+        defer { directory.remove() }
+        let store = MALSourceChoiceStore(directory: directory.url)
         await store.confirm(malId: 42, sourceId: "remembered", manga: value, title: "MAL")
         let result = await makeResolver(sources: [source], store: store).resolve(candidate: candidate(42, title: "MAL"))
         guard case .open(let opened) = result else { Issue.record("expected remembered open"); return }
@@ -133,7 +145,9 @@ struct MALHubResolutionTests {
 
     @Test func testMissingRememberedChoiceFallsBackToChooser() async {
         let source = FakeMALSource(id: "source", results: [manga("new", source: "source", title: "MAL", malId: 42)])
-        let store = MALSourceChoiceStore(directory: TestDirectory(#function).url)
+        let directory = TestDirectory(#function)
+        defer { directory.remove() }
+        let store = MALSourceChoiceStore(directory: directory.url)
         let stale = manga("gone", source: "missing", title: "Old", malId: nil)
         await store.confirm(malId: 42, sourceId: "missing", manga: stale, title: "MAL")
         let result = await makeResolver(sources: [source], store: store).resolve(candidate: candidate(42, title: "MAL"))
@@ -142,10 +156,29 @@ struct MALHubResolutionTests {
         #expect(await store.choice(for: 42) == nil)
     }
 
+    @Test func testRememberedChoiceNotAdmittedIsDiscarded() async {
+        let source = FakeMALSource(id: "adult", detailRating: "pornographic")
+        let value = manga("remembered", source: "adult", title: "MAL", malId: nil)
+        let directory = TestDirectory(#function)
+        defer { directory.remove() }
+        let store = MALSourceChoiceStore(directory: directory.url)
+        await store.confirm(malId: 42, sourceId: "adult", manga: value, title: "MAL")
+        let result = await makeResolver(sources: [source], store: store)
+            .resolve(candidate: candidate(42, title: "MAL"))
+        guard case .open(let opened) = result else {
+            #expect(await store.choice(for: 42) == nil)
+            return
+        }
+        #expect(opened.id != "remembered")
+        #expect(await store.choice(for: 42) == nil)
+    }
+
     @Test func testTransientRevalidationFailureKeepsChoice() async {
         let source = FakeMALSource(id: "remembered", detailError: TestError.failed)
         let value = manga("m", source: "remembered", title: "Remembered", malId: nil)
-        let store = MALSourceChoiceStore(directory: TestDirectory(#function).url)
+        let directory = TestDirectory(#function)
+        defer { directory.remove() }
+        let store = MALSourceChoiceStore(directory: directory.url)
         await store.confirm(malId: 42, sourceId: "remembered", manga: value, title: "MAL")
         _ = await makeResolver(sources: [source], store: store).resolve(candidate: candidate(42, title: "MAL"))
         #expect(await store.choice(for: 42) != nil)
@@ -177,8 +210,12 @@ private func makeResolver(sources: [FakeMALSource], store: MALSourceChoiceStore?
                           probeInterval: TimeInterval = 0.02,
                           challengeActive: @escaping @Sendable () async -> Bool = { false },
                           alternativeTitles: @escaping @Sendable (Int) async throws -> [String] = { _ in [] }) -> MALHubResolver {
-    let registry = SourceRegistry(sources: sources, defaults: UserDefaults(suiteName: "MALHubResolution-\(UUID().uuidString)")!)
-    return MALHubResolver(registry: registry, store: store ?? MALSourceChoiceStore(directory: TestDirectory(UUID().uuidString).url),
+    let defaults = TestDefaults("MALHubResolution")
+    defer { defaults.remove() }
+    let directory = TestDirectory("MALHubResolution")
+    defer { directory.remove() }
+    let registry = SourceRegistry(sources: sources, defaults: defaults.defaults)
+    return MALHubResolver(registry: registry, store: store ?? MALSourceChoiceStore(directory: directory.url),
                           showAdultContent: showAdultContent, challengeActive: challengeActive,
                           deadline: deadline, probeInterval: probeInterval,
                           alternativeTitles: alternativeTitles)
@@ -191,7 +228,15 @@ private actor SearchRecorder {
     var titles: [String] = []
     var cancelled = false
 
-    func begin(_ title: String) { calls += 1; titles.append(title); concurrent += 1; maxConcurrent = max(maxConcurrent, concurrent) }
+    var callsBySource: [String: Int] = [:]
+    func begin(_ title: String, sourceID: String) {
+        calls += 1
+        callsBySource[sourceID, default: 0] += 1
+        titles.append(title)
+        concurrent += 1
+        maxConcurrent = max(maxConcurrent, concurrent)
+    }
+    func calls(for sourceID: String) -> Int { callsBySource[sourceID, default: 0] }
     func end() { concurrent -= 1 }
     func cancellation() { cancelled = true; concurrent = max(0, concurrent - 1) }
 }
@@ -216,7 +261,7 @@ private struct FakeMALSource: MangaSource, @unchecked Sendable {
     }
 
     func search(title: String, limit: Int, offset: Int) async throws -> [Manga] {
-        await recorder.begin(title)
+        await recorder.begin(title, sourceID: id)
         do {
             if delay > 0 { try await Task.sleep(for: .seconds(delay)) }
             if let error { throw error }
