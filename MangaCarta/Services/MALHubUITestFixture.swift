@@ -40,6 +40,11 @@ enum MALHubUITestFixture {
         let detailStore = MALDetailStore(directory: directory.appendingPathComponent("MALDetail"))
         let choiceStore = MALSourceChoiceStore(directory: directory.appendingPathComponent("MALHub"))
         let entityStore = EntityResolutionStore(defaults: defaults)
+        // A Library row opens with no MAL id, so without this the forward resolver asks the
+        // live MAL search first. That only "worked" where MAL answered (no match, then the
+        // bridge through Source A); on CI, with no MAL client id, it threw and no rail rendered.
+        entityStore.record(sourceId: MALHubFixtureSourceA.idValue, mangaId: "hub-fixture-title",
+                           .resolved(malId: 1000))
         return Storage(defaults: defaults, directory: directory, detailStore: detailStore,
                        choiceStore: choiceStore, entityStore: entityStore)
     }
