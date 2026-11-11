@@ -80,8 +80,9 @@ final class MALHubChapterCountLoader {
                 group.cancelAll()
                 return result
             }
-            context.cache.record(chapters.count, for: listing)
-            return chapters.count
+            let count = FulfillmentRouter.distinctChapterCount(chapters)
+            context.cache.record(count, for: listing)
+            return count
         } catch {
             return nil
         }

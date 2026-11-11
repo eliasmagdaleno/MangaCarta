@@ -103,6 +103,7 @@ private struct MALHubFixtureSourceA: MangaSource {
     let publishesExternalIds = true
 
     func search(title: String, limit: Int, offset: Int) async throws -> [Manga] {
+        if title == "Hub Fixture Title" { return [manga(id: "hub-fixture-title", title: title, malId: 1000)] }
         if title == "Fixture Resolved" && limit == 10 { return [manga(id: "resolved", title: title, malId: 1200)] }
         if title == "Fixture Chooser" && limit == 20 { return [manga(id: "chooser-a", title: title, malId: 1300)] }
         return []
@@ -139,7 +140,13 @@ private struct MALHubFixtureSourceB: MangaSource {
 private struct MALHubFixtureSourceC: MangaSource {
     let id = "mal-hub-fixture-c"
     let name = "Fixture Source C"
-    func search(title: String, limit: Int, offset: Int) async throws -> [Manga] { throw SourceError.unavailable("fixture search") }
+    func search(title: String, limit: Int, offset: Int) async throws -> [Manga] {
+        if title == "Fixture Chooser" {
+            return [Manga(id: "chooser-c", sourceId: id, title: title, description: "",
+                          status: "ongoing", year: nil, coverURL: nil, malId: 1300)]
+        }
+        return []
+    }
     func mangaDetail(id: String) async throws -> MangaDetail { .init(description: "", authors: [], tags: [], contentRating: nil) }
     func popular(limit: Int, offset: Int) async throws -> [Manga] { [] }
     func chapters(mangaId: String) async throws -> [Chapter] { [] }

@@ -247,7 +247,9 @@ jobs:
             -only-testing:MangaCartaUITests/SourcePreferenceUITests \
             -only-testing:MangaCartaUITests/RepositorySettingsUITests \
             -only-testing:MangaCartaUITests/LocalImportUITests \
-            -only-testing:MangaCartaUITests/AccessibilityAuditUITests
+            -only-testing:MangaCartaUITests/AccessibilityAuditUITests \
+            -only-testing:MangaCartaUITests/MALHubUITests \
+            -only-testing:MangaCartaUITests/MALHubResolutionUITests
 
       - name: Documentation only — nothing to test
         if: needs.changes.outputs.code != 'true'

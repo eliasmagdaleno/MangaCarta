@@ -45,24 +45,6 @@ struct MALHubCandidateRail: View {
                 MangaDetailView(manga: opened, registry: registry)
             }
         }
-        .task {
-#if DEBUG
-            let arguments = ProcessInfo.processInfo.arguments
-            let requestedTitle: String?
-            if arguments.contains("-uitest-mal-hub-open-chooser") {
-                requestedTitle = "Fixture Chooser"
-            } else if arguments.contains("-uitest-mal-hub-open-notfound") {
-                requestedTitle = "Fixture Nowhere"
-            } else if arguments.contains("-uitest-mal-hub-open-preview") {
-                requestedTitle = "Fixture Chooser"
-            } else {
-                requestedTitle = nil
-            }
-            if let requestedTitle {
-                selected = candidates.first { $0.title == requestedTitle }
-            }
-#endif
-        }
     }
 
     private func stamp(for candidate: MALDiscoveryCandidate) -> String {
@@ -89,7 +71,7 @@ struct MALHubPreviewView: View {
     @State private var didOpenResolution = false
     @State private var chapterCounts: [String: Int?] = [:]
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var listingCountCache: ListingCountCache
+    @Environment(\.listingCountCache) private var listingCountCache
     private let resolver: MALHubResolver
     private let open: (Manga) -> Void
 
@@ -188,13 +170,6 @@ struct MALHubPreviewView: View {
             }
             .task {
                 await model.load()
-#if DEBUG
-                let arguments = ProcessInfo.processInfo.arguments
-                if arguments.contains("-uitest-mal-hub-open-chooser") ||
-                    arguments.contains("-uitest-mal-hub-open-notfound") {
-                    resolve()
-                }
-#endif
             }
             .task { rememberedChoice = await choiceStore.choice(for: candidate.malId) }
             .task(id: resolution) {

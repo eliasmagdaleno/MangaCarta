@@ -64,6 +64,28 @@ struct MALHubChapterCountTests {
         let result = await loader.load([group])
         #expect((result["unknown"] ?? nil) == nil)
     }
+
+    @Test func testCountsDistinctChaptersLikeFulfillment() async {
+        let directory = TestDirectory("MALHubChapterCountDistinct")
+        let defaults = TestDefaults("MALHubChapterCountDistinct")
+        defer { directory.remove() }
+        defer { defaults.remove() }
+        let chapters = [
+            Chapter(id: "a", number: "1", title: nil, groups: ["A"]),
+            Chapter(id: "b", number: "1", title: nil, groups: ["B"]),
+            Chapter(id: "c", number: "2", title: nil, groups: ["A"])
+        ]
+        let source = CountFixtureSource(id: "count-a", chapters: chapters)
+        let registry = SourceRegistry(sources: [source], defaults: defaults.defaults)
+        let loader = MALHubChapterCountLoader(registry: registry,
+                                              cache: ListingCountCache(directory: directory.url))
+        let choice = MALHubChoice(manga: source.manga(id: "distinct", title: "Distinct"),
+                                  sourceName: source.name, kind: .exact)
+        let group = MALHubSourceGroup(sourceId: source.id, sourceName: source.name,
+                                      choices: [choice], ambiguous: false, status: .choices)
+        let result = await loader.load([group])
+        #expect(result["distinct"] == 2)
+    }
 }
 
 @MainActor
@@ -71,12 +93,21 @@ private final class CountFixtureSource: MangaSource {
     let id: String
     let name: String
     let count: Int?
+    let chapterList: [Chapter]?
     private(set) var calls = 0
 
     init(id: String, count: Int?) {
         self.id = id
         name = "Count Source"
         self.count = count
+        chapterList = nil
+    }
+
+    init(id: String, chapters: [Chapter]) {
+        self.id = id
+        name = "Count Source"
+        count = nil
+        chapterList = chapters
     }
 
     func manga(id: String) async throws -> Manga? { manga(id: id, title: id) }
@@ -85,6 +116,7 @@ private final class CountFixtureSource: MangaSource {
     func mangaDetail(id: String) async throws -> MangaDetail { .init(description: "", authors: [], tags: [], contentRating: nil) }
     func chapters(mangaId: String) async throws -> [Chapter] {
         calls += 1
+        if let chapterList { return chapterList }
         guard let count else { throw SourceError.unavailable("count") }
         return (0..<count).map { Chapter(id: "\($0)", number: "\($0)", title: nil) }
     }

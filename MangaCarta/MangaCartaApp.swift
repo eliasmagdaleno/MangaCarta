@@ -238,7 +238,7 @@ struct MangaCartaApp: App {
                 .environment(\.malSourceChoiceStore, malSourceChoiceStore)
                 .environment(\.malDetailFetch, malDetailFetch)
                 .environment(\.entityResolutionStore, entityResolutionStore)
-                .environmentObject(listingCountCache)
+                .environment(\.listingCountCache, listingCountCache)
                 .sheet(isPresented: $notificationPrompt.isPresented,
                        onDismiss: notificationPrompt.dismissed) {
                     NotificationExplainerSheet(

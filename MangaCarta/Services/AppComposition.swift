@@ -45,6 +45,10 @@ private struct EntityResolutionStoreEnvironmentKey: EnvironmentKey {
     static let defaultValue = EntityResolutionStore.shared
 }
 
+private struct ListingCountCacheEnvironmentKey: EnvironmentKey {
+    static let defaultValue = ListingCountCache()
+}
+
 extension EnvironmentValues {
     var extensionComposition: AppComposition.ExtensionComposition? {
         get { self[ExtensionCompositionEnvironmentKey.self] }
@@ -74,6 +78,11 @@ extension EnvironmentValues {
     var entityResolutionStore: EntityResolutionStore {
         get { self[EntityResolutionStoreEnvironmentKey.self] }
         set { self[EntityResolutionStoreEnvironmentKey.self] = newValue }
+    }
+
+    var listingCountCache: ListingCountCache {
+        get { self[ListingCountCacheEnvironmentKey.self] }
+        set { self[ListingCountCacheEnvironmentKey.self] = newValue }
     }
 
 }
