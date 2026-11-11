@@ -9,7 +9,7 @@ final class MALHubPreviewModel: ObservableObject {
     @Published private(set) var nsfw: MALNSFW?
     @Published private(set) var isLoading = false
     @Published private(set) var detailsUnavailable = false
-    @Published var showAdultContent = false
+    let showAdultContent: Bool
 
     private let detailStore: MALDetailStore
     private let fetch: @Sendable (Int) async throws -> MyAnimeListMangaDetail
@@ -27,13 +27,18 @@ final class MALHubPreviewModel: ObservableObject {
         return !blocked
     }
 
-    init(candidate: MALDiscoveryCandidate, detailStore: MALDetailStore,
+    init(candidate: MALDiscoveryCandidate, detailStore: MALDetailStore, showAdultContent: Bool,
          fetch: @escaping @Sendable (Int) async throws -> MyAnimeListMangaDetail = { try await MyAnimeListAPI.mangaDetail(id: $0) }) {
-        self.candidate = candidate; self.detailStore = detailStore; self.fetch = fetch
+        self.candidate = candidate
+        self.detailStore = detailStore
+        self.showAdultContent = showAdultContent
+        self.fetch = fetch
     }
 
     func load() async {
-        guard !didLoad else { return }; didLoad = true; isLoading = true
+        guard !didLoad else { return }
+        didLoad = true
+        isLoading = true
         defer { isLoading = false }
         guard let detail = await detailStore.detail(for: candidate.malId, fetch: fetch) else {
             detailsUnavailable = true; return
@@ -44,5 +49,3 @@ final class MALHubPreviewModel: ObservableObject {
         nsfw = detail.nsfw
     }
 }
-
-typealias MALHubPreviewViewModel = MALHubPreviewModel
