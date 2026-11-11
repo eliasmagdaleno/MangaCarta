@@ -1,9 +1,11 @@
 # Product analytics design
 
 **Date:** 2026-11-09
-**Status:** Draft for owner review, revised after coordinator review 2026-11-10. §5 awaits the legal research.
-The default (collect unless the reader opts out) is the owner's decision of 2026-11-09. Every other choice below is a recommendation until the owner approves it in
-"Open questions for the owner".
+**Status:** Draft for owner review, revised after coordinator review 2026-11-10, and revised 2026-11-11 for the
+consent research and the owner's consent decision. **§5 is decided (owner, 2026-11-11): consent first, everywhere.
+Nothing is collected or sent until the reader agrees on the first-launch card.** This replaces the owner's
+2026-11-09 decision to collect unless the reader opts out. Every other choice below is a recommendation until the
+owner approves it in "Open questions for the owner".
 **Evidence baseline:** `main` at `b57c356`.
 **Slug:** `analytics`. **Handoff queue item:** 15.
 
@@ -17,8 +19,9 @@ facts (§10.3) and the label answers (§8).**
 recommendations and understand feature usage, with a clear Settings toggle to opt out". It also
 lists what must be settled first: provider, event schema, retention, consent disclosure, regional
 compliance, deletion/export controls, and whether historical events can train shared recommendation
-models. On 2026-11-09 the owner confirmed analytics is **on by default with a clear Settings
-opt-out**. Its main purpose is **refining recommendations from reading data**, and its second is
+models. On 2026-11-09 the owner chose analytics **on by default with a clear Settings opt-out**.
+On 2026-11-11, after the consent research, the owner replaced that with **consent first, everywhere** (§5). Its
+main purpose is **refining recommendations from reading data**, and its second is
 feature usage.
 
 This document owns *how* analytics is built and which data it carries. It answers every open item
@@ -35,12 +38,12 @@ here.
 1. Send a small, closed set of **reading signals keyed by public catalogue ids** (MyAnimeList and
    AniList), plus **feature-usage counts**, to an endpoint the owner controls. The aim is to improve
    recommendations for everyone and to learn which features are used.
-2. Collect **by default**, behind a single Settings toggle and a first-launch notice that does not
-   block the app. In regions whose law requires prior consent, collect only after the reader opts in
-   (§5).
+2. Collect **only after the reader agrees**, in every region, on a first-launch card that doesn't block
+   the app, with a single Settings toggle. In the EU, EEA and UK the card asks; elsewhere it informs, and
+   "OK" is the agreement (§5).
 3. Keep **adult-classified titles and the reader's own files** out of analytics entirely, by
    construction rather than by convention (§3, §4).
-4. Delete what was collected when the reader asks, and stop collecting the moment they opt out (§7).
+4. Delete what was collected when the reader asks, and stop collecting the moment they turn it off (§7).
 
 ## Non-goals
 
@@ -263,79 +266,70 @@ a bucketed file count and nothing about the content. Test:
 
 ## 5. Consent and regions (question 5)
 
-### 5.1 What the law says, as far as this research reaches
+### 5.1 What the law says
 
-Pending: `docs/superpowers/research/2026-11-09-unrar-licence-and-analytics-consent.md` re-checks this section; the owner decides §5.2 after it.
+The research is `docs/superpowers/research/2026-11-09-unrar-licence-and-analytics-consent.md`, part B. It is product research, not legal advice; the review in open question 8
+still applies. Its findings, by region:
 
-- **EU/EEA.** Article 5(3) of the ePrivacy Directive requires consent to store information on, or
-  read it from, the reader's device, unless doing so is strictly necessary for the service the
-  reader asked for. The EDPB's Guidelines 2/2023 (v2.0, adopted 7 October 2024) read that broadly,
-  past cookies to other ways of gaining access to information on the device
-  ([EDPB, v2.0 PDF](https://edpb.europa.eu/system/files/2024-10/edpb_guidelines_202302_technical_scope_art_53_eprivacydirective_v2_en_0.pdf);
-  the text could not be extracted in this session, so the app-specific passages are unverified).
-  Analytics is not strictly necessary for reading. France's CNIL has an audience-measurement
-  exemption, but it requires single-app identifiers, no user cohorts and use limited to audience
-  measurement and A/B testing
-  ([CNIL sheet 16](https://www.cnil.fr/en/sheet-ndeg16-use-analytics-your-websites-and-applications)).
-  §2.2 builds per-install histories for recommendations, which is exactly what that exemption
-  excludes.
-- **UK.** The Data (Use and Access) Act 2025 added a "statistical purposes" exception to PECR
-  regulation 6. The ICO's guidance limits it to how a service is used, "not about who uses it". It
-  "does not allow you to monitor or track individual visitors", and it requires aggregated output
-  plus a "simple and free" way to object
-  ([ICO, What are the exceptions?](https://ico.org.uk/for-organisations/direct-marketing-and-privacy-and-electronic-communications/guidance-on-the-use-of-storage-and-access-technologies/what-are-the-exceptions/)).
-  §2.3 counts might qualify. §2.2 per-install reading sequences very likely do not.
-- **US.** No federal opt-in rule covers first-party product analytics. California's CCPA/CPRA
-  regulates "selling" and "sharing" (for cross-context behavioural advertising), and analytics kept
-  in-house or with a service provider is generally neither. A privacy policy is still required. Other
-  states' comprehensive privacy laws follow similar opt-out models. **This research did not read
-  those statutes**; the reviewer should check them
-  ([California AG, CCPA](https://oag.ca.gov/privacy/ccpa), not read this session).
-- **Elsewhere** (Brazil's LGPD, Korea, Japan and others) was not researched. The region table below
-  is the place to extend.
+- **Everywhere: Apple's App Review Guideline 5.1.1(ii)** says apps that collect usage data must secure the
+  user's consent for the collection, even if the data is considered anonymous. It doesn't depend on region.
+  That is the finding that decides §5.2: a design that sends anything before the reader acts is the risk.
+- **EU/EEA: opt-in, confirmed.** Storing the install id and sending events derived from on-device activity
+  both fall within ePrivacy Art. 5(3) (EDPB Guidelines 2/2023 ¶33, ¶44, ¶63). No "strictly necessary" route
+  fits. **CNIL's audience-measurement exemption is unavailable:** it needs an identifier that lives at most
+  13 months and "anonymous statistics only", and §6's id is never rotated and §2.2 builds per-install
+  histories.
+- **UK: opt-in, confirmed.** The Data (Use and Access) Act 2025's statistical-purposes exception doesn't
+  allow keeping individual-level rows after aggregation, and §7.1 keeps raw events for 12 months. So **the
+  ICO's consent-free route is unavailable** too, even for §2.3's counts.
+- **Switzerland: corrected.** Neither the revFADP nor TCA Art. 45c requires opt-in here. Swiss law requires
+  information plus a right to refuse, and explicit consent only for sensitive data or "high-risk
+  profiling". Whether reading histories amount to high-risk profiling **needs a lawyer**.
+- **US: confirmed in substance.** First-party analytics isn't "sale" or "sharing" under the CCPA/CPRA, and a
+  small developer is very unlikely to meet its thresholds. CalOPPA's privacy-policy duty may still apply,
+  and Apple requires a policy regardless.
+- **Elsewhere** (Brazil's LGPD, Korea, Japan and others) was not researched. Consent first everywhere
+  covers them by construction.
 
-**Conclusion.** Opt-out by default is defensible in the US and most other regions. **It is not
-sufficient in the EU/EEA, the UK or Switzerland** for the recommendation stream, which is the main
-purpose. There, collection needs prior opt-in.
+### 5.2 Behaviour: consent first, everywhere
 
-### 5.2 Behaviour
+**Decided by the owner, 2026-11-11.** Nothing is recorded, buffered or sent, and no install id is minted,
+until the reader agrees on the first-launch card (§10.1). Undecided means off, in every region. Region
+changes only how the card asks:
 
-Three options were considered:
-
-- **(a) Opt-out everywhere.** This is what the owner asked for, and it is the most legal risk in
-  exactly the regions that enforce most.
-- **(b) Opt-in everywhere.** This is the safest, and it contradicts the owner's decision and yields
-  little data.
-- **(c) Opt-out globally, opt-in where the region requires it.**
-
-**Pick (c).**
-
-| Region | Default before the reader chooses | First-launch notice (§10.1) |
+| Region | Before the reader chooses | First-launch card (§10.1) |
 |---|---|---|
-| Consent region: EU 27, Iceland, Liechtenstein, Norway, United Kingdom, Switzerland | **Off** | Asks: "Share" / "Not now", given equal weight |
-| Everywhere else | **On** | Informs: "OK" / "Turn off" |
-| Region unknown | **Off** (fail closed) | As for a consent region |
+| EU 27, Iceland, Liechtenstein, Norway, United Kingdom | **Off** | Asks: "Share" / "Not now", given equal weight |
+| Everywhere else, **including Switzerland** | **Off** | Informs, then asks for acknowledgement: "OK" / "Turn off". "OK" is the agreement |
+| Region unknown | **Off** | As for the EU row (fail closed) |
 
-A UK-specific split (counts on by default, reading signals opt-in) is possible under the ICO's
-exception. It would mean two toggles, and the owner asked for one clear toggle. Open question 3.
+- **Switzerland moves to the second row**, per the research's correction (TCA 45c is information plus a
+  right to refuse). **Unless** the review in open question 8 finds that reading histories are high-risk
+  profiling, in which case it moves back to the first row. That is a one-line change to
+  `AnalyticsRegionPolicy`'s table.
+- **Nothing is buffered before agreement.** The research floated recording locally until the card is
+  answered, then sending on "OK". This design doesn't: events from before consent would be sent with
+  consent they never had. The first event is the first hook after agreement.
+- **One toggle, no UK split.** A split (counts on by default) needed the ICO's exception, which §5.1 rules
+  out, and consent first everywhere makes it moot.
 
 ### 5.3 How the app learns the region
 
 `await Storefront.current?.countryCode` (StoreKit 2, iOS 15+; "the three-letter code that represents
 the country or region associated with the App Store storefront",
 [Apple](https://developer.apple.com/documentation/storekit/storefront/countrycode)). If the storefront
-is `nil` (no App Store account, or a simulator), treat it as a consent region, whatever the locale
-says. Otherwise, `Locale.current.region?.identifier` (alpha-2) may only make the result stricter:
+is `nil` (no App Store account, or a simulator), the region is unknown and gets the EU row's card, whatever
+the locale says. Otherwise, `Locale.current.region?.identifier` (alpha-2) may only make the result stricter:
 a consent-region locale with a non-consent storefront still requires opt-in, but a non-consent locale
-can never remove the requirement from a consent storefront. This fail-closed rule prevents a
-user-settable locale from making an undecided reader collect by default. **Neither value is sent**
-(§2.1). `AnalyticsRegionPolicy.requiresOptIn(storefrontCountryCode:localeRegionCode:) -> Bool` is
+can never remove the requirement from a consent storefront. The locale is not a location signal (it depends on
+the app's shipped localizations), so it can only ever make the card ask rather than inform. Since nothing is
+collected undecided anywhere, the region now decides only the card's wording, never whether data flows. **Neither value is sent**
+(§2.1). `AnalyticsRegionPolicy.asksForConsent(storefrontCountryCode:localeRegionCode:) -> Bool` is
 pure and takes either alpha-2 or alpha-3 codes.
 
-**Re-evaluation.** The region is read on every launch. If the reader has **never chosen** and the
-region has changed into a consent region, the default moves to off and the notice is shown again. An
-explicit choice is never overridden. Test: `AnalyticsConsentTests.testUndecidedReaderMovingIntoConsentRegionStopsCollecting`
-(AC 2).
+**Re-evaluation.** The region is read on every launch. If the reader has **never chosen**, the card they
+see follows the current region. An explicit choice is never overridden by a region change. Test:
+`AnalyticsConsentTests.testExplicitChoiceSurvivesRegionChange` (AC 2).
 
 ## 6. Identity (question 6)
 
@@ -356,7 +350,10 @@ explicit choice is never overridden. Test: `AnalyticsConsentTests.testUndecidedR
   `NSPrivacyTracking` stays `false` and `NSPrivacyTrackingDomains` stays empty. **This holds only
   while the data is never used for ads and never sold.** The privacy policy states both (§10.3).
 - **No automatic rotation.** Co-occurrence (§9) needs a history longer than a rotation window, and
-  the 12-month purge (§7.1) bounds how long any id's history lasts.
+  the 12-month purge (§7.1) bounds how long any id's history lasts. This is also why neither the CNIL nor
+  the ICO consent-free stream is available (§5.1). A consent-free stream would need a separate, rotating or
+  absent id, and consent first everywhere means none is needed.
+- **Minted only after agreement** (§5.2), so a reader who never answers the card never has an id.
 
 ## 7. Retention, deletion, export (question 7)
 
@@ -403,7 +400,7 @@ change the label.
 
 | Item | Today | After slice 2 | Why |
 |---|---|---|---|
-| Identifiers › **Device ID** | not declared | **add**: Linked **No**, Tracking **No**, Purpose **Analytics** | Apple's Device ID is "the device's advertising identifier, or other device-level ID". A random install id is the conservative fit, and TelemetryDeck's guidance gives the same answer. "Not linked" holds because the id is never tied to an account, a name or the MAL id (Apple's not-linked conditions, [App privacy details](https://developer.apple.com/app-store/app-privacy-details/)). Open question 2 offers the stricter "Linked: Yes". |
+| Identifiers › **Device ID** | not declared | **add**: Linked **Yes**, Tracking **No**, Purpose **Analytics** | Apple's Device ID is "the device's advertising identifier, or other device-level ID", and a random install id is the conservative fit. **Linked: Yes**, corrected by the research (part B5): Apple treats anything that is personal data under privacy law as linked, and a persistent install id with a usage history is very likely personal data under the GDPR. TelemetryDeck's "not linked" guidance doesn't survive that. |
 | Usage Data › **Product Interaction** | Linked Yes, Tracking No, Purpose App Functionality (`PrivacyInfo.xcprivacy:54`) | **add purpose Analytics** to the same entry. Linked stays Yes. | A data type can appear only once (`docs/app-store/submission-copy.md` §5). The MAL use keeps it linked, and the stricter answer covers analytics. |
 | Diagnostics › Performance Data | not linked, App Functionality (`:69`) | unchanged | Image-load reports only. |
 | Name, User ID | MAL only | unchanged | The analytics id is not a User ID. |
@@ -461,24 +458,26 @@ recommendation is **yes, but only as k-thresholded aggregates (item 2) and offli
 
 ### 10.1 First-launch notice — not a wall
 
-A card shown inline at the top of Home on the first launch after analytics ships. The same card
+A card shown inline at the top of Home on the first launch after analytics ships. **Nothing is collected
+while it is unanswered** (§5.2), so it stays, on each launch, until either button is tapped. It still never
+blocks navigation. The same card
 covers existing readers, for whom "first launch" means the first launch on this version. It follows
 the existing inline-notice pattern (`ForYouBasisNotice`): an `Ink.surface` card with a hairline, as
 in Settings (`SettingsView.swift:134-135`), which never blocks navigation. It is shown once. Either
 button dismisses it, and the choice is recorded.
 
-Outside consent regions:
+Outside the EU, EEA and UK (the second row of §5.2):
 
 > **Help improve recommendations**
-> MangaCarta shares which titles you save and finish — by their MyAnimeList and AniList numbers, never
+> If you tap OK, MangaCarta shares which titles you save and finish — by their MyAnimeList and AniList numbers, never
 > their names — plus which features you use. Adult titles and your own files are never included.
 > It isn't linked to your name or your accounts. You can turn this off any time in Settings.
 > [ OK ]  [ Turn off ]
 
-In consent regions, with the default off:
+In the EU, EEA and UK, and when the region is unknown:
 
 > **Help improve recommendations?**
-> *(the same body text, with "shares" replaced by "can share", and "You can change this any time in Settings")*
+> *(the same body text, with "If you tap OK, MangaCarta shares" replaced by "MangaCarta can share", and "You can change this any time in Settings")*
 > [ Share ]  [ Not now ]
 
 The two buttons are the same size and style. A "Share" in vermilion beside a grey "Not now" would be
@@ -508,8 +507,9 @@ The policy itself does not exist yet (`docs/superpowers/research/2026-09-11-issu
 "Still owed"). When written, it must state:
 
 1. Who the controller is, and a contact email.
-2. That analytics is collected by default outside the EU, EEA, UK and Switzerland, and only with
-   consent inside them. How to turn it off.
+2. That analytics is collected only after the reader agrees, in every region: asked in the EU, EEA and
+   UK, and informed with "OK" / "Turn off" elsewhere. How to turn it off later, which withdraws consent
+   (Guideline 5.1.1(i)).
 3. The exact §2 fields, and the §2.4 list of what is never collected, including the adult and local
    exclusions.
 4. Where the data goes (the provider and its country), and that no IP address is stored; this is
@@ -517,9 +517,10 @@ The policy itself does not exist yet (`docs/superpowers/research/2026-09-11-issu
 5. The purposes: improving recommendations, both offline weight tuning and aggregated co-occurrence,
    and understanding feature use. **Not advertising. Not sold. Not shared with data brokers.**
 6. Retention: 12 months for raw events. Aggregates are kept and contain no identifiers.
-7. Deletion: the in-app controls, what opting out deletes, that deleting the app does not reach the
+7. Deletion, which Guideline 5.1.1(i) requires the policy to explain: the in-app controls, what opting out deletes, that deleting the app does not reach the
    server, and the email route quoting the analytics id.
-8. Legal basis per region (consent in the EU/UK; the reviewer settles the rest).
+8. Legal basis per region: consent everywhere, which is the legal basis in the EU and UK. The reviewer
+   confirms Switzerland (§5.2) and the rest.
 9. The existing MAL sync and image-load report facts, which are already owed.
 
 ## 11. Design
@@ -530,7 +531,7 @@ The policy itself does not exist yet (`docs/superpowers/research/2026-09-11-issu
 |---|---|---|---|
 | `AnalyticsEvent`, `CatalogueIDs` | `MangaCarta/Models/AnalyticsEvent.swift` | value types and the wire encoder (§2.5) | 1 |
 | `AnalyticsEligibility` | `MangaCarta/Models/AnalyticsEligibility.swift` | pure predicate (§3, §4) | 1 |
-| `AnalyticsRegionPolicy` | `MangaCarta/Models/AnalyticsRegionPolicy.swift` | pure: `requiresOptIn(storefrontCountryCode:localeRegionCode:)`, with locale only able to add opt-in | 1 |
+| `AnalyticsRegionPolicy` | `MangaCarta/Models/AnalyticsRegionPolicy.swift` | pure: `asksForConsent(storefrontCountryCode:localeRegionCode:)`, which picks the card (§5.2); the locale can only make it ask | 1 |
 | `AnalyticsConsentStore` | `MangaCarta/Services/AnalyticsConsentStore.swift` | `@MainActor ObservableObject`: consent state, notice-shown flag, region re-evaluation | 1 |
 | `AnalyticsEventBuffer` | `MangaCarta/Services/AnalyticsEventBuffer.swift` | file-backed FIFO, capped at 500, plus the install id | 1 |
 | `AnalyticsRecorder` | `MangaCarta/Services/AnalyticsRecorder.swift` | `@MainActor`. `record(_:)` is **synchronous and network-free**, like the completion sink. It checks consent, then eligibility, then appends. Owns the sent ledger (§11.4). | 1 |
@@ -572,11 +573,12 @@ is Swift 6.0-safe (CI's Xcode 16.4).
 
 ```swift
 enum AnalyticsConsent: String, Codable {
-    case undecided      // never chose; the effective value is the region default
-    case granted
-    case denied
+    case undecided      // never chose: collects nothing, in every region (§5.2)
+    case granted        // "Share" or "OK"
+    case denied         // "Not now" or "Turn off"
 }
-// isCollecting = consent == .granted || (consent == .undecided && !regionRequiresOptIn)
+// isCollecting = consent == .granted
+// The region decides only the card's wording: AnalyticsRegionPolicy.asksForConsent(...)
 ```
 
 `UserDefaults` keys: `analytics.consent` and `analytics.noticeVersion`. The notice version is an `Int`,
@@ -687,8 +689,8 @@ Each slice merges on its own.
 
 | # | Criterion | Test |
 |---|---|---|
-| 1 | An undecided reader collects only when both the storefront and locale are non-consent regions. A nil storefront is consent, and a consent-region locale with a non-consent storefront still requires opt-in. | `MangaCartaTests/AnalyticsConsentTests.testRegionDefaults` |
-| 2 | An undecided reader whose storefront or locale moves into a consent region stops collecting. An explicit choice is never overridden, and locale changes cannot loosen a storefront requirement. | `AnalyticsConsentTests.testUndecidedReaderMovingIntoConsentRegionStopsCollecting`, `.testLocaleCannotLoosenAMissingStorefront`, `.testExplicitChoiceSurvivesRegionChange` |
+| 1 | An undecided reader collects nothing and has no install id, in every region including a non-consent storefront and locale. Only `.granted` collects. | `MangaCartaTests/AnalyticsConsentTests.testUndecidedCollectsNothingAnywhere` |
+| 2 | An explicit choice is never overridden by a region change, and an undecided reader's card follows the current region. Locale changes cannot turn an asking card into an informing one. | `AnalyticsConsentTests.testExplicitChoiceSurvivesRegionChange`, `.testLocaleCannotLoosenAMissingStorefront` |
 | 3 | The encoded wire form of every `AnalyticsEvent` case contains only the envelope keys and closed-set strings. No title, Source id, Listing id or chapter id appears. | `MangaCartaTests/AnalyticsEventTests.testWireFormHasOnlyClosedStrings` (encodes a fixture event with a distinctive title and Source id in the `Manga`, and asserts neither substring is in the JSON) |
 | 4 | An `erotica` or `pornographic` title, an unrated title from a `mixed` Source, an `isNSFW` Source, an adult vocabulary tag and a missing Source each make the event ineligible, with the "Show adult content" switch on **and** off. | `MangaCartaTests/AnalyticsEligibilityTests.testAdultClassesAreIneligibleRegardlessOfSwitch` |
 | 5 | A Work with any `local` Listing is ineligible, including when the event's own Listing is a remote one. | `AnalyticsEligibilityTests.testWorkWithAnyLocalListingIsIneligible` |
@@ -698,11 +700,11 @@ Each slice merges on its own.
 | 9 | Opting out deletes the buffer, the id and the ledger. Opting in again mints a different id. | `AnalyticsRecorderTests.testOptOutErasesLocalState` |
 | 10 | MAL progress sync behaves exactly as before with the fanned-out completion closure. | the existing `MALProgressCoordinatorTests`, unchanged and green, plus `AppCompositionTests.testCompletionReachesBothSinks` |
 | 11 | The buffer caps at 500, dropping the oldest, and recovers from a corrupt file by starting empty. | `MangaCartaTests/AnalyticsEventBufferTests.testCapDropsOldest`, `.testCorruptFileStartsEmpty` |
-| 12 | `requiresOptIn(storefrontCountryCode:localeRegionCode:)` is true for every EEA, UK and Swiss code (alpha-2 and alpha-3), for a nil storefront regardless of locale, and for a consent locale with a non-consent storefront; locale never removes a storefront requirement. It is false only for non-consent storefront and locale codes. | `AnalyticsConsentTests.testRegionTable`, `AnalyticsConsentTests.testLocaleCannotLoosenAMissingStorefront` |
-| 13 | The first-launch notice is inline, dismisses on either button, does not reappear, and its two buttons have equal styling. The Settings toggle reflects and changes consent. | `MangaCartaUITests/AnalyticsSettingsUITests.testNoticeDismissesAndToggleReflectsChoice` (hermetic: `-uitest-analytics-region GBR` / `USA` launch argument, no-op transport) |
+| 12 | `asksForConsent(storefrontCountryCode:localeRegionCode:)` is true for every EEA and UK code (alpha-2 and alpha-3), for a nil storefront regardless of locale, and for an EEA/UK locale with another storefront; locale never removes a storefront's asking card. It is false for Switzerland and for other storefront and locale codes. | `AnalyticsConsentTests.testRegionTable`, `AnalyticsConsentTests.testLocaleCannotLoosenAMissingStorefront` |
+| 13 | The first-launch notice is inline, stays across launches until a button is tapped, dismisses on either button, does not reappear after, and its two buttons have equal styling. Before a tap, no event is recorded. The Settings toggle reflects and changes consent. | `MangaCartaUITests/AnalyticsSettingsUITests.testNoticeDismissesAndToggleReflectsChoice` (hermetic: `-uitest-analytics-region GBR` / `USA` launch argument, no-op transport) |
 | 14 | (slice 2) A 2xx deletes the sent events, a 4xx drops them, and a 5xx keeps them. Opting out queues a delete for the old id, which is retried until it succeeds. | `MangaCartaTests/AnalyticsUploaderTests` (stub `AnalyticsTransport`) |
 | 15 | (slice 2) UI tests and Debug builds never construct the network transport. | `AnalyticsUploaderTests.testUITestLaunchUsesNoOpTransport` |
-| 16 | (slice 2) The manifest declares Device ID (not linked, Analytics) and Product Interaction with both purposes. | `MangaCartaTests/PrivacyManifestTests.testAnalyticsEntries` (parses the bundled plist) |
+| 16 | (slice 2) The manifest declares Device ID (linked, Analytics) and Product Interaction with both purposes. | `MangaCartaTests/PrivacyManifestTests.testAnalyticsEntries` (parses the bundled plist) |
 | 17 | (slice 3) The co-occurrence provider returns nothing for pairs below k, never returns an id the reader has read, saved or dismissed, and returns nothing for an empty table. | `MangaCartaTests/CoOccurrenceCandidateProviderTests` |
 
 ### Files that need `xcp add-file`
@@ -727,12 +729,11 @@ Each has a recommended answer, so the whole list can be approved in one pass.
    Worker with D1 or equivalent, about $0–5 a month at launch scale). It is the only option that can
    honour "delete my data" and give raw rows for co-occurrence. TelemetryDeck needs no server and is
    hosted in the EU, but it cannot delete one user's events and it adds the app's first SDK.
-2. **Device ID on the label: "Not linked" or the stricter "Linked"?** *Recommended: Not linked.* The
-   id is random, resettable, and never joined to the MAL account. If the owner wants the most
-   conservative label, "Linked" is also truthful and costs only how the label reads.
-3. **One toggle, or a UK/EU split (feature counts by default, reading signals opt-in)?**
-   *Recommended: one toggle, opt-in in the EU, EEA, UK and Switzerland.* It is simpler to explain, and
-   the split gains only feature counts in those regions.
+2. **Device ID on the label. Settled by the research: "Linked: Yes"** (§8). No longer a choice: Apple counts
+   personal data under privacy law as linked, and a persistent id with a history is personal data under the
+   GDPR.
+3. **One toggle, or a UK/EU split? Settled 2026-11-11: one toggle.** The split relied on the ICO's
+   exception, which §5.1 rules out, and the owner's consent-first decision makes it moot.
 4. **Retention and shared models: keep raw events 12 months, keep k ≥ 20 aggregates indefinitely,
    and allow historical events to train shared recommendations *only* as those aggregates and offline
    weight tuning?** *Recommended: yes to all three*, stated in the privacy policy.
@@ -744,7 +745,9 @@ Each has a recommended answer, so the whole list can be approved in one pass.
 7. **A Work reclassified as adult after events were sent: accept a 12-month residual, or have the
    server purge rows whose MAL id is on a server-side adult list?** *Recommended: add the server
    purge in slice 2.* It is one join against MAL's public adult genre ids.
-8. **Legal review before slice 2, plus the hosted privacy policy URL.** *Recommended: required.*
+8. **Legal review before slice 2, plus the hosted privacy policy URL.** *Recommended: required.* The review
+   also settles Switzerland's row (§5.2, high-risk profiling) and whether "OK" on an informing card satisfies
+   Guideline 5.1.1(ii).
    Slice 2 does not merge without both. Also confirm that the 16+ age rating means no
    children's-privacy flow is needed.
 9. **Should a Related-rail open emit an event?** *Recommended: no.* Related is contextual navigation,
