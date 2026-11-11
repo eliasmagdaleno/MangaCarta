@@ -81,6 +81,15 @@ struct MyAnimeListMangaDetail: Codable, Equatable {
     let recommendations: [Recommendation]?
     /// Optional, with a default, so records cached before the field existed still decode.
     var nsfw: MALNSFW? = nil
+    var alternativeTitles: MyAnimeListManga.AlternativeTitles? = nil
+
+    var allTitles: [String] {
+        var seen = Set<String>()
+        return ([title, alternativeTitles?.en, alternativeTitles?.ja]
+                    .compactMap { $0 } + (alternativeTitles?.synonyms ?? []))
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty && seen.insert($0).inserted }
+    }
 
     struct Genre: Codable, Equatable {
         let id: Int
