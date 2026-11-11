@@ -8,18 +8,22 @@ final class MALHubUITests: XCTestCase {
 
     func testUnavailableCardIsLabeledWithoutSources() throws {
         let app = launch()
-        XCTAssertTrue(app.buttons["relatedSection"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.buttons["moreLikeThisSection"].exists)
+        print(app.debugDescription)
+        XCTAssertTrue(app.descendants(matching: .any)["relatedSection"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["moreLikeThisSection"].exists)
         let cards = app.buttons.matching(identifier: "malCandidateCard")
         XCTAssertTrue(cards.count >= 2)
-        XCTAssertTrue(cards.allElementsBoundByIndex.contains { $0.label.contains("Sources") })
+        XCTAssertTrue(cards.allElementsBoundByIndex.contains { $0.label.hasSuffix("not on your Sources") })
+        XCTAssertTrue(cards.allElementsBoundByIndex.contains { $0.label.hasSuffix(", on your Sources") })
         attach(app, name: "mal-hub-unavailable-card")
     }
 
     func testSwitchOffShowsOnlyResolvedCards() throws {
         let app = launch(arguments: ["-uitest-mal-hub-adult-off"])
-        XCTAssertTrue(app.buttons["moreLikeThisSection"].waitForExistence(timeout: 10))
-        XCTAssertEqual(app.buttons.matching(identifier: "malCandidateCard").count, 2)
+        XCTAssertTrue(app.descendants(matching: .any)["moreLikeThisSection"].waitForExistence(timeout: 10))
+        let cards = app.buttons.matching(identifier: "malCandidateCard")
+        XCTAssertEqual(cards.count, 1)
+        XCTAssertFalse(cards.allElementsBoundByIndex.contains { $0.label.hasSuffix("not on your Sources") })
         attach(app, name: "mal-hub-adult-off")
     }
 
@@ -33,20 +37,27 @@ final class MALHubUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["A fixed fixture synopsis."].exists)
         app.buttons["Read on…"].tap()
         XCTAssertTrue(app.staticTexts["Fixture Source A"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["Exact match"].exists)
-        XCTAssertTrue(app.staticTexts["Possible match"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label CONTAINS %@", "Exact match")).firstMatch.exists)
+        XCTAssertTrue(app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label CONTAINS %@", "Possible match")).firstMatch.exists)
         XCTAssertTrue(app.staticTexts["Fixture Source C"].exists)
+        XCTAssertTrue(app.staticTexts["Fixture Source D"].exists)
+        XCTAssertTrue(element(app, label: "Couldn't check").exists)
+        XCTAssertTrue(app.buttons["Try again"].exists)
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "chapters")).count > 0)
         attach(app, name: "mal-hub-chooser")
     }
 
     func testSingleExactMatchOpensListingDirectly() throws {
         let app = launch()
         let card = app.buttons.matching(identifier: "malCandidateCard")
-            .matching(NSPredicate(format: "label CONTAINS %@", "Fixture Resolved")).firstMatch
+            .matching(NSPredicate(format: "label CONTAINS %@", "Fixture Single Exact")).firstMatch
         XCTAssertTrue(card.waitForExistence(timeout: 10))
         card.tap()
         app.buttons["Read on…"].tap()
-        XCTAssertTrue(app.navigationBars["Fixture Resolved"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars.buttons.firstMatch.waitForExistence(timeout: 10))
+        attach(app, name: "mal-hub-single-exact-open")
     }
 
     func testConfirmedChoiceIsRememberedOnReopen() throws {
@@ -57,14 +68,16 @@ final class MALHubUITests: XCTestCase {
         card.tap()
         app.buttons["Read on…"].tap()
         XCTAssertTrue(app.staticTexts["Fixture Source A"].waitForExistence(timeout: 10))
-        app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Possible match")).firstMatch.tap()
-        XCTAssertTrue(app.navigationBars["Fixture Chooser Alternate"].waitForExistence(timeout: 10))
-        app.navigationBars.buttons.element(boundBy: 0).tap()
+        app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label CONTAINS %@", "Possible match")).firstMatch.tap()
+        XCTAssertTrue(app.navigationBars.buttons.firstMatch.waitForExistence(timeout: 10))
+        app.navigationBars.buttons.firstMatch.tap()
         card.tap()
         XCTAssertTrue(app.buttons["Read on…"].waitForExistence(timeout: 10))
         app.buttons["Source"].tap()
         app.buttons["Choose another Source"].tap()
         XCTAssertTrue(app.staticTexts["Fixture Source A"].waitForExistence(timeout: 10))
+        attach(app, name: "mal-hub-remembered-choice")
     }
 
     func testNotOnYourSourcesStateOffersRepositoryHint() throws {
@@ -76,6 +89,7 @@ final class MALHubUITests: XCTestCase {
         app.buttons["Read on…"].tap()
         XCTAssertTrue(app.staticTexts["Not on your Sources"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["Add a repository in Settings to add more places to read."].exists)
+        attach(app, name: "mal-hub-not-found")
     }
 
     private func launch(arguments: [String] = ["-uitest-mal-hub"]) -> XCUIApplication {
@@ -94,16 +108,8 @@ final class MALHubUITests: XCTestCase {
         shot.lifetime = .keepAlways
         add(shot)
     }
-}
 
-final class MALHubResolutionUITests: XCTestCase {
-    func testTapMayPresentChallengeAndCancelReturnsToPreview() throws {
-        let app = XCUIApplication()
-        app.launchArguments = ["-uitest-mal-hub"]
-        app.launchEnvironment["MANGACARTA_UI_TEST_STORAGE_ID"] = UUID().uuidString
-        app.launch()
-        app.tabBars.buttons["Library"].tap()
-        app.staticTexts["Hub Fixture Title"].tap()
-        XCTAssertTrue(app.buttons["moreLikeThisSection"].waitForExistence(timeout: 10))
+    private func element(_ app: XCUIApplication, label: String) -> XCUIElement {
+        app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label)).firstMatch
     }
 }

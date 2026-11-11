@@ -49,7 +49,7 @@ enum MALHubUITestFixture {
     }
 
     @MainActor static func registry(state: State, defaults: UserDefaults) -> SourceRegistry {
-        SourceRegistry(sources: [MALHubFixtureSourceA(), MALHubFixtureSourceB(), MALHubFixtureSourceC()],
+        SourceRegistry(sources: [MALHubFixtureSourceA(), MALHubFixtureSourceB(), MALHubFixtureSourceC(), MALHubFixtureSourceD()],
                        defaults: defaults, showAdultContent: { state.adult })
     }
 
@@ -60,10 +60,13 @@ enum MALHubUITestFixture {
             ], recommendations: [
                 recommendation(id: 1200, title: "Fixture Resolved", weight: 30),
                 recommendation(id: 1300, title: "Fixture Chooser", weight: 20),
-                recommendation(id: 1400, title: "Fixture Nowhere", weight: 10)
+                recommendation(id: 1400, title: "Fixture Nowhere", weight: 10),
+                recommendation(id: 1500, title: "Fixture Single Exact", weight: 5)
             ])
         }
-        let title = [1200: "Fixture Resolved", 1300: "Fixture Chooser", 1400: "Fixture Nowhere", 1100: "Fixture Related"][id] ?? "Fixture"
+        let titles = [1200: "Fixture Resolved", 1300: "Fixture Chooser", 1400: "Fixture Nowhere",
+                      1500: "Fixture Single Exact", 1100: "Fixture Related"]
+        let title = titles[id] ?? "Fixture"
         return detail(id: id, title: title, related: [], recommendations: [])
     }
 
@@ -106,6 +109,7 @@ private struct MALHubFixtureSourceA: MangaSource {
         if title == "Hub Fixture Title" { return [manga(id: "hub-fixture-title", title: title, malId: 1000)] }
         if title == "Fixture Resolved" && limit == 10 { return [manga(id: "resolved", title: title, malId: 1200)] }
         if title == "Fixture Chooser" && limit == 20 { return [manga(id: "chooser-a", title: title, malId: 1300)] }
+        if title == "Fixture Single Exact" && limit == 20 { return [manga(id: "single-exact", title: title, malId: 1500)] }
         return []
     }
 
@@ -126,8 +130,9 @@ private struct MALHubFixtureSourceB: MangaSource {
     let name = "Fixture Source B"
     func search(title: String, limit: Int, offset: Int) async throws -> [Manga] {
         if title == "Fixture Chooser" {
-            return [Manga(id: "chooser-b", sourceId: id, title: "Fixture Chooser Alternate",
-                          description: "", status: "ongoing", year: nil, coverURL: nil, malId: nil)]
+            return [Manga(id: "chooser-b", sourceId: id, title: "Fixture Chooser",
+                          description: "", status: "ongoing", year: nil, coverURL: nil, malId: nil,
+                          altTitles: ["Fixture Chooser Alternate"])]
         }
         return []
     }
@@ -145,6 +150,20 @@ private struct MALHubFixtureSourceC: MangaSource {
             return [Manga(id: "chooser-c", sourceId: id, title: title, description: "",
                           status: "ongoing", year: nil, coverURL: nil, malId: 1300)]
         }
+        return []
+    }
+    func mangaDetail(id: String) async throws -> MangaDetail { .init(description: "", authors: [], tags: [], contentRating: nil) }
+    func popular(limit: Int, offset: Int) async throws -> [Manga] { [] }
+    func chapters(mangaId: String) async throws -> [Chapter] { [] }
+    func pageURLs(chapterId: String, preferDataSaver: Bool) async throws -> [URL] { [] }
+}
+
+private struct MALHubFixtureSourceD: MangaSource {
+    let id = "mal-hub-fixture-d"
+    let name = "Fixture Source D"
+
+    func search(title: String, limit: Int, offset: Int) async throws -> [Manga] {
+        if title == "Fixture Chooser" { throw SourceError.unavailable("fixture search") }
         return []
     }
     func mangaDetail(id: String) async throws -> MangaDetail { .init(description: "", authors: [], tags: [], contentRating: nil) }
