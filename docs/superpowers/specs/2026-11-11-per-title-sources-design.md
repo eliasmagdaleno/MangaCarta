@@ -306,8 +306,8 @@ Each slice is its own PR, never stacked (stacked PRs here close when their base 
 
 ## Open questions for the owner
 
-1. **Remove asks why.** Two choices, "same title" and "different title", rather than one Remove that
-   always keeps progress. *Recommended:* ask. One silent default is wrong for one of the two cases, and a
+1. **Remove asks why. Decided 2026-11-11 (owner): ask.** Two choices, "same title" and "different
+   title", rather than one Remove that always keeps progress. *Recommended:* ask. One silent default is wrong for one of the two cases, and a
    wrong match carrying its reads into the right title is the kind of corruption ADR-0005 exists to
    prevent.
 2. **Picking a copy that belongs to another title with other copies.** Offer both "Combine the titles" and
