@@ -56,7 +56,7 @@ final class MALHubUITests: XCTestCase {
         XCTAssertTrue(card.waitForExistence(timeout: 10))
         card.tap()
         app.buttons["Read on…"].tap()
-        XCTAssertTrue(app.navigationBars.buttons.firstMatch.waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["Read on…"].waitForExistence(timeout: 2))
         attach(app, name: "mal-hub-single-exact-open")
     }
 
@@ -70,8 +70,8 @@ final class MALHubUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Fixture Source A"].waitForExistence(timeout: 10))
         app.descendants(matching: .any)
             .matching(NSPredicate(format: "label CONTAINS %@", "Possible match")).firstMatch.tap()
-        XCTAssertTrue(app.navigationBars.buttons.firstMatch.waitForExistence(timeout: 10))
-        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(app.buttons["BackButton"].waitForExistence(timeout: 10))
+        app.buttons["BackButton"].tap()
         card.tap()
         XCTAssertTrue(app.buttons["Read on…"].waitForExistence(timeout: 10))
         app.buttons["Source"].tap()
