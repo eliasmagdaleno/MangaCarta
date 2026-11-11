@@ -99,6 +99,7 @@
 		C787921F18536A8B3B41024D /* SourceDeclarationValidatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 766B1DFB618998085A56F4AF /* SourceDeclarationValidatorTests.swift */; };
 		C9E1E195A32E02CF5BFF06B1 /* ExtensionDomainSchemaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55A2DC23BFF7D4B3B4BF19B5 /* ExtensionDomainSchemaTests.swift */; };
 		CA4FDD2D41D91CB88329FABE /* RegistryInjectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CAF4BBA9362C0353B31F45A /* RegistryInjectionTests.swift */; };
+		D0059076332999F97E5C9B8E /* MALHubCandidateRail.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0B1AB0B577FF2FC743F23BA /* MALHubCandidateRail.swift */; };
 		D0E85CEB768C2DFF64C9C144 /* ListingCountCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0E74298ED1B8A1EF38B1F1A /* ListingCountCacheTests.swift */; };
 		D304699E96B25E03493BA659 /* SourceCapabilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A3C860E87DEAC28334AADD /* SourceCapabilityTests.swift */; };
 		D4F82A4A59ADEB4914F54F25 /* MALAuthenticatedClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A3F7D58DAF1DEBCD14D548D /* MALAuthenticatedClientTests.swift */; };
@@ -210,6 +211,7 @@
 		9C6FEFC3040D33CD88650572 /* ReaderPresentationTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; path = ReaderPresentationTests.swift; sourceTree = "<group>"; };
 		9CC6FA68B64F974849A2FD5F /* RepositorySettingsViewModelTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = RepositorySettingsViewModelTests.swift; path = RepositorySettingsViewModelTests.swift; sourceTree = "<group>"; };
 		9D36FDBC6AC0513465888FAB /* ChapterRowPresentationTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = ChapterRowPresentationTests.swift; path = ChapterRowPresentationTests.swift; sourceTree = "<group>"; };
+		A0B1AB0B577FF2FC743F23BA /* MALHubCandidateRail.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = MALHubCandidateRail.swift; path = MALHubCandidateRail.swift; sourceTree = "<group>"; };
 		A7F1E11DDAC54DA6929F8EB2 /* ChapterListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChapterListView.swift; sourceTree = "<group>"; };
 		AC93D3828ABC877B7F41D12D /* MALProgressCoordinatorTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = MALProgressCoordinatorTests.swift; path = MALProgressCoordinatorTests.swift; sourceTree = "<group>"; };
 		AD1157092EA0000100CF2434 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
@@ -501,6 +503,7 @@
 				AD1157092EA0000100CF2434 /* HistoryView.swift */,
 				ADCA7E102EC7000100CF2434 /* CategoryGridView.swift */,
 				15424202EDA73FD92FCF14A8 /* MALAccountSettingsView.swift */,
+				A0B1AB0B577FF2FC743F23BA /* MALHubCandidateRail.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -657,6 +660,7 @@
 				AD1157092EA0000200CF2434 /* HistoryView.swift in Sources */,
 				ADCA7E112EC7000100CF2434 /* CategoryGridView.swift in Sources */,
 				FEEF41F1552E366A45493038 /* MALAccountSettingsView.swift in Sources */,
+				D0059076332999F97E5C9B8E /* MALHubCandidateRail.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

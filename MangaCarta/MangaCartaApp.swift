@@ -62,6 +62,7 @@ struct MangaCartaApp: App {
     private let extensionStorageError: String?
     private let imageCache: ImageCache
     private let malDetailStore: MALDetailStore
+    private let malSourceChoiceStore: MALSourceChoiceStore
 
     /// The graph itself lives in `AppComposition`, where it can be built against temp
     /// storage and asserted on. This initializer does nothing but adopt what it built.
@@ -148,6 +149,7 @@ struct MangaCartaApp: App {
         self.extensionStorageError = composed.extensionStorageError
         self.imageCache = composed.imageCache
         self.malDetailStore = composed.malDetailStore
+        self.malSourceChoiceStore = composed.malSourceChoiceStore
         _library = StateObject(wrappedValue: composed.library)
         _history = StateObject(wrappedValue: composed.history)
         _taste = StateObject(wrappedValue: composed.taste)
@@ -203,6 +205,7 @@ struct MangaCartaApp: App {
                 .environment(\.extensionStorageError, extensionStorageError)
                 .environment(\.imageCache, imageCache)
                 .environment(\.malDetailStore, malDetailStore)
+                .environment(\.malSourceChoiceStore, malSourceChoiceStore)
                 .sheet(isPresented: $notificationPrompt.isPresented,
                        onDismiss: notificationPrompt.dismissed) {
                     NotificationExplainerSheet(
