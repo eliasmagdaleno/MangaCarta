@@ -68,6 +68,23 @@ final class MALDetailStoreTests: XCTestCase {
         XCTAssertNil(loaded?.nsfw)
     }
 
+    func testRecordWithoutAlternativeTitlesStillDecodes() throws {
+        let json = """
+        {"id":42,"title":"Berserk","synopsis":null,"main_picture":null,"genres":null,
+         "related_manga":null,"recommendations":null,"nsfw":"white"}
+        """.data(using: .utf8)!
+        let value = try decoder.decode(MyAnimeListMangaDetail.self, from: json)
+        XCTAssertNil(value.alternativeTitles)
+        XCTAssertEqual(value.allTitles, ["Berserk"])
+
+        let withTitles = MyAnimeListMangaDetail(id: 42, title: "  Main ", synopsis: nil,
+                                                 mainPicture: nil, genres: nil, relatedManga: nil,
+                                                 recommendations: nil, alternativeTitles: .init(
+                                                    synonyms: ["Main", " Synonym "],
+                                                    en: "English", ja: " Japanese "))
+        XCTAssertEqual(withTitles.allTitles, ["Main", "English", "Japanese", "Synonym"])
+    }
+
     func testFreshEntryAvoidsFetchWithin24Hours() async {
         let store = MALDetailStore(directory: makeTestDirectory(#function))
         let value = detail()
