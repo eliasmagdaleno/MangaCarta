@@ -34,6 +34,11 @@ struct ListingKey: Hashable, Codable {
     }
 }
 
+struct RemovedListing: Codable, Equatable, Hashable {
+    let key: ListingKey
+    let keepsReadState: Bool
+}
+
 /// The ids metadata providers assign to a Work. Modelled as a struct rather than a
 /// dictionary because the set is small, closed, and typed (`mal` is an `Int`), and
 /// adding a provider is an ADR-level event rather than a runtime one.
@@ -121,9 +126,36 @@ struct Work: Codable, Identifiable {
     var knownTitles: [String]
     var externalIds: ExternalIDs
     var listings: [ListingKey]
+    var removedListings: [RemovedListing] = []
+    var handLinkedListings: [ListingKey] = []
     /// `nil` until anything is known — a Work minted from a scraped source with no
     /// external id is legitimately metadata-less until resolution reaches it.
     var snapshot: MetadataSnapshot?
+
+    init(id: WorkID, displayTitle: String, knownTitles: [String], externalIds: ExternalIDs,
+         listings: [ListingKey], removedListings: [RemovedListing] = [],
+         handLinkedListings: [ListingKey] = [], snapshot: MetadataSnapshot? = nil) {
+        self.id = id; self.displayTitle = displayTitle; self.knownTitles = knownTitles
+        self.externalIds = externalIds; self.listings = listings
+        self.removedListings = removedListings; self.handLinkedListings = handLinkedListings
+        self.snapshot = snapshot
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, displayTitle, knownTitles, externalIds, listings, removedListings, handLinkedListings, snapshot
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(WorkID.self, forKey: .id)
+        displayTitle = try c.decode(String.self, forKey: .displayTitle)
+        knownTitles = try c.decode([String].self, forKey: .knownTitles)
+        externalIds = try c.decode(ExternalIDs.self, forKey: .externalIds)
+        listings = try c.decode([ListingKey].self, forKey: .listings)
+        removedListings = try c.decodeIfPresent([RemovedListing].self, forKey: .removedListings) ?? []
+        handLinkedListings = try c.decodeIfPresent([ListingKey].self, forKey: .handLinkedListings) ?? []
+        snapshot = try c.decodeIfPresent(MetadataSnapshot.self, forKey: .snapshot)
+    }
 
     /// Adds a title if it's new, preserving order. Blank titles are ignored.
     mutating func noteTitle(_ title: String) {
