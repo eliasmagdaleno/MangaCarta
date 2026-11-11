@@ -132,7 +132,15 @@ decompressor inside another software package and handling RAR archives, while fo
 RAR compressor. MangaCarta does not create or edit archives. Settings → About → Acknowledgements
 must include the MIT notice for `Unrar.swift` and the complete UnRAR legal paragraph/licence
 text, with links to the two upstream sources; the app must not imply that RAR creation is
-supported. Legal review remains an owner question below.
+supported. Confirmed and made exact by the 2026-11-10 research
+(`docs/superpowers/research/2026-11-09-unrar-licence-and-analytics-consent.md`, A1–A3):
+- **UnRAR `license.txt` paragraph 2, verbatim**, starting from "UnRAR source code". The copy vendored
+  in `Unrar.swift` 0.5.4 is **modified**, which is what brings in this attribution condition.
+- The readme's sentence that the code "may not be used to develop a RAR (WinRAR) compatible
+  archiver".
+- The **Intel BSD notice** carried in the UnRAR sources, as well as the `Unrar.swift` MIT notice.
+- Because this repository is public, the same paragraph 2 also goes in a comment at the top of
+  `RARArchiveReader.swift`. Legal review remains an owner question below.
 
 The package declares Swift tools 5.3 and uses a C++11 target; the wrapper contains no Swift 6
 language requirement. It is therefore source-compatible with the project's Xcode 16.4 / Swift
