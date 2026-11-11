@@ -5,7 +5,10 @@ import Testing
 @MainActor @Suite("MALHubResolutionTests")
 struct MALHubResolutionTests {
     @Test func testExactIdOpensDirectly() async {
-        let source = FakeMALSource(id: "one", results: [manga("one", source: "one", title: "Other", malId: 42)])
+        let source = FakeMALSource(id: "one", results: [
+            manga("wrong", source: "one", title: "MAL", malId: 7),
+            manga("one", source: "one", title: "Other", malId: 42),
+        ])
         let resolver = makeResolver(sources: [source])
         let result = await resolver.resolve(candidate: candidate(42, title: "MAL"))
         guard case .open(let value) = result else { Issue.record("expected direct open"); return }
