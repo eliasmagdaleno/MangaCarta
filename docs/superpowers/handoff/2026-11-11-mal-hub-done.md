@@ -41,24 +41,17 @@ safe to drop. Leave `.worktrees/device-build`, the uncommitted `.cbz` UTI fix, a
    plus ADR-0005 Amendment 2 and a glossary entry. Build it as its three slices (model, Add, Remove), one PR
    each, never stacked, once #388 merges. Library-wide switching to another Source (Paperback's "Migrate") is
    the owner's item 3, and it gets its own design afterwards.
-1. **Owner question still open:**
-   - **Remembered choices** (MAL-hub design, open question 3) are settled: they stay on the preview, with no
-     Settings list. The per-title Sources design records it the same way. Mark open question 3 decided in the
-     MAL-hub design when next touching it.
-   - **Analytics:** "Should analytics send nothing until the reader taps 'OK' on the first-launch card, in every
-     region?" See item 2.
-2. **Analytics.** Worktree `spec-analytics`, revised design committed at `3f6f80f`, not pushed and with no PR.
-   Recommend yes to the question above. Apple's Guideline 5.1.1(ii) requires consent "even if such data is considered
-   to be anonymous", and it applies everywhere. Keep the EU, EEA and UK as a real "Share" / "Not now" opt-in. Then
-   fold the research's corrections into the design (on `main` as #383):
-   - Switzerland moves to opt-out (TCA 45c), unless reading histories count as high-risk profiling;
-   - Device ID becomes **Linked: Yes**;
-   - neither the CNIL nor the ICO consent-free stream is available with a persistent id and 12-month raw
-     retention;
-   - the UnRAR attribution note goes into the local-formats design's dependency section.
-
-   Then open its docs PR. The analytics `mlt_opened` hook hangs off the slice 3 rails, now on `main` (analytics
-   design §11.1).
+1. **Remembered choices** (MAL-hub design, open question 3) are settled: they stay on the preview, with no
+   Settings list. The per-title Sources design records it the same way. Mark open question 3 decided in the
+   MAL-hub design when next touching it.
+2. **Analytics: consent first, everywhere** (owner, 2026-11-11). The design is revised in PR #389 (branch
+   `eliasmagdaleno/spec-analytics`, worktree `~/orca/workspaces/Manga-Reader/spec-analytics`). It folds in the
+   #383 research: Switzerland gets the informing card, Device ID is Linked: Yes, there's no CNIL/ICO
+   consent-free stream, and the UnRAR attribution goes in the local-formats design. `PRODUCT.md` records the
+   decision. Its remaining open questions (1, 4–9: provider, retention, export, `source_installed`, adult
+   purge, legal review, Related opens) still need the owner, and each has a recommended answer. The
+   `mlt_opened` hook hangs off the slice 3 rails, which are now on `main` (analytics design §11.1). After
+   #389 merges, remove that worktree and its branch.
 3. **Item 12, per-Source refresh cadence:** still blocked on measured device data. Don't guess.
 
 The rest of the feature queue is specced and on `main`:
