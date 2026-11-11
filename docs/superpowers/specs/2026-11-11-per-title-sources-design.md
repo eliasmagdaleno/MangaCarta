@@ -1,7 +1,7 @@
 # Per-title Sources: add a Source, remove a Source — Design
 
 **Date:** 2026-11-11
-**Status:** Proposed. The owner asked for items 1–2 on 2026-11-11 ("similarly to Paperback without copying
+**Status:** Accepted, owner sign-off 2026-11-11 (both open questions decided). The owner asked for items 1–2 on 2026-11-11 ("similarly to Paperback without copying
 them outright"). Library-wide switching (item 3) is a separate design that comes after this one.
 **Slug:** `per-title-sources`
 
@@ -310,6 +310,7 @@ Each slice is its own PR, never stacked (stacked PRs here close when their base 
    title", rather than one Remove that always keeps progress. *Recommended:* ask. One silent default is wrong for one of the two cases, and a
    wrong match carrying its reads into the right title is the kind of corruption ADR-0005 exists to
    prevent.
-2. **Picking a copy that belongs to another title with other copies.** Offer both "Combine the titles" and
+2. **Picking a copy that belongs to another title with other copies. Decided 2026-11-11 (owner): offer
+   both.** Offer both "Combine the titles" and
    "Move just this copy"? *Recommended:* offer both, with Combine first. It is the rare case, and each
    choice is wrong for someone.
