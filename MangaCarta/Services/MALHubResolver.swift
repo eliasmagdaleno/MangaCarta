@@ -82,6 +82,26 @@ private final class MALHubSearchCompletion: @unchecked Sendable {
     }
 }
 
+private final class MALHubWatchdogBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: Task<Void, Error>?
+    private var cancelled = false
+
+    func set(_ task: Task<Void, Error>) {
+        lock.lock()
+        value = task
+        if cancelled { task.cancel() }
+        lock.unlock()
+    }
+
+    func cancel() {
+        lock.lock()
+        cancelled = true
+        value?.cancel()
+        lock.unlock()
+    }
+}
+
 @MainActor
 final class MALHubResolver {
     private let registry: SourceRegistry
@@ -233,12 +253,15 @@ final class MALHubResolver {
         await limiter.acquire()
         defer { Task { await limiter.release() } }
         let completion = MALHubSearchCompletion()
+        let watchdogBox = MALHubWatchdogBox()
         let work = Task {
             do {
                 let value = try await source.search(title: title, limit: 20, offset: 0)
                 completion.resume(with: .success(value))
+                watchdogBox.cancel()
             } catch {
                 completion.resume(with: .failure(error))
+                watchdogBox.cancel()
             }
         }
         let watchdog = Task {
@@ -255,6 +278,7 @@ final class MALHubResolver {
                 }
             }
         }
+        watchdogBox.set(watchdog)
         return try await withTaskCancellationHandler(operation: {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[Manga], Error>) in
                 completion.install(continuation)
