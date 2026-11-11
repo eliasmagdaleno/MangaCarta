@@ -5,12 +5,14 @@ import Testing
 @MainActor @Suite("MALHubResolutionTests")
 struct MALHubResolutionTests {
     @Test func testExactIdOpensDirectly() async {
-        let source = FakeMALSource(id: "one", results: [
+        let source = FakeMALSource(id: "one", pages: [[
             manga("wrong", source: "one", title: "MAL", malId: 7),
+        ], [
             manga("one", source: "one", title: "Other", malId: 42),
-        ])
+        ]])
         let resolver = makeResolver(sources: [source])
-        let result = await resolver.resolve(candidate: candidate(42, title: "MAL"))
+        let result = await resolver.resolve(candidate: candidate(42, title: "MAL"),
+                                             detail: makeDetail(title: "MAL", alternatives: ["Alias"]))
         guard case .open(let value) = result else { Issue.record("expected direct open"); return }
         #expect(value.malId == 42)
     }
@@ -249,16 +251,17 @@ private struct FakeMALSource: MangaSource, @unchecked Sendable {
     var name: String { id }
     var isNSFW: Bool
     let results: [Manga]
+    let pages: [[Manga]]
     let delay: TimeInterval
     let error: Error?
     let detailError: Error?
     let detailRating: String?
     let recorder: SearchRecorder
 
-    init(id: String, results: [Manga] = [], isNSFW: Bool = false, delay: TimeInterval = 0,
+    init(id: String, results: [Manga] = [], pages: [[Manga]] = [], isNSFW: Bool = false, delay: TimeInterval = 0,
          error: Error? = nil, detailError: Error? = nil, detailRating: String? = nil,
          recorder: SearchRecorder = SearchRecorder()) {
-        self.id = id; self.results = results; self.isNSFW = isNSFW; self.delay = delay
+        self.id = id; self.results = results; self.pages = pages; self.isNSFW = isNSFW; self.delay = delay
         self.error = error; self.detailError = detailError; self.detailRating = detailRating
         self.recorder = recorder
     }
@@ -269,7 +272,8 @@ private struct FakeMALSource: MangaSource, @unchecked Sendable {
             if delay > 0 { try await Task.sleep(for: .seconds(delay)) }
             if let error { throw error }
             await recorder.end()
-            return results
+            let index = (await recorder.calls(for: id)) - 1
+            return pages.isEmpty ? results : pages[min(index, pages.count - 1)]
         } catch {
             if Task.isCancelled { await recorder.cancellation() } else { await recorder.end() }
             throw error
