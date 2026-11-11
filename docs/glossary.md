@@ -82,6 +82,11 @@ Currently MangaDex-only.
 resolution declined to guess. Authoritative and never cache-evicted — see
 [ADR-0005](adr/0005-manual-link-override.md).
 
+**Removed Listing** — a Listing the reader took off a Work with Remove a Source. It stays off: automatic
+resolution never links it back. Its history is kept. If the reader said it was the same title, it is a
+**retired** Listing, and its reads still count toward the Work's read state; otherwise they don't. See
+[ADR-0005](adr/0005-manual-link-override.md) Amendment 2.
+
 **Metadata provider** — a catalog the app reads Work metadata from: MyAnimeList, AniList. Not a
 Source: a provider tells you *about* a manga, a Source *serves its pages*. AniList is preferred
 where both know a Work — better manhwa/manhua coverage, ranked tags, and its `Media.idMal` hands

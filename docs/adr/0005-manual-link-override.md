@@ -1,10 +1,32 @@
 # ADR-0005 — Resolution failures are user-correctable via a manual link override
 
-- **Status:** Accepted (2026-07-24), amended 2026-08-08 — **the decision stands, the target moved
-  and the build is blocked on a report.** See "Amendment (2026-08-08)" below
+- **Status:** Accepted (2026-07-24), amended 2026-08-08 and 2026-11-11. **Being built**: the Listing → Work
+  override is un-parked by Amendment 2, below
 - **Related:** ADR-0001 (Work vs Listing), ADR-0004 (fulfillment routing), ADR-0015 (ships the
   visibility half of this decision for the total-failure case, and names this ADR as its first
   revisit trigger)
+
+## Amendment 2 (2026-11-11): the Listing → Work override is un-parked
+
+Amendment 1 parked the Listing → Work case until "a third source lands". That has happened: installed
+Sources replaced the two built-in ones (ADR-0003 Amendment 6). The owner has also asked for it, on
+2026-11-11, as per-title Add a Source / Remove a Source. It is designed in
+`docs/superpowers/specs/2026-11-11-per-title-sources-design.md`. Four decisions there belong to this ADR:
+
+- **The override lives on the Work, in `works.json`.** It isn't a separate store. The Work records the
+  Listings the reader added by hand and the Listings the reader removed. `works.json` is authoritative
+  user data, not a cache, which meets "never evicted".
+- **A removal is sticky and keeps ADR-0008's invariant.** A removed Listing is never relinked
+  automatically. If the reader commits to it again, it mints its own Work, which doesn't take an external
+  id owned by a Work that removed it. So there are never two Works for one id, and nothing for the
+  load-time repair to merge.
+- **Unlinking asks why.** "Same title, unwanted copy" keeps the copy's reads counting for the Work, as a
+  retired Listing (ADR-0027's union widens to include it). "A different title" stops them counting.
+  History itself is never deleted.
+- **Local Listings are out of scope.** Local-library matching owns their link and unlink. Both features
+  use one `WorkStore` link operation.
+
+Amendment 1's Work → MAL id override is unaffected and still blocked on a report.
 
 ## Amendment (2026-08-08)
 
