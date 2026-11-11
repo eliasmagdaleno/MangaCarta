@@ -7,6 +7,7 @@ final class MALHubPreviewModel: ObservableObject {
     @Published private(set) var genres: [String] = []
     @Published private(set) var alternativeTitles: [String] = []
     @Published private(set) var nsfw: MALNSFW?
+    @Published private(set) var detail: MyAnimeListMangaDetail?
     @Published private(set) var isLoading = false
     @Published private(set) var detailsUnavailable = false
     let showAdultContent: Bool
@@ -43,6 +44,7 @@ final class MALHubPreviewModel: ObservableObject {
         guard let detail = await detailStore.detail(for: candidate.malId, fetch: fetch) else {
             detailsUnavailable = true; return
         }
+        self.detail = detail
         synopsis = detail.synopsis
         genres = detail.genres?.map(\.name) ?? []
         alternativeTitles = detail.allTitles.dropFirst().map { $0 }
