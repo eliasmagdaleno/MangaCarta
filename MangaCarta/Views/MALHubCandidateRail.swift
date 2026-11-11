@@ -3,6 +3,7 @@ import SwiftUI
 struct MALHubCandidateRail: View {
     @EnvironmentObject private var registry: SourceRegistry
     @Environment(\.malDetailStore) private var detailStore
+    @Environment(\.malDetailFetch) private var detailFetch
     @Environment(\.malSourceChoiceStore) private var choiceStore
     let candidates: [MALDiscoveryCandidate]
     let detailManga: Manga
@@ -32,7 +33,8 @@ struct MALHubCandidateRail: View {
         }
         .sheet(item: $selected) { candidate in
             MALHubPreviewView(candidate: candidate, detailStore: detailStore,
-                              choiceStore: choiceStore, registry: registry) { manga in
+                              choiceStore: choiceStore, registry: registry,
+                              fetchDetail: detailFetch) { manga in
                 selected = nil
                 opened = manga
                 openedID = manga.id
@@ -42,6 +44,24 @@ struct MALHubCandidateRail: View {
             if let opened {
                 MangaDetailView(manga: opened, registry: registry)
             }
+        }
+        .task {
+#if DEBUG
+            let arguments = ProcessInfo.processInfo.arguments
+            let requestedTitle: String?
+            if arguments.contains("-uitest-mal-hub-open-chooser") {
+                requestedTitle = "Fixture Chooser"
+            } else if arguments.contains("-uitest-mal-hub-open-notfound") {
+                requestedTitle = "Fixture Nowhere"
+            } else if arguments.contains("-uitest-mal-hub-open-preview") {
+                requestedTitle = "Fixture Chooser"
+            } else {
+                requestedTitle = nil
+            }
+            if let requestedTitle {
+                selected = candidates.first { $0.title == requestedTitle }
+            }
+#endif
         }
     }
 
@@ -67,12 +87,15 @@ struct MALHubPreviewView: View {
     @State private var resolutionTask: Task<Void, Never>?
     @State private var rememberedChoice: MALSourceChoice?
     @State private var didOpenResolution = false
+    @State private var chapterCounts: [String: Int?] = [:]
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var listingCountCache: ListingCountCache
     private let resolver: MALHubResolver
     private let open: (Manga) -> Void
 
     init(candidate: MALDiscoveryCandidate, detailStore: MALDetailStore,
          choiceStore: MALSourceChoiceStore, registry: SourceRegistry,
+         fetchDetail: @escaping @Sendable (Int) async throws -> MyAnimeListMangaDetail,
          open: @escaping (Manga) -> Void) {
         self.candidate = candidate
         self.detailStore = detailStore
@@ -82,7 +105,7 @@ struct MALHubPreviewView: View {
         let showAdultContent = AdultContentSetting.current()
         _model = StateObject(wrappedValue: MALHubPreviewModel(
             candidate: candidate, detailStore: detailStore,
-            showAdultContent: showAdultContent))
+            showAdultContent: showAdultContent, fetch: fetchDetail))
         resolver = MALHubResolver(registry: registry, store: choiceStore,
                                   showAdultContent: showAdultContent)
     }
@@ -95,7 +118,7 @@ struct MALHubPreviewView: View {
                         if case .success(let image) = phase {
                             image.resizable().scaledToFit()
                         } else {
-                            CoverPlaceholder(showsSpinner: model.isLoading)
+                            CoverPlaceholder(showsSpinner: model.isLoading && model.coverURL != nil)
                         }
                     }
                     .frame(maxWidth: 180, maxHeight: 260)
@@ -163,8 +186,22 @@ struct MALHubPreviewView: View {
                     }
                 }
             }
-            .task { await model.load() }
+            .task {
+                await model.load()
+#if DEBUG
+                let arguments = ProcessInfo.processInfo.arguments
+                if arguments.contains("-uitest-mal-hub-open-chooser") ||
+                    arguments.contains("-uitest-mal-hub-open-notfound") {
+                    resolve()
+                }
+#endif
+            }
             .task { rememberedChoice = await choiceStore.choice(for: candidate.malId) }
+            .task(id: resolution) {
+                guard case .chooser(let groups) = resolution else { return }
+                let loader = MALHubChapterCountLoader(registry: registry, cache: listingCountCache)
+                chapterCounts = await loader.load(groups)
+            }
             .onDisappear {
                 cancelResolution()
                 resolution = nil
@@ -206,7 +243,7 @@ struct MALHubPreviewView: View {
                             open(choice.manga)
                         }
                     } label: {
-                        chooserRow(choice)
+                        chooserRow(choice, count: chapterCounts[choice.manga.id] ?? nil)
                     }
                     .buttonStyle(.bordered)
                     .accessibilityElement(children: .combine)
@@ -240,7 +277,7 @@ struct MALHubPreviewView: View {
         isResolving = false
     }
 
-    private func chooserRow(_ choice: MALHubChoice) -> some View {
+    private func chooserRow(_ choice: MALHubChoice, count: Int?) -> some View {
         HStack(alignment: .top, spacing: 10) {
             CachedAsyncImage(url: choice.manga.coverURL) { phase in
                 if case .success(let image) = phase {
@@ -264,6 +301,9 @@ struct MALHubPreviewView: View {
                 Label(choice.kind == .exact ? "Exact match" : "Possible match",
                       systemImage: choice.kind == .exact ? "checkmark.seal" : "questionmark")
                     .font(.footnote.weight(.semibold))
+                    .foregroundStyle(Ink.secondary)
+                Text(count.map { "\($0) chapters" } ?? "Chapter count unknown")
+                    .font(.footnote)
                     .foregroundStyle(Ink.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)

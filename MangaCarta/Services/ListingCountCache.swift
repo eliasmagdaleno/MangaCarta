@@ -11,10 +11,10 @@
 //  in Application Support.
 //
 
-import Foundation
+import SwiftUI
 
 @MainActor
-final class ListingCountCache {
+final class ListingCountCache: ObservableObject {
 
     /// One entry: what we counted, and when. The timestamp is the whole reason this
     /// is a struct rather than a bare `Int`.

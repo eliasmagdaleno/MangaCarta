@@ -65,6 +65,7 @@ struct MangaCartaApp: App {
     private let malSourceChoiceStore: MALSourceChoiceStore
     private let malDetailFetch: @Sendable (Int) async throws -> MyAnimeListMangaDetail
     private let entityResolutionStore: EntityResolutionStore
+    private let listingCountCache: ListingCountCache
 
     // The graph itself lives in `AppComposition`, where it can be built against temp
     // storage and asserted on. This initializer does nothing but adopt what it built.
@@ -178,6 +179,7 @@ struct MangaCartaApp: App {
         self.malSourceChoiceStore = composed.malSourceChoiceStore
         self.malDetailFetch = composed.malDetailFetch
         self.entityResolutionStore = composed.entityResolutionStore
+        self.listingCountCache = composed.listingCounts
         _library = StateObject(wrappedValue: composed.library)
         _history = StateObject(wrappedValue: composed.history)
         _taste = StateObject(wrappedValue: composed.taste)
@@ -236,6 +238,7 @@ struct MangaCartaApp: App {
                 .environment(\.malSourceChoiceStore, malSourceChoiceStore)
                 .environment(\.malDetailFetch, malDetailFetch)
                 .environment(\.entityResolutionStore, entityResolutionStore)
+                .environmentObject(listingCountCache)
                 .sheet(isPresented: $notificationPrompt.isPresented,
                        onDismiss: notificationPrompt.dismissed) {
                     NotificationExplainerSheet(

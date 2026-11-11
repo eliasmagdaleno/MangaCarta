@@ -75,6 +75,7 @@ extension EnvironmentValues {
         get { self[EntityResolutionStoreEnvironmentKey.self] }
         set { self[EntityResolutionStoreEnvironmentKey.self] = newValue }
     }
+
 }
 
 /// The app-wide stores, the upgrade queue and the recommendation engine, wired together.
