@@ -593,6 +593,171 @@ final class WorkStoreTests: XCTestCase {
         XCTAssertEqual(store.noteTitles(["Kami no Tou"], on: loser), store.work(winner)?.knownTitles.count)
         XCTAssertTrue(store.work(winner)?.knownTitles.contains("Kami no Tou") == true)
     }
+
+    @MainActor func testRemovingWorkStillLearnsExternalIds() {
+        let store = makeStore()
+        let first = listing("a", title: "A", malId: 1)
+        let second = listing("b", source: "other", title: "B", malId: 1)
+        let id = store.mint(from: first); _ = store.mint(from: second)
+        XCTAssertEqual(store.removeListing(ListingKey(second), from: id, keepingReadState: false), .removed)
+        store.setExternalIds(ExternalIDs(mal: nil, anilist: 7), on: id)
+        XCTAssertEqual(store.work(id)?.externalIds.anilist, 7)
+    }
+
+    @MainActor func testReMintedRemovedListingDoesNotTakeRemoverIdViaSetExternalIds() {
+        let store = makeStore(); let removed = listing("a", title: "A", malId: 1)
+        let other = listing("b", source: "other", title: "B", malId: 1)
+        let remover = store.mint(from: removed); _ = store.mint(from: other)
+        XCTAssertEqual(store.removeListing(ListingKey(other), from: remover, keepingReadState: false), .removed)
+        let reminted = store.mint(from: other)
+        store.setExternalIds(ExternalIDs(mal: 9, anilist: nil), on: reminted)
+        XCTAssertNotEqual(store.workId(externalId: ExternalIDs(mal: 9, anilist: nil)), remover)
+    }
+
+    @MainActor func testReMintedRemovedListingKeepsUnownedIds() {
+        let store = makeStore(); let removed = listing("a", title: "A", malId: 1)
+        let other = listing("b", source: "other", title: "B", malId: 1)
+        let remover = store.mint(from: removed); _ = store.mint(from: other)
+        XCTAssertEqual(store.removeListing(ListingKey(other), from: remover, keepingReadState: false), .removed)
+        let reminted = store.mint(from: other)
+        store.setExternalIds(ExternalIDs(mal: nil, anilist: 99), on: reminted)
+        XCTAssertEqual(store.work(reminted)?.externalIds.anilist, 99)
+    }
+
+    @MainActor func testAddListingWhoseMalIdIsOwnedElsewhereReportsOtherWork() {
+        let store = makeStore(); let target = store.mint(from: listing("a"))
+        let owner = store.mint(from: listing("b", source: "other", malId: 4))
+        let result = store.addListing(listing("c", source: "third", malId: 4), to: target, recordExternalIds: true)
+        XCTAssertEqual(result, .belongsToOtherWork(owner)); XCTAssertEqual(store.work(target)?.listings.count, 1)
+    }
+
+    @MainActor func testAddListingToMissingWork() {
+        let store = makeStore()
+        XCTAssertEqual(store.addListing(listing("a"), to: WorkID(), recordExternalIds: true), .workNotFound)
+    }
+
+    @MainActor func testCombineLiftsRemovalAndMerges() async {
+        let store = makeStore(); let a = listing("a"); let b = listing("b", source: "other")
+        let first = store.mint(from: a); let second = store.mint(from: b)
+        XCTAssertTrue(store.merge(second, into: first)); XCTAssertEqual(store.work(first)?.listings.count, 2)
+    }
+
+    @MainActor func testCombineKeepsOneLibraryItemFoundByAnyListing() async {
+        let defaults = UserDefaults(suiteName: "WorkStoreCombine-\(UUID().uuidString)")!
+        let directory = makeTestDirectory("WorkStoreCombine")
+        let store = WorkStore(directory: directory); let a = listing("a"); let b = listing("b", source: "other")
+        let first = store.mint(from: a); let second = store.mint(from: b)
+        let library = LibraryStore(defaults: defaults, works: store)
+        library.toggle(a); library.toggle(b)
+        library.setCollections(for: b, collectionIds: [LibraryCollection.readingID, "other"])
+        let registry = SourceRegistry(sources: [], defaults: defaults)
+        let preferences = SourcePreferenceStore(defaults: defaults, works: store)
+        let counts = ListingCountCache(directory: directory)
+        let fulfillment = FulfillmentCoordinator(works: store, registry: registry, counts: counts,
+                                                 preferences: preferences)
+        let coordinator = WorkSourcesCoordinator(works: store, preferences: preferences, fulfillment: fulfillment,
+                                                 library: library, malChoices: MALSourceChoiceStore(directory: directory),
+                                                 updates: UpdateStateStore(directory: directory, works: store))
+        await coordinator.combine(second, into: first)
+        XCTAssertEqual(library.items.count, 1)
+        XCTAssertTrue(library.item(for: ListingKey(a))?.collectionIds.contains("other") == true)
+    }
+
+    @MainActor func testOldWorksJSONWithoutPerTitleFieldsDecodes() throws {
+        let directory = makeTestDirectory("WorkStoreJSON-\(UUID().uuidString)")
+        let store = WorkStore(directory: directory); let id = store.mint(from: listing("a")); store.flush()
+        let url = directory.appendingPathComponent("works.json")
+        guard var object = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any],
+              var works = object["works"] as? [[String: Any]] else {
+            XCTFail("works.json should contain the persisted works")
+            return
+        }
+        works[0].removeValue(forKey: "removedListings")
+        works[0].removeValue(forKey: "handLinkedListings")
+        object["works"] = works; try JSONSerialization.data(withJSONObject: object).write(to: url)
+        let reloaded = WorkStore(directory: directory); XCTAssertEqual(reloaded.work(id)?.removedListings, [])
+    }
+
+    @MainActor func testAddThenRemoveListingKeepingReadState() {
+        let store = makeStore()
+        let a = listing("a", malId: 1); let b = listing("b", source: "other", malId: 1)
+        let id = store.mint(from: a); _ = store.mint(from: b)
+        XCTAssertEqual(store.removeListing(ListingKey(b), from: id, keepingReadState: true), .removed)
+        XCTAssertEqual(store.retiredListings(of: id), [ListingKey(b)])
+    }
+
+    @MainActor func testAddThenRemoveListingDroppingReadState() {
+        let store = makeStore(); let a = listing("a", malId: 1); let b = listing("b", source: "other", malId: 1)
+        let id = store.mint(from: a); _ = store.mint(from: b)
+        XCTAssertEqual(store.removeListing(ListingKey(b), from: id, keepingReadState: false), .removed)
+        XCTAssertEqual(store.retiredListings(of: id), [])
+    }
+
+    @MainActor func testRemovedListingIsNotRelinkedByMint() {
+        let store = makeStore(); let a = listing("a", malId: 1); let b = listing("b", source: "other", malId: 1)
+        let id = store.mint(from: a); _ = store.mint(from: b); _ = store.removeListing(ListingKey(b), from: id, keepingReadState: true)
+        XCTAssertNotEqual(store.mint(from: b), id)
+    }
+
+    @MainActor func testReMintedRemovedListingGetsOwnWorkWithoutRemoverMALId() {
+        let store = makeStore(); let a = listing("a", malId: 1); let b = listing("b", source: "other", malId: 1)
+        let id = store.mint(from: a); _ = store.mint(from: b); _ = store.removeListing(ListingKey(b), from: id, keepingReadState: true)
+        let reminted = store.mint(from: b)
+        XCTAssertNotEqual(reminted, id); XCTAssertNil(store.work(reminted)?.externalIds.mal)
+    }
+
+    @MainActor func testReloadAfterRemovedListingKeepsWorksApart() {
+        let directory = makeTestDirectory("WorkReload-\(UUID().uuidString)"); let store = WorkStore(directory: directory)
+        let a = listing("a", malId: 1); let b = listing("b", source: "other", malId: 1)
+        let id = store.mint(from: a); _ = store.mint(from: b)
+        _ = store.removeListing(ListingKey(b), from: id, keepingReadState: true)
+        let reminted = store.mint(from: b); store.flush()
+        let reloaded = WorkStore(directory: directory)
+        XCTAssertNotEqual(reloaded.work(reminted)?.id, reloaded.work(id)?.id)
+    }
+
+    @MainActor func testAddListingLiftsRemoval() {
+        let store = makeStore(); let a = listing("a", malId: 1); let b = listing("b", source: "other", malId: 1)
+        let id = store.mint(from: a); _ = store.mint(from: b); _ = store.removeListing(ListingKey(b), from: id, keepingReadState: true)
+        XCTAssertEqual(store.addListing(b, to: id, recordExternalIds: false), .added)
+        XCTAssertTrue(store.work(id)?.listings.contains(ListingKey(b)) == true)
+    }
+
+    @MainActor func testAddListingBelongsToOtherWorkChangesNothing() {
+        let store = makeStore(); let a = listing("a"); let b = listing("b", source: "other")
+        let first = store.mint(from: a); let second = store.mint(from: b)
+        XCTAssertEqual(store.addListing(b, to: first, recordExternalIds: false), .belongsToOtherWork(second))
+        XCTAssertEqual(store.work(first)?.listings, [ListingKey(a)])
+    }
+
+    @MainActor func testAddListingDifferentMALRecordsNothing() {
+        let store = makeStore(); let a = listing("a", malId: 1); let b = listing("b", source: "other", malId: 2)
+        let id = store.mint(from: a); let other = store.mint(from: b)
+        XCTAssertEqual(store.addListing(b, to: id, recordExternalIds: true), .belongsToOtherWork(other))
+        XCTAssertEqual(store.work(id)?.externalIds.mal, 1)
+    }
+
+    @MainActor func testMergeUnionsRemovedAndHandLinkedListings() {
+        let store = makeStore()
+        let a = listing("a", malId: 1); let b = listing("b", source: "other", malId: 1)
+        let c = listing("c", source: "third"); let d = listing("d", source: "fourth")
+        let first = store.mint(from: a); _ = store.mint(from: b)
+        _ = store.removeListing(ListingKey(b), from: first, keepingReadState: true)
+        let second = store.mint(from: c); XCTAssertEqual(store.addListing(d, to: second, recordExternalIds: false), .added)
+        XCTAssertTrue(store.merge(second, into: first)); let merged = store.work(first)
+        XCTAssertTrue(merged?.removedListings.contains(where: { $0.key == ListingKey(b) }) == true)
+        XCTAssertTrue(merged?.handLinkedListings.contains(ListingKey(d)) == true)
+    }
+
+    @MainActor func testRemovingLastListingRefused() {
+        let store = makeStore(); let a = listing("a"); let id = store.mint(from: a)
+        XCTAssertEqual(store.removeListing(ListingKey(a), from: id, keepingReadState: true), .refusedLastListing)
+    }
+
+    @MainActor func testRemovingLocalListingRefused() {
+        let store = makeStore(); let a = listing("a", source: LocalSource.sourceID); let id = store.mint(from: a)
+        XCTAssertEqual(store.removeListing(ListingKey(a), from: id, keepingReadState: true), .refusedLocal)
+    }
 }
 
 // MARK: - On-disk fixture

@@ -37,11 +37,22 @@ final class WorkSourcesCoordinator: ObservableObject {
     }
 
     func combine(_ other: WorkID, into work: WorkID) async {
-        let oldItems = works.work(other)?.listings ?? []
-        let survivorListing = fulfillment.chosenListing(for: work)
-        works.merge(other, into: work)
-        if let survivorListing {
-            for key in oldItems { library.mergeItems(from: key, into: survivorListing) }
+        guard let survivor = works.work(work), let losing = works.work(other) else { return }
+        for key in survivor.listings where losing.removedListings.contains(where: { $0.key == key }) {
+            works.liftRemoval(key, on: other)
+        }
+        for key in losing.listings where survivor.removedListings.contains(where: { $0.key == key }) {
+            works.liftRemoval(key, on: work)
+        }
+        guard works.merge(other, into: work) else { return }
+        let merged = works.work(work)
+        let survivorKey = merged?.listings.first(where: { library.item(for: $0) != nil })
+        let otherKey = losing.listings.first(where: { library.item(for: $0) != nil })
+        if let survivorKey, let otherKey {
+            library.mergeItems(from: otherKey, into: survivorKey)
+        } else if survivorKey == nil, let otherKey,
+                  let replacement = fulfillment.chosenListing(for: work) {
+            library.repointItem(from: otherKey, to: replacement)
         }
         await fulfillment.reconcile(work)
     }

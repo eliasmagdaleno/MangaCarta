@@ -14,7 +14,7 @@ import Foundation
 
 @MainActor
 final class WorkStore: ObservableObject {
-    enum AddListingResult: Equatable { case added, alreadyLinked, belongsToOtherWork(WorkID) }
+    enum AddListingResult: Equatable { case added, alreadyLinked, belongsToOtherWork(WorkID), workNotFound }
     enum RemoveListingResult: Equatable { case removed, refusedLastListing, refusedLocal, notFound }
     private var works: [WorkID: Work] = [:]
     private var listingIndex: [ListingKey: WorkID] = [:]
@@ -85,10 +85,13 @@ final class WorkStore: ObservableObject {
     @discardableResult
     func addListing(_ listing: Manga, to work: WorkID, recordExternalIds: Bool) -> AddListingResult {
         loadIfNeeded()
-        guard let target = resolve(work), var value = works[target] else { return .belongsToOtherWork(work) }
+        guard let target = resolve(work), var value = works[target] else { return .workNotFound }
         let key = ListingKey(listing)
         if let owner = listingIndex[key], let resolvedOwner = resolve(owner), resolvedOwner != target {
             return .belongsToOtherWork(resolvedOwner)
+        }
+        if let mal = listing.malId, let owner = externalIdIndex["mal:\(mal)"].flatMap(resolve), owner != target {
+            return .belongsToOtherWork(owner)
         }
         let wasRemoved = value.removedListings.contains(where: { $0.key == key })
         guard wasRemoved || !value.listings.contains(key) else { return .alreadyLinked }
@@ -125,6 +128,15 @@ final class WorkStore: ObservableObject {
     func retiredListings(of work: WorkID) -> [ListingKey] {
         loadIfNeeded(); guard let resolved = resolve(work), let value = works[resolved] else { return [] }
         return value.removedListings.filter(\.keepsReadState).map(\.key)
+    }
+
+    func liftRemoval(_ key: ListingKey, on work: WorkID) {
+        loadIfNeeded()
+        guard let resolved = resolve(work), var value = works[resolved] else { return }
+        guard value.removedListings.contains(where: { $0.key == key }) else { return }
+        value.removedListings.removeAll { $0.key == key }
+        works[resolved] = value
+        markDirty()
     }
 
     /// Removes one source Listing; a Work with no remaining Listings is deleted.
@@ -212,11 +224,7 @@ final class WorkStore: ObservableObject {
         }
         markDirty()
 
-        let safeIDs: ExternalIDs = {
-            guard let owner = workId(externalId: ids), let ownerWork = work(owner),
-                  ownerWork.removedListings.contains(where: { $0.key == key }) else { return ids }
-            return ExternalIDs(mal: nil, anilist: nil)
-        }()
+        let safeIDs = filteredExternalIDs(ids, for: key)
         var work = Work(id: WorkID(),
                         displayTitle: listing.title,
                         knownTitles: [],
@@ -317,8 +325,7 @@ final class WorkStore: ObservableObject {
         defer { markDirty() }
         guard let resolved = resolve(id) else { return }
         guard let value = works[resolved] else { return }
-        let blocked = value.removedListings.contains { listingIndex[$0.key] == nil }
-        absorb(blocked ? ExternalIDs(mal: nil, anilist: nil) : ids, into: resolved, title: "")
+        absorb(filteredExternalIDs(ids, for: value.listings, excluding: resolved), into: resolved, title: "")
     }
 
     /// Adds spellings to a Work's `knownTitles`, unioning with what's already there.
@@ -352,12 +359,12 @@ final class WorkStore: ObservableObject {
     /// The loser is **aliased, never erased**: its id keeps resolving to the winner
     /// forever. Cost is two ids in a dictionary; merges are rare, and the
     /// alternative — a dangling id that resolves to nil — fails silently.
-    func merge(_ loser: WorkID, into winner: WorkID) {
+    @discardableResult
+    func merge(_ loser: WorkID, into winner: WorkID) -> Bool {
         loadIfNeeded()
-        defer { markDirty() }
         guard let loserId = resolve(loser), let winnerId = resolve(winner),
               loserId != winnerId,
-              let losing = works[loserId], var surviving = works[winnerId] else { return }
+              let losing = works[loserId], var surviving = works[winnerId] else { return false }
 
         // The surviving Work keeps its own displayTitle; the loser's becomes a known
         // title. Arbitrary, but stable — and stability is the property that matters.
@@ -365,7 +372,7 @@ final class WorkStore: ObservableObject {
         for title in losing.knownTitles { surviving.noteTitle(title) }
         surviving.externalIds.absorb(losing.externalIds)
         guard !losing.removedListings.contains(where: { surviving.listings.contains($0.key) }) &&
-            !surviving.removedListings.contains(where: { losing.listings.contains($0.key) }) else { return }
+            !surviving.removedListings.contains(where: { losing.listings.contains($0.key) }) else { return false }
         for removed in losing.removedListings where !surviving.removedListings.contains(removed) {
             surviving.removedListings.append(removed)
         }
@@ -388,6 +395,8 @@ final class WorkStore: ObservableObject {
 
         for key in losing.listings { listingIndex[key] = winnerId }
         reindexExternalIds(of: winnerId)
+        markDirty()
+        return true
     }
 
     // MARK: - Private
@@ -410,6 +419,20 @@ final class WorkStore: ObservableObject {
         works[id] = work
         listingIndex[key] = id
         return true
+    }
+
+    private func filteredExternalIDs(_ ids: ExternalIDs, for key: ListingKey) -> ExternalIDs {
+        filteredExternalIDs(ids, for: [key], excluding: nil)
+    }
+
+    private func filteredExternalIDs(_ ids: ExternalIDs, for listings: [ListingKey], excluding work: WorkID?) -> ExternalIDs {
+        func allowed(_ indexKey: String) -> Bool {
+            guard let owner = externalIdIndex[indexKey].flatMap(resolve), owner != work,
+                  let ownerWork = works[owner] else { return true }
+            return !ownerWork.removedListings.contains { listings.contains($0.key) }
+        }
+        return ExternalIDs(mal: ids.mal.flatMap { allowed("mal:\($0)") ? $0 : nil },
+                           anilist: ids.anilist.flatMap { allowed("anilist:\($0)") ? $0 : nil })
     }
 
     /// Returns whether anything changed. See `link`.
