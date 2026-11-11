@@ -95,8 +95,11 @@ final class MALHubUITests: XCTestCase {
         app.buttons["BackButton"].tap()
 
         card(app, "Fixture Chooser").tap()
-        XCTAssertTrue(app.buttons["Source"].waitForExistence(timeout: 10))
-        app.buttons["Source"].tap()
+        let sourceMenu = app.buttons["Source"]
+        XCTAssertTrue(sourceMenu.waitForExistence(timeout: 10))
+        // A coordinate tap: on CI's iOS 26.2 `.tap()` first asks AX to scroll this toolbar
+        // menu button into view, which fails with kAXErrorCannotComplete (it is already visible).
+        sourceMenu.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         app.buttons["Choose another Source"].tap()
         XCTAssertTrue(app.staticTexts["Fixture Source A"].waitForExistence(timeout: 10))
         attach(app, name: "mal-hub-choose-another")
