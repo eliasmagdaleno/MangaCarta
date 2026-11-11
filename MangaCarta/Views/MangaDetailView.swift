@@ -22,9 +22,12 @@ struct MangaDetailView: View {
     @EnvironmentObject private var registry: SourceRegistry
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.imageCache) private var imageCache
+    @Environment(\.malDetailStore) private var malDetailStore
+    @Environment(\.malDetailFetch) private var malDetailFetch
+    @Environment(\.entityResolutionStore) private var entityResolutionStore
     @ScaledMetric(relativeTo: .title) private var coverWidth: CGFloat = 132
     @ScaledMetric(relativeTo: .title) private var coverHeight: CGFloat = 188
-    @StateObject private var moreLikeThis: MoreLikeThisViewModel
+    @StateObject private var malHubRails: MALHubRailsViewModel
     @State private var synopsisExpanded = false
     @State private var showingWebPage = false
     @State private var showingLocalDeleteConfirmation = false
@@ -34,7 +37,7 @@ struct MangaDetailView: View {
     init(manga: Manga, registry: SourceRegistry) {
         self.manga = manga
         _vm = StateObject(wrappedValue: MangaDetailViewModel(manga: manga))
-        _moreLikeThis = StateObject(wrappedValue: MoreLikeThisViewModel(registry: registry))
+        _malHubRails = StateObject(wrappedValue: MALHubRailsViewModel(registry: registry))
     }
 
     /// The registered source this manga came from (nil if its source was unregistered).
@@ -149,9 +152,9 @@ struct MangaDetailView: View {
                 if !vm.tags.isEmpty { tags }
                 if !vm.description.isEmpty || vm.isLoading { description }
                 chapters
-                if !moreLikeThis.items.isEmpty {
-                    moreLikeThisRail
-                } else if isUnmatchable {
+                if !malHubRails.related.isEmpty { relatedRail }
+                if !malHubRails.similar.isEmpty { moreLikeThisRail }
+                if malHubRails.related.isEmpty && malHubRails.similar.isEmpty && isUnmatchable {
                     // The empty section explains itself rather than vanishing (ADR-0005's
                     // first implied requirement). Ordered after the rail check so a title
                     // that somehow has both never shows the notice instead of results.
@@ -169,7 +172,10 @@ struct MangaDetailView: View {
         .task { await reconcileListingCounts() }
         .task { await loadLocalSize() }
         .task { mangaWebURL = try? await mangaSource?.webURL(forManga: manga.id) }
-        .task { await moreLikeThis.load(for: manga) }
+        .task {
+            await malHubRails.load(for: manga, detailStore: malDetailStore,
+                                   fetchDetail: malDetailFetch, entityStore: entityResolutionStore)
+        }
         .task { clearNewlyDiscovered() }
         .onChange(of: vm.detailTags) { _, tags in
             // Ungated: every source has tags, and this is what makes non-MangaDex
@@ -553,12 +559,18 @@ struct MangaDetailView: View {
         }
     }
 
-    // MARK: More Like This — MAL-sourced cross-source recommendations, bottom of page.
+    private var relatedRail: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            InkSectionHeader("Related", eyebrow: "From MyAnimeList")
+            MALHubCandidateRail(candidates: malHubRails.related, detailManga: manga)
+        }
+        .accessibilityIdentifier("relatedSection")
+    }
 
     private var moreLikeThisRail: some View {
         VStack(alignment: .leading, spacing: 12) {
             InkSectionHeader("More Like This", eyebrow: "Similar titles")
-            MangaRail(items: moreLikeThis.items)
+            MALHubCandidateRail(candidates: malHubRails.similar, detailManga: manga)
         }
         .accessibilityIdentifier("moreLikeThisSection")
     }

@@ -15,7 +15,7 @@ final class MoreLikeThisViewModel: ObservableObject {
     @Published private(set) var isLoading = false
 
     private let registry: SourceRegistry
-    private let provider: MoreLikeThisProvider
+    private var provider: MoreLikeThisProvider?
     private var loadedFor: String?
 
     // `provider` is built in the (main-actor-isolated) init body rather than as a default
@@ -24,17 +24,22 @@ final class MoreLikeThisViewModel: ObservableObject {
     // tests may pass a provider explicitly.
     init(registry: SourceRegistry, provider: MoreLikeThisProvider? = nil) {
         self.registry = registry
-        self.provider = provider ?? MoreLikeThisProvider(
-            source: { registry.externalIdSource })
+        self.provider = provider
     }
 
     /// Idempotent per manga id: loads recommendations once for a given manga. Safe to
     /// call from `.task` on every appear — a repeat call for the same manga is a no-op.
-    func load(for manga: Manga) async {
+    func load(for manga: Manga, detailStore: MALDetailStore) async {
         guard loadedFor != manga.id else { return }
         loadedFor = manga.id
         isLoading = true
         defer { isLoading = false }
+        // Capture the registry, not `self`: the VM holds the provider, so a `self` capture
+        // here would be a retain cycle leaking one VM per detail page opened.
+        let registry = registry
+        let provider = provider ?? MoreLikeThisProvider(detailStore: detailStore,
+                                                        source: { registry.externalIdSource })
+        self.provider = provider
         let recommendations = await provider.recommendations(for: manga)
         items = recommendations.filter {
             registry.admitsForDiscovery($0)

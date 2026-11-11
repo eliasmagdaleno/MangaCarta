@@ -17,13 +17,21 @@ import Foundation
 final class MoreLikeThisProvider {
     private let resolver: MALEntityResolver
     private let reverse: MALReverseResolver
+    private let detailStore: MALDetailStore
+    private let fetchDetail: @Sendable (Int) async throws -> MyAnimeListMangaDetail
 
     init(store: EntityResolutionStore = .shared,
          resolver: MALEntityResolver? = nil,
          reverse: MALReverseResolver? = nil,
+         detailStore: MALDetailStore,
+         fetchDetail: @escaping @Sendable (Int) async throws -> MyAnimeListMangaDetail = {
+             try await MyAnimeListAPI.mangaDetail(id: $0)
+         },
          source: @escaping () -> MangaSource?) {
         self.resolver = resolver ?? MALEntityResolver(store: store, source: source)
         self.reverse = reverse ?? MALReverseResolver(store: store, source: source)
+        self.detailStore = detailStore
+        self.fetchDetail = fetchDetail
     }
 
     /// The top `limit` recommendations by weight (descending). Pure — no network. Marked
@@ -31,7 +39,39 @@ final class MoreLikeThisProvider {
     /// (it touches no actor-isolated state); tests call it directly.
     nonisolated static func topRecommendations(_ recs: [MyAnimeListMangaDetail.Recommendation],
                                                limit: Int) -> [MyAnimeListMangaDetail.Recommendation] {
-        Array(recs.sorted { $0.numRecommendations > $1.numRecommendations }.prefix(limit))
+        Array(recs.enumerated().sorted { lhs, rhs in
+            lhs.element.numRecommendations != rhs.element.numRecommendations
+                ? lhs.element.numRecommendations > rhs.element.numRecommendations
+                : lhs.offset < rhs.offset
+        }.map(\.element).prefix(limit))
+    }
+
+    /// How many recommendations the detail page's More Like This rail draws from.
+    static let detailRecommendationLimit = 8
+
+    /// Both detail-page MAL-native rails from ONE cached MAL detail and ONE reverse-resolution pass
+    /// over their union. A separate API from `recommendations(for:limit:)`, which the home rail
+    /// consumes and which keeps returning resolved Listings only. Nil when there is no MAL identity
+    /// or no detail — the caller hides both rails.
+    func detailDiscovery(for manga: Manga, showAdultContent: Bool,
+                         admits: (Manga) -> Bool) async -> MALDetailDiscovery? {
+        guard let malId = await resolver.malId(for: manga) else { return nil }
+        guard let detail = await detailStore.detail(for: malId, fetch: fetchDetail) else { return nil }
+        var targets: [MALReverseResolver.ReverseTarget] = []
+        var seen = Set<Int>()
+        for relation in detail.relatedManga ?? [] where seen.insert(relation.node.id).inserted {
+            targets.append(.init(malId: relation.node.id, title: relation.node.title))
+        }
+        let recommendations = Self.topRecommendations(detail.recommendations ?? [],
+                                                      limit: Self.detailRecommendationLimit)
+        for recommendation in recommendations where seen.insert(recommendation.node.id).inserted {
+            targets.append(.init(malId: recommendation.node.id, title: recommendation.node.title))
+        }
+        let resolved = await reverse.resolve(targets)
+        return MALDiscoveryProjection.project(detail: detail, parentMALID: malId, parentListingID: manga.id,
+                                              resolutions: resolved, showAdultContent: showAdultContent,
+                                              admits: admits,
+                                              recommendationLimit: Self.detailRecommendationLimit)
     }
 
     /// Up to `limit` openable MangaDex titles similar to `manga`, in MAL-recommendation
@@ -39,7 +79,7 @@ final class MoreLikeThisProvider {
     /// reverse-resolve. Never throws — network failures degrade to fewer/zero cards.
     func recommendations(for manga: Manga, limit: Int = 8) async -> [Manga] {
         guard let malId = await resolver.malId(for: manga) else { return [] }
-        guard let detail = try? await MyAnimeListAPI.mangaDetail(id: malId) else { return [] }
+        guard let detail = await detailStore.detail(for: malId, fetch: fetchDetail) else { return [] }
         let recs = Self.topRecommendations(detail.recommendations ?? [], limit: limit)
         guard !recs.isEmpty else { return [] }
 

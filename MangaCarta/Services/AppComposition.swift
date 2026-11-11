@@ -27,6 +27,28 @@ private struct ExtensionStorageErrorEnvironmentKey: EnvironmentKey {
     static let defaultValue: String? = nil
 }
 
+private struct MALDetailStoreEnvironmentKey: EnvironmentKey {
+    static let defaultValue = MALDetailStore()
+}
+
+private struct MALSourceChoiceStoreEnvironmentKey: EnvironmentKey {
+    static let defaultValue = MALSourceChoiceStore()
+}
+
+private struct MALDetailFetchEnvironmentKey: EnvironmentKey {
+    static let defaultValue: @Sendable (Int) async throws -> MyAnimeListMangaDetail = {
+        try await MyAnimeListAPI.mangaDetail(id: $0)
+    }
+}
+
+private struct EntityResolutionStoreEnvironmentKey: EnvironmentKey {
+    static let defaultValue = EntityResolutionStore.shared
+}
+
+private struct ListingCountCacheEnvironmentKey: EnvironmentKey {
+    static let defaultValue = ListingCountCache()
+}
+
 extension EnvironmentValues {
     var extensionComposition: AppComposition.ExtensionComposition? {
         get { self[ExtensionCompositionEnvironmentKey.self] }
@@ -37,6 +59,32 @@ extension EnvironmentValues {
         get { self[ExtensionStorageErrorEnvironmentKey.self] }
         set { self[ExtensionStorageErrorEnvironmentKey.self] = newValue }
     }
+
+    var malDetailStore: MALDetailStore {
+        get { self[MALDetailStoreEnvironmentKey.self] }
+        set { self[MALDetailStoreEnvironmentKey.self] = newValue }
+    }
+
+    var malSourceChoiceStore: MALSourceChoiceStore {
+        get { self[MALSourceChoiceStoreEnvironmentKey.self] }
+        set { self[MALSourceChoiceStoreEnvironmentKey.self] = newValue }
+    }
+
+    var malDetailFetch: @Sendable (Int) async throws -> MyAnimeListMangaDetail {
+        get { self[MALDetailFetchEnvironmentKey.self] }
+        set { self[MALDetailFetchEnvironmentKey.self] = newValue }
+    }
+
+    var entityResolutionStore: EntityResolutionStore {
+        get { self[EntityResolutionStoreEnvironmentKey.self] }
+        set { self[EntityResolutionStoreEnvironmentKey.self] = newValue }
+    }
+
+    var listingCountCache: ListingCountCache {
+        get { self[ListingCountCacheEnvironmentKey.self] }
+        set { self[ListingCountCacheEnvironmentKey.self] = newValue }
+    }
+
 }
 
 /// The app-wide stores, the upgrade queue and the recommendation engine, wired together.
@@ -101,6 +149,10 @@ struct AppComposition {
     /// The graph's image cache. Views read it from the environment (`\.imageCache`);
     /// `ImageCache.shared` survives only as that key's default for previews.
     let imageCache: ImageCache
+    let malDetailStore: MALDetailStore
+    let malSourceChoiceStore: MALSourceChoiceStore
+    let malDetailFetch: @Sendable (Int) async throws -> MyAnimeListMangaDetail
+    let entityResolutionStore: EntityResolutionStore
 
     /// The extension subsystem's four owners, built together because they share one
     /// `SourceLifecycleRegistry`: the installer drives it, the registrar mirrors it.
@@ -289,13 +341,20 @@ struct AppComposition {
          malPreferences: MALAccountPreferenceStore? = nil,
          anilist injectedAniList: AniListAPI? = nil,
          malResolver: MALEntityResolver? = nil,
+         entityResolutionStore: EntityResolutionStore? = nil,
+         malDetailStore: MALDetailStore? = nil,
+         malDetailFetch: @escaping @Sendable (Int) async throws -> MyAnimeListMangaDetail = {
+             try await MyAnimeListAPI.mangaDetail(id: $0)
+         },
          registry: SourceRegistry? = nil,
          repositoryTransport: (any RepositoryTransport)? = nil,
-         notifications: NotificationScheduling? = nil) {
+         notifications: NotificationScheduling? = nil,
+         malSourceChoiceStore: MALSourceChoiceStore? = nil,
+         listingCountDirectory: URL? = nil) {
         let identityMigrationError = Self.runIdentityMigrations(directory: directory, defaults: defaults)
         let resolvedRegistry = registry ?? .shared
         let resolvedMALResolver = malResolver ?? MALEntityResolver(
-            store: .shared,
+            store: entityResolutionStore ?? .shared,
             source: { resolvedRegistry.externalIdResolutionSource })
         // Built first: the three commitment paths below (read, save, feedback) all
         // mint into it, so they must share this one instance (ADR-0007).
@@ -378,6 +437,8 @@ struct AppComposition {
 
         let vocab = TagVocabularyStore(fetch: { try await limiter.run { try await anilist.tagVocabulary() } })
         let pool = AniListPoolStore()
+        let malDetailStore = malDetailStore ?? MALDetailStore()
+        let malSourceChoiceStore = malSourceChoiceStore ?? MALSourceChoiceStore()
 
         // The engine pushes, the queue never pulls: pulling would mean the queue
         // building a profile, and building one mints Works (ADR-0009).
@@ -393,11 +454,15 @@ struct AppComposition {
                 // has a single implementation (ADR-0011). It needs no identity of its own —
                 // all its durable state is in `EntityResolutionStore.shared` — so unlike
                 // the two actors above, rebuilding it per rail build would also be correct.
-                let reverse = MALReverseResolver(source: { resolvedRegistry.externalIdSource })
+                let reverse = MALReverseResolver(store: entityResolutionStore ?? .shared,
+                                                 source: { resolvedRegistry.externalIdSource })
                 return CompositeCandidateProvider(
                     tag: TagCandidateProvider(source: source),
                     mal: MALCandidateProvider(similar: MoreLikeThisProvider(
-                        reverse: reverse, source: { resolvedRegistry.externalIdSource })),
+                        store: entityResolutionStore ?? .shared,
+                        reverse: reverse, detailStore: malDetailStore,
+                        fetchDetail: malDetailFetch,
+                        source: { resolvedRegistry.externalIdSource })),
                     ani: AniListCandidateProvider(
                         // Hops to the `@MainActor` `WorkStore`; the provider deliberately
                         // is not main-actor-isolated. Same one-way shape as `PriorityPush`.
@@ -446,8 +511,13 @@ struct AppComposition {
         self.hostRateLimiters = HostRateLimiterRegistry()
         self.imageLoadReporter = ImageLoadReporter(rateLimiters: self.hostRateLimiters)
         self.imageCache = ImageCache(reporter: self.imageLoadReporter)
+        self.malDetailStore = malDetailStore
+        self.malSourceChoiceStore = malSourceChoiceStore
+        self.malDetailFetch = malDetailFetch
+        self.entityResolutionStore = entityResolutionStore ?? .shared
         (self.listingCounts, self.sourcePreferences, self.fulfillment) =
-            Self.makeFulfillment(works: wk, registry: self.registry, defaults: defaults)
+            Self.makeFulfillment(works: wk, registry: self.registry, defaults: defaults,
+                                 countDirectory: listingCountDirectory)
         self.readingModes = ReadingModeStore(defaults: defaults, works: wk)
         let extensionResult = Self.makeExtensions(directory: directory,
                                                    defaults: defaults,
@@ -609,9 +679,12 @@ struct AppComposition {
     private static func makeFulfillment(
         works: WorkStore,
         registry: SourceRegistry,
-        defaults: UserDefaults
+        defaults: UserDefaults,
+        countDirectory: URL?
     ) -> (ListingCountCache, SourcePreferenceStore, FulfillmentCoordinator) {
-        let counts = ListingCountCache()
+        // `nil` is the real Caches directory. A hermetic UI fixture passes its own, or counts
+        // recorded by one run (a 24-hour cache) answer the next run's fixture.
+        let counts = countDirectory.map { ListingCountCache(directory: $0) } ?? ListingCountCache()
         let preferences = SourcePreferenceStore(defaults: defaults, works: works)
         return (counts, preferences,
                 FulfillmentCoordinator(works: works, registry: registry,

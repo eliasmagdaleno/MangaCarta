@@ -87,18 +87,8 @@ struct MALTitleMatcher {
     /// precision-biased matcher repeatedly does not preserve precision (ADR-0008).
     func bestMatch<ID>(sourceTitles: [String],
                        candidates: [(id: ID, titles: [String])]) -> ID? {
-        let normSources = sourceTitles.map(Self.normalize).filter { !$0.isEmpty }
-        guard !normSources.isEmpty, !candidates.isEmpty else { return nil }
-
-        let scored = candidates
-            .map { candidate -> (id: ID, score: Double) in
-                let normCandidates = candidate.titles.map(Self.normalize)
-                let best = normSources
-                    .flatMap { source in normCandidates.map { Self.similarity(source, $0) } }
-                    .max() ?? 0
-                return (candidate.id, best)
-            }
-            .sorted { $0.score > $1.score }
+        let scored = rankedScores(sourceTitles: sourceTitles, candidates: candidates)
+        guard !scored.isEmpty else { return nil }
 
         guard let best = scored.first, best.score >= acceptanceThreshold else { return nil }
         // Ambiguity guard rejects even exact matches (1.0) if the runner-up is too close.
@@ -106,6 +96,30 @@ struct MALTitleMatcher {
             return nil   // too close to call — precision over recall
         }
         return best.id
+    }
+
+    /// Scores every candidate using the same normalized title cross-product as `bestMatch`.
+    /// Ties retain input order so callers can present deterministic choices.
+    func rankedScores<ID>(sourceTitles: [String],
+                          candidates: [(id: ID, titles: [String])]) -> [(id: ID, score: Double)] {
+        let normSources = sourceTitles.map(Self.normalize).filter { !$0.isEmpty }
+        guard !normSources.isEmpty else { return [] }
+        let raw: [(Int, ID, Double)] = candidates.enumerated().map { index, candidate in
+            let normCandidates = candidate.titles.map(Self.normalize).filter { !$0.isEmpty }
+            var best = 0.0
+            for source in normSources {
+                for title in normCandidates { best = max(best, Self.similarity(source, title)) }
+            }
+            return (index, candidate.id, best)
+        }
+        return raw.sorted { lhs, rhs in
+            lhs.2 == rhs.2 ? lhs.0 < rhs.0 : lhs.2 > rhs.2
+        }.map { ($0.1, $0.2) }
+    }
+
+    func rankedScores<ID>(sourceTitle: String,
+                          candidates: [(id: ID, titles: [String])]) -> [(id: ID, score: Double)] {
+        rankedScores(sourceTitles: [sourceTitle], candidates: candidates)
     }
 
     /// Single-title matching, for callers that have one Listing rather than a Work.

@@ -227,6 +227,13 @@ remembered choice revalidates that the Source is installed, admitted, and can fe
 validation fails, discard only that stale choice and return to the grouped chooser. This follows
 ADR-0005's durable, user-correctable evidence rule while avoiding automatic identity mutation.
 
+**Owner decision (2026-11-10): a network error keeps the choice.** "Validation fails" means the
+Source is no longer registered, browsable or visible under the adult switch, or the refreshed
+Listing is no longer admitted — those discard the choice. A `mangaDetail` call that *throws* proves
+nothing about whether the Listing is still served (`SourceError` has no "not found"), so the choice is
+kept and this one tap falls through to the all-Source search. A reader's explicit choice is not lost to
+a dropped connection.
+
 Options considered: reuse `EntityResolutionStore` (wrong lifecycle and cache semantics), write a Work
 manual link immediately (would mutate library identity from discovery), or **use a separate durable
 choice store (selected)**. The separate store preserves the user's confirmed navigation preference and
@@ -250,7 +257,12 @@ expressed interest, so a slower tap is acceptable, but the sheet must remain can
 HTML/Cloudflare Sources use their existing WebView/Host path. If a search surfaces an interactive
 challenge, the tap flow may present the existing challenge sheet. **That search is exempt from the
 eight-second orchestration deadline while the sheet is up**; it is bounded instead by
-`WebViewService.challengeTimeout` (120 seconds) and by the reader's Cancel. Once the sheet is dismissed
+`WebViewService.challengeTimeout` (120 seconds) and by the reader's Cancel. "Up" means either presenter:
+`WebViewService`'s sheet or the extension browser's, which is the one every installed Source uses. The
+preview presents both sheets itself (`ChallengeSheets`), because SwiftUI cannot present the root's
+sheet over the preview's; without that a challenge raised by `Read on…` would never appear. A Source
+that couldn't be checked is not evidence of absence, so when one fails and the rest find nothing the
+preview says "Not on the Sources that answered", not "Not on your Sources". Once the sheet is dismissed
 or solved, the search's remaining work is bounded normally. Solving it lets that Source continue;
 cancel, timeout, or sticky decline marks only that Source unavailable for this attempt and does not
 block other Sources. A challenge is not treated as "not on your Sources."
@@ -391,7 +403,7 @@ no title or confidence label is truncated.
 9. **Cloudflare interaction can be surfaced after a tap, a search with its challenge sheet up is not
    cut off by the eight-second deadline, and cancellation leaves no pending work** —
    `MALHubResolutionTests.testChallengeSuspendsOrchestrationDeadline` and hermetic
-   `MALHubResolutionUITests.testTapMayPresentChallengeAndCancelReturnsToPreview`.
+   `MALHubUITests.testTapMayPresentChallengeAndCancelReturnsToPreview`.
 10. **A confirmed choice is persisted, reopened directly while valid, and invalidated when its Source
     or listing disappears** — `MALSourceChoiceStoreTests.testConfirmedChoiceSurvivesReload` and
     `MALHubResolutionTests.testMissingRememberedChoiceFallsBackToChooser`.
@@ -442,15 +454,16 @@ no title or confidence label is truncated.
    **Known cost, accepted:** with the switch off — the default — this adds no new cards over today's
    resolve-then-show rails; the all-Source tap search, remembered choices and Related still ship for
    everyone. See "Follow-up: per-card adult check" below.
-2. **Recommended:** show one MAL-native mixed rail per section, with a quiet `NOT ON YOUR SOURCES`
-   stamp and no disabled treatment. Owner: should unavailable cards be visually dimmed slightly, or use
-   the same card treatment as available cards for a calmer rail?
-3. **Recommended:** remember a confirmed `(MAL id, Source id, listing id)` indefinitely but expose
-   "Choose another Source" in the preview menu. Owner: should Settings also expose a list/clear control
-   for remembered choices, or is the per-preview control sufficient?
-4. **Recommended:** fetch chapter counts only for the top three displayed choices and label missing data
-   "Chapter count unknown." Owner: is that small enrichment worth the extra Source calls, or should the
-   chooser omit chapter counts entirely for the first PR?
+2. **Decided 2026-11-10 — same treatment, no dimming.** One MAL-native mixed rail per section;
+   unavailable cards look exactly like available ones, and a quiet `ON / NOT ON YOUR SOURCES` stamp is
+   the only marker (a Related card prefixes its relation, e.g. `SEQUEL · NOT ON YOUR SOURCES`).
+3. **Applied as recommended, awaiting owner confirmation:** remember a confirmed `(MAL id, Source id,
+   listing id)` indefinitely, changed only from the preview's "Choose another Source"; there is no
+   Settings list. Applied 2026-11-10 because the owner had not answered; confirm in the slice 3 PR.
+4. **Decided 2026-11-10 — show counts for the top three choices only.** Exact matches first, then the
+   registry's Source order. `ListingCountCache` is read first and a fetched count is written back, in
+   `FulfillmentRouter.distinctChapterCount` units, so a chooser count also feeds fulfillment ranking.
+   A missing or failed count reads "Chapter count unknown", never 0.
 5. **Recommended:** keep MAL as the only rail provider and hide rails without a MAL id. Owner: should a
    future AniList fallback be tracked as a separate proposal, rather than weakening this MAL-hub scope?
 

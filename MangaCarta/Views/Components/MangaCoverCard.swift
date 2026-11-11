@@ -30,7 +30,7 @@ struct MangaCoverCard: View {
                         case .failure:
                             CoverPlaceholder()
                         case .empty:
-                            CoverPlaceholder(showsSpinner: true)
+                            CoverPlaceholder(showsSpinner: coverURL != nil)
                         @unknown default:
                             CoverPlaceholder()
                         }

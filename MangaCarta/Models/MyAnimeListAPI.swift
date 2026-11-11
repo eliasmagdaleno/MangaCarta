@@ -30,7 +30,7 @@ enum MyAnimeListError: LocalizedError {
     }
 }
 
-struct MyAnimeListManga: Decodable {
+struct MyAnimeListManga: Codable, Equatable {
     let id: Int
     let title: String
     let mainPicture: MainPicture?
@@ -47,12 +47,12 @@ struct MyAnimeListManga: Decodable {
         mediaType == "novel" || mediaType == "light_novel"
     }
 
-    struct MainPicture: Decodable {
+    struct MainPicture: Codable, Equatable {
         let medium: String?
         let large: String?
     }
 
-    struct AlternativeTitles: Decodable {
+    struct AlternativeTitles: Codable, Equatable {
         let synonyms: [String]?
         let en: String?
         let ja: String?
@@ -71,7 +71,7 @@ struct MyAnimeListManga: Decodable {
     }
 }
 
-struct MyAnimeListMangaDetail: Decodable {
+struct MyAnimeListMangaDetail: Codable, Equatable {
     let id: Int
     let title: String
     let synopsis: String?
@@ -79,21 +79,61 @@ struct MyAnimeListMangaDetail: Decodable {
     let genres: [Genre]?
     let relatedManga: [Relation]?
     let recommendations: [Recommendation]?
+    /// Optional, with a default, so records cached before the field existed still decode.
+    var nsfw: MALNSFW? = nil
+    var alternativeTitles: MyAnimeListManga.AlternativeTitles? = nil
 
-    struct Genre: Decodable {
+    var allTitles: [String] {
+        var seen = Set<String>()
+        return ([title, alternativeTitles?.en, alternativeTitles?.ja]
+                    .compactMap { $0 } + (alternativeTitles?.synonyms ?? []))
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty && seen.insert($0).inserted }
+    }
+
+    struct Genre: Codable, Equatable {
         let id: Int
         let name: String
     }
 
-    struct Relation: Decodable {
+    struct Relation: Codable, Equatable {
         let node: MyAnimeListManga
         let relationType: String
         let relationTypeFormatted: String
     }
 
-    struct Recommendation: Decodable {
+    struct Recommendation: Codable, Equatable {
         let node: MyAnimeListManga
         let numRecommendations: Int
+    }
+}
+
+/// MAL's `nsfw` rating. Only a top-level detail carries it (nested nodes never do), and an
+/// unfamiliar value decodes as `.unknown` instead of failing the whole cached record.
+enum MALNSFW: Codable, Equatable, Sendable {
+    case white
+    case gray
+    case black
+    case unknown(String)
+
+    init(from decoder: Decoder) throws {
+        let value = try decoder.singleValueContainer().decode(String.self)
+        switch value {
+        case "white": self = .white
+        case "gray": self = .gray
+        case "black": self = .black
+        default: self = .unknown(value)
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .white: try container.encode("white")
+        case .gray: try container.encode("gray")
+        case .black: try container.encode("black")
+        case .unknown(let value): try container.encode(value)
+        }
     }
 }
 
@@ -175,7 +215,7 @@ struct MyAnimeListAPI {                              // Namespace-style struct f
             path: "/manga/\(id)",
             queryItems: [
                 URLQueryItem(name: "fields",
-                             value: "alternative_titles,synopsis,main_picture,genres,related_manga,recommendations"),
+                             value: "alternative_titles,synopsis,main_picture,genres,related_manga,recommendations,nsfw"),
             ]
         )
     }
