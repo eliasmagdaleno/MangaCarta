@@ -31,6 +31,10 @@ private struct MALDetailStoreEnvironmentKey: EnvironmentKey {
     static let defaultValue = MALDetailStore()
 }
 
+private struct MALSourceChoiceStoreEnvironmentKey: EnvironmentKey {
+    static let defaultValue = MALSourceChoiceStore()
+}
+
 extension EnvironmentValues {
     var extensionComposition: AppComposition.ExtensionComposition? {
         get { self[ExtensionCompositionEnvironmentKey.self] }
@@ -45,6 +49,11 @@ extension EnvironmentValues {
     var malDetailStore: MALDetailStore {
         get { self[MALDetailStoreEnvironmentKey.self] }
         set { self[MALDetailStoreEnvironmentKey.self] = newValue }
+    }
+
+    var malSourceChoiceStore: MALSourceChoiceStore {
+        get { self[MALSourceChoiceStoreEnvironmentKey.self] }
+        set { self[MALSourceChoiceStoreEnvironmentKey.self] = newValue }
     }
 }
 
@@ -111,6 +120,7 @@ struct AppComposition {
     /// `ImageCache.shared` survives only as that key's default for previews.
     let imageCache: ImageCache
     let malDetailStore: MALDetailStore
+    let malSourceChoiceStore: MALSourceChoiceStore
 
     /// The extension subsystem's four owners, built together because they share one
     /// `SourceLifecycleRegistry`: the installer drives it, the registrar mirrors it.
@@ -301,7 +311,8 @@ struct AppComposition {
          malResolver: MALEntityResolver? = nil,
          registry: SourceRegistry? = nil,
          repositoryTransport: (any RepositoryTransport)? = nil,
-         notifications: NotificationScheduling? = nil) {
+         notifications: NotificationScheduling? = nil,
+         malSourceChoiceStore: MALSourceChoiceStore? = nil) {
         let identityMigrationError = Self.runIdentityMigrations(directory: directory, defaults: defaults)
         let resolvedRegistry = registry ?? .shared
         let resolvedMALResolver = malResolver ?? MALEntityResolver(
@@ -389,6 +400,7 @@ struct AppComposition {
         let vocab = TagVocabularyStore(fetch: { try await limiter.run { try await anilist.tagVocabulary() } })
         let pool = AniListPoolStore()
         let malDetailStore = MALDetailStore()
+        let malSourceChoiceStore = malSourceChoiceStore ?? MALSourceChoiceStore()
 
         // The engine pushes, the queue never pulls: pulling would mean the queue
         // building a profile, and building one mints Works (ADR-0009).
@@ -459,6 +471,7 @@ struct AppComposition {
         self.imageLoadReporter = ImageLoadReporter(rateLimiters: self.hostRateLimiters)
         self.imageCache = ImageCache(reporter: self.imageLoadReporter)
         self.malDetailStore = malDetailStore
+        self.malSourceChoiceStore = malSourceChoiceStore
         (self.listingCounts, self.sourcePreferences, self.fulfillment) =
             Self.makeFulfillment(works: wk, registry: self.registry, defaults: defaults)
         self.readingModes = ReadingModeStore(defaults: defaults, works: wk)

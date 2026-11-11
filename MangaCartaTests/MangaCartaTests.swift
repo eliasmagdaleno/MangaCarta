@@ -2870,6 +2870,17 @@ final class MangaCartaTests: XCTestCase {
         XCTAssertNil(matcher.bestMatch(sourceTitles: ["", "  "], candidates: candidates))
     }
 
+    func testRankedScoresAgreeWithBestMatch() {
+        let matcher = MALTitleMatcher()
+        let candidates: [(id: Int, titles: [String])] = [
+            (id: 25, titles: ["Shingeki no Kyojin", "Attack on Titan"]),
+            (id: 99, titles: ["Some Unrelated Manga"]),
+        ]
+        let ranked = matcher.rankedScores(sourceTitle: "Attack on Titan", candidates: candidates)
+        XCTAssertEqual(ranked.first?.id, matcher.bestMatch(sourceTitle: "Attack on Titan", candidates: candidates))
+        XCTAssertEqual(ranked.first?.score ?? 0, 1.0, accuracy: 0.0001)
+    }
+
     // MARK: - EntityResolutionStore
 
     @MainActor func testEntityResolutionRecordsAndReadsBack() {

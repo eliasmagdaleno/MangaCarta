@@ -227,6 +227,13 @@ remembered choice revalidates that the Source is installed, admitted, and can fe
 validation fails, discard only that stale choice and return to the grouped chooser. This follows
 ADR-0005's durable, user-correctable evidence rule while avoiding automatic identity mutation.
 
+**Owner decision (2026-11-10): a network error keeps the choice.** "Validation fails" means the
+Source is no longer registered, browsable or visible under the adult switch, or the refreshed
+Listing is no longer admitted — those discard the choice. A `mangaDetail` call that *throws* proves
+nothing about whether the Listing is still served (`SourceError` has no "not found"), so the choice is
+kept and this one tap falls through to the all-Source search. A reader's explicit choice is not lost to
+a dropped connection.
+
 Options considered: reuse `EntityResolutionStore` (wrong lifecycle and cache semantics), write a Work
 manual link immediately (would mutate library identity from discovery), or **use a separate durable
 choice store (selected)**. The separate store preserves the user's confirmed navigation preference and
