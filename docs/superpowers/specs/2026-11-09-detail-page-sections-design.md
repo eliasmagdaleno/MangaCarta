@@ -541,3 +541,45 @@ The owner accepted every recommended answer below at sign-off.
    its pane and its order test once, against the final layout, instead of building a bottom
    rail and moving it. Related PRs 1–2 (the cache and the projection) do not depend on this
    either way.
+
+## Amendment 1 (2026-11-12): built over the MAL-hub rails
+
+The design was written against `b57c356`, before the MAL hub shipped (#380–#386). On `main` at
+`b522249` the page differs in three ways that change *how* this is built, not *what* is built.
+Every decision above stands.
+
+1. **Both rails already exist, from one view model.** `MangaDetailView` holds
+   `@StateObject malHubRails: MALHubRailsViewModel` and draws `relatedRail` (`InkSectionHeader
+   ("Related", eyebrow: "From MyAnimeList")`, identifier `relatedSection`) and `moreLikeThisRail`
+   (identifier `moreLikeThisSection`), both over `MALHubCandidateRail`. `MoreLikeThisViewModel`
+   is no longer on this page. So:
+   - `hasRelated` is `!malHubRails.related.isEmpty`; `hasSimilar` is `!malHubRails.similar.isEmpty`.
+   - This PR ships all three segments. §10's ordering question is moot: Related is already here.
+   - `relatedPane` is today's `relatedRail`, moved as it is.
+2. **The unmatched notice keeps today's rule.** It is drawn when *both* rails are empty and
+   `isUnmatchable`, not when Similar alone is empty (§5.2 said `!hasSimilar && isUnmatchable`).
+   Keep today's rule. A title with Related content has a MAL id, so it is never unmatchable, and
+   the two rules agree everywhere that matters. Copying the code's rule keeps "nothing already
+   on the page changes behaviour" literally true.
+3. **The test seam is the MAL-hub fixture, not a new `\.similarTitlesProvider`.** §7 said to
+   reuse whatever seam landed first, and `-uitest-mal-hub` (`MALHubUITestFixture`) did. Its
+   "Hub Fixture Title" already has one Related title and five recommendations, offline. Do not
+   add `\.similarTitlesProvider` or an `UpdatesUITestState.detail-discovery` case.
+   - **AC 5 (Show all):** the parent title needs more than five chapters. Make the fixture's
+     `chapters(mangaId:)` return seven **for the parent's manga id only**, so the chooser's "3
+     chapters" assertions are untouched.
+   - **AC 10 (no picker):** the existing `LocalImportUITests` and `AccessibilityAuditUITests`
+     prove it unchanged. `testNoPickerWithoutDiscoveryContent` uses a fixture title with no rails.
+     The worker picks the cheapest one: a second MAL-hub fixture title whose detail has no
+     relations or recommendations, or the title-sources fixture if its title shows no rails.
+   - **AC 12 (unmatched notice):** needs a fixture Work that `RecommendationEngine.isUnmatchable`
+     reports as unmatchable. Add it to the MAL-hub fixture, gated on its own launch argument.
+4. **`MALHubUITests` is a CI merge gate, and its tests that find a rail now need a segment tap.** It
+   asserts `relatedSection` and `moreLikeThisSection` exist at once (e.g.
+   `testUnavailableCardIsLabeledWithoutSources`). With segments, only one pane is drawn. Update
+   those tests to select "Related" or "Similar" first; change no other assertion. The CI-gated
+   list is now seven suites (`.github/workflows/ci.yml`), plus the new `DetailSectionsUITests`.
+5. **Line numbers above are stale.** `MangaDetailView.swift` is 740 lines on `b522249`:
+   `body` is at `:174`, `relatedRail` at `:597`, `moreLikeThisRail` at `:605`, `chapters` at
+   `:615`, and Show all at `:693-711`. The rest of the design's references to that file should
+   be found by name, not by line.
