@@ -9,6 +9,8 @@ final class AnalyticsEventBuffer {
     private let decoder = JSONDecoder()
     private(set) var events: [AnalyticsEnvelope]
 
+    var directoryURL: URL { directory }
+
     private var bufferURL: URL { directory.appendingPathComponent("buffer.json") }
     private var installURL: URL { directory.appendingPathComponent("install.json") }
     private var ledgerURL: URL { directory.appendingPathComponent("ledger.json") }

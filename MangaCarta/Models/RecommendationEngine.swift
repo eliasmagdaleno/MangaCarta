@@ -30,6 +30,7 @@ struct SeededRNG: RandomNumberGenerator {
 
 @MainActor
 final class RecommendationEngine: ObservableObject {
+    var feedbackRecorded: ((RecommendationFeedbackKind, Manga) -> Void)?
     /// How engagement weights reach the upgrade queue. A closure rather than a
     /// `MetadataUpgradeQueue` reference, because the dependency only ever runs one way:
     /// the recommender must not be able to start, stop, or inspect the queue (ADR-0010).
@@ -149,11 +150,13 @@ final class RecommendationEngine: ObservableObject {
         _ = workStore.mint(from: manga)
         profileStore.markNotInterested(mangaId: manga.id)
         recommendations.removeAll { $0.manga.id == manga.id }
+        feedbackRecorded?(.notInterested, manga)
     }
 
     func markMoreLikeThis(_ manga: Manga) {
         _ = workStore.mint(from: manga)
         profileStore.markMoreLikeThis(mangaId: manga.id)
+        feedbackRecorded?(.moreLikeThis, manga)
         Task { await rebuild() }
     }
 

@@ -4,13 +4,22 @@ import XCTest
 @MainActor
 final class AnalyticsConsentTests: XCTestCase {
     func testUndecidedCollectsNothingAnywhere() {
-        let store = AnalyticsConsentStore(defaults: makeTestDefaults("analytics-consent"))
+        let defaults = makeTestDefaults("analytics-consent")
+        let directory = makeTestDirectory("analytics-consent")
+        let store = AnalyticsConsentStore(defaults: defaults)
+        let buffer = AnalyticsEventBuffer(directory: directory.appendingPathComponent("analytics"))
+        let recorder = AnalyticsRecorder(consent: store, buffer: buffer,
+                                         works: WorkStore(directory: directory), source: { _ in nil },
+                                         defaults: defaults, appVersion: "test")
         XCTAssertEqual(store.consent, .undecided)
         XCTAssertFalse(store.isCollecting)
 
         for region in [(nil, nil), ("USA", "US"), ("CHE", "CH"), ("JPN", "US"), ("GBR", "GB")] {
             store.updateRegion(storefrontCountryCode: region.0, localeRegionCode: region.1)
+            recorder.searchUsed()
             XCTAssertFalse(store.isCollecting)
+            XCTAssertTrue(recorder.events.isEmpty)
+            XCTAssertNil(recorder.installID)
         }
         store.accept()
         XCTAssertTrue(store.isCollecting)
