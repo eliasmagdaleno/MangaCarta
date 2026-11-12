@@ -3,7 +3,10 @@ import Testing
 @testable import MangaCarta
 
 @MainActor @Suite("SourceTitleSearchTests")
-struct SourceTitleSearchTests {
+final class SourceTitleSearchTests {
+    private let testDefaults = TestDefaults("SourceTitleSearchTests")
+    deinit { testDefaults.remove() }
+
     @Test func outcomesPreserveRegistryOrder() async {
         let first = SearchSource(id: "first", delay: 0.08)
         let second = SearchSource(id: "second", delay: 0.01)
@@ -44,11 +47,10 @@ struct SourceTitleSearchTests {
         guard case .timedOut = outcomes[0].result else { Issue.record("expected timeout"); return }
         #expect(await source.cancelled)
     }
-}
 
-@MainActor
-private func makeRegistry(_ sources: [SearchSource]) -> SourceRegistry {
-    SourceRegistry(sources: sources, defaults: UserDefaults(suiteName: "SourceTitleSearchTests")!)
+    private func makeRegistry(_ sources: [SearchSource]) -> SourceRegistry {
+        SourceRegistry(sources: sources, defaults: testDefaults.defaults)
+    }
 }
 
 private func manga(_ id: String, source: String, title: String) -> Manga {

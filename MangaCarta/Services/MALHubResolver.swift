@@ -123,23 +123,24 @@ final class MALHubResolver {
         let outcomes = await titleSearch.search(spellings: spellings, sourceIDs: sourceIDs,
                                                 stopWhen: { $0.contains { $0.malId == candidate.malId } })
         return outcomes.map { outcome in
-            let source = registry.source(id: outcome.sourceId)!
+            // The outcome carries its Source's id and name, so a Source uninstalled while the
+            // search ran still gets its group rather than a registry lookup that misses.
             switch outcome.result {
-            case .timedOut: return group(source, status: .couldNotCheckTimedOut)
-            case .failed: return group(source, status: .couldNotCheckFailed)
+            case .timedOut: return group(outcome, status: .couldNotCheckTimedOut)
+            case .failed: return group(outcome, status: .couldNotCheckFailed)
             case .found(let results):
-                return classify(source: source, results: results, candidate: candidate,
+                return classify(outcome, results: results, candidate: candidate,
                                 detail: detail, spellings: spellings)
             }
         }
     }
 
-    private func classify(source: MangaSource, results: [Manga], candidate: MALDiscoveryCandidate,
+    private func classify(_ source: SourceTitleSearch.SourceOutcome, results: [Manga], candidate: MALDiscoveryCandidate,
                           detail: MyAnimeListMangaDetail?, spellings: [String]) -> MALHubSourceGroup {
         let exactFound = results.contains { $0.malId == candidate.malId }
         if exactFound {
             let choices = results.filter { $0.malId == candidate.malId }.map {
-                MALHubChoice(manga: $0, sourceName: source.name, kind: .exact)
+                MALHubChoice(manga: $0, sourceName: source.sourceName, kind: .exact)
             }
             return group(source, choices: choices)
         }
@@ -155,15 +156,15 @@ final class MALHubResolver {
         }
         let choices = selected.compactMap { score in
             results.first(where: { $0.id == score.id }).map {
-                MALHubChoice(manga: $0, sourceName: source.name, kind: .possible)
+                MALHubChoice(manga: $0, sourceName: source.sourceName, kind: .possible)
             }
         }
         return group(source, choices: choices, ambiguous: ambiguous)
     }
 
-    private func group(_ source: MangaSource, choices: [MALHubChoice] = [], ambiguous: Bool = false,
+    private func group(_ source: SourceTitleSearch.SourceOutcome, choices: [MALHubChoice] = [], ambiguous: Bool = false,
                        status: MALHubSourceGroup.Status = .choices) -> MALHubSourceGroup {
-        MALHubSourceGroup(sourceId: source.id, sourceName: source.name, choices: choices,
+        MALHubSourceGroup(sourceId: source.sourceId, sourceName: source.sourceName, choices: choices,
                           ambiguous: ambiguous, status: status)
     }
 
