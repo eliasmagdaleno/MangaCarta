@@ -89,6 +89,12 @@ final class UpdateStateStore: ObservableObject {
         markDirty()
     }
 
+    func dropListing(_ listing: ListingKey, from workId: WorkID) {
+        loadIfNeeded()
+        guard var state = states[workId], state.listings.removeValue(forKey: listing) != nil else { return }
+        states[workId] = state; markDirty()
+    }
+
     func clearNewlyDiscovered(workId: WorkID) {
         loadIfNeeded()
         guard var state = states[workId], !state.newlyDiscovered.isEmpty else { return }

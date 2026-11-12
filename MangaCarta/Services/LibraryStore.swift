@@ -123,6 +123,32 @@ final class LibraryStore: ObservableObject {
         items.first { listingKey(for: $0) == key }
     }
 
+    func repointItem(from old: ListingKey, to new: ListingKey) {
+        guard let oldIndex = items.firstIndex(where: { listingKey(for: $0) == old }) else { return }
+        var replacement = items[oldIndex]
+        replacement = LibraryItem(id: new.mangaId, title: replacement.title, coverURL: replacement.coverURL,
+                                  chapterNumbers: nil, sourceId: new.sourceId,
+                                  collectionIds: replacement.collectionIds)
+        items.remove(at: oldIndex)
+        if let newIndex = items.firstIndex(where: { listingKey(for: $0) == new }) {
+            items[newIndex].collectionIds.formUnion(replacement.collectionIds)
+            items[newIndex].chapterNumbers = nil
+        } else { items.insert(replacement, at: min(oldIndex, items.count)) }
+        saveItems()
+    }
+
+    func mergeItems(from old: ListingKey, into new: ListingKey) {
+        guard let oldItem = item(for: old) else { return }
+        if let newIndex = items.firstIndex(where: { listingKey(for: $0) == new }) {
+            items[newIndex].collectionIds.formUnion(oldItem.collectionIds)
+            items.removeAll { listingKey(for: $0) == old }
+        } else {
+            repointItem(from: old, to: new)
+            return
+        }
+        saveItems()
+    }
+
     /// Legacy id-only lookup for local catalog operations and migration code.
     func item(for id: String) -> LibraryItem? {
         items.first { $0.id == id }

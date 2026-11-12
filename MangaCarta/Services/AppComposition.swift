@@ -127,6 +127,7 @@ struct AppComposition {
     /// reader and Settings, so it belongs in the environment.
     let readingModes: ReadingModeStore
     let fulfillment: FulfillmentCoordinator
+    let workSources: WorkSourcesCoordinator
 
     /// The registry this graph was built with — `SourceRegistry.shared` in production, an
     /// injected one under a UI-test fixture. Exposed because views were reaching for the
@@ -332,6 +333,7 @@ struct AppComposition {
     }
 #endif
 
+    // swiftlint:disable function_body_length
     /// The injected seams below all default to the production object. They exist so a
     /// test can build **this** graph — not a hand-rolled imitation of it — without a
     /// Keychain, an AniList request, a MyAnimeList search, or a repository fetch.
@@ -518,6 +520,9 @@ struct AppComposition {
         (self.listingCounts, self.sourcePreferences, self.fulfillment) =
             Self.makeFulfillment(works: wk, registry: self.registry, defaults: defaults,
                                  countDirectory: listingCountDirectory)
+        self.workSources = Self.makeWorkSources(works: wk, preferences: self.sourcePreferences,
+                                                fulfillment: self.fulfillment, library: lib,
+                                                malChoices: malSourceChoiceStore, updates: updateState)
         self.readingModes = ReadingModeStore(defaults: defaults, works: wk)
         let extensionResult = Self.makeExtensions(directory: directory,
                                                    defaults: defaults,
@@ -527,6 +532,8 @@ struct AppComposition {
         self.extensions = extensionResult.composition
         self.extensionStorageError = extensionResult.error ?? identityMigrationError
     }
+
+    // swiftlint:enable function_body_length
 
     /// Both identity migrations, before anything reads a Source id. Only the installed-Source
     /// migration can fail; its message is returned for `extensionStorageError`.
@@ -690,6 +697,16 @@ struct AppComposition {
                 FulfillmentCoordinator(works: works, registry: registry,
                                        counts: counts, preferences: preferences))
     }
+
+    // swiftlint:disable function_parameter_count
+    private static func makeWorkSources(works: WorkStore, preferences: SourcePreferenceStore,
+                                        fulfillment: FulfillmentCoordinator, library: LibraryStore,
+                                        malChoices: MALSourceChoiceStore,
+                                        updates: UpdateStateStore) -> WorkSourcesCoordinator {
+        WorkSourcesCoordinator(works: works, preferences: preferences, fulfillment: fulfillment,
+                               library: library, malChoices: malChoices, updates: updates)
+    }
+    // swiftlint:enable function_parameter_count
 }
 
 /// The one indirection in this file: `MALAccountStore`'s **Retry now** needs the
