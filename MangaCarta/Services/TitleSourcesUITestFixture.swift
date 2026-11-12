@@ -16,10 +16,13 @@ enum TitleSourcesUITestFixture {
         let id = ProcessInfo.processInfo.environment["MANGACARTA_UI_TEST_STORAGE_ID"] ?? UUID().uuidString
         let suite = "title-sources-ui-test.\(id)"
         let defaults = UserDefaults(suiteName: suite)!
-        defaults.removePersistentDomain(forName: suite)
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("MangaCarta-TitleSourcesUITest-\(id)", isDirectory: true)
-        try? FileManager.default.removeItem(at: directory)
+        if !defaults.bool(forKey: "fixtureSeeded") {
+            defaults.removePersistentDomain(forName: suite)
+            try? FileManager.default.removeItem(at: directory)
+            defaults.set(true, forKey: "fixtureSeeded")
+        }
         let entityStore = EntityResolutionStore(defaults: defaults)
         entityStore.record(sourceId: "title-sources-fixture-a", mangaId: "fixture-a-title",
                            .resolved(malId: 7001))
@@ -33,9 +36,18 @@ enum TitleSourcesUITestFixture {
     @MainActor static func seed(_ composition: AppComposition) {
         let a = manga(id: "fixture-a-title", source: .a, title: "Fixture Title", malId: 7001)
         let b = manga(id: "fixture-b-title", source: .b, title: "Fixture Title", malId: 7001)
-        composition.library.toggle(a)
+        if composition.library.item(for: ListingKey(a)) == nil { composition.library.toggle(a) }
         let work = composition.works.workId(for: ListingKey(a)) ?? composition.works.mint(from: a)
-        _ = composition.works.addListing(b, to: work, recordExternalIds: true)
+        if let current = composition.works.work(work),
+           !current.listings.contains(ListingKey(b)),
+           !current.removedListings.contains(where: { $0.key == ListingKey(b) }) {
+            _ = composition.works.addListing(b, to: work, recordExternalIds: true)
+        }
+        let chapter = Chapter(id: "fixture-b-title-5", number: "5", title: nil)
+        if !composition.history.isRead(chapter, in: b) {
+            composition.history.record(manga: b, chapter: chapter,
+                                       position: ReadingPosition(page: 9, fraction: 0), pageCount: 10)
+        }
     }
 
     static func fetchDetail(_ id: Int) async throws -> MyAnimeListMangaDetail {
@@ -100,7 +112,7 @@ private struct TitleSourcesFixtureSource: MangaSource {
     func chapters(mangaId: String) async throws -> [Chapter] {
         let count: Int
         switch role {
-        case .a: count = 12
+        case .a: count = 5
         case .b: count = 10
         case .c: count = 14
         case .d: count = 0

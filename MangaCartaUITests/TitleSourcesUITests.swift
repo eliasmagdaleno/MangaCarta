@@ -46,6 +46,54 @@ final class TitleSourcesUITests: XCTestCase {
         XCTAssertFalse(sourceB.exists)
     }
 
+    func testRemoveAsSameTitleKeepsReadChapter() throws {
+        let app = launch()
+        chooseSourceA(app)
+        XCTAssertTrue(readChapter5(app).waitForExistence(timeout: 10))
+        removeSourceB(app, answer: "removeSourceSameTitle")
+        XCTAssertTrue(readChapter5(app).waitForExistence(timeout: 10))
+        XCTAssertFalse(app.staticTexts["Source B"].exists)
+    }
+
+    func testRemoveAsDifferentTitleDropsReadChapter() throws {
+        let app = launch()
+        chooseSourceA(app)
+        XCTAssertTrue(readChapter5(app).waitForExistence(timeout: 10))
+        removeSourceB(app, answer: "removeSourceDifferentTitle")
+        let unread = app.descendants(matching: .any).matching(NSPredicate(
+            format: "label CONTAINS %@ AND label CONTAINS %@", "Chapter 5", "Unread")).firstMatch
+        XCTAssertTrue(unread.waitForExistence(timeout: 10))
+    }
+
+    func testRemovedSourceStaysRemovedAfterRelaunchAndRefresh() throws {
+        let storageID = "TEST_RUNNER_\(UUID().uuidString)"
+        let app = launch(storageID: storageID)
+        removeSourceB(app, answer: "removeSourceSameTitle")
+        // WorkStore persists removals on its normal debounce; allow that write before
+        // simulating a process termination and relaunch.
+        sleep(2)
+        app.terminate()
+
+        let relaunched = launch(storageID: storageID, openTitle: false)
+        relaunched.buttons["Refresh Library"].tap()
+        XCTAssertTrue(relaunched.staticTexts["Library updated"].waitForExistence(timeout: 10))
+        relaunched.staticTexts["Fixture Title"].firstMatch.tap()
+        XCTAssertTrue(relaunched.buttons["sourcePicker"].waitForExistence(timeout: 10))
+        openSourceMenu(relaunched)
+        XCTAssertTrue(relaunched.buttons["addSourceMenuItem"].waitForExistence(timeout: 5))
+        XCTAssertFalse(relaunched.buttons["removeSourceMenu"].exists)
+        XCTAssertFalse(relaunched.staticTexts["Source B"].exists)
+    }
+
+    func testRemoveMenuHiddenWithOneCopy() throws {
+        let app = launch()
+        removeSourceB(app, answer: "removeSourceSameTitle")
+        XCTAssertTrue(app.buttons["sourcePicker"].waitForExistence(timeout: 10))
+        openSourceMenu(app)
+        XCTAssertTrue(app.buttons["addSourceMenuItem"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["removeSourceMenu"].exists)
+    }
+
     func testAddSheetAtLargeDynamicType() throws {
         let app = launch(arguments: ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
         openAddSheet(app)
@@ -58,13 +106,15 @@ final class TitleSourcesUITests: XCTestCase {
         XCTAssertEqual(row.label, "Fixture Title, Source C, Same MyAnimeList entry, 14 chapters")
     }
 
-    private func launch(arguments: [String] = []) -> XCUIApplication {
+    private func launch(arguments: [String] = [], storageID: String? = nil,
+                        openTitle: Bool = true) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-uitest-title-sources"] + arguments
-        app.launchEnvironment["MANGACARTA_UI_TEST_STORAGE_ID"] = "TEST_RUNNER_\(UUID().uuidString)"
+        app.launchEnvironment["MANGACARTA_UI_TEST_STORAGE_ID"] = storageID ?? "TEST_RUNNER_\(UUID().uuidString)"
         app.launch()
         XCTAssertTrue(app.tabBars.buttons["Library"].waitForExistence(timeout: 10))
         app.tabBars.buttons["Library"].tap()
+        guard openTitle else { return app }
         let title = app.staticTexts["Fixture Title"].firstMatch
         XCTAssertTrue(title.waitForExistence(timeout: 10))
         title.tap()
@@ -83,6 +133,31 @@ final class TitleSourcesUITests: XCTestCase {
     private func openSourceMenu(_ app: XCUIApplication) {
         let stamp = app.buttons["sourcePicker"]
         stamp.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+    }
+
+    private func chooseSourceA(_ app: XCUIApplication) {
+        openSourceMenu(app)
+        let sourceA = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Source A")).firstMatch
+        XCTAssertTrue(sourceA.waitForExistence(timeout: 5))
+        sourceA.tap()
+    }
+
+    private func readChapter5(_ app: XCUIApplication) -> XCUIElement {
+        app.descendants(matching: .any).matching(NSPredicate(
+            format: "label CONTAINS %@ AND label CONTAINS %@", "Chapter 5", "Read")).firstMatch
+    }
+
+    private func removeSourceB(_ app: XCUIApplication, answer: String) {
+        openSourceMenu(app)
+        let removeMenu = app.descendants(matching: .any)["removeSourceMenu"]
+        XCTAssertTrue(removeMenu.waitForExistence(timeout: 5))
+        removeMenu.tap()
+        let removeB = app.descendants(matching: .any)["removeSourceMenuItem.title-sources-fixture-b"]
+        XCTAssertTrue(removeB.waitForExistence(timeout: 5))
+        removeB.tap()
+        let confirmation = app.buttons[answer].firstMatch
+        XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
+        confirmation.tap()
     }
 
 }

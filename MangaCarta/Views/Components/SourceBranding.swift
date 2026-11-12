@@ -142,6 +142,7 @@ struct SourcePickerStamp: View {
     let select: (ListingKey) -> Void
     let useBestAvailable: () -> Void
     let addSource: () -> Void
+    let removeSource: (ListingKey) -> Void
 
     /// The row being fulfilled from, for the stamp's own label.
     private var current: SourceOptionPresentation? {
@@ -177,12 +178,28 @@ struct SourcePickerStamp: View {
                 addSource()
             }
             .accessibilityIdentifier("addSourceMenuItem")
+            if removableRows.count >= 2 {
+                Menu("Remove a Source", systemImage: "minus.circle") {
+                    ForEach(removableRows) { row in
+                        Button("Remove \(row.name)") {
+                            removeSource(row.key)
+                        }
+                        .accessibilityLabel("Remove \(row.name)")
+                        .accessibilityIdentifier("removeSourceMenuItem.\(row.key.sourceId)")
+                    }
+                }
+                .accessibilityIdentifier("removeSourceMenu")
+            }
         } label: {
             stamp
         }
         .accessibilityIdentifier("sourcePicker")
         .accessibilityLabel(accessibilityLabel)
         .accessibilityHint("Choose which source to read this from")
+    }
+
+    private var removableRows: [SourceOptionPresentation] {
+        presentation.rows.filter { $0.key.sourceId != LocalSource.sourceID }
     }
 
     private var stamp: some View {

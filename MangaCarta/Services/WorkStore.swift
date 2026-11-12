@@ -524,7 +524,12 @@ final class WorkStore: ObservableObject {
         }
     }
 
+    /// Every mutation funnels through here, so this is also where observers hear about it.
+    /// There is no `@Published` state (see the header), so without this send a view
+    /// observing `WorkStore` never redraws: read marks are Work-wide (ADR-0027), and a
+    /// Listing removed "as a different title" changes them with nothing else changing.
     private func markDirty() {
+        objectWillChange.send()
         dirty = true
         saveTask?.cancel()
         let delay = saveDebounce

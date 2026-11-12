@@ -78,6 +78,17 @@ final class PerTitleSourcesTests: XCTestCase {
         XCTAssertEqual(f.preferences.choice(for: f.work), ListingKey(f.a))
     }
 
+    func testRemovingActivePinnedListingChoosesRemainingListing() async {
+        let f = setup()
+        f.preferences.choose(ListingKey(f.b), for: f.work)
+        let coordinator = WorkSourcesCoordinator(works: f.works, preferences: f.preferences,
+                                                 fulfillment: f.fulfillment, library: f.library,
+                                                 malChoices: f.choices, updates: f.updates)
+        _ = await coordinator.remove(ListingKey(f.b), from: f.work, keepingReadState: true)
+        await f.fulfillment.reconcile(f.work)
+        XCTAssertEqual(f.fulfillment.chosenListing(for: f.work), ListingKey(f.a))
+    }
+
     func testRemoveRepointsLibraryItemKeepingCollections() async {
         let f = setup(); f.library.toggle(f.b)
         f.library.setCollections(for: f.b, collectionIds: [LibraryCollection.readingID, "custom"])
