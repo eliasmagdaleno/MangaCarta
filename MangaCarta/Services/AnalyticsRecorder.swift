@@ -84,6 +84,7 @@ final class AnalyticsRecorder: ObservableObject {
     }
 
     func recommendationFeedback(_ kind: RecommendationFeedbackKind, manga: Manga) {
+        // RecommendationEngine mints the Work before delivering feedback.
         guard consent.isCollecting, let workID = works.workId(for: ListingKey(manga)),
               let work = works.work(workID), let source = source(manga.sourceId),
               AnalyticsEligibility.admits(manga: manga, source: source, work: work, vocabulary: vocabulary),
@@ -92,8 +93,8 @@ final class AnalyticsRecorder: ObservableObject {
     }
 
     func forYouOpened(manga: Manga, rank: Int, reason: ForYouReasonKind) {
-        guard consent.isCollecting, let workID = works.workId(for: ListingKey(manga)),
-              let work = works.work(workID), let source = source(manga.sourceId),
+        let work = works.workId(for: ListingKey(manga)).flatMap { works.work($0) }
+        guard consent.isCollecting, let source = source(manga.sourceId),
               AnalyticsEligibility.admits(manga: manga, source: source, work: work, vocabulary: vocabulary),
               let ids = AnalyticsEligibility.catalogueIDs(work: work, manga: manga) else { return }
         record(.forYouOpened(ids, rank: rank, reason: reason))
@@ -107,14 +108,14 @@ final class AnalyticsRecorder: ObservableObject {
     }
 
     func mltOpened(from manga: Manga, to openedManga: Manga, toMALID: Int) {
+        let fromWork = works.workId(for: ListingKey(manga)).flatMap { works.work($0) }
+        let toWork = works.workId(for: ListingKey(openedManga)).flatMap { works.work($0) }
         guard consent.isCollecting,
-              let fromWorkID = works.workId(for: ListingKey(manga)), let fromWork = works.work(fromWorkID),
-              let toWorkID = works.workId(for: ListingKey(openedManga)), let toWork = works.work(toWorkID),
               let fromSource = source(manga.sourceId), let toSource = source(openedManga.sourceId),
               AnalyticsEligibility.admits(manga: manga, source: fromSource, work: fromWork, vocabulary: vocabulary),
               AnalyticsEligibility.admits(manga: openedManga, source: toSource, work: toWork, vocabulary: vocabulary),
               let fromIDs = AnalyticsEligibility.catalogueIDs(work: fromWork, manga: manga) else { return }
-        let toIDs = CatalogueIDs(mal: toMALID, anilist: toWork.externalIds.anilist)
+        let toIDs = CatalogueIDs(mal: toMALID, anilist: toWork?.externalIds.anilist)
         record(.mltOpened(from: fromIDs, to: toIDs))
     }
 

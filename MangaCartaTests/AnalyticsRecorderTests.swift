@@ -50,6 +50,37 @@ final class AnalyticsRecorderTests: XCTestCase {
         XCTAssertEqual(f.recorder.events.filter { $0.event.name == "work_saved" }.count, 3)
     }
 
+    func testOpensRecordForTitlesWithoutAWork() {
+        let f = fixture()
+        f.consent.accept()
+        let from = fixtureManga(id: "unminted-from", malId: 21)
+        let to = fixtureManga(id: "unminted-to", malId: 30)
+
+        f.recorder.forYouOpened(manga: from, rank: 2, reason: .explore)
+        f.recorder.mltOpened(from: from, to: to, toMALID: 30)
+
+        XCTAssertNil(f.works.workId(for: ListingKey(from)))
+        XCTAssertNil(f.works.workId(for: ListingKey(to)))
+        let events = f.recorder.events.dropFirst()
+        XCTAssertEqual(events.count, 2)
+        XCTAssertEqual(events.compactMap { event -> CatalogueIDs? in
+            if case let .forYouOpened(ids, _, _) = event.event { return ids }
+            return nil
+        }, [CatalogueIDs(mal: 21, anilist: nil)])
+        XCTAssertEqual(events.compactMap { event -> (CatalogueIDs, CatalogueIDs)? in
+            if case let .mltOpened(from, to) = event.event { return (from, to) }
+            return nil
+        }.first?.0, CatalogueIDs(mal: 21, anilist: nil))
+        XCTAssertEqual(events.compactMap { event -> (CatalogueIDs, CatalogueIDs)? in
+            if case let .mltOpened(from, to) = event.event { return (from, to) }
+            return nil
+        }.first?.1, CatalogueIDs(mal: 30, anilist: nil))
+
+        let noID = fixtureManga(id: "unminted-no-id", malId: nil)
+        f.recorder.forYouOpened(manga: noID, rank: 1, reason: .other)
+        XCTAssertEqual(f.recorder.events.count, 3)
+    }
+
     func testRelatedOpenIsNotRecorded() {
         let f = fixture()
         f.consent.accept()
