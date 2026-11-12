@@ -142,7 +142,7 @@ struct MangaDetailView: View {
     /// One Listing is not a choice, so it renders exactly as it always has.
     @ViewBuilder
     private var sourceControl: some View {
-        if !isLocalManga, let sourcePicker, sourcePicker.offersAChoice {
+        if !isLocalManga, let sourcePicker {
             SourcePickerStamp(
                 presentation: sourcePicker,
                 isPinned: workID.map { sourcePreferences.choice(for: $0) != nil } ?? false,
