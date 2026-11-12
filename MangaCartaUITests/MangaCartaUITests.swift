@@ -418,17 +418,14 @@ final class MangaCartaUITests: XCTestCase {
         XCTAssertTrue(libraryToggle.waitForExistence(timeout: 15),
                       "should have opened a manga detail page")
 
-        // The rail loads async (MAL + MangaDex round-trips) and sits at the very bottom.
-        // Poll: swipe up, check for the header, repeat until it appears or we give up.
+        let sectionPicker = app.buttons["detailSectionPicker"]
+        XCTAssertTrue(sectionPicker.waitForExistence(timeout: 120),
+                      "the detail section picker should appear")
+        app.buttons["Similar"].tap()
+
+        // The rail loads async (MAL + MangaDex round-trips).
         let header = app.staticTexts["More Like This"]
-        var railAppeared = false
-        let deadline = Date().addingTimeInterval(120)
-        while Date() < deadline {
-            if header.exists { railAppeared = true; break }
-            app.swipeUp(velocity: .fast)
-            usleep(700_000)
-        }
-        XCTAssertTrue(railAppeared,
+        XCTAssertTrue(header.waitForExistence(timeout: 120),
                       "the 'More Like This' header should appear at the bottom of the detail page")
 
         // And at least one recommendation card under it. Query at app level rather than
@@ -472,16 +469,14 @@ final class MangaCartaUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Chapters"].waitForExistence(timeout: 15),
                       "the Chapters section should render")
 
-        // Rail must be reachable within a handful of swipes (previously required
-        // scrolling past the full list). Allow time for the async MAL/MangaDex rail load.
+        let sectionPicker = app.buttons["detailSectionPicker"]
+        XCTAssertTrue(sectionPicker.waitForExistence(timeout: 120),
+                      "the detail section picker should appear")
+        app.buttons["Similar"].tap()
+
+        // Allow time for the async MAL/MangaDex rail load.
         let header = app.staticTexts["More Like This"]
-        var reached = false
-        for _ in 0..<8 where !reached {
-            if header.exists { reached = true; break }
-            app.swipeUp(velocity: .fast)
-            usleep(500_000)
-        }
-        XCTAssertTrue(reached,
+        XCTAssertTrue(header.waitForExistence(timeout: 120),
                       "the More Like This rail should be reachable within a few swipes of a truncated chapter list")
     }
 
