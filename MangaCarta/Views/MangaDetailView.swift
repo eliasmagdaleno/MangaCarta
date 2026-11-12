@@ -37,6 +37,9 @@ struct MangaDetailView: View {
     @State private var deletionError: String?
     @State private var showingAddSource = false
     @State private var didAddSource = false
+    @State private var removalTarget: SourceOptionPresentation?
+    @State private var showingRemoveConfirmation = false
+    @State private var sourceMenuRevision = 0
 
     init(manga: Manga, registry: SourceRegistry) {
         self.manga = manga
@@ -117,11 +120,29 @@ struct MangaDetailView: View {
         }
     }
 
+    private func removeSource(_ key: ListingKey, keepingReadState: Bool) {
+        guard let workID else { return }
+        let wasActive = vm.activeListing == key
+        let wasPinned = sourcePreferences.choice(for: workID) == key
+        Task { @MainActor in
+            guard case .removed = await workSources.remove(key, from: workID,
+                                                            keepingReadState: keepingReadState) else { return }
+            await fulfillment.reconcile(workID)
+            sourceMenuRevision += 1
+            if wasActive || wasPinned, let replacement = fulfillment.chosenListing(for: workID) {
+                vm.retarget(to: replacement, using: registry)
+            }
+            // Re-render the chapter rows even when the removed Listing was not active:
+            // their Work-wide read marks may have lost a retired Listing's contribution.
+            await vm.loadAsync()
+        }
+    }
+
     /// The stamp, which becomes a picker only when there is somewhere else to read from.
     /// One Listing is not a choice, so it renders exactly as it always has.
     @ViewBuilder
     private var sourceControl: some View {
-        if !isLocalManga, let sourcePicker {
+        if !isLocalManga, let sourcePicker, sourcePicker.offersAChoice {
             SourcePickerStamp(
                 presentation: sourcePicker,
                 isPinned: workID.map { sourcePreferences.choice(for: $0) != nil } ?? false,
@@ -139,7 +160,11 @@ struct MangaDetailView: View {
                         vm.load()
                     }
                 },
-                addSource: { showingAddSource = true })
+                addSource: { showingAddSource = true },
+                removeSource: { key in
+                    removalTarget = sourcePicker.rows.first { $0.key == key }
+                    showingRemoveConfirmation = true
+                })
         } else {
             SourceStamp(sourceID: manga.sourceId,
                         name: mangaSource?.name ?? manga.sourceId)
@@ -190,6 +215,7 @@ struct MangaDetailView: View {
             }
             .padding(.bottom, 40)
         }
+        .id(sourceMenuRevision)
         .background(Ink.background)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
@@ -211,6 +237,22 @@ struct MangaDetailView: View {
                            coordinator: workSources,
                            listingCountCache: listingCountCache,
                            onAdded: { didAddSource = true })
+        }
+        .alert("Remove \(removalTarget?.name ?? "Source") from this title?",
+               isPresented: $showingRemoveConfirmation) {
+            Button("It's the same title, I don't want this copy") {
+                if let key = removalTarget?.key { removeSource(key, keepingReadState: true) }
+                removalTarget = nil
+            }
+            .accessibilityIdentifier("removeSourceSameTitle")
+            Button("It's a different title") {
+                if let key = removalTarget?.key { removeSource(key, keepingReadState: false) }
+                removalTarget = nil
+            }
+            .accessibilityIdentifier("removeSourceDifferentTitle")
+            Button("Cancel", role: .cancel) { removalTarget = nil }
+        } message: {
+            Text("Keeps what you read on it.\n\nWhat you read on it no longer counts here.")
         }
         .onChange(of: vm.detailTags) { _, tags in
             // Ungated: every source has tags, and this is what makes non-MangaDex
