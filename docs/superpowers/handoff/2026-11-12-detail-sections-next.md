@@ -31,10 +31,20 @@ safe to drop. Leave `.worktrees/device-build`, the uncommitted `.cbz` UTI fix, a
 
 ## Next
 
-1. **Analytics** is decided on consent. Its remaining open questions (1, 4–9: provider, retention, export,
-   `source_installed`, adult purge, legal review, Related opens) still need the owner, each with a recommended
-   answer (design §"Open questions"). Ask them in one pass when the owner wants analytics next. The `mlt_opened`
-   hook hangs off the MAL-hub rails (analytics design §11.1).
+1. **Analytics slice 1 — the owner directed it next (2026-11-12) and approved all seven open questions.** Design:
+   `docs/superpowers/specs/2026-11-09-analytics-design.md`; the decisions are in its "Owner decisions (2026-11-12)".
+   Slice 1 = §15 item 1: consent, the first-launch notice, the Settings "Privacy" section with "What is sent", the
+   hooks, the eligibility checks, the 500-event buffer and the sent ledger, the glossary entry and the `PRODUCT.md`
+   link-back. **No network at all**, so the privacy label does not change. ACs 1–13 (§16) each name their test;
+   §16's "Files that need `xcp add-file`" lists the six new test files. Not started: no branch, no worker.
+   - **Recheck the design against `main` first** (memory `verify-absence-claims-before-building`): it was written
+     against `b57c356`, before the MAL hub and detail sections. Its "Current code" table cites
+     `MangaDetailView.swift:558-564` `MangaRail` for More Like This; that is now `MALHubCandidateRail` inside
+     `moreLikeThisPane` (#396). Write an amendment for any drift before dispatching, as was done for detail sections.
+   - Slices 2 and 3 stay blocked on the legal review and the hosted privacy policy (decision 8).
+   - Suggested route: Codex Luna via Orca in narrow turns: (a) consent model + region table + tests (ACs 1, 2, 12);
+     (b) event types, eligibility, recorder, buffer, ledger + tests (ACs 3–11); (c) notice, Settings section,
+     hooks, UI test (AC 13) + CI line; (d) mutations. Review between turns.
 2. **Item 12, per-Source refresh cadence:** still blocked on measured device data. Don't guess.
 3. **Library-wide switching to another Source** (owner's item 3, Paperback's "Migrate"): its own design.
    `moveCopy`/`combine` (#390) and `SourceTitleSearch` (#392) are its building blocks.
