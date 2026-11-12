@@ -610,8 +610,15 @@ final class WorkStoreTests: XCTestCase {
         let remover = store.mint(from: removed); _ = store.mint(from: other)
         XCTAssertEqual(store.removeListing(ListingKey(other), from: remover, keepingReadState: false), .removed)
         let reminted = store.mint(from: other)
+        XCTAssertNotEqual(reminted, remover)
+        // The remover's own id: recording it on the re-minted Work would leave two Works
+        // claiming MAL 1, the split ADR-0008 forbids and the merge guard can't repair.
+        store.setExternalIds(ExternalIDs(mal: 1, anilist: nil), on: reminted)
+        XCTAssertNil(store.work(reminted)?.externalIds.mal)
+        XCTAssertEqual(store.workId(externalId: ExternalIDs(mal: 1, anilist: nil)), remover)
+        // An id nobody owns still records.
         store.setExternalIds(ExternalIDs(mal: 9, anilist: nil), on: reminted)
-        XCTAssertNotEqual(store.workId(externalId: ExternalIDs(mal: 9, anilist: nil)), remover)
+        XCTAssertEqual(store.work(reminted)?.externalIds.mal, 9)
     }
 
     @MainActor func testReMintedRemovedListingKeepsUnownedIds() {
