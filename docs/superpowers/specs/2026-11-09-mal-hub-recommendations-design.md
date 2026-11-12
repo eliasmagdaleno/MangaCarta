@@ -457,9 +457,9 @@ no title or confidence label is truncated.
 2. **Decided 2026-11-10 — same treatment, no dimming.** One MAL-native mixed rail per section;
    unavailable cards look exactly like available ones, and a quiet `ON / NOT ON YOUR SOURCES` stamp is
    the only marker (a Related card prefixes its relation, e.g. `SEQUEL · NOT ON YOUR SOURCES`).
-3. **Applied as recommended, awaiting owner confirmation:** remember a confirmed `(MAL id, Source id,
-   listing id)` indefinitely, changed only from the preview's "Choose another Source"; there is no
-   Settings list. Applied 2026-11-10 because the owner had not answered; confirm in the slice 3 PR.
+3. **Decided 2026-11-11 (owner) — remember a confirmed `(MAL id, Source id, listing id)` indefinitely,**
+   changed only from the preview's "Choose another Source"; there is no Settings list. The per-title
+   Sources design makes the same call for its controls.
 4. **Decided 2026-11-10 — show counts for the top three choices only.** Exact matches first, then the
    registry's Source order. `ListingCountCache` is read first and a fetched count is written back, in
    `FulfillmentRouter.distinctChapterCount` units, so a chooser count also feeds fulfillment ranking.
