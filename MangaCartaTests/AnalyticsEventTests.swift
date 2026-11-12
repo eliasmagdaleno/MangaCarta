@@ -1,7 +1,5 @@
+import CoreFoundation
 import Foundation
-
-// swiftlint:disable:next blanket_disable_command
-// swiftlint:disable line_length statement_position
 import XCTest
 @testable import MangaCarta
 
@@ -17,12 +15,16 @@ final class AnalyticsEventTests: XCTestCase {
         let ids = try XCTUnwrap(AnalyticsEligibility.catalogueIDs(work: work, manga: manga))
         var envelopes: [[String: Any]] = []
         for event in allEvents(ids: ids) {
-            let data = try JSONEncoder().encode(
-                AnalyticsEnvelope(install: install, date: Date(timeIntervalSince1970: 1_794_000_000), app: "1.0 (42)", event: event)
-            )
+            let data = try JSONEncoder().encode(AnalyticsEnvelope(
+                install: install, date: Date(timeIntervalSince1970: 1_794_000_000),
+                app: "1.0 (42)", event: event
+            ))
             envelopes.append(try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any]))
         }
-        let allowedKeys = Set(["v", "install", "day", "app", "name", "ids", "mal", "anilist", "progress", "rank", "reason", "count", "from", "to", "mode", "files", "adult", "key", "on", "value"])
+        let allowedKeys = Set([
+            "v", "install", "day", "app", "name", "ids", "mal", "anilist", "progress",
+            "rank", "reason", "count", "from", "to", "mode", "files", "adult", "key", "on", "value"
+        ])
         let closedStrings = Set(allEvents(ids: ids).flatMap { event -> [String] in
             [event.name] + ForYouReasonKind.allCases.map(\.rawValue) + ReaderModeKind.allCases.map(\.rawValue) +
                 ImportFileBucket.allCases.map(\.rawValue) + AnalyticsSettingKey.allCases.map(\.rawValue) +
@@ -53,20 +55,42 @@ final class AnalyticsEventTests: XCTestCase {
         XCTAssertEqual(AnalyticsEnvelope.day(for: date), "2026-11-13")
     }
 
-    private func allEvents(ids: CatalogueIDs) -> [AnalyticsEvent] {
+    func allEvents(ids: CatalogueIDs) -> [AnalyticsEvent] {
         [
             .workSaved(ids), .workUnsaved(ids), .chapterCompleted(ids, progress: 12),
             .recNotInterested(ids), .recMoreLikeThis(ids), .forYouOpened(ids, rank: 2, reason: .tag),
             .forYouShown(count: 6), .mltOpened(from: ids, to: CatalogueIDs(mal: 30, anilist: nil)),
             .appActive, .readerOpened(.rtl), .searchUsed, .localImportFinished(.twoToNine),
-            .sourceInstalled(.mixed), .settingChanged(.readingModeDefault, .readingMode(.vertical)),
+            .sourceInstalled(.mixed), .settingChanged(.notifications, .on(true)),
+            .settingChanged(.malSync, .on(false)), .settingChanged(.readingModeDefault, .readingMode(.vertical)),
             .analyticsEnabled
-        ]
+        ].map(exhaustive)
+    }
+
+    private func exhaustive(_ event: AnalyticsEvent) -> AnalyticsEvent {
+        switch event {
+        case .workSaved, .workUnsaved, .chapterCompleted, .recNotInterested, .recMoreLikeThis,
+             .forYouOpened, .forYouShown, .mltOpened, .appActive, .readerOpened, .searchUsed,
+             .localImportFinished, .sourceInstalled, .settingChanged, .analyticsEnabled:
+            return event
+        }
+    }
+
+    func testSettingOnIsAJSONBoolean() throws {
+        let event = AnalyticsEvent.settingChanged(.notifications, .on(true))
+        let data = try JSONEncoder().encode(AnalyticsEnvelope(install: install, date: Date(), app: "app", event: event))
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let value = try XCTUnwrap(object["on"] as CFTypeRef?)
+        XCTAssertEqual(CFGetTypeID(value), CFBooleanGetTypeID())
     }
 
     private func collectStrings(_ value: Any, into result: inout [String]) {
-        if let string = value as? String { result.append(string) }
-        else if let dictionary = value as? [String: Any] { dictionary.values.forEach { collectStrings($0, into: &result) } }
-        else if let array = value as? [Any] { array.forEach { collectStrings($0, into: &result) } }
+        if let string = value as? String {
+            result.append(string)
+        } else if let dictionary = value as? [String: Any] {
+            dictionary.values.forEach { collectStrings($0, into: &result) }
+        } else if let array = value as? [Any] {
+            array.forEach { collectStrings($0, into: &result) }
+        }
     }
 }

@@ -1,7 +1,4 @@
 import Foundation
-
-// swiftlint:disable:next blanket_disable_command
-// swiftlint:disable line_length
 import XCTest
 @testable import MangaCarta
 
@@ -10,14 +7,17 @@ final class AnalyticsEventBufferTests: XCTestCase {
     func testCapDropsOldest() throws {
         let directory = makeTestDirectory("analytics-buffer")
         let id = UUID()
-        for index in 0..<505 {
-            let buffer = index == 0 ? AnalyticsEventBuffer(directory: directory) : AnalyticsEventBuffer(directory: directory)
-            buffer.append(AnalyticsEnvelope(install: id, date: Date(timeIntervalSince1970: TimeInterval(index)), app: "app", event: .forYouShown(count: index)))
-        }
         let buffer = AnalyticsEventBuffer(directory: directory)
-        XCTAssertEqual(buffer.events.count, 500)
-        XCTAssertEqual(buffer.events.first?.event, .forYouShown(count: 5))
-        XCTAssertEqual(buffer.events.last?.event, .forYouShown(count: 504))
+        for index in 0..<505 {
+            buffer.append(AnalyticsEnvelope(
+                install: id, date: Date(timeIntervalSince1970: TimeInterval(index)), app: "app",
+                event: .forYouShown(count: index)
+            ))
+        }
+        let reloaded = AnalyticsEventBuffer(directory: directory)
+        XCTAssertEqual(reloaded.events.count, 500)
+        XCTAssertEqual(reloaded.events.first?.event, AnalyticsEvent.forYouShown(count: 5))
+        XCTAssertEqual(reloaded.events.last?.event, AnalyticsEvent.forYouShown(count: 504))
     }
 
     func testCorruptFileStartsEmpty() throws {
@@ -27,7 +27,11 @@ final class AnalyticsEventBufferTests: XCTestCase {
         let buffer = AnalyticsEventBuffer(directory: directory)
         XCTAssertTrue(buffer.events.isEmpty)
         buffer.append(AnalyticsEnvelope(install: UUID(), date: Date(), app: "app", event: .appActive))
-        XCTAssertNoThrow(try JSONDecoder().decode([AnalyticsEnvelope].self, from: Data(contentsOf: directory.appendingPathComponent("buffer.json"))))
+        let data = try Data(contentsOf: directory.appendingPathComponent("buffer.json"))
+        XCTAssertNoThrow(try JSONDecoder().decode(
+            [AnalyticsEnvelope].self,
+            from: data
+        ))
     }
 
     func testInstallIDIsNotMintedUntilAsked() {
@@ -37,6 +41,24 @@ final class AnalyticsEventBufferTests: XCTestCase {
         let id = buffer.mintInstallIDIfNeeded()
         XCTAssertEqual(buffer.installID, id)
         XCTAssertEqual(buffer.mintInstallIDIfNeeded(), id)
+    }
+
+    func testEveryEventSurvivesReload() {
+        let directory = makeTestDirectory("analytics-buffer")
+        let install = UUID()
+        let ids = CatalogueIDs(mal: 21, anilist: 30013)
+        let events: [AnalyticsEvent] = [
+            .workSaved(ids), .workUnsaved(ids), .chapterCompleted(ids, progress: 12),
+            .recNotInterested(ids), .recMoreLikeThis(ids), .forYouOpened(ids, rank: 2, reason: .tag),
+            .forYouShown(count: 6), .mltOpened(from: ids, to: CatalogueIDs(mal: 30, anilist: nil)),
+            .appActive, .readerOpened(.rtl), .searchUsed, .localImportFinished(.twoToNine),
+            .sourceInstalled(.mixed), .settingChanged(.notifications, .on(true)),
+            .settingChanged(.malSync, .on(false)), .settingChanged(.readingModeDefault, .readingMode(.vertical)),
+            .analyticsEnabled
+        ]
+        let buffer = AnalyticsEventBuffer(directory: directory)
+        events.forEach { buffer.append(AnalyticsEnvelope(install: install, date: Date(), app: "app", event: $0)) }
+        XCTAssertEqual(AnalyticsEventBuffer(directory: directory).events.map(\.event), events)
     }
 
     func testEraseAllRemovesEveryFile() {

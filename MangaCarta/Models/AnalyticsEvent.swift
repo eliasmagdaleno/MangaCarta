@@ -1,13 +1,18 @@
 import Foundation
 
-// swiftlint:disable:next blanket_disable_command
-// swiftlint:disable line_length statement_position cyclomatic_complexity
-
 struct CatalogueIDs: Codable, Equatable, Hashable {
     let mal: Int?
     let anilist: Int?
 
     var isEmpty: Bool { mal == nil && anilist == nil }
+
+    private enum CodingKeys: String, CodingKey { case mal, anilist }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(mal, forKey: .mal)
+        try container.encodeIfPresent(anilist, forKey: .anilist)
+    }
 }
 
 enum ForYouReasonKind: String, Codable, CaseIterable {
@@ -143,6 +148,7 @@ enum AnalyticsEvent: Equatable, Codable {
         case name, ids, progress, rank, reason, count, from, to, mode, files, adult, key, on, value
     }
 
+    // swiftlint:disable:next cyclomatic_complexity
     func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(name, forKey: .name)
@@ -168,6 +174,7 @@ enum AnalyticsEvent: Equatable, Codable {
         }
     }
 
+    // swiftlint:disable:next cyclomatic_complexity
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let name = try c.decode(String.self, forKey: .name)
@@ -178,7 +185,9 @@ enum AnalyticsEvent: Equatable, Codable {
         case "chapter_completed": self = .chapterCompleted(try ids(), progress: try c.decode(Int.self, forKey: .progress))
         case "rec_not_interested": self = .recNotInterested(try ids())
         case "rec_more_like_this": self = .recMoreLikeThis(try ids())
-        case "for_you_opened": self = .forYouOpened(try ids(), rank: try c.decode(Int.self, forKey: .rank), reason: try c.decode(ForYouReasonKind.self, forKey: .reason))
+        case "for_you_opened":
+            self = .forYouOpened(try ids(), rank: try c.decode(Int.self, forKey: .rank),
+                                 reason: try c.decode(ForYouReasonKind.self, forKey: .reason))
         case "for_you_shown": self = .forYouShown(count: try c.decode(Int.self, forKey: .count))
         case "mlt_opened": self = .mltOpened(from: try ids(.from), to: try ids(.to))
         case "app_active": self = .appActive
@@ -188,8 +197,13 @@ enum AnalyticsEvent: Equatable, Codable {
         case "source_installed": self = .sourceInstalled(try c.decode(AdultClassification.self, forKey: .adult))
         case "setting_changed":
             let key = try c.decode(AnalyticsSettingKey.self, forKey: .key)
-            if let on = try c.decodeIfPresent(Bool.self, forKey: .on) { self = .settingChanged(key, .on(on)) }
-            else { self = .settingChanged(key, .readingMode(try c.decode(ReaderModeKind.self, forKey: .value))) }
+            if let on = try c.decodeIfPresent(Bool.self, forKey: .on) {
+                self = .settingChanged(key, .on(on))
+            } else {
+                self = .settingChanged(key, .readingMode(
+                    try c.decode(ReaderModeKind.self, forKey: .value)
+                ))
+            }
         case "analytics_enabled": self = .analyticsEnabled
         default: throw DecodingError.dataCorruptedError(forKey: .name, in: c, debugDescription: "Unknown analytics event")
         }
@@ -212,30 +226,17 @@ struct AnalyticsEnvelope: Codable, Equatable {
         self.v = v; self.install = install; self.day = day; self.app = app; self.event = event
     }
 
-    private enum CodingKeys: String, CodingKey { case v, install, day, app, name, ids, progress, rank, reason, count, from, to, mode, files, adult, key, on, value }
+    private enum CodingKeys: String, CodingKey {
+        case v, install, day, app, name, ids, progress, rank, reason, count
+        case from, to, mode, files, adult, key, on, value
+    }
 
     func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(v, forKey: .v); try c.encode(install.uuidString, forKey: .install)
         try c.encode(day, forKey: .day); try c.encode(app, forKey: .app)
-        let eventData = try JSONEncoder().encode(event)
-        guard let eventDecoder = try JSONSerialization.jsonObject(with: eventData) as? [String: Any] else {
-            throw EncodingError.invalidValue(event, EncodingError.Context(codingPath: [], debugDescription: "Invalid event payload"))
-        }
-        for (key, value) in eventDecoder {
-            guard let codingKey = CodingKeys(rawValue: key) else { continue }
-            if let value = value as? Int { try c.encode(value, forKey: codingKey) }
-            else if let value = value as? Bool { try c.encode(value, forKey: codingKey) }
-            else if let value = value as? String { try c.encode(value, forKey: codingKey) }
-            else if let value = value as? [String: Any] {
-                var nested = c.nestedContainer(keyedBy: IDKeys.self, forKey: codingKey)
-                if let mal = value["mal"] as? Int { try nested.encode(mal, forKey: .mal) }
-                if let anilist = value["anilist"] as? Int { try nested.encode(anilist, forKey: .anilist) }
-            }
-        }
+        try event.encode(to: encoder)
     }
-
-    private enum IDKeys: String, CodingKey { case mal, anilist }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -243,37 +244,20 @@ struct AnalyticsEnvelope: Codable, Equatable {
         guard let install = UUID(uuidString: try c.decode(String.self, forKey: .install)) else {
             throw DecodingError.dataCorruptedError(forKey: .install, in: c, debugDescription: "Invalid UUID")
         }
-        let eventName = try c.decode(String.self, forKey: .name)
-        func ids(_ key: CodingKeys = .ids) throws -> CatalogueIDs { try c.decode(CatalogueIDs.self, forKey: key) }
-        let event: AnalyticsEvent
-        switch eventName {
-        case "work_saved": event = .workSaved(try ids())
-        case "work_unsaved": event = .workUnsaved(try ids())
-        case "chapter_completed": event = .chapterCompleted(try ids(), progress: try c.decode(Int.self, forKey: .progress))
-        case "rec_not_interested": event = .recNotInterested(try ids())
-        case "rec_more_like_this": event = .recMoreLikeThis(try ids())
-        case "for_you_opened": event = .forYouOpened(try ids(), rank: try c.decode(Int.self, forKey: .rank), reason: try c.decode(ForYouReasonKind.self, forKey: .reason))
-        case "for_you_shown": event = .forYouShown(count: try c.decode(Int.self, forKey: .count))
-        case "mlt_opened": event = .mltOpened(from: try ids(.from), to: try ids(.to))
-        case "app_active": event = .appActive
-        case "reader_opened": event = .readerOpened(try c.decode(ReaderModeKind.self, forKey: .mode))
-        case "search_used": event = .searchUsed
-        case "local_import_finished": event = .localImportFinished(try c.decode(ImportFileBucket.self, forKey: .files))
-        case "source_installed": event = .sourceInstalled(try c.decode(AdultClassification.self, forKey: .adult))
-        case "setting_changed":
-            let key = try c.decode(AnalyticsSettingKey.self, forKey: .key)
-            if let on = try c.decodeIfPresent(Bool.self, forKey: .on) { event = .settingChanged(key, .on(on)) }
-            else { event = .settingChanged(key, .readingMode(try c.decode(ReaderModeKind.self, forKey: .value))) }
-        case "analytics_enabled": event = .analyticsEnabled
-        default: throw DecodingError.dataCorruptedError(forKey: .name, in: c, debugDescription: "Unknown analytics event")
-        }
-        self.init(v: v, install: install, day: try c.decode(String.self, forKey: .day), app: try c.decode(String.self, forKey: .app), event: event)
+        self.init(v: v, install: install, day: try c.decode(String.self, forKey: .day),
+                  app: try c.decode(String.self, forKey: .app), event: try AnalyticsEvent(from: decoder))
     }
 
+    private static let dayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
     static func day(for date: Date) -> String {
-        let calendar = Calendar(identifier: .gregorian)
-        var utc = calendar; utc.timeZone = TimeZone(secondsFromGMT: 0)!
-        let formatter = DateFormatter(); formatter.calendar = utc; formatter.timeZone = utc.timeZone; formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: date)
+        dayFormatter.string(from: date)
     }
 }

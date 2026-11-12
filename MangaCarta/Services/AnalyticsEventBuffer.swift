@@ -1,8 +1,5 @@
 import Foundation
 
-// swiftlint:disable:next blanket_disable_command
-// swiftlint:disable line_length statement_position
-
 @MainActor
 final class AnalyticsEventBuffer {
     static let capacity = 500
@@ -51,12 +48,16 @@ final class AnalyticsEventBuffer {
     }
 
     private func write<T: Encodable>(_ value: T, to url: URL) {
-        do { try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true); try encoder.encode(value).write(to: url, options: .atomic) }
-        catch { }
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try encoder.encode(value).write(to: url, options: .atomic)
+        } catch { }
     }
 
     private func write(_ data: Data, to url: URL) {
-        do { try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true); try data.write(to: url, options: .atomic) }
-        catch { }
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try data.write(to: url, options: .atomic)
+        } catch { }
     }
 }
