@@ -246,7 +246,7 @@ struct MangaDetailView: View {
             }
             .accessibilityIdentifier("removeSourceSameTitle")
             Button("It's a different title") {
-                if let key = removalTarget?.key { removeSource(key, keepingReadState: false) }
+                if let key = removalTarget?.key { removeSource(key, keepingReadState: true) }
                 removalTarget = nil
             }
             .accessibilityIdentifier("removeSourceDifferentTitle")
