@@ -61,14 +61,17 @@ final class DetailSectionsUITests: XCTestCase {
     }
 
     func testDetailWithSectionsPassesTheAccessibilityAudit() throws {
-        try auditDetail(launch(), name: "detail-sections-default")
+        let standard = launch()
+        // Positive control: at the default size the picker is a segmented control, so the
+        // negative check at the accessibility size below means something.
+        XCTAssertTrue(standard.segmentedControls["detailSectionPicker"].waitForExistence(timeout: 15))
+        try auditDetail(standard, name: "detail-sections-default")
+        standard.terminate()
 
         let large = launch(arguments: ["-uitest-mal-hub", "-UIPreferredContentSizeCategoryName",
                                        "UICTContentSizeCategoryAccessibilityXL"])
-        let picker = picker(large)
-        XCTAssertTrue(picker.waitForExistence(timeout: 15))
+        XCTAssertTrue(large.buttons["detailSectionPicker"].waitForExistence(timeout: 15))
         XCTAssertFalse(large.segmentedControls["detailSectionPicker"].exists)
-        XCTAssertTrue(large.buttons["detailSectionPicker"].exists || picker.exists)
         attach(large, name: "detail-sections-accessibility-xl")
         try audit(large, screen: "detail-sections-accessibility-xl")
     }
