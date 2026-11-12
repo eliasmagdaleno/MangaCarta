@@ -142,7 +142,7 @@ struct Work: Codable, Identifiable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, displayTitle, knownTitles, externalIds, listings, handLinkedListings, snapshot
+        case id, displayTitle, knownTitles, externalIds, listings, removedListings, handLinkedListings, snapshot
     }
 
     init(from decoder: Decoder) throws {
@@ -152,7 +152,7 @@ struct Work: Codable, Identifiable {
         knownTitles = try c.decode([String].self, forKey: .knownTitles)
         externalIds = try c.decode(ExternalIDs.self, forKey: .externalIds)
         listings = try c.decode([ListingKey].self, forKey: .listings)
-        removedListings = []
+        removedListings = try c.decodeIfPresent([RemovedListing].self, forKey: .removedListings) ?? []
         handLinkedListings = try c.decodeIfPresent([ListingKey].self, forKey: .handLinkedListings) ?? []
         snapshot = try c.decodeIfPresent(MetadataSnapshot.self, forKey: .snapshot)
     }
