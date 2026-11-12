@@ -69,6 +69,9 @@ final class TitleSourcesUITests: XCTestCase {
         let storageID = "TEST_RUNNER_\(UUID().uuidString)"
         let app = launch(storageID: storageID)
         removeSourceB(app, answer: "removeSourceSameTitle")
+        // WorkStore persists removals on its normal debounce; allow that write before
+        // simulating a process termination and relaunch.
+        sleep(2)
         app.terminate()
 
         let relaunched = launch(storageID: storageID, openTitle: false)
