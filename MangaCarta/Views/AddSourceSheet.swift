@@ -108,6 +108,8 @@ struct AddSourceSheet: View {
                     Task { await model.retry(sourceId: group.sourceId) }
                 }
                 .accessibilityIdentifier("addSourceRetry.\(group.sourceId)")
+            } else if group.status == .noResults {
+                Text("No results").foregroundStyle(Ink.secondary)
             }
             ForEach(group.rows) { row in
                 rowView(row)

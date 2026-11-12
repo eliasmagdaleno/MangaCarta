@@ -155,7 +155,13 @@ struct SourcePickerStamp: View {
                     Button {
                         select(row.key)
                     } label: {
-                        Text("\(row.name) · \(row.detail)")
+                        // A checkmark rather than colour alone — the design system's rule,
+                        // and the only marker that survives Differentiate Without Color.
+                        if row.isCurrent {
+                            Label("\(row.name) · \(row.detail)", systemImage: "checkmark")
+                        } else {
+                            Text("\(row.name) · \(row.detail)")
+                        }
                     }
                 }
             }
