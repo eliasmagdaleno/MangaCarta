@@ -241,7 +241,7 @@ struct MangaDetailView: View {
         .alert("Remove \(removalTarget?.name ?? "Source") from this title?",
                isPresented: $showingRemoveConfirmation) {
             Button("It's the same title, I don't want this copy") {
-                if let key = removalTarget?.key { removeSource(key, keepingReadState: true) }
+                if let key = removalTarget?.key { removeSource(key, keepingReadState: false) }
                 removalTarget = nil
             }
             .accessibilityIdentifier("removeSourceSameTitle")
