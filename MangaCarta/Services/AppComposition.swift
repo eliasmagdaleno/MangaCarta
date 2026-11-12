@@ -552,6 +552,9 @@ struct AppComposition {
                                                    registry: self.registry,
                                                    rateLimiters: self.hostRateLimiters)
         self.extensions = extensionResult.composition
+        self.extensions?.installer.installed = { [weak analytics] adult in
+            analytics?.sourceInstalled(adult)
+        }
         self.extensionStorageError = extensionResult.error ?? identityMigrationError
     }
 

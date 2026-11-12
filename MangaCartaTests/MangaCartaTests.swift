@@ -2027,6 +2027,7 @@ final class MangaCartaTests: XCTestCase {
         let out = try await TagCandidateProvider(source: source)
             .candidates(for: prof, excluding: [], limit: 10)
         XCTAssertEqual(out.first?.reason, "More Action")
+        XCTAssertEqual(out.first?.reasonKind, .tag)
     }
 
     func testCandidateSkipsFailingTagFeed() async throws {
@@ -2534,6 +2535,15 @@ final class MangaCartaTests: XCTestCase {
         let pool = (0..<5).map { scored("p\($0)") }
         let engine = makeEngine(history: history, tasteStore: taste, provider: FixedPoolProvider(pool: []))
         XCTAssertEqual(engine.compose(pool: pool).count, 5)
+    }
+
+    @MainActor func testComposeMarksExplorationReasonKind() {
+        let history = makeHistoryStore(); let taste = makeTasteStore()
+        let pool = (0..<40).map { scored("p\($0)") }
+        let engine = makeEngine(history: history, tasteStore: taste,
+                                provider: FixedPoolProvider(pool: []), seed: 42)
+        let composed = engine.compose(pool: pool)
+        XCTAssertTrue(composed.contains { $0.reasonKind == .explore })
     }
 
     @MainActor func testMarkNotInterestedRemovesFromRailAndPersists() async throws {
@@ -3516,6 +3526,7 @@ final class MangaCartaTests: XCTestCase {
         XCTAssertEqual(byId["x"]?.score ?? 0, 2.0, accuracy: 0.0001)
         // Reason names the strongest seed that surfaced it.
         XCTAssertEqual(byId["x"]?.reason, "Because you read S1")
+        XCTAssertEqual(byId["x"]?.reasonKind, .mal)
     }
 
     // MARK: - CompositeCandidateProvider

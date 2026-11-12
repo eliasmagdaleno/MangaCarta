@@ -13,6 +13,7 @@ struct MangaDetailView: View {
     @EnvironmentObject private var works: WorkStore
     @EnvironmentObject private var updates: UpdateStateStore
     @EnvironmentObject private var engine: RecommendationEngine
+    @EnvironmentObject private var analytics: AnalyticsRecorder
     @EnvironmentObject private var fulfillment: FulfillmentCoordinator
     @EnvironmentObject private var workSources: WorkSourcesCoordinator
     @EnvironmentObject private var sourcePreferences: SourcePreferenceStore
@@ -661,7 +662,9 @@ struct MangaDetailView: View {
     private var moreLikeThisPane: some View {
         VStack(alignment: .leading, spacing: 12) {
             InkSectionHeader("More Like This", eyebrow: "Similar titles")
-            MALHubCandidateRail(candidates: malHubRails.similar, detailManga: manga)
+            MALHubCandidateRail(candidates: malHubRails.similar, detailManga: manga) { candidate, opened, _ in
+                analytics.mltOpened(from: manga, to: opened, toMALID: candidate.malId)
+            }
         }
         .accessibilityIdentifier("moreLikeThisSection")
     }

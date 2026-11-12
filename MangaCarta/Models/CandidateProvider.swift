@@ -15,6 +15,7 @@ struct ScoredManga: Identifiable {
     let manga: Manga
     let score: Double
     let reason: String
+    var reasonKind: ForYouReasonKind = .other
     var id: String { manga.id }
 }
 
@@ -85,7 +86,7 @@ struct TagCandidateProvider: CandidateProvider {
             .compactMap { id, score in
                 guard let m = mangaById[id] else { return nil }
                 let reason = bestTag[id].map { "More \($0.name)" } ?? "Recommended"
-                return ScoredManga(manga: m, score: score, reason: reason)
+                return ScoredManga(manga: m, score: score, reason: reason, reasonKind: .tag)
             }
     }
 }
@@ -148,7 +149,7 @@ struct MALCandidateProvider: CandidateProvider {
             .compactMap { id, score in
                 guard let m = mangaById[id] else { return nil }
                 let reason = bestSeed[id].map { "Because you read \($0.title)" } ?? "Recommended"
-                return ScoredManga(manga: m, score: score, reason: reason)
+                return ScoredManga(manga: m, score: score, reason: reason, reasonKind: .mal)
             }
     }
 }
@@ -226,6 +227,7 @@ struct CompositeCandidateProvider: CandidateProvider {
         var score: [String: Double] = [:]
         var manga: [String: Manga] = [:]
         var reason: [String: String] = [:]
+        var reasonKind: [String: ForYouReasonKind] = [:]
 
         // Reason precedence is tag < AniList < MAL, applied by assignment order (ADR-0011).
         // "Because you read Solo Leveling" names a book the user chose and beats any tag
@@ -234,16 +236,19 @@ struct CompositeCandidateProvider: CandidateProvider {
         for c in tags {
             manga[c.manga.id] = c.manga
             reason[c.manga.id] = c.reason
+            reasonKind[c.manga.id] = c.reasonKind
             score[c.manga.id, default: 0] += wTag * (tagNorm[c.manga.id] ?? 0)
         }
         for c in anis {
             if manga[c.manga.id] == nil { manga[c.manga.id] = c.manga }
             reason[c.manga.id] = c.reason
+            reasonKind[c.manga.id] = c.reasonKind
             score[c.manga.id, default: 0] += wAniList * (aniNorm[c.manga.id] ?? 0)
         }
         for c in mals {
             if manga[c.manga.id] == nil { manga[c.manga.id] = c.manga }
             reason[c.manga.id] = c.reason      // MAL reason preferred when MAL contributed
+            reasonKind[c.manga.id] = c.reasonKind
             score[c.manga.id, default: 0] += wMal * (malNorm[c.manga.id] ?? 0)
         }
 
@@ -270,7 +275,8 @@ struct CompositeCandidateProvider: CandidateProvider {
             .prefix(limit)
             .compactMap { id, value in
                 guard let m = manga[id] else { return nil }
-                return ScoredManga(manga: m, score: value, reason: reason[id] ?? "Recommended")
+                return ScoredManga(manga: m, score: value, reason: reason[id] ?? "Recommended",
+                                   reasonKind: reasonKind[id] ?? .other)
             }
     }
 

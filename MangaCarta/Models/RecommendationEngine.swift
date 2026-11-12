@@ -365,7 +365,11 @@ final class RecommendationEngine: ObservableObject {
         let coreCount = Int(Double(railSize) * coreFraction)
         let core = Array(pool.prefix(coreCount))
         let tail = Array(pool.suffix(from: coreCount))
-        let explore = Array(tail.shuffled(using: &rng).prefix(railSize - coreCount))
+        let explore = Array(tail.shuffled(using: &rng).prefix(railSize - coreCount)).map { item in
+            var item = item
+            item.reasonKind = .explore
+            return item
+        }
         var combined = core + explore
         combined.shuffle(using: &rng)
         return combined

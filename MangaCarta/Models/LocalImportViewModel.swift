@@ -22,6 +22,7 @@ final class LocalImportViewModel: ObservableObject {
     private weak var library: LibraryStore?
     private weak var works: WorkStore?
     private weak var readingModes: ReadingModeStore?
+    var importFinished: ((Int) -> Void)?
 
     private let containerRoot: URL
 
@@ -68,6 +69,8 @@ final class LocalImportViewModel: ObservableObject {
                 if self.pendingURLs.isEmpty {
                     self.isImporting = false
                     self.current = nil
+                    let imported = max(0, self.completedFiles - self.errors.count)
+                    if imported > 0 { self.importFinished?(imported) }
                 } else {
                     self.startImporting()
                 }

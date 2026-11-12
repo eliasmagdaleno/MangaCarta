@@ -29,6 +29,7 @@ struct SettingsView: View {
     @State private var localItemCount = 0
     @State private var localDiskBytes = 0
     @EnvironmentObject private var localImporter: LocalImportViewModel
+    @EnvironmentObject private var analytics: AnalyticsRecorder
 
     var body: some View {
         NavigationStack {
@@ -102,6 +103,10 @@ struct SettingsView: View {
                             }
                         }
                         .accessibilityIdentifier("defaultReadingModePicker")
+                        .onChange(of: readingModes.defaultMode) { _, mode in
+                            analytics.settingChanged(.readingModeDefault,
+                                                      .readingMode(ReaderModeKind(mode)))
+                        }
                         .padding(.horizontal, Gutter.page)
                         Text("Titles you've set a mode for in the reader keep it.")
                             .font(.footnote)
@@ -122,6 +127,7 @@ struct SettingsView: View {
                                 .padding(.horizontal, Gutter.page)
                                 .frame(minHeight: 50)
                                 .onChange(of: notificationsEnabled) { _, enabled in
+                                    analytics.settingChanged(.notifications, .on(enabled))
                                     if enabled { Task { await requestNotificationsIfNeeded() } }
                                 }
                             if effectiveNotificationSummary == .unavailable {
@@ -209,6 +215,7 @@ struct SettingsView: View {
                                 .tint(Ink.seal)
                                 .padding(.horizontal, Gutter.page)
                                 .onChange(of: showAdultSources) { _, newValue in
+                                    analytics.settingChanged(.showAdult, .on(newValue))
                                     registry.enforceAdultGating(includeAdult: newValue)
                                     RepositorySettingsViewModel.setAdultSourcesVisible(
                                         newValue, defaults: .standard)
@@ -232,6 +239,8 @@ struct SettingsView: View {
                     }
 
                     MALAccountSettingsView()
+
+                    AnalyticsSettingsSection()
 
                     VStack(alignment: .leading, spacing: 14) {
                         InkSectionHeader("About", eyebrow: "Info")
@@ -402,13 +411,21 @@ private struct RepositorySettingsSection: View {
                                     Button("Reconnect prior data") { model.offerMigration(for: source) }
                                 }
                                 if let offered = model.composition.installer.listings[repository.id]?.availableUpdates[source.bundleId] {
-                                    Button("Update") { model.run { try await model.composition.installer.updateBundle(source.bundleId, in: repository.id) } }
+                                    Button("Update") {
+                                        model.run {
+                                            try await model.composition.installer.updateBundle(
+                                                source.bundleId, in: repository.id)
+                                        }
+                                    }
                                         .accessibilityLabel("Update to version \(offered)")
                                 }
                                 Button(source.state == .disabled ? "Enable" : "Disable") {
                                     model.run {
-                                        if source.state == .disabled { try model.composition.installer.enable(source.qualifiedId) }
-                                        else { try model.composition.installer.disable(source.qualifiedId) }
+                                        if source.state == .disabled {
+                                            try model.composition.installer.enable(source.qualifiedId)
+                                        } else {
+                                            try model.composition.installer.disable(source.qualifiedId)
+                                        }
                                     }
                                 }
                                 Button("Uninstall") { model.run { try model.composition.installer.uninstall(source.qualifiedId) } }
@@ -487,7 +504,8 @@ private struct RepositorySettingsSection: View {
             Button("Not now", role: .cancel) { model.answerMigration(false) }
         } message: {
             if let pending = model.pendingMigration {
-                Text("Move previous \(pending.record.localId) library, reading history and source choices to the Source installed from \(pending.repositoryName). Nothing is removed if you decline.")
+                Text("Move previous \(pending.record.localId) library, reading history and source choices "
+                     + "to the Source installed from \(pending.repositoryName). Nothing is removed if you decline.")
             }
         }
     }
@@ -531,7 +549,8 @@ private struct PreferredSourcePicker: View {
                 // "No preference" is a real row rather than an absent selection. Without it
                 // there is no way back to the automatic behaviour once a source is picked,
                 // and the default would be indistinguishable from a deliberate choice.
-                row(title: "No preference", detail: "The first installed source wins ties", isSelected: preferences.primarySourceId == nil) {
+                row(title: "No preference", detail: "The first installed source wins ties",
+                    isSelected: preferences.primarySourceId == nil) {
                     preferences.primarySourceId = nil
                 }
                 ForEach(sources, id: \.id) { source in

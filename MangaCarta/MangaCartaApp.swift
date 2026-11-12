@@ -36,6 +36,8 @@ struct MangaCartaApp: App {
     @StateObject private var readingModes: ReadingModeStore
     @StateObject private var fulfillment: FulfillmentCoordinator
     @StateObject private var workSources: WorkSourcesCoordinator
+    @StateObject private var analyticsConsent: AnalyticsConsentStore
+    @StateObject private var analytics: AnalyticsRecorder
     /// The graph's registry, so views resolve sources from the same one the services do.
     @StateObject private var registry: SourceRegistry
     @StateObject private var localImporter: LocalImportViewModel
@@ -67,6 +69,7 @@ struct MangaCartaApp: App {
     private let malDetailFetch: @Sendable (Int) async throws -> MyAnimeListMangaDetail
     private let entityResolutionStore: EntityResolutionStore
     private let listingCountCache: ListingCountCache
+    private let analyticsRegion: String?
 
     // swiftlint:disable function_body_length cyclomatic_complexity
     /// The graph itself lives in `AppComposition`, where it can be built against temp
@@ -85,11 +88,18 @@ struct MangaCartaApp: App {
         var fixtureChoiceStore: MALSourceChoiceStore?
         var fixtureEntityStore: EntityResolutionStore?
         var fixtureCountDirectory: URL?
+        var analyticsRegion: String?
         var fixtureDetailFetch: @Sendable (Int) async throws -> MyAnimeListMangaDetail = {
             try await MyAnimeListAPI.mangaDetail(id: $0)
         }
+        analyticsRegion = nil
 #if DEBUG
-        if let fixtureState = MALHubUITestFixture.state {
+        if let region = AnalyticsUITestFixture.region {
+            let storage = AnalyticsUITestFixture.storage()
+            defaults = storage.defaults
+            directory = storage.directory
+            analyticsRegion = region
+        } else if let fixtureState = MALHubUITestFixture.state {
             let storage = MALHubUITestFixture.storage()
             defaults = storage.defaults
             directory = storage.directory
@@ -150,6 +160,9 @@ struct MangaCartaApp: App {
                 includesReportingSource: ProcessInfo.processInfo.arguments.contains("-uitest-repository-reports"))
         }
 #endif
+        let analyticsNoticeSuppressed = ProcessInfo.processInfo.arguments.contains {
+            $0.hasPrefix("-uitest-")
+        } && analyticsRegion == nil
         let composed = AppComposition(defaults: defaults, directory: directory,
                                       malCredentials: ephemeralCredentials,
                                       malPreferences: ephemeralPreferences,
@@ -159,7 +172,8 @@ struct MangaCartaApp: App {
                                       registry: updateRegistry,
                                       repositoryTransport: repositoryTransport,
                                       malSourceChoiceStore: fixtureChoiceStore,
-                                      listingCountDirectory: fixtureCountDirectory)
+                                      listingCountDirectory: fixtureCountDirectory,
+                                      analyticsNoticeSuppressed: analyticsNoticeSuppressed)
 #if DEBUG
         if MALHubUITestFixture.state != nil {
             MALHubUITestFixture.seed(composed)
@@ -192,6 +206,7 @@ struct MangaCartaApp: App {
         self.malDetailStore = composed.malDetailStore
         self.malSourceChoiceStore = composed.malSourceChoiceStore
         self.malDetailFetch = composed.malDetailFetch
+        self.analyticsRegion = analyticsRegion
         self.entityResolutionStore = composed.entityResolutionStore; self.listingCountCache = composed.listingCounts
         _library = StateObject(wrappedValue: composed.library)
         _history = StateObject(wrappedValue: composed.history)
@@ -205,10 +220,13 @@ struct MangaCartaApp: App {
         _readingModes = StateObject(wrappedValue: composed.readingModes)
         _fulfillment = StateObject(wrappedValue: composed.fulfillment)
         _workSources = StateObject(wrappedValue: composed.workSources)
+        _analyticsConsent = StateObject(wrappedValue: composed.analyticsConsent)
+        _analytics = StateObject(wrappedValue: composed.analytics)
         _registry = StateObject(wrappedValue: composed.registry)
         let localImporter = LocalImportViewModel()
         localImporter.configure(registry: composed.registry, library: composed.library, works: composed.works,
                                 readingModes: composed.readingModes)
+        localImporter.importFinished = composed.analytics.localImportFinished
         _localImporter = StateObject(wrappedValue: localImporter)
         scheduler.register()
     }
@@ -244,6 +262,8 @@ struct MangaCartaApp: App {
                 .environmentObject(readingModes)
                 .environmentObject(fulfillment)
                 .environmentObject(workSources)
+                .environmentObject(analyticsConsent)
+                .environmentObject(analytics)
                 .environmentObject(registry)
                 .environmentObject(localImporter)
                 .environmentObject(workNavigator)
@@ -269,6 +289,10 @@ struct MangaCartaApp: App {
                     let local = (registry.source(id: LocalSource.sourceID) as? LocalSource)?.store ?? .shared
                     await LocalSeriesMigration.run(local: local, library: library, history: history, works: works)
 #if DEBUG
+                    if let analyticsRegion {
+                        analyticsConsent.updateRegion(storefrontCountryCode: analyticsRegion,
+                                                      localeRegionCode: nil)
+                    }
                     await Self.importUITestFixtureIfRequested(library: library, works: works, registry: registry,
                                                               readingModes: readingModes)
                     if UpdatesUITestFixture.state == nil {
@@ -278,6 +302,8 @@ struct MangaCartaApp: App {
                         }
                     }
 #else
+                    analyticsConsent.updateRegion(storefrontCountryCode: nil,
+                                                  localeRegionCode: Locale.current.region?.identifier)
                     queue.start()
                     refresh.startForeground { [notifier] events in
                         await notifier.schedule(events)
@@ -316,11 +342,13 @@ struct MangaCartaApp: App {
 #else
                     await vocabularyStore.refreshIfNeeded()
 #endif
+                    analytics.vocabulary = await vocabularyStore.cachedVocabulary()
                 }
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:
+                analytics.appActive()
 #if DEBUG
                 guard UpdatesUITestFixture.state == nil else { break }
 #endif

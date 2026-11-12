@@ -111,7 +111,8 @@ struct AniListCandidateProvider: CandidateProvider {
                             score: withinPoolScore(candidate.contributions, weights: weights),
                             reason: poolReason(for: candidate.contributions,
                                                weights: weights,
-                                               vocabulary: vocabulary))
+                                               vocabulary: vocabulary),
+                            reasonKind: .anilist)
             }
             .sorted { $0.score != $1.score ? $0.score > $1.score : $0.manga.id < $1.manga.id }
             .prefix(limit)

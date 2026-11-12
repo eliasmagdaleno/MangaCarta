@@ -184,6 +184,8 @@ enum ExtensionInstallError: Error, Equatable {
 @MainActor
 final class ExtensionInstaller {
 
+    var installed: ((AdultClassification) -> Void)?
+
     let store: RepositoryStore
     let registry: SourceLifecycleRegistry
 
@@ -433,7 +435,13 @@ final class ExtensionInstaller {
             throw ExtensionInstallError.lifecycle(error)
         }
         launchRefusals[qualifiedId] = nil
+        notifyInstall(declaration, reconnecting: reconnecting)
         return record
+    }
+
+    private func notifyInstall(_ declaration: SourceDeclaration, reconnecting: Bool) {
+        guard !reconnecting else { return }
+        installed?(declaration.adult)
     }
 
     /// The precondition of §6.3: the Source's declaration validated in the most recent

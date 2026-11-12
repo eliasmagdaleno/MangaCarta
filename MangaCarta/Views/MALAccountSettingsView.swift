@@ -14,6 +14,7 @@ import SwiftUI
 
 struct MALAccountSettingsView: View {
     @EnvironmentObject private var account: MALAccountStore
+    @EnvironmentObject private var analytics: AnalyticsRecorder
     @State private var signOutFailed = false
 
     private var presentation: MALAccountPresentation {
@@ -111,6 +112,9 @@ struct MALAccountSettingsView: View {
                 .tint(Ink.seal)
                 .padding(.horizontal, Gutter.page)
                 .padding(.vertical, 12)
+                .onChange(of: syncEnabled) { _, enabled in
+                    analytics.settingChanged(.malSync, .on(enabled))
+                }
             divider
             Toggle("Automatically add new titles", isOn: Binding(
                 get: { automaticallyAddsTitles },

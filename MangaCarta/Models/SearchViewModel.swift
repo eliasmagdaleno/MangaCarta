@@ -20,6 +20,7 @@ final class SearchViewModel: ObservableObject {
     /// True once a non-empty query has been submitted — distinguishes the idle
     /// prompt from a genuine "no results".
     @Published private(set) var hasSearched = false
+    var searchStarted: (() -> Void)?
 
     /// Where `source` comes from. Mirrors `HomeViewModel.SourceBinding`, and for the same
     /// reason: a singleton fallback is silently wrong whenever the graph was built with an
@@ -119,7 +120,9 @@ final class SearchViewModel: ObservableObject {
     }
 
     private func runSearch(_ query: String) {
+        let wasSearched = hasSearched
         hasSearched = true
+        if !wasSearched { searchStarted?() }
         // Capture the source as a value so the escaping fetch closure doesn't
         // reach back into main-actor state, and so a later source switch can't
         // change which source this in-flight page belongs to.
