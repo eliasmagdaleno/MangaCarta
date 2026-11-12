@@ -68,6 +68,7 @@ struct MangaCartaApp: App {
     private let entityResolutionStore: EntityResolutionStore
     private let listingCountCache: ListingCountCache
 
+    // swiftlint:disable function_body_length cyclomatic_complexity
     /// The graph itself lives in `AppComposition`, where it can be built against temp
     /// storage and asserted on. This initializer does nothing but adopt what it built.
     init() {
@@ -98,6 +99,14 @@ struct MangaCartaApp: App {
             fixtureCountDirectory = storage.directory.appendingPathComponent("ListingCounts")
             fixtureDetailFetch = MALHubUITestFixture.fetchDetail
             updateRegistry = MALHubUITestFixture.registry(state: fixtureState, defaults: defaults)
+        } else if TitleSourcesUITestFixture.isRequested {
+            let storage = TitleSourcesUITestFixture.storage()
+            defaults = storage.defaults
+            directory = storage.directory
+            fixtureEntityStore = storage.entityStore
+            fixtureDetailFetch = TitleSourcesUITestFixture.fetchDetail
+            fixtureCountDirectory = storage.directory.appendingPathComponent("ListingCounts")
+            updateRegistry = TitleSourcesUITestFixture.registry(defaults: defaults)
         } else if ProcessInfo.processInfo.arguments.contains("-uitest-local-import") {
             let storageID = ProcessInfo.processInfo.environment["MANGACARTA_UI_TEST_STORAGE_ID"] ?? UUID().uuidString
             let suite = "local-import-ui-test-\(storageID)"
@@ -155,6 +164,9 @@ struct MangaCartaApp: App {
         if MALHubUITestFixture.state != nil {
             MALHubUITestFixture.seed(composed)
         }
+        if TitleSourcesUITestFixture.isRequested {
+            TitleSourcesUITestFixture.seed(composed)
+        }
         if let updateState = UpdatesUITestFixture.state {
             UpdatesUITestFixture.seed(updateState, in: composed)
         }
@@ -200,6 +212,7 @@ struct MangaCartaApp: App {
         _localImporter = StateObject(wrappedValue: localImporter)
         scheduler.register()
     }
+    // swiftlint:enable function_body_length cyclomatic_complexity
 
 #if DEBUG
     /// `-uitest-mal-state <name>`, or nil. Its own property so the initializer and the

@@ -12,6 +12,7 @@ struct AddSourceSheet: View {
     @StateObject private var model: AddSourceModel
     @State private var decision: AddSourceDecision?
     @State private var pendingRow: AddSourceRow?
+    @State private var showingConfirmation = false
     @State private var failureMessage: String?
 
     init(manga: Manga, registry: SourceRegistry, works: WorkStore,
@@ -45,6 +46,12 @@ struct AddSourceSheet: View {
                 }
                 .padding(Gutter.page)
             }
+            .alert("Couldn’t add Source", isPresented: Binding(
+                get: { failureMessage != nil }, set: { if !$0 { failureMessage = nil } })) {
+                Button("Cancel", role: .cancel) { failureMessage = nil }
+            } message: {
+                Text(failureMessage ?? "Could not add this Source")
+            }
             .navigationTitle("Add a Source")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -59,21 +66,14 @@ struct AddSourceSheet: View {
             onAdded()
             dismiss()
         }
-        .confirmationDialog("Add this Source?", isPresented: Binding(
-            get: { decision != nil }, set: { if !$0 { decision = nil } })) {
+        .challengeSheets(nested: true)
+        .alert("Add this Source?", isPresented: $showingConfirmation) {
             if let value = decision {
                 confirmationButtons(for: value)
             }
         } message: {
             Text(message(for: decision))
         }
-        .alert("Couldn’t add Source", isPresented: Binding(
-            get: { failureMessage != nil }, set: { if !$0 { failureMessage = nil } })) {
-            Button("Cancel", role: .cancel) { failureMessage = nil }
-        } message: {
-            Text(failureMessage ?? "Could not add this Source")
-        }
-        .challengeSheets(nested: true)
     }
 
     @ViewBuilder private var content: some View {
@@ -121,7 +121,7 @@ struct AddSourceSheet: View {
         Button {
             Task {
                 let result = await model.pick(row)
-                handle(result, row: row)
+                await MainActor.run { handle(result, row: row) }
             }
         } label: {
             VStack(alignment: .leading, spacing: 6) {
@@ -159,7 +159,6 @@ struct AddSourceSheet: View {
         }
         .buttonStyle(.plain)
         .disabled(row.isAlreadyLinked)
-        .accessibilityElement(children: .ignore)
         .accessibilityLabel(row.accessibilityLabel + (row.wasRemovedEarlier ? ", Removed earlier" : "") +
                             (row.isAlreadyLinked ? ", Already a Source for this title" : ""))
         .accessibilityIdentifier("addSourceRow.\(row.manga.sourceId).\(row.manga.id)")
@@ -171,6 +170,7 @@ struct AddSourceSheet: View {
         case .confirmDifferentEntry, .confirmCombine, .confirmCombineOrMove:
             pendingRow = row
             decision = result
+            showingConfirmation = true
         case .failed(let message): failureMessage = message
         }
     }
@@ -206,10 +206,11 @@ struct AddSourceSheet: View {
                          action: @escaping (AddSourceRow) async -> AddSourceDecision) {
         guard let row = pendingRow else { return }
         decision = nil
+        showingConfirmation = false
         pendingRow = nil
         Task {
             let result = await action(row)
-            handle(result, row: row)
+            await MainActor.run { handle(result, row: row) }
         }
     }
 }
