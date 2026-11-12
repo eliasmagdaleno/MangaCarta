@@ -765,6 +765,30 @@ final class WorkStoreTests: XCTestCase {
         let store = makeStore(); let a = listing("a", source: LocalSource.sourceID); let id = store.mint(from: a)
         XCTAssertEqual(store.removeListing(ListingKey(a), from: id, keepingReadState: true), .refusedLocal)
     }
+
+    @MainActor func testAddAnywaySkipsMALOwnershipAndSurvivesReload() {
+        let directory = makeTestDirectory("WorkAddAnyway")
+        let store = WorkStore(directory: directory)
+        let a = listing("a", source: "a", malId: 1)
+        let b = listing("b", source: "b", malId: 2)
+        let copy = listing("copy", source: "c", malId: 1)
+        let first = store.mint(from: a); let second = store.mint(from: b)
+        XCTAssertEqual(store.addListing(copy, to: second, recordExternalIds: false), .added)
+        XCTAssertEqual(store.work(second)?.externalIds.mal, 2)
+        XCTAssertEqual(store.workId(externalId: ExternalIDs(mal: 1, anilist: nil)), first)
+        store.flush()
+        let reloaded = WorkStore(directory: directory)
+        XCTAssertEqual(reloaded.work(first)?.listings, [ListingKey(a)])
+        XCTAssertEqual(reloaded.work(second)?.listings, [ListingKey(b), ListingKey(copy)])
+    }
+
+    @MainActor func testAddListingWithMALOwnershipStillRefuses() {
+        let store = makeStore()
+        let first = store.mint(from: listing("a", source: "a", malId: 1))
+        let second = store.mint(from: listing("b", source: "b", malId: 2))
+        let copy = listing("copy", source: "c", malId: 1)
+        XCTAssertEqual(store.addListing(copy, to: second, recordExternalIds: true), .belongsToOtherWork(first))
+    }
 }
 
 // MARK: - On-disk fixture

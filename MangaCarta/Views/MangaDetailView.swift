@@ -14,6 +14,7 @@ struct MangaDetailView: View {
     @EnvironmentObject private var updates: UpdateStateStore
     @EnvironmentObject private var engine: RecommendationEngine
     @EnvironmentObject private var fulfillment: FulfillmentCoordinator
+    @EnvironmentObject private var workSources: WorkSourcesCoordinator
     @EnvironmentObject private var sourcePreferences: SourcePreferenceStore
     @Environment(\.dismiss) private var dismiss
     /// The graph's registry, not the singleton. They are the same object in production and
@@ -25,6 +26,7 @@ struct MangaDetailView: View {
     @Environment(\.malDetailStore) private var malDetailStore
     @Environment(\.malDetailFetch) private var malDetailFetch
     @Environment(\.entityResolutionStore) private var entityResolutionStore
+    @Environment(\.listingCountCache) private var listingCountCache
     @ScaledMetric(relativeTo: .title) private var coverWidth: CGFloat = 132
     @ScaledMetric(relativeTo: .title) private var coverHeight: CGFloat = 188
     @StateObject private var malHubRails: MALHubRailsViewModel
@@ -33,6 +35,8 @@ struct MangaDetailView: View {
     @State private var showingLocalDeleteConfirmation = false
     @State private var localSizeText = "calculating size…"
     @State private var deletionError: String?
+    @State private var showingAddSource = false
+    @State private var didAddSource = false
 
     init(manga: Manga, registry: SourceRegistry) {
         self.manga = manga
@@ -58,8 +62,14 @@ struct MangaDetailView: View {
     }
 
     private var sourcePicker: SourcePickerPresentation? {
-        guard let workID else { return nil }
-        let candidates = fulfillment.candidates(for: workID)
+        let candidates: [ListingCandidate]
+        if let workID {
+            candidates = fulfillment.candidates(for: workID)
+        } else {
+            candidates = [ListingCandidate(key: vm.activeListing,
+                                           chapterCount: vm.chapters.isEmpty ? nil : vm.chapters.count,
+                                           registrationIndex: registry.sources.firstIndex { $0.id == vm.activeListing.sourceId } ?? 0)]
+        }
         return SourcePickerPresentation(
             candidates: candidates,
             current: vm.activeListing,
@@ -93,26 +103,43 @@ struct MangaDetailView: View {
         await fulfillment.reconcile(workID)
     }
 
+    private func reconcileAfterAdd() {
+        guard didAddSource else { return }
+        didAddSource = false
+        Task { @MainActor in
+            guard let workID = works.workId(for: ListingKey(manga)) else { return }
+            await fulfillment.reconcile(workID)
+            guard sourcePreferences.choice(for: workID) == nil,
+                  let chosen = fulfillment.chosenListing(for: workID),
+                  chosen != vm.activeListing else { return }
+            vm.retarget(to: chosen, using: registry)
+            vm.load()
+        }
+    }
+
     /// The stamp, which becomes a picker only when there is somewhere else to read from.
     /// One Listing is not a choice, so it renders exactly as it always has.
     @ViewBuilder
     private var sourceControl: some View {
-        if let sourcePicker, sourcePicker.offersAChoice, let workID {
+        if !isLocalManga, let sourcePicker {
             SourcePickerStamp(
                 presentation: sourcePicker,
-                isPinned: sourcePreferences.choice(for: workID) != nil,
+                isPinned: workID.map { sourcePreferences.choice(for: $0) != nil } ?? false,
                 select: { listing in
+                    guard let workID else { return }
                     sourcePreferences.choose(listing, for: workID)
                     vm.retarget(to: listing, using: registry)
                     vm.load()
                 },
                 useBestAvailable: {
+                    guard let workID else { return }
                     sourcePreferences.clearChoice(for: workID)
                     if let best = fulfillment.chosenListing(for: workID) {
                         vm.retarget(to: best, using: registry)
                         vm.load()
                     }
-                })
+                },
+                addSource: { showingAddSource = true })
         } else {
             SourceStamp(sourceID: manga.sourceId,
                         name: mangaSource?.name ?? manga.sourceId)
@@ -177,6 +204,14 @@ struct MangaDetailView: View {
                                    fetchDetail: malDetailFetch, entityStore: entityResolutionStore)
         }
         .task { clearNewlyDiscovered() }
+        .sheet(isPresented: $showingAddSource, onDismiss: reconcileAfterAdd) {
+            AddSourceSheet(manga: manga,
+                           registry: registry,
+                           works: works,
+                           coordinator: workSources,
+                           listingCountCache: listingCountCache,
+                           onAdded: { didAddSource = true })
+        }
         .onChange(of: vm.detailTags) { _, tags in
             // Ungated: every source has tags, and this is what makes non-MangaDex
             // reading count (ADR-0007 slice 3). Never mints — see `noteListingTags`.
@@ -236,7 +271,7 @@ struct MangaDetailView: View {
             CachedAsyncImage(url: manga.coverURL) { phase in
                 switch phase {
                 case .success(let img): img.resizable().scaledToFill()
-                case .empty: CoverPlaceholder(showsSpinner: true)
+                case .empty: CoverPlaceholder(showsSpinner: manga.coverURL != nil)
                 default: CoverPlaceholder()
                 }
             }

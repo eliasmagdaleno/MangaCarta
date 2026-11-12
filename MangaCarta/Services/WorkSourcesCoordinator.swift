@@ -15,6 +15,10 @@ final class WorkSourcesCoordinator: ObservableObject {
         self.library = library; self.malChoices = malChoices; self.updates = updates
     }
 
+    func ensureWork(for listing: Manga) -> WorkID {
+        works.workId(for: ListingKey(listing)) ?? works.mint(from: listing)
+    }
+
     @discardableResult
     func add(_ listing: Manga, to work: WorkID, recordExternalIds: Bool = true) async -> WorkStore.AddListingResult {
         let result = works.addListing(listing, to: work, recordExternalIds: recordExternalIds)
@@ -26,6 +30,21 @@ final class WorkSourcesCoordinator: ObservableObject {
     func remove(_ key: ListingKey, from work: WorkID, keepingReadState: Bool) async -> WorkStore.RemoveListingResult {
         let result = works.removeListing(key, from: work, keepingReadState: keepingReadState)
         guard case .removed = result else { return result }
+        await cleanupAfterRemoval(key, from: work)
+        return result
+    }
+
+    @discardableResult
+    func move(_ key: ListingKey, from other: WorkID, to work: WorkID) async -> WorkStore.RemoveListingResult {
+        let result = works.moveCopy(key, from: other, to: work)
+        guard case .removed = result else { return result }
+        await cleanupAfterRemoval(key, from: other)
+        await fulfillment.reconcile(other)
+        await fulfillment.reconcile(work)
+        return result
+    }
+
+    private func cleanupAfterRemoval(_ key: ListingKey, from work: WorkID) async {
         if preferences.choice(for: work) == key { preferences.clearChoice(for: work) }
         if let replacement = fulfillment.chosenListing(for: work) { library.repointItem(from: key, to: replacement) }
         if let value = works.work(work), let mal = value.externalIds.mal,
@@ -33,7 +52,6 @@ final class WorkSourcesCoordinator: ObservableObject {
             await malChoices.remove(malId: mal)
         }
         updates.dropListing(key, from: work)
-        return result
     }
 
     func combine(_ other: WorkID, into work: WorkID) async {

@@ -35,6 +35,7 @@ struct MangaCartaApp: App {
     @StateObject private var sourcePreferences: SourcePreferenceStore
     @StateObject private var readingModes: ReadingModeStore
     @StateObject private var fulfillment: FulfillmentCoordinator
+    @StateObject private var workSources: WorkSourcesCoordinator
     /// The graph's registry, so views resolve sources from the same one the services do.
     @StateObject private var registry: SourceRegistry
     @StateObject private var localImporter: LocalImportViewModel
@@ -67,6 +68,7 @@ struct MangaCartaApp: App {
     private let entityResolutionStore: EntityResolutionStore
     private let listingCountCache: ListingCountCache
 
+    // swiftlint:disable function_body_length cyclomatic_complexity
     /// The graph itself lives in `AppComposition`, where it can be built against temp
     /// storage and asserted on. This initializer does nothing but adopt what it built.
     init() {
@@ -97,6 +99,14 @@ struct MangaCartaApp: App {
             fixtureCountDirectory = storage.directory.appendingPathComponent("ListingCounts")
             fixtureDetailFetch = MALHubUITestFixture.fetchDetail
             updateRegistry = MALHubUITestFixture.registry(state: fixtureState, defaults: defaults)
+        } else if TitleSourcesUITestFixture.isRequested {
+            let storage = TitleSourcesUITestFixture.storage()
+            defaults = storage.defaults
+            directory = storage.directory
+            fixtureEntityStore = storage.entityStore
+            fixtureDetailFetch = TitleSourcesUITestFixture.fetchDetail
+            fixtureCountDirectory = storage.directory.appendingPathComponent("ListingCounts")
+            updateRegistry = TitleSourcesUITestFixture.registry(defaults: defaults)
         } else if ProcessInfo.processInfo.arguments.contains("-uitest-local-import") {
             let storageID = ProcessInfo.processInfo.environment["MANGACARTA_UI_TEST_STORAGE_ID"] ?? UUID().uuidString
             let suite = "local-import-ui-test-\(storageID)"
@@ -154,6 +164,9 @@ struct MangaCartaApp: App {
         if MALHubUITestFixture.state != nil {
             MALHubUITestFixture.seed(composed)
         }
+        if TitleSourcesUITestFixture.isRequested {
+            TitleSourcesUITestFixture.seed(composed)
+        }
         if let updateState = UpdatesUITestFixture.state {
             UpdatesUITestFixture.seed(updateState, in: composed)
         }
@@ -179,8 +192,7 @@ struct MangaCartaApp: App {
         self.malDetailStore = composed.malDetailStore
         self.malSourceChoiceStore = composed.malSourceChoiceStore
         self.malDetailFetch = composed.malDetailFetch
-        self.entityResolutionStore = composed.entityResolutionStore
-        self.listingCountCache = composed.listingCounts
+        self.entityResolutionStore = composed.entityResolutionStore; self.listingCountCache = composed.listingCounts
         _library = StateObject(wrappedValue: composed.library)
         _history = StateObject(wrappedValue: composed.history)
         _taste = StateObject(wrappedValue: composed.taste)
@@ -192,6 +204,7 @@ struct MangaCartaApp: App {
         _sourcePreferences = StateObject(wrappedValue: composed.sourcePreferences)
         _readingModes = StateObject(wrappedValue: composed.readingModes)
         _fulfillment = StateObject(wrappedValue: composed.fulfillment)
+        _workSources = StateObject(wrappedValue: composed.workSources)
         _registry = StateObject(wrappedValue: composed.registry)
         let localImporter = LocalImportViewModel()
         localImporter.configure(registry: composed.registry, library: composed.library, works: composed.works,
@@ -199,6 +212,7 @@ struct MangaCartaApp: App {
         _localImporter = StateObject(wrappedValue: localImporter)
         scheduler.register()
     }
+    // swiftlint:enable function_body_length cyclomatic_complexity
 
 #if DEBUG
     /// `-uitest-mal-state <name>`, or nil. Its own property so the initializer and the
@@ -229,6 +243,7 @@ struct MangaCartaApp: App {
                 .environmentObject(sourcePreferences)
                 .environmentObject(readingModes)
                 .environmentObject(fulfillment)
+                .environmentObject(workSources)
                 .environmentObject(registry)
                 .environmentObject(localImporter)
                 .environmentObject(workNavigator)

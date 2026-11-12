@@ -141,6 +141,7 @@ struct SourcePickerStamp: View {
     let isPinned: Bool
     let select: (ListingKey) -> Void
     let useBestAvailable: () -> Void
+    let addSource: () -> Void
 
     /// The row being fulfilled from, for the stamp's own label.
     private var current: SourceOptionPresentation? {
@@ -171,6 +172,11 @@ struct SourcePickerStamp: View {
                     useBestAvailable()
                 }
             }
+            Divider()
+            Button("Add a Source…", systemImage: "plus") {
+                addSource()
+            }
+            .accessibilityIdentifier("addSourceMenuItem")
         } label: {
             stamp
         }
