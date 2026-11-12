@@ -4,8 +4,9 @@
 **Status:** Draft for owner review, revised after coordinator review 2026-11-10, and revised 2026-11-11 for the
 consent research and the owner's consent decision. **§5 is decided (owner, 2026-11-11): consent first, everywhere.
 Nothing is collected or sent until the reader agrees on the first-launch card.** This replaces the owner's
-2026-11-09 decision to collect unless the reader opts out. Every other choice below is a recommendation until the
-owner approves it in "Open questions for the owner".
+2026-11-09 decision to collect unless the reader opts out. **Every open question was decided by the owner on 2026-11-12: all seven recommended answers approved**
+(see "Owner decisions" at the end). Slice 1 may be built; slice 2 still waits on the legal review and the hosted
+privacy policy (question 8).
 **Evidence baseline:** `main` at `b57c356`.
 **Slug:** `analytics`. **Handoff queue item:** 15.
 
@@ -753,3 +754,22 @@ Each has a recommended answer, so the whole list can be approved in one pass.
 9. **Should a Related-rail open emit an event?** *Recommended: no.* Related is contextual navigation,
    while `mlt_opened` measures the MAL recommendation rail; keeping Related out avoids adding a
    second open event without a settled product question.
+
+## Owner decisions (2026-11-12)
+
+The owner approved every recommended answer above in one pass:
+
+1. **Provider: self-hosted** (Cloudflare Worker + D1 or equivalent). Not TelemetryDeck.
+4. **Retention:** raw events 12 months; k ≥ 20 aggregates kept indefinitely; historical events train shared
+   recommendations only as those aggregates and offline weight tuning. Stated in the privacy policy.
+5. **No in-app export file.** The "What is sent" list plus email access requests.
+6. **`source_installed` is collected, with only the adult class.**
+7. **Server purge** of rows whose MAL id is on a server-side adult list, in slice 2.
+8. **Legal review and the hosted privacy-policy URL are required before slice 2 merges**, including Switzerland's
+   row, whether "OK" on an informing card satisfies Guideline 5.1.1(ii), and confirming that the 16+ rating needs
+   no children's-privacy flow.
+9. **Related-rail opens emit no event.**
+
+Questions 2 and 3 were already settled (Linked: Yes; one toggle). The owner also directed that **slice 1 be built
+next** (2026-11-12).
+
