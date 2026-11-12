@@ -1,4 +1,4 @@
-# Handoff: per-title Sources slice 1 in auto-merge; next is slice 2, Add a Source
+# Handoff: per-title Sources slice 1 merged; next is slice 2, Add a Source
 
 Date: 2026-11-11 (afternoon). This is the one live handoff. The previous one, `archive/2026-11-11-mal-hub-done.md`, is
 superseded, and every open item in it is carried here. Recheck GitHub, the worktrees and the working tree before
@@ -8,7 +8,7 @@ acting.
 
 ## State
 
-Merged, branches and worktrees deleted, except #390 (below):
+Merged, branches and worktrees deleted:
 - **2026-11-10:** #368–#385 (designs, ADR-0028, MAL-hub slices 1–2, research, handoffs).
 - **2026-11-11:**
   - **#386**, MAL-hub slice 3 (preview, mixed rails, chooser, `ChallengeSheets`). The MAL hub is done.
@@ -21,11 +21,7 @@ Merged, branches and worktrees deleted, except #390 (below):
     sent and no id minted until the reader agrees. EU/EEA/UK and unknown regions get "Share" / "Not now"; elsewhere,
     including Switzerland, "OK" / "Turn off". Device ID is Linked: Yes. `PRODUCT.md` records the decision, and the
     local-formats design has the exact UnRAR attribution.
-  - **#390**, per-title Sources **slice 1, the model** (no UI). **Squash auto-merge was queued at 16:10 PST** with
-    CI still running; the owner asked for it to merge once green. **First thing next session:** check
-    `gh pr view 390 --json state` is `MERGED`. If it is, remove the worktree
-    `~/orca/workspaces/Manga-Reader/title-sources-model` and the local branch `eliasmagdaleno/title-sources-model`; the
-    remote branch needs the owner's OK in chat. If CI failed, fix it on that branch (Auto-fix is on for the PR). It
+  - **#390** (merged 2026-11-12 00:20 UTC, all four checks green), per-title Sources **slice 1, the model** (no UI). It
     added:
     - `Work.removedListings` (`RemovedListing`: a key plus `keepsReadState`) and `Work.handLinkedListings`;
     - `WorkStore.addListing` (returns `.added` / `.alreadyLinked` / `.belongsToOtherWork(id)` / `.workNotFound`;
