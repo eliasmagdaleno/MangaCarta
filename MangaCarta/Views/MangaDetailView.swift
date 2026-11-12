@@ -39,6 +39,7 @@ struct MangaDetailView: View {
     @State private var didAddSource = false
     @State private var removalTarget: SourceOptionPresentation?
     @State private var showingRemoveConfirmation = false
+    @State private var section: DetailSection = .chapters
 
     init(manga: Manga, registry: SourceRegistry) {
         self.manga = manga
@@ -51,6 +52,11 @@ struct MangaDetailView: View {
         registry.source(id: manga.sourceId)
     }
     private var isLocalManga: Bool { manga.sourceId == LocalSource.sourceID }
+
+    private var detailSectionAvailability: DetailSectionAvailability {
+        DetailSectionAvailability(hasRelated: !malHubRails.related.isEmpty,
+                                  hasSimilar: !malHubRails.similar.isEmpty)
+    }
 
     @State private var mangaWebURL: URL?
 
@@ -201,14 +207,13 @@ struct MangaDetailView: View {
                 actionRow
                 if !vm.tags.isEmpty { tags }
                 if !vm.description.isEmpty || vm.isLoading { description }
-                chapters
-                if !malHubRails.related.isEmpty { relatedRail }
-                if !malHubRails.similar.isEmpty { moreLikeThisRail }
-                if malHubRails.related.isEmpty && malHubRails.similar.isEmpty && isUnmatchable {
-                    // The empty section explains itself rather than vanishing (ADR-0005's
-                    // first implied requirement). Ordered after the rail check so a title
-                    // that somehow has both never shows the notice instead of results.
-                    UnmatchedTitleNotice()
+                if detailSectionAvailability.showsPicker {
+                    DetailSectionPicker(section: $section, availability: detailSectionAvailability)
+                }
+                switch detailSectionAvailability.resolve(section) {
+                case .chapters: chaptersPane
+                case .related: relatedPane
+                case .similar: moreLikeThisPane
                 }
             }
             .padding(.bottom, 40)
@@ -633,7 +638,7 @@ struct MangaDetailView: View {
         }
     }
 
-    private var relatedRail: some View {
+    private var relatedPane: some View {
         VStack(alignment: .leading, spacing: 12) {
             InkSectionHeader("Related", eyebrow: "From MyAnimeList")
             MALHubCandidateRail(candidates: malHubRails.related, detailManga: manga)
@@ -641,7 +646,7 @@ struct MangaDetailView: View {
         .accessibilityIdentifier("relatedSection")
     }
 
-    private var moreLikeThisRail: some View {
+    private var moreLikeThisPane: some View {
         VStack(alignment: .leading, spacing: 12) {
             InkSectionHeader("More Like This", eyebrow: "Similar titles")
             MALHubCandidateRail(candidates: malHubRails.similar, detailManga: manga)
@@ -651,7 +656,7 @@ struct MangaDetailView: View {
 
     // MARK: Chapters
 
-    private var chapters: some View {
+    private var chaptersPane: some View {
         VStack(alignment: .leading, spacing: 12) {
             InkSectionHeader("Chapters", eyebrow: "\(vm.chapters.count) available")
                 .padding(.trailing, Gutter.page)
@@ -750,6 +755,13 @@ struct MangaDetailView: View {
                         .accessibilityIdentifier("showAllChaptersButton")
                     }
                 }
+            }
+
+            if malHubRails.related.isEmpty && malHubRails.similar.isEmpty && isUnmatchable {
+                // The empty section explains itself rather than vanishing (ADR-0005's
+                // first implied requirement). Ordered after the rail check so a title
+                // that somehow has both never shows the notice instead of results.
+                UnmatchedTitleNotice()
             }
         }
     }
