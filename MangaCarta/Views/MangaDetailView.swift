@@ -208,10 +208,22 @@ struct MangaDetailView: View {
                 if !vm.tags.isEmpty { tags }
                 if !vm.description.isEmpty || vm.isLoading { description }
                 if detailSectionAvailability.showsPicker {
-                    DetailSectionPicker(section: $section, availability: detailSectionAvailability)
+                    // Bound to the resolved value, so the control never holds a segment
+                    // it no longer offers (design §3).
+                    DetailSectionPicker(
+                        section: Binding(get: { detailSectionAvailability.resolve(section) },
+                                         set: { section = $0 }),
+                        availability: detailSectionAvailability)
                 }
                 switch detailSectionAvailability.resolve(section) {
-                case .chapters: chaptersPane
+                case .chapters:
+                    chaptersPane
+                    if malHubRails.related.isEmpty && malHubRails.similar.isEmpty && isUnmatchable {
+                        // The empty section explains itself rather than vanishing (ADR-0005's
+                        // first implied requirement). With no rail there is no picker, so this
+                        // ends the Chapters pane, where More Like This would have been (§5.2).
+                        UnmatchedTitleNotice()
+                    }
                 case .related: relatedPane
                 case .similar: moreLikeThisPane
                 }
@@ -755,13 +767,6 @@ struct MangaDetailView: View {
                         .accessibilityIdentifier("showAllChaptersButton")
                     }
                 }
-            }
-
-            if malHubRails.related.isEmpty && malHubRails.similar.isEmpty && isUnmatchable {
-                // The empty section explains itself rather than vanishing (ADR-0005's
-                // first implied requirement). Ordered after the rail check so a title
-                // that somehow has both never shows the notice instead of results.
-                UnmatchedTitleNotice()
             }
         }
     }
