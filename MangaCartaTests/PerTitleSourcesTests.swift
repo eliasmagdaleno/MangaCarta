@@ -161,6 +161,37 @@ final class PerTitleSourcesTests: XCTestCase {
         XCTAssertEqual(result, .added)
         XCTAssertEqual(counts.count(for: ListingKey(b)), 3)
     }
+
+    func testMoveCleansSourceAndKeepsLibraryCollections() async {
+        let works = WorkStore(directory: directory)
+        let targetListing = manga("target", source: "a", mal: 1)
+        let moved = manga("moved", source: "b", mal: 2)
+        let remaining = manga("remaining", source: "c", mal: 3)
+        let target = works.mint(from: targetListing)
+        let source = works.mint(from: moved); XCTAssertEqual(works.addListing(remaining, to: source, recordExternalIds: false), .added)
+        let registry = SourceRegistry(sources: [PerTitleStubSource(id: "a"),
+                                                PerTitleStubSource(id: "b"),
+                                                PerTitleStubSource(id: "c")], defaults: defaults)
+        let preferences = SourcePreferenceStore(defaults: defaults, works: works)
+        preferences.choose(ListingKey(moved), for: source)
+        let counts = ListingCountCache(directory: directory)
+        let fulfillment = FulfillmentCoordinator(works: works, registry: registry, counts: counts, preferences: preferences)
+        let library = LibraryStore(defaults: defaults, works: works, registry: registry)
+        library.toggle(moved); library.setCollections(for: moved, collectionIds: [LibraryCollection.readingID, "custom"])
+        let coordinator = WorkSourcesCoordinator(works: works, preferences: preferences,
+            fulfillment: fulfillment, library: library,
+            malChoices: MALSourceChoiceStore(directory: directory),
+            updates: UpdateStateStore(directory: directory, works: works))
+        let moveResult = await coordinator.move(ListingKey(moved), from: source, to: target)
+        XCTAssertEqual(moveResult, .removed)
+        XCTAssertNil(preferences.choice(for: source))
+        XCTAssertEqual(library.items.count, 1)
+        XCTAssertEqual(library.item(for: ListingKey(remaining))?.collectionIds, [LibraryCollection.readingID, "custom"])
+        XCTAssertTrue(works.work(target)?.listings.contains(ListingKey(moved)) == true)
+        XCTAssertTrue(works.work(target)?.handLinkedListings.contains(ListingKey(moved)) == true)
+        XCTAssertEqual(works.work(source)?.removedListings.first?.key, ListingKey(moved))
+        XCTAssertEqual(works.work(source)?.removedListings.first?.keepsReadState, true)
+    }
 }
 
 private struct PerTitleStubSource: MangaSource, @unchecked Sendable {

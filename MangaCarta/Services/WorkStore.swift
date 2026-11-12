@@ -90,7 +90,8 @@ final class WorkStore: ObservableObject {
         if let owner = listingIndex[key], let resolvedOwner = resolve(owner), resolvedOwner != target {
             return .belongsToOtherWork(resolvedOwner)
         }
-        if let mal = listing.malId, let owner = externalIdIndex["mal:\(mal)"].flatMap(resolve), owner != target {
+        if recordExternalIds, let mal = listing.malId,
+           let owner = externalIdIndex["mal:\(mal)"].flatMap(resolve), owner != target {
             return .belongsToOtherWork(owner)
         }
         let wasRemoved = value.removedListings.contains(where: { $0.key == key })

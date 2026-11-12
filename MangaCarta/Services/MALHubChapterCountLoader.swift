@@ -25,8 +25,7 @@ final class MALHubChapterCountLoader {
 
     /// Exact matches first, then the registry's Source order — the order the chooser shows.
     func load(_ groups: [MALHubSourceGroup]) async -> [ListingKey: Int] {
-        let order = Dictionary(registry.sources.enumerated().map { ($1.id, $0) },
-                               uniquingKeysWith: { first, _ in first })
+        let order = Dictionary(registry.sources.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
         let choices = groups.flatMap(\.choices).sorted { lhs, rhs in
             let lhsRank = lhs.kind == .exact ? 0 : 1
             let rhsRank = rhs.kind == .exact ? 0 : 1
@@ -34,11 +33,14 @@ final class MALHubChapterCountLoader {
             return (order[lhs.manga.sourceId] ?? .max) < (order[rhs.manga.sourceId] ?? .max)
         }
 
-        // The cache is main-actor state: read it here, and record below, never in a child task.
+        return await load(choices.map(\.manga))
+    }
+
+    func load(_ mangas: [Manga]) async -> [ListingKey: Int] {
         var counts: [ListingKey: Int] = [:]
         var toFetch: [(ListingKey, any MangaSource)] = []
-        for choice in choices.prefix(Self.countedChoices) {
-            let listing = ListingKey(choice.manga)
+        for manga in mangas.prefix(Self.countedChoices) {
+            let listing = ListingKey(manga)
             if let cached = cache.count(for: listing) {
                 counts[listing] = cached
             } else if let source = registry.source(id: listing.sourceId) {
