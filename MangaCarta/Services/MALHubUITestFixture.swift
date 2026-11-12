@@ -13,11 +13,14 @@ enum MALHubUITestFixture {
     enum State {
         case adultOn
         case adultOff
+        case noRails
+        case unmatched
 
         var adult: Bool {
             switch self {
             case .adultOn: return true
             case .adultOff: return false
+            case .noRails, .unmatched: return true
             }
         }
     }
@@ -26,6 +29,8 @@ enum MALHubUITestFixture {
         let arguments = ProcessInfo.processInfo.arguments
         if arguments.contains("-uitest-mal-hub") { return .adultOn }
         if arguments.contains("-uitest-mal-hub-adult-off") { return .adultOff }
+        if arguments.contains("-uitest-mal-hub-no-rails") { return .noRails }
+        if arguments.contains("-uitest-mal-hub-unmatched") { return .unmatched }
         return nil
     }
 
@@ -67,6 +72,8 @@ enum MALHubUITestFixture {
                 recommendation(id: 1600, title: "Fixture Challenge", weight: 4)
             ])
         }
+        if id == 2000 { return detail(id: id, title: "No Rails Fixture", related: [], recommendations: []) }
+        if id == 3000 { return detail(id: id, title: "Unmatched Fixture", related: [], recommendations: []) }
         let titles = [1200: "Fixture Resolved", 1300: "Fixture Chooser", 1400: "Fixture Nowhere",
                       1500: "Fixture Single Exact", 1600: "Fixture Challenge", 1100: "Fixture Related"]
         let title = titles[id] ?? "Fixture"
@@ -75,11 +82,28 @@ enum MALHubUITestFixture {
 
     @MainActor
     static func seed(_ composition: AppComposition) {
-        let manga = Manga(id: "hub-fixture-title", sourceId: MALHubFixtureSourceA.idValue,
+        let state = self.state ?? .adultOn
+        let manga: Manga
+        switch state {
+        case .adultOn, .adultOff:
+            manga = Manga(id: "hub-fixture-title", sourceId: MALHubFixtureSourceA.idValue,
                           title: "Hub Fixture Title", description: "", status: "ongoing",
                           year: 2026, coverURL: nil, malId: 1000)
+        case .noRails:
+            manga = Manga(id: "no-rails-fixture", sourceId: MALHubFixtureSourceA.idValue,
+                          title: "No Rails Fixture", description: "", status: "ongoing",
+                          year: 2026, coverURL: nil, malId: 2000)
+        case .unmatched:
+            manga = Manga(id: "unmatched-fixture", sourceId: MALHubFixtureSourceA.idValue,
+                          title: "Unmatched Fixture", description: "", status: "ongoing",
+                          year: 2026, coverURL: nil, malId: nil)
+        }
         composition.library.toggle(manga)
-        _ = composition.works.mint(from: manga)
+        let workID = composition.works.mint(from: manga)
+        if case .unmatched = state {
+            composition.attempts.record(.unmatched(knownTitlesCount: 1), for: workID)
+            composition.attempts.flush()
+        }
     }
 
     private static func detail(id: Int, title: String,
@@ -120,9 +144,11 @@ private struct MALHubFixtureSourceA: MangaSource {
     func popular(limit: Int, offset: Int) async throws -> [Manga] { [] }
     func pageURLs(chapterId: String, preferDataSaver: Bool) async throws -> [URL] { [] }
     func manga(id: String) async throws -> Manga? { nil }
-    /// Three distinct chapters, so the chooser shows a real count ("3 chapters").
+    /// The parent has seven chapters so its detail page exposes Show all; every other
+    /// fixture title keeps the three-chapter count used by existing chooser assertions.
     func chapters(mangaId: String) async throws -> [Chapter] {
-        ["1", "2", "3"].map { Chapter(id: "\(mangaId)-\($0)", number: $0, title: nil) }
+        let numbers = mangaId == "hub-fixture-title" ? ["1", "2", "3", "4", "5", "6", "7"] : ["1", "2", "3"]
+        return numbers.map { Chapter(id: "\(mangaId)-\($0)", number: $0, title: nil) }
     }
 
     private func manga(id: String, title: String, malId: Int?) -> Manga {

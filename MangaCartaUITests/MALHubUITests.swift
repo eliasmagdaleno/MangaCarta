@@ -18,12 +18,15 @@ final class MALHubUITests: XCTestCase {
     // Acceptance 13: mixed rails, truthful labels.
     func testUnavailableCardIsLabeledWithoutSources() throws {
         let app = launch()
+        selectSection(app, "Related")
         XCTAssertTrue(app.descendants(matching: .any)["relatedSection"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.descendants(matching: .any)["moreLikeThisSection"].exists)
+        selectSection(app, "Similar")
+        XCTAssertTrue(app.descendants(matching: .any)["moreLikeThisSection"].waitForExistence(timeout: 10))
         XCTAssertEqual(card(app, "Fixture Resolved").label,
                        "Fixture Resolved, recommended by MyAnimeList, on your Sources")
         XCTAssertEqual(card(app, "Fixture Nowhere").label,
                        "Fixture Nowhere, recommended by MyAnimeList, not on your Sources")
+        selectSection(app, "Related")
         XCTAssertEqual(card(app, "Fixture Related").label, "Fixture Related, sequel, not on your Sources")
         app.swipeUp()
         attach(app, name: "mal-hub-unavailable-card")
@@ -32,6 +35,7 @@ final class MALHubUITests: XCTestCase {
     // Acceptance 11 (option B): switch off shows only the render-time-resolved card.
     func testSwitchOffShowsOnlyResolvedCards() throws {
         let app = launch(arguments: ["-uitest-mal-hub-adult-off"])
+        selectSection(app, "Similar")
         XCTAssertTrue(app.descendants(matching: .any)["moreLikeThisSection"].waitForExistence(timeout: 10))
         let cards = app.buttons.matching(identifier: "malCandidateCard")
         XCTAssertEqual(cards.count, 1)
@@ -64,11 +68,12 @@ final class MALHubUITests: XCTestCase {
     // Acceptance 5: one exact match across every Source opens that Listing without a chooser.
     func testSingleExactMatchOpensListingDirectly() throws {
         let app = launch()
+        selectSection(app, "Similar")
         let single = card(app, "Fixture Single Exact")
         XCTAssertTrue(single.waitForExistence(timeout: 10))
         // Not already resolved at render time, so the open below is the tap-time search's.
         XCTAssertTrue(single.label.hasSuffix(", not on your Sources"), single.label)
-        single.tap()
+        tapCard(app, "Fixture Single Exact")
         app.buttons["Read on…"].tap()
         XCTAssertTrue(app.navigationBars["Fixture Single Exact"].waitForExistence(timeout: 10)
                       || app.staticTexts["Fixture Single Exact"].waitForExistence(timeout: 5))
@@ -86,7 +91,7 @@ final class MALHubUITests: XCTestCase {
         app.buttons["BackButton"].tap()
 
         // Reopen: Read on… goes straight to B's Listing, no chooser.
-        card(app, "Fixture Chooser").tap()
+        tapCard(app, "Fixture Chooser")
         XCTAssertTrue(app.buttons["Read on…"].waitForExistence(timeout: 10))
         app.buttons["Read on…"].tap()
         XCTAssertTrue(app.buttons["BackButton"].waitForExistence(timeout: 10))
@@ -94,7 +99,7 @@ final class MALHubUITests: XCTestCase {
         attach(app, name: "mal-hub-remembered-open")
         app.buttons["BackButton"].tap()
 
-        card(app, "Fixture Chooser").tap()
+        tapCard(app, "Fixture Chooser")
         let sourceMenu = app.buttons["Source"]
         XCTAssertTrue(sourceMenu.waitForExistence(timeout: 10))
         // A coordinate tap: on CI's iOS 26.2 `.tap()` first asks AX to scroll this toolbar
@@ -108,7 +113,8 @@ final class MALHubUITests: XCTestCase {
     // Acceptance 13: the honest empty state.
     func testNotOnYourSourcesStateOffersRepositoryHint() throws {
         let app = launch()
-        card(app, "Fixture Nowhere").tap()
+        selectSection(app, "Similar")
+        tapCard(app, "Fixture Nowhere")
         app.buttons["Read on…"].tap()
         XCTAssertTrue(app.staticTexts["Not on your Sources"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["Add a repository in Settings to add more places to read."].exists)
@@ -120,7 +126,8 @@ final class MALHubUITests: XCTestCase {
     // search deadline, and Cancel returns to the preview with only that Source unchecked.
     func testTapMayPresentChallengeAndCancelReturnsToPreview() throws {
         let app = launch()
-        card(app, "Fixture Challenge").tap()
+        selectSection(app, "Similar")
+        tapCard(app, "Fixture Challenge")
         app.buttons["Read on…"].tap()
         let challenge = app.navigationBars["Verification Required"]
         XCTAssertTrue(challenge.waitForExistence(timeout: 10))
@@ -162,14 +169,61 @@ final class MALHubUITests: XCTestCase {
     }
 
     private func openChooser(_ app: XCUIApplication, _ title: String) {
+        selectSection(app, "Similar")
         let target = card(app, title)
         XCTAssertTrue(target.waitForExistence(timeout: 10))
-        target.tap()
+        tapCard(app, title)
         XCTAssertTrue(app.staticTexts[title].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["A fixed fixture synopsis."].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["MAL title · 1300"].exists)
         app.buttons["Read on…"].tap()
         XCTAssertTrue(app.staticTexts["Fixture Source A"].waitForExistence(timeout: 10))
+    }
+
+    private func selectSection(_ app: XCUIApplication, _ title: String) {
+        let segment = app.buttons[title]
+        if segment.waitForExistence(timeout: 2) {
+            segment.tap()
+        } else {
+            let picker = app.descendants(matching: .any)["detailSectionPicker"]
+            XCTAssertTrue(picker.waitForExistence(timeout: 10), "section picker should exist")
+            picker.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            XCTAssertTrue(app.buttons[title].waitForExistence(timeout: 10), "\(title) menu item should exist")
+            app.buttons[title].tap()
+        }
+        if title == "Similar" {
+            XCTAssertTrue(app.descendants(matching: .any)["moreLikeThisSection"]
+                .waitForExistence(timeout: 10))
+        } else if title == "Related" {
+            XCTAssertTrue(app.descendants(matching: .any)["relatedSection"]
+                .waitForExistence(timeout: 10))
+        }
+    }
+
+    // After a segment switch XCUITest cannot scroll an off-screen rail card into view (bisected 2026-11-12: the pane switch alone causes it); swipe the rail instead.
+    private func tapCard(_ app: XCUIApplication, _ title: String) {
+        var target = card(app, title)
+        XCTAssertTrue(target.waitForExistence(timeout: 10))
+        let railCandidates = app.scrollViews.containing(.button, identifier: "malCandidateCard")
+        var rail = railCandidates.allElementsBoundByIndex.first(where: { $0.frame.height < 600 })
+            ?? railCandidates.firstMatch
+        let windowFrame = app.windows.firstMatch.frame
+        for _ in 0..<3 where !windowFrame.contains(rail.frame) {
+            app.swipeUp()
+            rail = railCandidates.allElementsBoundByIndex.first(where: { $0.frame.height < 600 })
+                ?? railCandidates.firstMatch
+        }
+        if target.frame.minX >= app.frame.maxX || target.frame.maxX <= app.frame.minX {
+            for _ in 0..<4 {
+                rail.swipeLeft()
+                target = card(app, title)
+                if target.waitForExistence(timeout: 2) && target.frame.minX < app.frame.maxX {
+                    break
+                }
+            }
+        }
+        XCTAssertTrue(target.isHittable, "card should be hittable after scrolling rail")
+        target.tap()
     }
 
     private func card(_ app: XCUIApplication, _ title: String) -> XCUIElement {
