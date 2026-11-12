@@ -15,6 +15,10 @@ struct ChapterRow: View {
     var selecting: Bool = false
     var selected: Bool = false
     @EnvironmentObject private var history: HistoryStore
+    /// Never read directly: observed so the row redraws when the Work's Listings change.
+    /// Read state is Work-wide (ADR-0027), so removing a Source "as a different title"
+    /// changes this row's read mark while `history`, `chapter` and `manga` stay the same.
+    @EnvironmentObject private var works: WorkStore
 
     var body: some View {
         // Show a resume marker only while a chapter is genuinely mid-read; that

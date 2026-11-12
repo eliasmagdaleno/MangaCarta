@@ -39,7 +39,6 @@ struct MangaDetailView: View {
     @State private var didAddSource = false
     @State private var removalTarget: SourceOptionPresentation?
     @State private var showingRemoveConfirmation = false
-    @State private var sourceMenuRevision = 0
 
     init(manga: Manga, registry: SourceRegistry) {
         self.manga = manga
@@ -128,7 +127,6 @@ struct MangaDetailView: View {
             guard case .removed = await workSources.remove(key, from: workID,
                                                             keepingReadState: keepingReadState) else { return }
             await fulfillment.reconcile(workID)
-            sourceMenuRevision += 1
             if wasActive || wasPinned, let replacement = fulfillment.chosenListing(for: workID) {
                 vm.retarget(to: replacement, using: registry)
             }
@@ -138,8 +136,8 @@ struct MangaDetailView: View {
         }
     }
 
-    /// The stamp, which becomes a picker only when there is somewhere else to read from.
-    /// One Listing is not a choice, so it renders exactly as it always has.
+    /// The stamp. A remote title always gets the menu, because "Add a Source…" lives there
+    /// even with one Listing; a local title keeps the plain stamp.
     @ViewBuilder
     private var sourceControl: some View {
         if !isLocalManga, let sourcePicker {
@@ -215,7 +213,6 @@ struct MangaDetailView: View {
             }
             .padding(.bottom, 40)
         }
-        .id(sourceMenuRevision)
         .background(Ink.background)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
