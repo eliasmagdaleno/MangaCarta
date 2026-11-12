@@ -352,7 +352,7 @@ final class HistoryStore: ObservableObject {
     private func workListings(for listing: ListingKey) -> [ListingKey]? {
         guard let works, let id = works.workId(for: listing),
               let work = works.work(id) else { return nil }
-        return work.listings
+        return work.listings + works.retiredListings(of: work.id)
     }
 
     /// The Work's Listing ids, or empty when the Manga has no Work — which makes every
