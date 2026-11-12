@@ -1,4 +1,4 @@
-# Handoff: per-title Sources done; next is detail-page sections
+# Handoff: per-title Sources and detail-page sections done; the owner picks what's next
 
 Date: 2026-11-12 (afternoon). This is the one live handoff. The previous one,
 `archive/2026-11-12-title-sources-slice2.md`, is superseded, and every open item in it is carried here. Recheck
@@ -10,19 +10,20 @@ GitHub, the worktrees and the working tree before acting.
 
 Merged, branches deleted unless noted:
 - **2026-11-10:** #368–#385. **2026-11-11:** #386–#391. **2026-11-12:** #392 (slice 2, Add a Source), #393 (handoff).
-- **#394, per-title Sources slice 3, Remove a Source**: owner said merge; **`--squash --auto` is armed**, waiting on
-  CI. If it is not `MERGED` when you read this, check its checks (Auto-fix watches it). Locally green: XCTest 1,147
-  (5 skipped), Swift Testing 369, all 7 hermetic UI suites 36/36 with `MAL_CLIENT_ID = ci-placeholder`, lint clean,
-  5 mutations red. **Per-title Sources is complete** once it merges.
-  - It fixed a real bug: `WorkStore` never sent `objectWillChange` (no `@Published` state; `markDirty()` only
+- **#394** (per-title Sources slice 3, Remove a Source) and **#395** (this handoff's first version, plus the detail
+  sections design's Amendment 1): merged, cleaned up, remote branches deleted. **Per-title Sources is complete.**
+  - #394 fixed a real bug: `WorkStore` never sent `objectWillChange` (no `@Published` state; `markDirty()` only
     scheduled a save), so **no view observing `WorkStore` ever redrew on a Work change**. `markDirty()` now sends it
-    and `ChapterRow` observes `WorkStore`. A page-wide `.id(...)` rebuild had been hiding it.
-- **Cleanup owed once #394 is `MERGED`** (gate on the state): release the slice 3 Orca worker (`ctx_4cee427d5386`,
-  run `run_fb1b7ece8b72`), close coordinator terminal `term_8c387dd2-07cc-4422-8db4-430fb9a5a68b`, remove worktree
-  `~/orca/workspaces/Manga-Reader/title-sources-remove` (it holds an untracked `Secrets.xcconfig` with the CI
-  placeholder id; that is expected, never commit it), delete local branch `eliasmagdaleno/title-sources-remove`.
-  The remote branch delete needs the owner's yes. Tag `slice3-pre-rebase` in that worktree's repo can go too.
-- Slice 2's worktree, local branch and remote branch are deleted; its worker is released.
+    and `ChapterRow` observes `WorkStore`.
+- **#396, detail-page sections** (Chapters / Related / Similar): owner said merge; **`--squash --auto` is armed**,
+  waiting on CI (Auto-fix watches it). Locally green: XCTest 1,151 (5 skipped), Swift Testing 369, all **8** hermetic
+  UI suites 43/43 with `MAL_CLIENT_ID = ci-placeholder` (CI's list now includes `DetailSectionsUITests`), 6 mutations
+  red, lint clean. If it is not `MERGED` when you read this, check its checks.
+- **Cleanup owed once #396 is `MERGED`** (gate on the state): release worker `ctx_a445ce5819e7` (run
+  `run_fb1b7ece8b72`; it is kept open); close coordinator terminal `term_8c387dd2-07cc-4422-8db4-430fb9a5a68b`;
+  remove worktree `~/orca/workspaces/Manga-Reader/detail-sections` (it holds an untracked `Secrets.xcconfig` with the
+  CI placeholder id; never commit it); delete local branch `eliasmagdaleno/detail-sections`. **The owner has already
+  said yes to deleting its remote branch** once merged (2026-11-12).
 
 **Working tree:** `MangaCarta/Info.plist` may still carry an uncommitted Xcode rewrite that drops
 `LSSupportsOpeningDocumentsInPlace` (#294). Never commit it as is. `stash@{0}` and `stash@{1}` are old Xcode churn and
@@ -30,21 +31,12 @@ safe to drop. Leave `.worktrees/device-build`, the uncommitted `.cbz` UTI fix, a
 
 ## Next
 
-1. **Detail-page sections (owner chose it 2026-11-12).** Design:
-   `docs/superpowers/specs/2026-11-09-detail-page-sections-design.md`, accepted, all five questions decided.
-   **Read its Amendment 1 first**: the design predates the MAL hub, so the rails, the test seam
-   (`-uitest-mal-hub`, not a new provider), the unmatched-notice rule, and the CI-gated `MALHubUITests` that now
-   need a segment tap are all restated there. One PR. Not started: no branch, no worker.
-   Suggested route (memory `model-routing-fable-hard-tasks`): Codex Luna via Orca in narrowly scoped turns:
-   (a) `DetailSection` + unit tests; (b) picker + panes + fixture changes; (c) UI tests + `MALHubUITests` taps + CI
-   line; (d) mutations. Review between turns. New `MangaCartaTests/` and `MangaCartaUITests/` files need
-   `xcp add-file` (use the `/tmp/...` spelling).
-2. **Analytics** is decided on consent. Its remaining open questions (1, 4–9: provider, retention, export,
+1. **Analytics** is decided on consent. Its remaining open questions (1, 4–9: provider, retention, export,
    `source_installed`, adult purge, legal review, Related opens) still need the owner, each with a recommended
    answer (design §"Open questions"). Ask them in one pass when the owner wants analytics next. The `mlt_opened`
    hook hangs off the MAL-hub rails (analytics design §11.1).
-3. **Item 12, per-Source refresh cadence:** still blocked on measured device data. Don't guess.
-4. **Library-wide switching to another Source** (owner's item 3, Paperback's "Migrate"): its own design.
+2. **Item 12, per-Source refresh cadence:** still blocked on measured device data. Don't guess.
+3. **Library-wide switching to another Source** (owner's item 3, Paperback's "Migrate"): its own design.
    `moveCopy`/`combine` (#390) and `SourceTitleSearch` (#392) are its building blocks.
 
 Known and small, from slice 2:
@@ -74,6 +66,14 @@ Known and deliberately unfiled:
   caller of `link` appears, add a test through it.
 
 ## Lessons from this session
+
+- **Bisect from a known-good layout instead of guessing.** Two hypotheses (a full-width frame, page height) each cost a
+  worker turn and were wrong. Starting from `main`'s layout and adding one change at a time found the cause (the pane
+  switch) in one turn. When a worker's proposed fix is a guess, ask for "passes with it, fails without it" first.
+- **A worker's "restored" can be false.** After the bisect, `MangaDetailView.swift` still held an experiment with
+  comments stripped. Check `git status` and diff app files yourself after any experiment turn.
+- **A negative UI assertion needs a positive control.** `XCTAssertFalse(segmentedControls[id].exists)` proves nothing
+  unless the same query finds the control when it should exist.
 
 - **An observed store that never publishes looks like a view bug.** A UI test went red only after a page-wide `.id`
   was removed; the cause was `WorkStore` sending no `objectWillChange`, not the view. When a redraw is missing,
@@ -170,6 +170,11 @@ is done.** Don't start any of it unprompted. Nothing here is lost by waiting.
    downloaded imports with title and cover and stays in iCloud Drive; Open With lists MangaCarta.
 2. **VoiceOver device pass (#90).** `scripts/voiceover-pass.sh` walks the 8 checklist sections and
    writes `docs/accessibility/voiceover-results-<date>.md`. Close #90 when every row has a verdict.
+   **Add one check (from #396):** on a title with More Like This, select "Similar", then swipe through the cards
+   with VoiceOver to the last one. After a segment switch, XCUITest cannot scroll an off-screen rail card into view
+   (bisected: the pane switch alone causes it; fixture, picker, page height and a full-width frame ruled out), so
+   the UI tests swipe the rail. A finger scroll works. VoiceOver drives the same scroll-to-visible, so this is where
+   a real user problem would show. If VoiceOver can't reach the later cards, file it against the detail view.
 3. **#361 on a fresh install:** install the app on a simulator that has never granted it
    notifications, save one title, and confirm the explainer and then the system prompt appear.
 4. **Eyeball #302's MAL avatar** in Settings; it was not confirmed during the MAL check.
