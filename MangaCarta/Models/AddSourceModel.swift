@@ -19,12 +19,13 @@ enum AddSourceGrade: String, Equatable {
         }
     }
 
-    fileprivate var spoken: String {
+    /// The grade as the sheet shows and speaks it (design §2). An ungraded row has none.
+    var label: String? {
         switch self {
-        case .sameEntry: return "same entry"
-        case .likely: return "likely"
-        case .differentEntry: return "different entry"
-        case .ungraded: return "ungraded"
+        case .sameEntry: return "Same MyAnimeList entry"
+        case .likely: return "Likely match"
+        case .differentEntry: return "Different MyAnimeList entry"
+        case .ungraded: return nil
         }
     }
 }
@@ -41,7 +42,8 @@ struct AddSourceRow: Identifiable {
     var id: ListingKey { ListingKey(manga) }
 
     var accessibilityLabel: String {
-        var value = "\(manga.title), \(sourceName), \(grade.spoken)"
+        var value = "\(manga.title), \(sourceName)"
+        if let grade = grade.label { value += ", \(grade)" }
         if let alternate = matchedAlternateTitle {
             value += ", also known as \(alternate)"
         }
@@ -86,6 +88,10 @@ final class AddSourceModel: ObservableObject {
     private let counts: MALHubChapterCountLoader
     private let matcher: MALTitleMatcher
     private var lastSpellings: [String] = []
+    /// The Work each row's add collided with, from `pick`. A collision can come from the other
+    /// Work owning the copy's MAL id while not holding the copy itself, so it can't be
+    /// recovered later by looking the copy up.
+    private var conflicts: [ListingKey: WorkID] = [:]
 
     init(listing: Manga, registry: SourceRegistry, works: WorkStore,
          coordinator: WorkSourcesCoordinator, search: SourceTitleSearch,
@@ -106,6 +112,7 @@ final class AddSourceModel: ObservableObject {
         guard let outcome = outcomes.first else { return }
         let replacement = makeGroup(outcome, spellings: lastSpellings)
         groups = groups.map { $0.sourceId == sourceId ? replacement : $0 }
+        updateEmptyMessage()
         await loadCounts()
     }
 
@@ -127,10 +134,10 @@ final class AddSourceModel: ObservableObject {
     }
 
     func combine(_ row: AddSourceRow) async -> AddSourceDecision {
-        guard let other = works.workId(for: ListingKey(row.manga)),
-              let work = works.workId(for: ListingKey(listing)) ?? Optional(coordinator.ensureWork(for: listing)) else {
+        guard let other = conflicts[row.id] ?? works.workId(for: row.id) else {
             return .failed("Could not combine these Sources")
         }
+        let work = coordinator.ensureWork(for: listing)
         await coordinator.combine(other, into: work)
         if works.work(work)?.listings.contains(ListingKey(row.manga)) != true {
             let result = await coordinator.add(row.manga, to: work, recordExternalIds: true)
@@ -140,7 +147,7 @@ final class AddSourceModel: ObservableObject {
     }
 
     func moveJustThisCopy(_ row: AddSourceRow) async -> AddSourceDecision {
-        guard let other = works.workId(for: ListingKey(row.manga)) else { return .failed("Could not move this Source") }
+        guard let other = works.workId(for: row.id) else { return .failed("Could not move this Source") }
         let work = coordinator.ensureWork(for: listing)
         guard case .removed = await coordinator.move(ListingKey(row.manga), from: other, to: work) else {
             return .failed("Could not move this Source")
@@ -161,27 +168,30 @@ final class AddSourceModel: ObservableObject {
     }
 
     private func perform(spellings: [String]) async {
-        let available = registry.visibleSources(includeAdult: true).filter {
-            $0.id != LocalSource.sourceID && !excludedSourceIDs.contains($0.id)
-        }
         lastSpellings = spellings
         emptyMessage = nil
-        guard !available.isEmpty else {
+        phase = .searching
+        // The search picks the Sources (visible, non-Local, adult per the setting), so "no
+        // other Sources" is its answer, not a second guess at the same filter.
+        let outcomes = await searcher.search(spellings: spellings, excluding: excludedSourceIDs)
+        guard !outcomes.isEmpty else {
             phase = .noOtherSources
             groups = []
             emptyMessage = "No other Sources to search"
             return
         }
-        phase = .searching
-        let outcomes = await searcher.search(spellings: spellings, excluding: excludedSourceIDs)
         groups = outcomes.map { makeGroup($0, spellings: spellings) }
         phase = .loaded
+        updateEmptyMessage()
+        await loadCounts()
+    }
+
+    private func updateEmptyMessage() {
+        guard !groups.contains(where: { !$0.rows.isEmpty }) else { emptyMessage = nil; return }
         let hasFailure = groups.contains {
             $0.status == .couldNotCheckTimedOut || $0.status == .couldNotCheckFailed
         }
-        emptyMessage = hasFailure ? "No results on the Sources that answered" :
-            (groups.contains(where: { !$0.rows.isEmpty }) ? nil : "No results on your Sources")
-        await loadCounts()
+        emptyMessage = hasFailure ? "No results on the Sources that answered" : "No results on your Sources"
     }
 
     private func makeGroup(_ outcome: SourceTitleSearch.SourceOutcome, spellings: [String]) -> AddSourceGroup {
@@ -223,10 +233,9 @@ final class AddSourceModel: ObservableObject {
     }
 
     private func loadCounts() async {
-        var top: [Manga] = []
-        for group in groups {
-            top.append(contentsOf: group.rows.filter { $0.grade == .sameEntry || $0.grade == .likely }.map(\.manga))
-        }
+        // Same-entry rows from every Source first, then likely ones, each in registry order.
+        let graded = groups.flatMap(\.rows)
+        let top = (graded.filter { $0.grade == .sameEntry } + graded.filter { $0.grade == .likely }).map(\.manga)
         let loaded = await counts.load(top)
         groups = groups.map { group in
             var next = group
@@ -243,6 +252,7 @@ final class AddSourceModel: ObservableObject {
         case .alreadyLinked: return .unavailable
         case .workNotFound: return .failed("Could not add this Source")
         case .belongsToOtherWork(let other):
+            conflicts[row.id] = other
             let otherWork = works.work(other)
             guard let otherWork else { return .failed("Could not add this Source") }
             if otherWork.listings.contains(ListingKey(row.manga)) && otherWork.listings.count > 1 {

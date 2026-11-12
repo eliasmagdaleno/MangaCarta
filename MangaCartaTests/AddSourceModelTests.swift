@@ -150,6 +150,61 @@ final class AddSourceModelTests: XCTestCase {
         var calls: [Int] = []; for source in sources { calls.append(await source.chapterCalls) }
         XCTAssertEqual(calls, [1, 1, 1, 0])
     }
+
+    /// The collision can be with a Work that owns only the copy's MAL id, not the copy. Combine
+    /// must still find that Work, so it can't rely on looking the copy up.
+    func testCombineWithWorkOwningOnlyTheMALId() async {
+        let current = manga("current", source: "current", title: "Title")
+        let ownerCopy = manga("owner", source: "third", title: "Title", mal: 5)
+        let rowManga = manga("row", source: "other", title: "Title", mal: 5)
+        let (model, works, _) = model(current: current,
+            sources: [AddModelSource(id: "current"), AddModelSource(id: "other", results: [rowManga])])
+        let target = unwrap(works.workId(for: ListingKey(current)))
+        let owner = works.mint(from: ownerCopy)
+        XCTAssertNotEqual(owner, target)
+        await model.start(); let row = unwrap(model.groups.flatMap(\.rows).first)
+        let picked = await model.pick(row)
+        XCTAssertEqual(picked, .confirmCombine(otherTitle: "Title"))
+        let combined = await model.combine(row); XCTAssertEqual(combined, .added)
+        let merged = unwrap(works.workId(for: ListingKey(current)))
+        XCTAssertEqual(merged, target)
+        XCTAssertEqual(Set(works.work(merged)?.listings ?? []),
+                       [ListingKey(current), ListingKey(ownerCopy), ListingKey(rowManga)])
+    }
+
+    func testFailedSourceDoesNotShowEmptyMessageBesideRows() async {
+        let current = manga("current", source: "current")
+        let (model, _, _) = model(current: current, sources: [
+            AddModelSource(id: "current"),
+            AddModelSource(id: "ok", results: [manga("hit", source: "ok", title: "Title")]),
+            AddModelSource(id: "broken", fails: true)
+        ])
+        await model.start()
+        XCTAssertNil(model.emptyMessage)
+        XCTAssertEqual(model.groups.map(\.status), [.results, .couldNotCheckFailed])
+    }
+
+    func testFailedSourceWithNoRowsSaysSourcesThatAnswered() async {
+        let current = manga("current", source: "current")
+        let (model, _, _) = model(current: current, sources: [
+            AddModelSource(id: "current"), AddModelSource(id: "empty"), AddModelSource(id: "broken", fails: true)
+        ])
+        await model.start()
+        XCTAssertEqual(model.emptyMessage, "No results on the Sources that answered")
+    }
+
+    /// Same-entry rows on any Source outrank likely rows on earlier Sources for the three counts.
+    func testCountsPreferSameEntryAcrossSources() async {
+        let current = manga("current", source: "current", mal: 1)
+        let likely = (0..<3).map {
+            AddModelSource(id: "s\($0)", results: [manga("m\($0)", source: "s\($0)", title: "Title")], chapterCount: 1)
+        }
+        let same = AddModelSource(id: "s3", results: [manga("m3", source: "s3", title: "Other", mal: 1)], chapterCount: 1)
+        let (model, _, _) = model(current: current, sources: [AddModelSource(id: "current")] + likely + [same])
+        await model.start()
+        var calls: [Int] = []; for source in likely + [same] { calls.append(await source.chapterCalls) }
+        XCTAssertEqual(calls, [1, 1, 0, 1])
+    }
 }
 
 private func unwrap<T>(_ value: T?) -> T {
@@ -160,12 +215,18 @@ private func unwrap<T>(_ value: T?) -> T {
 private actor AddModelSourceState { var calls = 0; var titles: [String] = []; var chapterCalls = 0 }
 
 private struct AddModelSource: MangaSource, @unchecked Sendable {
-    let id: String; let results: [Manga]; let chapterCount: Int?; let state = AddModelSourceState()
+    let id: String; let results: [Manga]; let chapterCount: Int?; let fails: Bool; let state = AddModelSourceState()
     var name: String { id }
-    init(id: String, results: [Manga] = [], chapterCount: Int? = nil) { self.id = id; self.results = results; self.chapterCount = chapterCount }
+    init(id: String, results: [Manga] = [], chapterCount: Int? = nil, fails: Bool = false) {
+        self.id = id; self.results = results; self.chapterCount = chapterCount; self.fails = fails
+    }
     var calls: Int { get async { await state.calls } }; var titles: [String] { get async { await state.titles } }
     var chapterCalls: Int { get async { await state.chapterCalls } }
-    func search(title: String, limit: Int, offset: Int) async throws -> [Manga] { await state.record(title); return results }
+    func search(title: String, limit: Int, offset: Int) async throws -> [Manga] {
+        await state.record(title)
+        if fails { throw URLError(.notConnectedToInternet) }
+        return results
+    }
     func chapters(mangaId: String) async throws -> [Chapter] {
         await state.recordChapter()
         return (0..<(chapterCount ?? 0)).map { Chapter(id: "\($0)", number: "\($0)", title: nil) }
