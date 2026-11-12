@@ -75,14 +75,19 @@ final class TitleSourcesUITests: XCTestCase {
         relaunched.buttons["Refresh Library"].tap()
         XCTAssertTrue(relaunched.staticTexts["Library updated"].waitForExistence(timeout: 10))
         relaunched.staticTexts["Fixture Title"].firstMatch.tap()
-        XCTAssertTrue(relaunched.buttons["sourcePicker"].waitForNonExistence(timeout: 10))
+        XCTAssertTrue(relaunched.buttons["sourcePicker"].waitForExistence(timeout: 10))
+        openSourceMenu(relaunched)
+        XCTAssertTrue(relaunched.buttons["addSourceMenuItem"].waitForExistence(timeout: 5))
+        XCTAssertFalse(relaunched.buttons["removeSourceMenu"].exists)
         XCTAssertFalse(relaunched.staticTexts["Source B"].exists)
     }
 
     func testRemoveMenuHiddenWithOneCopy() throws {
         let app = launch()
         removeSourceB(app, answer: "removeSourceSameTitle")
-        XCTAssertTrue(app.buttons["sourcePicker"].waitForNonExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["sourcePicker"].waitForExistence(timeout: 10))
+        openSourceMenu(app)
+        XCTAssertTrue(app.buttons["addSourceMenuItem"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["removeSourceMenu"].exists)
     }
 

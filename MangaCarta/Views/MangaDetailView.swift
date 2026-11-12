@@ -142,7 +142,7 @@ struct MangaDetailView: View {
     /// One Listing is not a choice, so it renders exactly as it always has.
     @ViewBuilder
     private var sourceControl: some View {
-        if !isLocalManga, let sourcePicker, sourcePicker.offersAChoice {
+        if !isLocalManga, let sourcePicker {
             SourcePickerStamp(
                 presentation: sourcePicker,
                 isPinned: workID.map { sourcePreferences.choice(for: $0) != nil } ?? false,
@@ -252,7 +252,7 @@ struct MangaDetailView: View {
             .accessibilityIdentifier("removeSourceDifferentTitle")
             Button("Cancel", role: .cancel) { removalTarget = nil }
         } message: {
-            Text("Keeps what you read on it.\n\nWhat you read on it no longer counts here.")
+            Text("It's the same title: keeps what you read on it. It's a different title: what you read on it no longer counts here.")
         }
         .onChange(of: vm.detailTags) { _, tags in
             // Ungated: every source has tags, and this is what makes non-MangaDex
