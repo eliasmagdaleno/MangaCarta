@@ -38,6 +38,7 @@ struct AddSourceRow: Identifiable {
     let isAlreadyLinked: Bool
     let wasRemovedEarlier: Bool
     var chapterCount: Int?
+    var countRequested: Bool = false
 
     var id: ListingKey { ListingKey(manga) }
 
@@ -47,9 +48,9 @@ struct AddSourceRow: Identifiable {
         if let alternate = matchedAlternateTitle {
             value += ", also known as \(alternate)"
         }
-        if let count = chapterCount {
+        if countRequested, let count = chapterCount {
             value += ", \(count) chapters"
-        } else {
+        } else if countRequested {
             value += ", chapter count unknown"
         }
         return value
@@ -236,11 +237,15 @@ final class AddSourceModel: ObservableObject {
         // Same-entry rows from every Source first, then likely ones, each in registry order.
         let graded = groups.flatMap(\.rows)
         let top = (graded.filter { $0.grade == .sameEntry } + graded.filter { $0.grade == .likely }).map(\.manga)
-        let loaded = await counts.load(top)
+        let requested = Set(top.prefix(3).map(ListingKey.init))
+        let loaded = await counts.load(Array(top.prefix(3)))
         groups = groups.map { group in
             var next = group
             next.rows = group.rows.map { row in
-                var updated = row; updated.chapterCount = loaded[row.id]; return updated
+                var updated = row
+                updated.countRequested = requested.contains(row.id)
+                updated.chapterCount = loaded[row.id]
+                return updated
             }
             return next
         }

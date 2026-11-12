@@ -141,6 +141,7 @@ struct SourcePickerStamp: View {
     let isPinned: Bool
     let select: (ListingKey) -> Void
     let useBestAvailable: () -> Void
+    let addSource: () -> Void
 
     /// The row being fulfilled from, for the stamp's own label.
     private var current: SourceOptionPresentation? {
@@ -154,13 +155,7 @@ struct SourcePickerStamp: View {
                     Button {
                         select(row.key)
                     } label: {
-                        // A checkmark rather than colour alone — the design system's rule,
-                        // and the only marker that survives Differentiate Without Color.
-                        if row.isCurrent {
-                            Label("\(row.name) · \(row.detail)", systemImage: "checkmark")
-                        } else {
-                            Text("\(row.name) · \(row.detail)")
-                        }
+                        Text("\(row.name) · \(row.detail)")
                     }
                 }
             }
@@ -171,6 +166,11 @@ struct SourcePickerStamp: View {
                     useBestAvailable()
                 }
             }
+            Divider()
+            Button("Add a Source…", systemImage: "plus") {
+                addSource()
+            }
+            .accessibilityIdentifier("addSourceMenuItem")
         } label: {
             stamp
         }

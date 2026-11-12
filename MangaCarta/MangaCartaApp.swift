@@ -35,6 +35,7 @@ struct MangaCartaApp: App {
     @StateObject private var sourcePreferences: SourcePreferenceStore
     @StateObject private var readingModes: ReadingModeStore
     @StateObject private var fulfillment: FulfillmentCoordinator
+    @StateObject private var workSources: WorkSourcesCoordinator
     /// The graph's registry, so views resolve sources from the same one the services do.
     @StateObject private var registry: SourceRegistry
     @StateObject private var localImporter: LocalImportViewModel
@@ -179,8 +180,7 @@ struct MangaCartaApp: App {
         self.malDetailStore = composed.malDetailStore
         self.malSourceChoiceStore = composed.malSourceChoiceStore
         self.malDetailFetch = composed.malDetailFetch
-        self.entityResolutionStore = composed.entityResolutionStore
-        self.listingCountCache = composed.listingCounts
+        self.entityResolutionStore = composed.entityResolutionStore; self.listingCountCache = composed.listingCounts
         _library = StateObject(wrappedValue: composed.library)
         _history = StateObject(wrappedValue: composed.history)
         _taste = StateObject(wrappedValue: composed.taste)
@@ -192,6 +192,7 @@ struct MangaCartaApp: App {
         _sourcePreferences = StateObject(wrappedValue: composed.sourcePreferences)
         _readingModes = StateObject(wrappedValue: composed.readingModes)
         _fulfillment = StateObject(wrappedValue: composed.fulfillment)
+        _workSources = StateObject(wrappedValue: composed.workSources)
         _registry = StateObject(wrappedValue: composed.registry)
         let localImporter = LocalImportViewModel()
         localImporter.configure(registry: composed.registry, library: composed.library, works: composed.works,
@@ -229,6 +230,7 @@ struct MangaCartaApp: App {
                 .environmentObject(sourcePreferences)
                 .environmentObject(readingModes)
                 .environmentObject(fulfillment)
+                .environmentObject(workSources)
                 .environmentObject(registry)
                 .environmentObject(localImporter)
                 .environmentObject(workNavigator)
