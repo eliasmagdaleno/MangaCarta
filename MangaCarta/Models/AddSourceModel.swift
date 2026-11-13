@@ -212,14 +212,8 @@ final class AddSourceModel: ObservableObject {
     private func makeRow(_ manga: Manga, sourceName: String, spellings: [String]) -> AddSourceRow {
         let currentWork = works.workId(for: ListingKey(listing)).flatMap(works.work)
         let mal = currentWork?.externalIds.mal ?? listing.malId
-        let grade: AddSourceGrade
-        if let rowMal = manga.malId, let mal {
-            grade = rowMal == mal ? .sameEntry : .differentEntry
-        } else {
-            let score = matcher.rankedScores(sourceTitles: spellings,
-                                             candidates: [(id: manga.id, titles: [manga.title] + (manga.altTitles ?? []))]).first?.score ?? 0
-            grade = score >= matcher.acceptanceThreshold ? .likely : .ungraded
-        }
+        let grade = SourceMatchGrader.grade(referenceMALID: mal, spellings: spellings,
+                                            candidate: manga, matcher: matcher)
         let normalizedSpellings = Set(spellings.map(MALTitleMatcher.normalize))
         let alternate = manga.altTitles?.first {
             normalizedSpellings.contains(MALTitleMatcher.normalize($0)) &&

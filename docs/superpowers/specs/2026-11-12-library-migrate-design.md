@@ -340,3 +340,19 @@ all four as recommended.**
 3. **A Library refresh runs after applying.** *Recommended:* yes. Otherwise the migrated titles show no
    unread badge until the next scheduled refresh.
 4. **No cap on batch size.** *Recommended:* none. Progress and Cancel make a long run safe.
+
+## Amendment 1 (2026-11-12): slice 1 rechecked against `main` at `382f82a`
+
+The "Current code" claims slice 1 depends on still hold: `addListing`'s four results, `removeListing`'s refusals,
+`WorkSourcesCoordinator`'s removal cleanup, `SourcePreferenceStore.choose`/`choice`, `repointItem` keeping the old
+title and cover, `AddSourceModel.makeRow`'s grading, and `LibraryRefreshCoordinator.makeQueue`. Three points change
+how slice 1 is built:
+
+1. **The removal cleanup has no cover to pass.** A `Work` stores `ListingKey`s, not each copy's cover, so `cleanupAfterRemoval` doesn't know the replacement's cover. `repointItem(from:to:coverURL:)` takes an optional `coverURL` that defaults to `nil`, meaning "keep the item's cover". Only `migrate` passes one (B's, from the target `Manga`). The stale cover after a per-title Remove a Source is not fixed here; §6 step 4's "that also fixes" is withdrawn.
+2. **`migrate` adds through `WorkStore.addListing`, not `WorkSourcesCoordinator.add`.** `add` calls `fulfillment.reconcile`, which fetches chapter counts, and §6 step 5 says nothing is fetched. The next Library
+   refresh, and slice 2's count loader, supply counts.
+3. **The Library item is re-pointed before A is removed.** §6 lists add, pin, remove, re-point. Done in that order,
+   the removal cleanup re-points the item to `chosenListing(for:)` first, which is a third Source when such a pin
+   survives (step 2), and the item would lose B's cover. So the order is add, pin, **re-point to B with B's cover**,
+   then remove A's copies. The cleanup then finds no item on A and leaves it alone. Add still comes before remove, so
+   the last-copy refusal is still never met.

@@ -124,16 +124,19 @@ final class LibraryStore: ObservableObject {
         items.first { listingKey(for: $0) == key }
     }
 
-    func repointItem(from old: ListingKey, to new: ListingKey) {
+    func repointItem(from old: ListingKey, to new: ListingKey, coverURL: URL? = nil) {
         guard let oldIndex = items.firstIndex(where: { listingKey(for: $0) == old }) else { return }
         var replacement = items[oldIndex]
-        replacement = LibraryItem(id: new.mangaId, title: replacement.title, coverURL: replacement.coverURL,
+        replacement = LibraryItem(id: new.mangaId, title: replacement.title, coverURL: coverURL ?? replacement.coverURL,
                                   chapterNumbers: nil, sourceId: new.sourceId,
                                   collectionIds: replacement.collectionIds)
         items.remove(at: oldIndex)
         if let newIndex = items.firstIndex(where: { listingKey(for: $0) == new }) {
             items[newIndex].collectionIds.formUnion(replacement.collectionIds)
             items[newIndex].chapterNumbers = nil
+            if let coverURL { items[newIndex] = LibraryItem(id: items[newIndex].id, title: items[newIndex].title,
+                coverURL: coverURL, chapterNumbers: items[newIndex].chapterNumbers,
+                sourceId: items[newIndex].sourceId, collectionIds: items[newIndex].collectionIds) }
         } else { items.insert(replacement, at: min(oldIndex, items.count)) }
         saveItems()
     }
