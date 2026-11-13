@@ -36,7 +36,7 @@ plus a delivered-notification UI test (`02057ea`), a lint split (`eafadde`), a m
 - **After `MERGED`:** remove the worktree, delete the local branch, ask before the remote one, and delete the `NA-UI
   iPhone 17 Pro` simulator.
 
-### Vector PDF slice 1 — not pushed, second full UI run unfinished
+### Vector PDF slice 1 — in review (its PR), verified
 Session: "Build vector PDF reader (Codex Luna via Orca)" in Claude Desktop. Branch `eliasmagdaleno/vector-pdf-slice1`,
 worktree `~/orca/workspaces/Manga-Reader/vector-pdf-slice1` (untracked `Secrets.xcconfig` — never commit it).
 Commits: design Amendment 1 (`7af5a42`), the dark vector import (`0c53e19`), review fixes (`37eee3b`), its handoff
@@ -45,10 +45,12 @@ Commits: design Amendment 1 (`7af5a42`), the dark vector import (`0c53e19`), rev
   unchanged) and a `.vector` PDF import that keeps `document.pdf` and writes only a 512 px cover. **It ships dark:**
   `LocalLibraryStore(root:pdfImport:)` defaults to `.raster`, so users see no change. Tests: `PDFVectorImportTests`
   (10).
-- **Not verified:** its second full UI run (on the seeded simulator `ADDAB2F8`) was in progress when it stopped.
-- **To finish:** the full UI run with `ci-placeholder`; replace its handoff per "Resuming"; push; PR. Coordinator
-  terminal `term_cf141c86-a939-4da9-88ab-526bbdb65059`; worker `ctx_0ddf110cbd6c` already reported. After `MERGED`:
-  close, remove worktree, delete local branch, ask before the remote one.
+- **Verified 2026-11-12 night** (resumed session, on its own simulator `771D53A8-7874-450D-8D48-35F36B6EF524`, "PDF-UI
+  iPhone 17 Pro"): the 9 CI-gated hermetic UI suites with `MAL_CLIENT_ID = ci-placeholder`, 46/46 passed; the full
+  unit suite green (1,180 XCTest, 5 skipped; 379 Swift Testing in 52 suites), `PDFVectorImportTests` 10/10; SwiftLint
+  0 on the changed files, no added `swiftlint:disable`. `main` (#401) merged in; this section is its handoff.
+- **After `MERGED`:** close the coordinator terminal `term_cf141c86-a939-4da9-88ab-526bbdb65059`, remove the worktree,
+  delete the local branch, ask before the remote one, and delete the `PDF-UI iPhone 17 Pro` simulator.
 
 ### Resuming (both branches)
 Each branch moves `2026-11-12-library-migrate-design.md` to `archive/` and adds its own handoff, and this file

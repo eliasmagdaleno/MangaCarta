@@ -90,8 +90,8 @@ struct PDFImportTests {
         let pdf = root.appendingPathComponent("locked.pdf")
         try makePDF(at: pdf, pageCount: 1)
         let document = try #require(PDFDocument(url: pdf))
-        #expect(document.write(to: pdf, withOptions: [PDFDocumentWriteOption.ownerPasswordOption: "owner",
-                                                       PDFDocumentWriteOption.userPasswordOption: "user"]))
+        #expect(PDFFixtureWriter.write(document, to: pdf, options: [.ownerPasswordOption: "owner",
+                                                                    .userPasswordOption: "user"]))
         let library = root.appendingPathComponent("library")
         let store = LocalLibraryStore(root: library)
         await #expect(throws: LocalImportError.passwordProtectedPDF) { try await store.importArchive(at: pdf) }
@@ -124,7 +124,7 @@ struct PDFImportTests {
             return
         }
         page.rotation = 90
-        #expect(document.write(to: url))
+        #expect(PDFFixtureWriter.write(document, to: url))
     }
 
     private func makeZeroPagePDF(at url: URL) throws {
