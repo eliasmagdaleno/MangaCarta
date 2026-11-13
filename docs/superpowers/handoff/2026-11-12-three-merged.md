@@ -1,4 +1,4 @@
-# Handoff: notification actions and vector PDF slice 1 merged, Migrate slice 1 merging; Migrate slice 2 next
+# Handoff: notification actions, vector PDF slice 1 and Migrate slice 1 merged; Migrate slice 2 in review; slice 3 next
 
 Date: 2026-11-12 (night, ~22:00). This is the one live handoff. The previous one,
 `archive/2026-11-12-two-builds-paused.md`, is superseded, and every open item in it is carried here. Recheck
@@ -9,7 +9,7 @@ GitHub, the worktrees and the working tree before acting.
 ## State
 
 Merged, branches deleted unless noted:
-- **2026-11-10:** #368–#385. **2026-11-11:** #386–#391. **2026-11-12:** #392–#403, and #404 queued:
+- **2026-11-10:** #368–#385. **2026-11-11:** #386–#391. **2026-11-12:** #392–#405:
   - #396 detail-page sections, #398 analytics owner decisions, #399 analytics slice 1, #400 the Migrate design,
     #401 the previous handoff.
   - **#402 vector PDF slice 1**: `LocalPageStorage` and a `.vector` import that keeps `document.pdf`. It **ships
@@ -17,23 +17,26 @@ Merged, branches deleted unless noted:
   - **#403 notification actions**: Mark Read and Mute on new-chapter notifications; Mute/Unmute in the Home update
     row (menu and named accessibility action) and on every non-Local Library card. Its SpringBoard UI test
     (`testDeliveredNotificationMarkReadAction`) passed on CI's iOS 26.2.
-  - **#404 Migrate slice 1 — open at handoff time, auto-merge (squash) queued; CI was running.** Check
-    `gh pr view 404 --json state` first; if it is not `MERGED`, find out why before starting slice 2. What it adds: `SourceMatchGrader` (extracted from `AddSourceModel`), `repointItem(...coverURL:)`,
+  - **#404 Migrate slice 1**: `SourceMatchGrader` (extracted from `AddSourceModel`), `repointItem(...coverURL:)`,
     `WorkSourcesCoordinator.migrate`, with design Amendment 1 (no per-copy covers; no count fetch; re-point before
     removal).
 - Each was verified before its PR: the 9 CI-gated hermetic UI suites with `ci-placeholder` (#402, #403), the full unit
   suite with both framework counts, mutation checks (10 on #403, 7 on #404), SwiftLint 0 with no disables.
-- **Cleanup done:** #400/#401 remote branches deleted (owner said yes). #402 and #403: worktrees, local branches and
-  their simulators (NA-UI, PDF-UI) removed. #404: see "Cleanup owed".
+- **Cleanup done:** every merged branch through #405 is deleted, local and remote (owner said yes); #402–#404's
+  worktrees, and the NA-UI and PDF-UI simulators, are removed.
 
-**Cleanup owed:**
-- **Remote branches** `eliasmagdaleno/vector-pdf-slice1`, `eliasmagdaleno/notification-actions` and
-  `eliasmagdaleno/migrate-slice1` still exist. Ask the owner before deleting them.
-- **#404's worktree** `~/orca/workspaces/Manga-Reader/migrate-slice1` and local branch, and the `MIG iPhone 17 Pro`
-  simulator (`934F7792-FE9D-409A-B2C8-088EDB49CBF5`), unless already removed — check `git worktree list` and
-  `xcrun simctl list devices | grep MIG`. Reuse the simulator for slice 2 if it's still there.
-- Orca run `run_c6c6c1067d6a` (coordinator terminal `term_905717d4-1add-40b6-b59e-f1f12a07901c`) has no live
-  workers. Close the terminal when no longer needed.
+### Migrate slice 2 — in review (its PR), verified
+Branch `eliasmagdaleno/migrate-slice2`, worktree `~/orca/workspaces/Manga-Reader/migrate-slice2` (untracked
+`Secrets.xcconfig` — never commit it). `LibraryMigrationModel` plus design **Amendment 2** (slice 2's recheck: a
+cancelled search reports `.failed`; the count loader counts only three; MAL-id ownership; dead Sources aren't in the
+registry; and four smaller points). No UI.
+- **Verified:** `LibraryMigrationModelTests` 26/26; 12 mutations each red against its named test, run by Claude; full
+  unit suite green (1,226 XCTest, 5 skipped; 391 Swift Testing in 53 suites); SwiftLint 0, no disables. Hermetic UI
+  suites not run locally (no view or wiring touched); CI runs them.
+- **After `MERGED`:** remove the worktree and local branch, ask before the remote one. Keep the `MIG iPhone 17 Pro`
+  simulator (`934F7792-FE9D-409A-B2C8-088EDB49CBF5`) for slice 3, which needs its own for UI runs. Release Orca worker
+  `ctx_7a3d8ccb0435` (it reported `retained`) and close coordinator terminal
+  `term_308a93bc-c3f7-4dfd-9a42-68134543bc9d` (run `run_753655d7b6c4`) when done with them.
 
 **Working tree:** `MangaCarta/Info.plist` may still carry an uncommitted Xcode rewrite that drops
 `LSSupportsOpeningDocumentsInPlace` (#294). Never commit it as is. `stash@{0}` and `stash@{1}` are old Xcode churn and
@@ -54,8 +57,8 @@ main checkout.
      the top of Home, because the seeded simulator's consent is undecided. If one breaks on that, answer the card
      once on the seeded simulator (either button), or give that test a `-uitest-` argument.
 2. **Item 12, per-Source refresh cadence:** still blocked on measured device data. Don't guess.
-3. **Migrate: slice 1 is #404 (merged, or queued to merge — check); slice 2 (`LibraryMigrationModel`) is next, then slice 3 (UI).** The design,
-   with Amendment 1 (slice 1's recheck), is
+3. **Migrate: slice 1 is #404 (merged); slice 2 is in review (above); slice 3 (UI) is next, after slice 2 merges.** The
+   design, with Amendments 1 and 2 (the slice rechecks), is
    `docs/superpowers/specs/2026-11-12-library-migrate-design.md`, three slices, each its own PR, never stacked
    (model and grader; migration model; UI with the `-uitest-library-migrate` fixture added to CI's hermetic list).
    Every acceptance item names a test, and the mutations each test must catch are listed. Implementation goes to
@@ -63,8 +66,10 @@ main checkout.
    dispatching**, as analytics' Amendment 1 did. Owner decisions in it: keep-or-remove asked once per batch; no batch
    Undo; only confident matches pre-ticked; no bulk Work merges; a pin on a third Source survives; a Library refresh
    runs after applying; no batch cap; entry is a Library-toolbar More menu.
-   **For slice 2:** apply each ticked title through `WorkSourcesCoordinator.migrate` (one title, no fetch, no flush),
-   then `works.flush()` once after the batch and request a Library refresh (§6). Grade with `SourceMatchGrader`.
+   **For slice 3:** the views sit on `LibraryMigrationModel` as built. Construct it with the `RepositoryStore`-backed
+   name lookup and `library.refresh()` (Amendment 2 items 6 and 8); the model's statuses and `alreadyOnTarget` /
+   `choiceDetails` fields carry what the rows show. Closing the sheet must cancel the task that called `start` (the
+   model handles that). VoiceOver progress announcements (every ten titles) are the view's job.
 
 4. **Vector PDF, slices 2–4** (slice 1 merged as #402) (design §"Implementation slices" and Amendment 1). Slice 2: `ReaderPage`,
    `VectorPageProviding`, `LocalLibraryStore.pageReferences(itemId:chapter:)` and `ReaderPagePipelineTests`
@@ -110,6 +115,18 @@ Known and deliberately unfiled:
   caller of `link` appears, add a test through it.
 
 ## Lessons from this session
+
+- **Codex model ids changed:** the owner asked for `gpt-6-luna` instead of `gpt-5.6-luna`, and `gpt-6.1-sol` when
+  Opus-level work is needed (`codex debug models` lists the slugs). Memory `model-routing-fable-hard-tasks` has it.
+- **Luna 6 added an unasked behaviour change mid-round** (rows whose only results were removed or owned elsewhere →
+  "Not found"), committed under a `fix:` title, and edited its own test to match. Read each commit's test diff for
+  changed *expectations*, not only added tests.
+- **Five of 24 first-pass tests passed with their own rule deleted**, all the same way: the fixture's result was
+  already graded `differentEntry`/`ungraded`, so the row was never Ready regardless. For a "never Ready" test, the
+  fixture must be a result that *would* be Ready without the rule.
+- **A cancel handler that hops to the main actor can run late.** `withTaskCancellationHandler { … } onCancel: { Task
+  { @MainActor in cancel() } }` lets work start before the hop lands; also check `Task.isCancelled` where work is
+  launched. A nested local func in a `withTaskGroup` body is nonisolated, so do the check at its call sites.
 
 - **A worker's "mutation survived" can be a broken mutation run.** On Migrate slice 1 the worker reported M4 (remove
   before add) and M7 (re-point after removal) as surviving. Re-run by me, both were red, M7 exactly on the cover
