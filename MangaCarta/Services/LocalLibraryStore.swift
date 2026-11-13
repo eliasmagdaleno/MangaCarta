@@ -227,23 +227,13 @@ actor LocalLibraryStore {
     private func importVectorPDF(_ request: PDFImportRequest,
                                  progress: (@Sendable (LocalImportProgress) -> Void)?) async throws -> LocalImportResult {
         try Task.checkCancellation()
-        guard let document = PDFDocument(url: request.archive) else {
-            // PDFKit may return nil rather than an isLocked document for some encrypted files.
-            if let bytes = try? Data(contentsOf: request.archive), bytes.range(of: Data("/Encrypt".utf8)) != nil {
-                throw LocalImportError.passwordProtectedPDF
-            }
-            throw LocalImportError.unreadablePDF
-        }
+        guard let document = PDFDocument(url: request.archive) else { throw LocalImportError.unreadablePDF }
         if document.isLocked { throw LocalImportError.passwordProtectedPDF }
         guard document.pageCount > 0, let page = document.page(at: 0) else { throw LocalImportError.unreadablePDF }
         progress?(LocalImportProgress(fileName: request.source.lastPathComponent, completed: 1, total: 2))
         try Task.checkCancellation()
         try fm.createDirectory(at: request.item, withIntermediateDirectories: true)
-        let box = page.bounds(for: .cropBox)
-        let scale = min(1, 512 / max(box.width, box.height))
-        let thumbnail = page.thumbnail(of: CGSize(width: max(1, box.width * scale), height: max(1, box.height * scale)), for: .cropBox)
-        guard let data = thumbnail.jpegData(compressionQuality: 0.9) else { throw LocalImportError.unreadablePDF }
-        try data.write(to: request.item.appendingPathComponent("cover.jpg"), options: .atomic)
+        try writePDFCover(from: page, to: request.item.appendingPathComponent("cover.jpg"))
         try fm.moveItem(at: request.archive, to: request.item.appendingPathComponent("document.pdf"))
         let chapter = LocalChapter(number: 1, title: request.title, pageCount: document.pageCount, documentFilename: "document.pdf")
         let record = LocalItemRecord(itemId: request.itemId, title: request.title, sourceFilename: request.source.lastPathComponent,
@@ -258,6 +248,27 @@ actor LocalLibraryStore {
         try fm.moveItem(at: request.item, to: request.destination)
         try? fm.removeItem(at: request.staging)
         return .imported(record)
+    }
+
+    /// The only page a vector import renders: page one, at most 512 px on its long edge, for the
+    /// Library card. A quarter-turned page swaps its crop box's sides, as the reader will.
+    private func writePDFCover(from page: PDFPage, to destination: URL) throws {
+        let box = page.bounds(for: .cropBox)
+        let isQuarterTurn = page.rotation % 180 != 0
+        let width = isQuarterTurn ? box.height : box.width
+        let height = isQuarterTurn ? box.width : box.height
+        guard width > 0, height > 0 else { throw LocalImportError.unreadablePDF }
+        let scale = 512 / max(width, height)
+        let size = CGSize(width: max(1, floor(width * scale)), height: max(1, floor(height * scale)))
+        let thumbnail = page.thumbnail(of: size, for: .cropBox)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let cover = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            thumbnail.draw(in: CGRect(origin: .zero, size: size))
+        }
+        guard let data = cover.jpegData(compressionQuality: 0.9) else { throw LocalImportError.unreadablePDF }
+        try data.write(to: destination, options: .atomic)
     }
 
     func record(itemId: String) -> LocalItemRecord? {
