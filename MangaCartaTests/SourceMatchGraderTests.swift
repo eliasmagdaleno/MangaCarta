@@ -16,7 +16,7 @@ final class SourceMatchGraderTests: XCTestCase {
         XCTAssertEqual(result, .differentEntry)
     }
     func testThresholdTitleIsLikely() {
-        let matcher = MALTitleMatcher()
+        let matcher = MALTitleMatcher(acceptanceThreshold: 1)
         let result = SourceMatchGrader.grade(referenceMALID: nil, spellings: ["The Great Title"],
             candidate: manga(nil, title: "The Great Title"), matcher: matcher)
         XCTAssertEqual(result, .likely)
