@@ -46,14 +46,15 @@ final class WorkSourcesCoordinator: ObservableObject {
         case .added, .alreadyLinked: break
         }
         let targetKey = ListingKey(target)
-        if let pin = preferences.choice(for: work), pin.sourceId != sourceId, pin.sourceId != target.sourceId {
+        if let pin = preferences.choice(for: work), pin.sourceId != sourceId, pin.sourceId != target.sourceId,
+           current.listings.contains(pin) {
             // A deliberate pin on a third Source survives this batch operation.
         } else {
             preferences.choose(targetKey, for: work)
         }
         let listings = current.listings + [targetKey]
         let oldItemKey = listings.first(where: { $0.sourceId == sourceId && library.item(for: $0) != nil })
-            ?? listings.first(where: { library.item(for: $0) != nil })
+            ?? listings.first(where: { $0.sourceId != LocalSource.sourceID && library.item(for: $0) != nil })
         if let oldItemKey { library.repointItem(from: oldItemKey, to: targetKey, coverURL: target.coverURL) }
         if removingOld {
             let oldKeys = works.work(work)?.listings.filter { $0.sourceId == sourceId } ?? []
