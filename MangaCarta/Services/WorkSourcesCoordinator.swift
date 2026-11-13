@@ -1,5 +1,8 @@
 import Foundation
 
+enum MigrationSkipReason: Equatable { case belongsToOtherWork(WorkID), workNotFound }
+enum MigrationOutcome: Equatable { case migrated, skipped(MigrationSkipReason) }
+
 @MainActor
 final class WorkSourcesCoordinator: ObservableObject {
     private let works: WorkStore
@@ -32,6 +35,31 @@ final class WorkSourcesCoordinator: ObservableObject {
         guard case .removed = result else { return result }
         await cleanupAfterRemoval(key, from: work)
         return result
+    }
+
+    func migrate(_ work: WorkID, to target: Manga, from sourceId: String,
+                 removingOld: Bool) async -> MigrationOutcome {
+        guard let current = works.work(work) else { return .skipped(.workNotFound) }
+        switch works.addListing(target, to: work, recordExternalIds: true) {
+        case .belongsToOtherWork(let other): return .skipped(.belongsToOtherWork(other))
+        case .workNotFound: return .skipped(.workNotFound)
+        case .added, .alreadyLinked: break
+        }
+        let targetKey = ListingKey(target)
+        if let pin = preferences.choice(for: work), pin.sourceId != sourceId, pin.sourceId != target.sourceId {
+            // A deliberate pin on a third Source survives this batch operation.
+        } else {
+            preferences.choose(targetKey, for: work)
+        }
+        let listings = current.listings + [targetKey]
+        let oldItemKey = listings.first(where: { $0.sourceId == sourceId && library.item(for: $0) != nil })
+            ?? listings.first(where: { library.item(for: $0) != nil })
+        if let oldItemKey { library.repointItem(from: oldItemKey, to: targetKey, coverURL: target.coverURL) }
+        if removingOld {
+            let oldKeys = works.work(work)?.listings.filter { $0.sourceId == sourceId } ?? []
+            for key in oldKeys { _ = await remove(key, from: work, keepingReadState: true) }
+        }
+        return .migrated
     }
 
     @discardableResult
