@@ -1,4 +1,5 @@
 import XCTest
+import Vision
 
 final class LibraryMigrateUITests: XCTestCase {
     override func setUpWithError() throws {
@@ -93,11 +94,20 @@ final class LibraryMigrateUITests: XCTestCase {
         XCTAssertTrue(firstRow.waitForExistence(timeout: 5))
         if !firstRow.isHittable { app.swipeUp() }
         XCTAssertTrue(apply.isHittable)
+        XCTAssertGreaterThanOrEqual(apply.frame.height, 44)
         XCTAssertTrue(firstRow.isHittable)
-        let attachment = XCTAttachment(screenshot: app.screenshot())
+        let screenshot = app.screenshot()
+        let attachment = XCTAttachment(screenshot: screenshot)
         attachment.name = "migrate-review-AXXXL"
         attachment.lifetime = .keepAlways
         add(attachment)
+        let cgImage = try XCTUnwrap(screenshot.image.cgImage)
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        try VNImageRequestHandler(cgImage: cgImage).perform([request])
+        let visibleText = request.results?.compactMap { $0.topCandidates(1).first?.string }
+            .joined(separator: " ") ?? ""
+        XCTAssertTrue(visibleText.contains("Migrate 3 titles"), "Apply label was clipped: \(visibleText)")
     }
 
     private func launch(slow: Bool = false, largeType: Bool = false) -> XCUIApplication {

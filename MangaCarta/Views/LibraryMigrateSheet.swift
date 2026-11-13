@@ -51,7 +51,9 @@ struct LibraryMigrateSheet: View {
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
             .safeAreaInset(edge: .bottom) {
                 if summary == nil && !model.isSearching {
-                    Button("Migrate \(model.rows.filter(\.isTicked).count) titles") { showingApply = true }
+                    Button("Migrate \(model.rows.filter(\.isTicked).count) titles") {
+                        showingApply = true
+                    }
                         .buttonStyle(.borderedProminent).frame(maxWidth: .infinity).padding()
                         .accessibilityIdentifier("migrateApplyButton")
                         .disabled(model.rows.filter(\.isTicked).isEmpty)
