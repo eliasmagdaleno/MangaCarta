@@ -5,10 +5,10 @@ import XCTest
 final class LibraryMigrationModelTests: XCTestCase {
     private func fixture(_ entries: [(String, Int?, [Manga])], bAvailable: Bool = true,
                          concurrency: Int = 4, gate: SearchGate? = nil, mintWork: Bool = true,
-                         registerA: Bool = true) -> Fixture {
+                         registerA: Bool = true, extraLibraryItems: [MangaCarta.LibraryItem] = []) -> Fixture {
         Fixture(entries: entries, bAvailable: bAvailable, concurrency: concurrency, gate: gate,
                 mintWork: mintWork, registerA: registerA, directory: makeTestDirectory("LibraryMigration"),
-                defaults: makeTestDefaults("LibraryMigration"))
+                defaults: makeTestDefaults("LibraryMigration"), extraLibraryItems: extraLibraryItems)
     }
 
     private func assertStatus(_ results: [Manga], _ expected: LibraryMigrationStatus, referenceMAL: Int? = 1,
@@ -29,12 +29,20 @@ final class LibraryMigrationModelTests: XCTestCase {
     }
 
     func testUninstalledFromIsOffered() async throws {
-        let f = fixture([("a1", 1, [])], registerA: false)
+        let legacy = try XCTUnwrap(InstalledSourceIDMigration.legacyIDs.first)
+        let f = fixture([("a1", 1, [])], registerA: false, extraLibraryItems: [
+            LibraryItem(id: "local", title: "Local", coverURL: nil, sourceId: LocalSource.sourceID),
+            LibraryItem(id: "legacy", title: "Legacy", coverURL: nil, sourceId: legacy),
+            LibraryItem(id: "nil-source", title: "Old", coverURL: nil, sourceId: nil)
+        ])
         f.model.refreshFromOptions()
         let option = try XCTUnwrap(f.model.fromOptions.first(where: { $0.sourceId == "a" }))
         XCTAssertEqual(option.name, "Source A")
         XCTAssertEqual(option.savedCount, 1)
         XCTAssertFalse(option.isInstalled)
+        XCTAssertFalse(f.model.fromOptions.contains { $0.sourceId == LocalSource.sourceID })
+        XCTAssertFalse(f.model.fromOptions.contains { $0.sourceId == legacy })
+        XCTAssertFalse(f.model.fromOptions.contains { $0.sourceId == LegacySourceID.unattributed })
     }
 
     func testAlreadyOnTargetSkipsSearchAndIsReady() async throws {
@@ -56,11 +64,13 @@ final class LibraryMigrationModelTests: XCTestCase {
         try await assertStatus([likely], .ready, referenceMAL: nil)
     }
     func testLikelyBesideDifferentEntryNeedsPick() async throws {
-        try await assertStatus([filler(mal: nil), filler("different", mal: 9)], .needsPick)
+        let likely = Manga(id: "likely", sourceId: "b", title: "Title a1", description: "", status: "unknown",
+                           year: nil, coverURL: nil, malId: nil)
+        try await assertStatus([likely, filler("different", mal: 9)], .needsPick)
     }
 
     func testRemovedEarlierIsNeverReady() async throws {
-        let f = fixture([("a1", 1, [filler(mal: 9)])])
+        let f = fixture([("a1", 1, [filler()])])
         let work = try XCTUnwrap(f.works.workId(for: ListingKey(f.saved[0])))
         let match = filler()
         _ = f.works.addListing(match, to: work, recordExternalIds: false)
@@ -70,8 +80,11 @@ final class LibraryMigrationModelTests: XCTestCase {
     }
 
     func testMatchOwnedByOtherWorkIsNeverReady() async throws {
-        let f = fixture([("a1", 1, [filler(mal: 9)])])
+        let ownedResult = Manga(id: "b-owned", sourceId: "b", title: "Title a1", description: "",
+                                status: "unknown", year: nil, coverURL: nil, malId: nil)
+        let f = fixture([("a1", nil, [ownedResult])])
         let other = f.works.mint(from: f.manga("owned", "c", 9, title: "Other title"))
+        _ = f.works.addListing(ownedResult, to: other, recordExternalIds: false)
         await f.model.start(from: "a", to: "b")
         let row = try XCTUnwrap(f.model.rows.first)
         XCTAssertNotEqual(row.status, .ready)
@@ -81,7 +94,9 @@ final class LibraryMigrationModelTests: XCTestCase {
     }
 
     func testMatchWhoseMalIdAnotherWorkOwnsIsNeverReady() async throws {
-        let f = fixture([("a1", nil, [filler(mal: 1)])])
+        let malOwnedResult = Manga(id: "b1", sourceId: "b", title: "Title a1", description: "",
+                                   status: "unknown", year: nil, coverURL: nil, malId: 1)
+        let f = fixture([("a1", nil, [malOwnedResult])])
         _ = f.works.mint(from: f.manga("owner", "c", 1))
         await f.model.start(from: "a", to: "b")
         XCTAssertNotEqual(try XCTUnwrap(f.model.rows.first).status, .ready)
@@ -91,6 +106,7 @@ final class LibraryMigrationModelTests: XCTestCase {
         let gate = SearchGate(); let f = fixture((0..<10).map { ("a\($0)", $0 + 1, [filler("b\($0)", mal: $0 + 1)]) }, gate: gate)
         let task = Task { await f.model.start(from: "a", to: "b") }
         try await waitUntil { await gate.peakCount() >= 4 }
+        try await Task.sleep(nanoseconds: 200_000_000)
         let peak = await gate.peakCount()
         XCTAssertEqual(peak, 4)
         await gate.releaseAll(); await task.value
@@ -111,6 +127,21 @@ final class LibraryMigrationModelTests: XCTestCase {
         XCTAssertEqual(f.model.rows.filter { $0.status == LibraryMigrationStatus.notSearched }.count, 9)
         let searches = await f.sourceB.searchedIds()
         XCTAssertEqual(searches.count, searchesAtCancel)
+        XCTAssertEqual(f.snapshot(), before)
+    }
+
+    func testCancellingTheStartTaskCancelsSearches() async throws {
+        let gate = SearchGate()
+        let f = fixture((0..<10).map { ("a\($0)", $0 + 1, [filler("b\($0)", mal: $0 + 1)]) }, gate: gate)
+        let before = f.snapshot()
+        let task = Task { await f.model.start(from: "a", to: "b") }
+        try await waitUntil { await gate.startedCount() >= 4 }
+        let startedAtCancel = await f.sourceB.searchedIds().count
+        task.cancel()
+        await task.value
+        let searchesAfterCancel = await f.sourceB.searchedIds().count
+        XCTAssertEqual(searchesAfterCancel, startedAtCancel)
+        XCTAssertEqual(f.model.rows.filter { $0.status == LibraryMigrationStatus.notSearched }.count, 10)
         XCTAssertEqual(f.snapshot(), before)
     }
 
@@ -198,13 +229,15 @@ final class LibraryMigrationModelTests: XCTestCase {
     }
 
     func testSearchMakesNoWrites() async throws {
-        let f = fixture((0..<5).map { ("a\($0)", $0 + 1, [filler("b\($0)", mal: $0 + 1)]) })
+        let f = fixture((0..<5).map { ("a\($0)", $0 + 1, [filler("b\($0)", mal: $0 + 1)]) }, mintWork: false)
         let before = f.snapshot()
         await f.model.start(from: "a", to: "b")
         XCTAssertEqual(f.snapshot(), before)
-        XCTAssertTrue(f.works.allWorkIds().count == 5)
+        XCTAssertTrue(f.works.allWorkIds().isEmpty)
         let chapterCalls = await f.sourceB.chaptersCount()
-        XCTAssertEqual(chapterCalls, 5)
+        XCTAssertEqual(chapterCalls, 0)
+        let searches = await f.sourceB.searches()
+        XCTAssertEqual(searches.count, 5)
     }
 
     func testAlreadyOnTargetAppliesToTargetNotThirdSource() async throws {
@@ -248,7 +281,8 @@ private final class Fixture {
     var refreshCalls: Int { refreshCounter.value }
 
     init(entries: [(String, Int?, [Manga])], bAvailable: Bool, concurrency: Int,
-         gate: SearchGate?, mintWork: Bool, registerA: Bool, directory: URL, defaults: UserDefaults) {
+         gate: SearchGate?, mintWork: Bool, registerA: Bool, directory: URL, defaults: UserDefaults,
+         extraLibraryItems: [MangaCarta.LibraryItem]) {
         self.directory = directory; self.defaults = defaults
         let workStore = WorkStore(directory: directory)
         works = workStore
@@ -259,6 +293,10 @@ private final class Fixture {
         sourceB = MigrationFakeSource(id: "b", results: results, gate: gate)
         let c = MigrationFakeSource(id: "c")
         let registry = SourceRegistry(sources: (registerA ? [a] : []) + (bAvailable ? [sourceB] : []) + [c], defaults: defaults)
+        if !extraLibraryItems.isEmpty,
+           let encoded = try? JSONEncoder().encode(extraLibraryItems) {
+            defaults.set(encoded, forKey: "library.items")
+        }
         let libraryStore = LibraryStore(defaults: defaults, works: mintWork ? workStore : nil, registry: registry)
         library = libraryStore
         saved = entries.map { id, mal, _ in
@@ -293,7 +331,11 @@ private final class Fixture {
             "\($0.id):\($0.sourceId ?? "nil"): \($0.title)"
         }.joined(separator: "|")
         let workData = (try? Data(contentsOf: directory.appendingPathComponent("works.json"))) ?? Data()
-        return "\(lib)|\(workData.base64EncodedString())|\(preferences.allChoicesForTesting)"
+        let pins = works.allWorkIds().sorted { $0.raw.uuidString < $1.raw.uuidString }.map { workID in
+            let key = preferences.choice(for: workID)
+            return "\(workID.raw.uuidString)=\(key?.sourceId ?? "nil")/\(key?.mangaId ?? "nil")"
+        }.joined(separator: "|")
+        return "\(lib)|\(workData.base64EncodedString())|\(pins)"
     }
 }
 
@@ -388,8 +430,4 @@ private final class MigrationRefreshCounter: @unchecked Sendable {
     private var count = 0
     var value: Int { lock.lock(); defer { lock.unlock() }; return count }
     func increment() { lock.lock(); count += 1; lock.unlock() }
-}
-
-private extension SourcePreferenceStore {
-    var allChoicesForTesting: String { "" }
 }

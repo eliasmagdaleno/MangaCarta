@@ -121,7 +121,12 @@ final class LibraryMigrationModel: ObservableObject {
     }
 
     func start(from sourceId: String, to targetId: String) async {
-        candidates(from: sourceId, to: targetId); await searchRemaining(targetId: targetId)
+        await withTaskCancellationHandler {
+            candidates(from: sourceId, to: targetId)
+            await searchRemaining(targetId: targetId)
+        } onCancel: {
+            Task { @MainActor in self.cancel() }
+        }
     }
 
     func cancel() {
