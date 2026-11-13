@@ -365,3 +365,51 @@ The owner accepted every recommended answer below at sign-off.
 5. **Recommended: no PDF text/search/accessibility extraction in this PR.** VoiceOver should
    announce the stable page element (“Page n of total”), while PDF text remains visual content.
    Should text selection/search be a separate product feature rather than part of vector rendering?
+
+## Amendment 1 (2026-11-12): rechecked against `main` at `c722db7`; slice 1 ships dark
+
+Every code claim in "Current code this builds on" was grepped against `main` at `c722db7` (after
+per-title Sources, detail-page sections and analytics slice 1 merged). The import, record, source,
+reader-view-model, reader-view, zoom-container and Info.plist facts all still hold; line numbers have
+drifted by a few lines in `LocalImportViewModel.swift` (`importOpenedURL` is now `:130-134`,
+`deleteIfOwned` `:136-142`) and `ReaderViewModel.swift` (`pages` is `:43`). Four things change the
+plan:
+
+1. **Slice 1 on its own would break new PDFs, so it ships dark.** Slice 1 stops writing page JPEGs,
+   but nothing can draw a retained PDF until slices 3 and 4. Shipped alone, every newly imported PDF
+   would open to "This chapter has no pages to read." So slice 1 adds the vector import as a
+   `LocalLibraryStore` option, `PDFImportMode` (`.raster` / `.vector`), whose production default
+   stays **`.raster`**. Tests construct the store with `.vector`. **The slice that makes both paged
+   and webtoon modes render a `.pdf` chapter (slice 4) flips the default and deletes the raster
+   path**, together with the duplicate-message change below; until then `PDFPageRasterizer` stays.
+   No user sees any change from slice 1.
+2. **`MangaCartaTests/PDFImportTests.swift` already exists** and asserts the raster behaviour
+   (2,600-point JPEGs, no retained PDF). It keeps passing while `.raster` is the default. The new
+   vector tests go in a new `PDFVectorImportTests.swift`, as the spec says. The slice that deletes
+   the raster path deletes or rewrites `PDFImportTests` with it.
+3. **The storage discriminator.** `LocalChapter` gains `pageStorage: LocalPageStorage`, an enum with
+   `.images([String])` and `.pdf(documentFilename: String)`. A missing key decodes as
+   `.images(pageFiles)`, so every existing `item.json` reads unchanged. `pageFiles` stays a stored,
+   encoded property (empty for a `.pdf` chapter) so a record written by this build still decodes in
+   an older build. `LocalChapterLayout.normalize` and the archive importer keep producing image
+   chapters. `LocalLibraryStore.pageURLs` returns `[]` for a `.pdf` chapter (the reader's existing
+   "no pages" failure, never a crash); the real `pageReferences` arrives in slice 2.
+4. **The duplicate message waits for the flip.** Owner decision 1 asks the duplicate message to say
+   "delete the old item and import again for sharp pages" when the existing item is a legacy raster
+   PDF. While `.raster` is the default, re-importing would produce the same raster item, so the
+   message would be false. It lands with the flip.
+
+Also noted, no plan change: `ReaderAccessibility.pageLabel` / `pageIndicatorLabel` live in
+`MangaCarta/Models/ReaderPresentation.swift:173-180`, not `ReaderView.swift`. The CBR/EPUB/folders
+design (`2026-11-09-local-formats-cbr-epub-folders-design.md`) also edits `LocalChapter` and the
+importer; whichever lands second rebases onto `pageStorage`. There is no PDF in any UI-test
+fixture yet; `LocalImportUITests`' `-uitest-import-fixture` route is where slice 4's hermetic PDF
+fixture goes.
+
+**Slice 1's acceptance, from the criteria above:** criterion 1 (one `document.pdf`, one cover,
+`item.json`, no `pages/`, page count 3), criterion 2's import half (page count recorded; corrupt and
+zero-page PDFs rejected leaving nothing; the reference half is slice 2), criterion 3 (locked PDF),
+criterion 4's decode half (a pre-vector `item.json` decodes as `.images` and is not rewritten), and
+criterion 9's delete half (deleting a vector item removes the document and metadata). Plus: the
+vector path reports exactly two progress milestones, writes a cover at most 512 px on its long edge
+from page one, and never deletes the source file; cancellation still leaves nothing behind.
