@@ -1,32 +1,21 @@
-# Handoff: vector PDF slice 1 in review (ships dark); analytics slice 1 in review
+# Handoff: vector PDF slice 1 in review (ships dark); Migrate designed; analytics slices 2–3 blocked
 
 Date: 2026-11-12 (night). This is the one live handoff. The previous one,
-`archive/2026-11-12-analytics-slice1.md`, is superseded, and every open item in it is carried here. Recheck
+`archive/2026-11-12-library-migrate-design.md`, is superseded, and every open item in it is carried here. Recheck
 GitHub, the worktrees and the working tree before acting. **Other sessions were working in parallel when this was
-written** (library-wide Migrate design, notification actions); if one of them also replaced this file, merge the two:
-keep both sessions' items.
+written** (notification actions); if one of them also replaced this file, merge the two: keep both sessions' items.
 
 **The owner's instruction stands: features first, testing last** (memory `features-first-testing-last`).
 
 ## State
 
 Merged, branches deleted unless noted:
-- **2026-11-10:** #368–#385. **2026-11-11:** #386–#391. **2026-11-12:** #392–#395, **#396** (detail-page sections),
-  #397 (handoff), #398 (analytics owner decisions).
-- **#396 cleanup is done** (2026-11-12): worker `ctx_a445ce5819e7` released, coordinator terminal closed, worktree
-  `~/orca/workspaces/Manga-Reader/detail-sections` removed, local and remote `eliasmagdaleno/detail-sections` deleted.
-- **#398's branch `docs/analytics-decisions` still exists locally and on the remote.** It is merged; deleting the
-  remote branch needs the owner's yes (classifier-blocked otherwise).
-- **#399, analytics slice 1** (branch `eliasmagdaleno/analytics-slice1`, worktree
-  `~/orca/workspaces/Manga-Reader/analytics-slice1`, which holds an untracked `Secrets.xcconfig` — never commit it).
-  Open for the owner to merge; not merged unasked. What it is: design Amendment 1 (the "Current code" table rechecked
-  against `main`), then consent model and region table, events/wire form, eligibility, 500-event buffer, recorder
-  and sent ledger, store and view hooks, first-launch notice, Settings → Privacy with "What is sent", glossary entry,
-  `PRODUCT.md` link-back, `AnalyticsSettingsUITests` (added to CI's hermetic list). **No network code.**
-  Evidence is in the PR body. Once it is `MERGED`: release nothing (the worker `ctx_154ee1c1c2f9` is already
-  released), close coordinator terminal `term_3ad9e7be-b5a8-42a1-abc6-14c14e235d8e`, remove the worktree, delete
-  the local branch; ask the owner before deleting the remote branch.
-
+- **2026-11-10:** #368–#385. **2026-11-11:** #386–#391. **2026-11-12:** #392–#399 (#396 detail-page sections,
+  #398 analytics owner decisions, #399 analytics slice 1). #399's worktree and branches, and #398's branch, are
+  gone (checked 2026-11-12 night).
+- **The Migrate design is accepted** (owner, 2026-11-12) and **merged as #400** (design, handoff, glossary entry
+  **Migrate**). Cleanup still owed unless its session did it: remove the worktree `.worktrees/library-migrate` and the
+  local branch `docs/library-migrate-design`; ask before deleting the remote branch.
 - **Vector PDF slice 1** (branch `eliasmagdaleno/vector-pdf-slice1`, worktree
   `~/orca/workspaces/Manga-Reader/vector-pdf-slice1`, which holds an untracked `Secrets.xcconfig` — never commit it).
   Open for the owner to merge; not merged unasked. What it is: design Amendment 1
@@ -40,8 +29,8 @@ Merged, branches deleted unless noted:
 
 **Working tree:** `MangaCarta/Info.plist` may still carry an uncommitted Xcode rewrite that drops
 `LSSupportsOpeningDocumentsInPlace` (#294). Never commit it as is. `stash@{0}` and `stash@{1}` are old Xcode churn and
-safe to drop. Leave `.worktrees/device-build`, the uncommitted `.cbz` UTI fix, alone. The main checkout was at
-`c722db7` (= `origin/main`, clean) when this was written; pull before working there.
+safe to drop. Leave `.worktrees/device-build`, the uncommitted `.cbz` UTI fix, alone. Pull before working in the
+main checkout.
 
 ## Next
 
@@ -51,7 +40,7 @@ safe to drop. Leave `.worktrees/device-build`, the uncommitted `.cbz` UTI fix, a
    hermetic `LocalPDFReaderUITests` (criteria 6–8, 10; add it to CI's hermetic list) **and the flip**: default
    `.vector`, delete `PDFPageRasterizer` and rewrite `PDFImportTests`, and the duplicate message for a legacy raster
    PDF ("delete it and import again for sharp pages", owner decision 1). Don't flip before both reading modes draw a
-   `.pdf` chapter; until then a vector import opens to "no pages". Slice 5 is the manual device checks; it joins the
+   `.pdf` chapter; until then a vector import opens to "no pages". Slice 5 is the manual device checks; it is on the
    deferred testing list below. The CBR/EPUB/folders design also edits `LocalChapter`; whichever lands second
    rebases onto `pageStorage`.
 2. **Analytics slices 2 and 3 are blocked** on the legal review and the hosted privacy-policy URL (owner decision 8).
@@ -66,8 +55,14 @@ safe to drop. Leave `.worktrees/device-build`, the uncommitted `.cbz` UTI fix, a
      the top of Home, because the seeded simulator's consent is undecided. If one breaks on that, answer the card
      once on the seeded simulator (either button), or give that test a `-uitest-` argument.
 3. **Item 12, per-Source refresh cadence:** still blocked on measured device data. Don't guess.
-4. **Library-wide switching to another Source** (owner's item 3, Paperback's "Migrate"): its own design.
-   `moveCopy`/`combine` (#390) and `SourceTitleSearch` (#392) are its building blocks.
+4. **Migrate (library-wide switching to another Source) is designed and ready to build:**
+   `docs/superpowers/specs/2026-11-12-library-migrate-design.md`, three slices, each its own PR, never stacked
+   (model and grader; migration model; UI with the `-uitest-library-migrate` fixture added to CI's hermetic list).
+   Every acceptance item names a test, and the mutations each test must catch are listed. Implementation goes to
+   Codex Luna via Orca, with Claude reviewing. **Recheck the design's "Current code" list against `main` before
+   dispatching**, as analytics' Amendment 1 did. Owner decisions in it: keep-or-remove asked once per batch; no batch
+   Undo; only confident matches pre-ticked; no bulk Work merges; a pin on a third Source survives; a Library refresh
+   runs after applying; no batch cap; entry is a Library-toolbar More menu.
 
 Known and small, from slice 2 of per-title Sources:
 - The hub now fetches MAL alternative titles even when no Source is installed (the empty-Sources check moved into
@@ -112,7 +107,7 @@ Known and deliberately unfiled:
 - **A `-only-testing` run can die at launch** ("Test crashed with signal kill before establishing connection")
   when another session is testing on the seeded simulator. Nothing ran; re-run it.
 
-Carried from the 2026-11-12 evening session (analytics slice 1):
+Carried from earlier 2026-11-12 sessions:
 
 - **Recheck a design's "Current code" table before building; it found four real problems here.** Saving had three
   paths, not one. For You reasons are free text, and one kind ("Because you read <title>") carries a title, so a
