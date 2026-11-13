@@ -1,4 +1,4 @@
-# Handoff: notification actions, vector PDF slice 1 and Migrate slice 1 merged; Migrate slice 2 next
+# Handoff: notification actions and vector PDF slice 1 merged, Migrate slice 1 merging; Migrate slice 2 next
 
 Date: 2026-11-12 (night, ~22:00). This is the one live handoff. The previous one,
 `archive/2026-11-12-two-builds-paused.md`, is superseded, and every open item in it is carried here. Recheck
@@ -9,7 +9,7 @@ GitHub, the worktrees and the working tree before acting.
 ## State
 
 Merged, branches deleted unless noted:
-- **2026-11-10:** #368–#385. **2026-11-11:** #386–#391. **2026-11-12:** #392–#404:
+- **2026-11-10:** #368–#385. **2026-11-11:** #386–#391. **2026-11-12:** #392–#403, and #404 queued:
   - #396 detail-page sections, #398 analytics owner decisions, #399 analytics slice 1, #400 the Migrate design,
     #401 the previous handoff.
   - **#402 vector PDF slice 1**: `LocalPageStorage` and a `.vector` import that keeps `document.pdf`. It **ships
@@ -17,7 +17,8 @@ Merged, branches deleted unless noted:
   - **#403 notification actions**: Mark Read and Mute on new-chapter notifications; Mute/Unmute in the Home update
     row (menu and named accessibility action) and on every non-Local Library card. Its SpringBoard UI test
     (`testDeliveredNotificationMarkReadAction`) passed on CI's iOS 26.2.
-  - **#404 Migrate slice 1**: `SourceMatchGrader` (extracted from `AddSourceModel`), `repointItem(...coverURL:)`,
+  - **#404 Migrate slice 1 — open at handoff time, auto-merge (squash) queued; CI was running.** Check
+    `gh pr view 404 --json state` first; if it is not `MERGED`, find out why before starting slice 2. What it adds: `SourceMatchGrader` (extracted from `AddSourceModel`), `repointItem(...coverURL:)`,
     `WorkSourcesCoordinator.migrate`, with design Amendment 1 (no per-copy covers; no count fetch; re-point before
     removal).
 - Each was verified before its PR: the 9 CI-gated hermetic UI suites with `ci-placeholder` (#402, #403), the full unit
@@ -53,7 +54,7 @@ main checkout.
      the top of Home, because the seeded simulator's consent is undecided. If one breaks on that, answer the card
      once on the seeded simulator (either button), or give that test a `-uitest-` argument.
 2. **Item 12, per-Source refresh cadence:** still blocked on measured device data. Don't guess.
-3. **Migrate: slice 1 merged (#404); slice 2 (`LibraryMigrationModel`) is next, then slice 3 (UI).** The design,
+3. **Migrate: slice 1 is #404 (merged, or queued to merge — check); slice 2 (`LibraryMigrationModel`) is next, then slice 3 (UI).** The design,
    with Amendment 1 (slice 1's recheck), is
    `docs/superpowers/specs/2026-11-12-library-migrate-design.md`, three slices, each its own PR, never stacked
    (model and grader; migration model; UI with the `-uitest-library-migrate` fixture added to CI's hermetic list).
