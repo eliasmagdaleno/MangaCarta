@@ -151,12 +151,14 @@ final class LibraryMigrationModel: ObservableObject {
                     group.addTask { (index, await task.value) }
                 }
             }
-            for _ in 0..<concurrency { add() }
+            // The start task's cancel handler hops to the main actor, so a cancel can land
+            // before this group exists; no search starts once the flag or the task says so.
+            for _ in 0..<concurrency where !cancelled && !Task.isCancelled { add() }
             while let (index, outcome) = await group.next() {
                 if cancelled { rows[index].status = .notSearched; continue }
                 apply(outcome ?? [], at: index, targetId: targetId)
                 searchedCount += 1
-                if !cancelled { add() }
+                if !cancelled && !Task.isCancelled { add() }
             }
         }
         guard !cancelled else { return }

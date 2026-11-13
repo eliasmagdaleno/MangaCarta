@@ -145,6 +145,23 @@ final class LibraryMigrationModelTests: XCTestCase {
         XCTAssertEqual(f.snapshot(), before)
     }
 
+    /// The cancel handler hops to the main actor, so it can run after the search group has
+    /// been entered. A start whose task is already cancelled must still search nothing.
+    func testStartOnCancelledTaskSearchesNothing() async throws {
+        let f = fixture((0..<6).map { ("a\($0)", $0 + 1, [filler("b\($0)", mal: $0 + 1)]) })
+        let before = f.snapshot()
+        let task = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            await f.model.start(from: "a", to: "b")
+        }
+        await task.value
+        try await Task.sleep(nanoseconds: 200_000_000)
+        let searches = await f.sourceB.searches()
+        XCTAssertEqual(searches, [])
+        XCTAssertEqual(f.model.rows.filter { $0.status == LibraryMigrationStatus.notSearched }.count, 6)
+        XCTAssertEqual(f.snapshot(), before)
+    }
+
     func testUnavailableTargetIsCouldNotCheck() async throws {
         let f = fixture([("a1", 1, [])], bAvailable: false)
         await f.model.start(from: "a", to: "b")
