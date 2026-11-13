@@ -17,11 +17,15 @@ struct BookmarksView: View {
     @EnvironmentObject private var works: WorkStore
     @EnvironmentObject private var updates: UpdateStateStore
     @EnvironmentObject private var registry: SourceRegistry
+    @EnvironmentObject private var workSources: WorkSourcesCoordinator
+    @Environment(\.listingCountCache) private var listingCountCache
+    @Environment(\.extensionComposition) private var extensionComposition
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.selectAppTab) private var selectAppTab
 
     @State private var selectedCollectionId: String
     @State private var showingManagementSheet = false
+    @State private var showingMigrateSheet = false
     @State private var refreshBannerMessage: String? = nil
     @State private var showingRefreshBanner = false
     @State private var showingImporter = false
@@ -171,16 +175,22 @@ struct BookmarksView: View {
                     .accessibilityHint("Checks saved titles for new chapters")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showingManagementSheet = true
+                    Menu {
+                        Button("Manage Collections") { showingManagementSheet = true }
+                        Button("Migrate Sources…") { showingMigrateSheet = true }
                     } label: {
-                        Image(systemName: "slider.horizontal.3")
+                        Label("More", systemImage: "ellipsis.circle")
                     }
-                    .accessibilityLabel("Manage Collections")
+                    .accessibilityIdentifier("libraryMoreMenu")
                 }
             }
             .sheet(isPresented: $showingManagementSheet) {
                 CollectionManagementView()
+            }
+            .sheet(isPresented: $showingMigrateSheet) {
+                LibraryMigrateSheet(library: library, works: works, coordinator: workSources,
+                                    registry: registry, listingCountCache: listingCountCache,
+                                    composition: extensionComposition)
             }
             // A tapped new-chapter notification opens the Work's detail page (#343).
             .navigationDestination(item: notifiedWork) { workId in
