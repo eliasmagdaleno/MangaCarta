@@ -109,11 +109,15 @@ struct LibraryMigrateSheet: View {
                             Text("\(option.name) · \(option.savedCount) saved titles\(option.isInstalled ? "" : " · Not installed")")
                                 .tag(Optional(option.sourceId))
                         }
-                    }.pickerStyle(.menu)
+                    }
+                    .pickerStyle(.menu)
+                    .accessibilityIdentifier("migrateFromPicker")
                     Text("To")
                     Picker("To", selection: $toID) {
                         ForEach(toOptions, id: \.id) { source in Text(source.name).tag(Optional(source.id)) }
-                    }.pickerStyle(.menu)
+                    }
+                    .pickerStyle(.menu)
+                    .accessibilityIdentifier("migrateToPicker")
                     if toOptions.isEmpty { Text("No other installed Sources."); repositoryHint }
             Button("Find titles on \(targetName)") {
                         guard let fromID, let toID else { return }
@@ -189,6 +193,7 @@ struct LibraryMigrateSheet: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(accessibilityLabel(for: row))
+                .accessibilityIdentifier("migrateRow.\(row.id.sourceId).\(row.id.mangaId)")
                 Spacer(minLength: 4)
                 if row.chosen != nil || row.alreadyOnTarget != nil {
                     toggleButton(row)
@@ -206,7 +211,6 @@ struct LibraryMigrateSheet: View {
         .padding(.vertical, 5)
         .contentShape(Rectangle())
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("migrateRow.\(row.id.sourceId).\(row.id.mangaId)")
     }
 
     private func cover(for row: LibraryMigrationRow) -> some View {
