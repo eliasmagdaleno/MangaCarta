@@ -136,6 +136,24 @@ final class AnalyticsRecorderTests: XCTestCase {
         XCTAssertEqual(f.consent.consent, .granted)
     }
 
+    /// Both sides of a More Like This open pass eligibility: an adult title on either side drops it.
+    func testMoreLikeThisDropsAnIneligibleSide() {
+        let f = fixture()
+        f.consent.accept()
+        let clean = fixtureManga(id: "clean", malId: 30)
+        let adult = Manga(id: "adult", sourceId: "analytics-test", title: "Fixture", description: "",
+                          status: "ongoing", year: nil, coverURL: nil, malId: 31, altTitles: nil,
+                          contentRating: "erotica")
+
+        f.recorder.mltOpened(from: adult, to: clean, toMALID: 30)
+        f.recorder.mltOpened(from: clean, to: adult, toMALID: 31)
+        XCTAssertFalse(f.recorder.events.contains { $0.event.name == "mlt_opened" })
+
+        f.recorder.mltOpened(from: clean, to: f.manga, toMALID: 1)
+        XCTAssertEqual(f.recorder.events.filter { $0.event.name == "mlt_opened" }.count, 1,
+                       "positive control: two clean sides record")
+    }
+
     private struct Fixture {
         let directory: URL
         let consent: AnalyticsConsentStore

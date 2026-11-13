@@ -222,6 +222,26 @@ final class AppCompositionTests: XCTestCase {
         XCTAssertEqual(composition.analytics.events.filter { $0.event.name == "chapter_completed" }.count, 1)
     }
 
+    /// The save, unsave and feedback hooks must reach the recorder the composition built, not
+    /// only a recorder wired by hand in a unit test.
+    func testCompositionWiresSaveUnsaveAndFeedbackToTheRecorder() {
+        let source = AppCompositionAnalyticsSource()
+        let composition = AppComposition(defaults: defaults, directory: directory,
+                                         registry: SourceRegistry(sources: [source]))
+        composition.analyticsConsent.accept()
+        let manga = Manga(id: "md-wired", sourceId: source.id, title: "Wired", description: "",
+                          status: "ongoing", year: nil, coverURL: nil, malId: 21)
+
+        composition.library.toggle(manga)
+        composition.library.toggle(manga)
+        composition.engine.markNotInterested(manga)
+
+        let names = composition.analytics.events.map(\.event.name)
+        XCTAssertEqual(names.filter { $0 == "work_saved" }.count, 1)
+        XCTAssertEqual(names.filter { $0 == "work_unsaved" }.count, 1)
+        XCTAssertEqual(names.filter { $0 == "rec_not_interested" }.count, 1)
+    }
+
     /// The whole promotion chain in one, which is the only place it exists: a chapter
     /// finished before the Work has a MAL id waits deferred, the upgrade queue learns the
     /// id, and its metadata signal has to be wired to the same coordinator for that waiting
