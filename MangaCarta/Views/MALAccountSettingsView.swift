@@ -107,14 +107,14 @@ struct MALAccountSettingsView: View {
             divider
             Toggle("Sync reading progress", isOn: Binding(
                 get: { syncEnabled },
-                set: { account.setSyncEnabled($0) }))
+                set: { enabled in
+                    if enabled != syncEnabled { analytics.settingChanged(.malSync, .on(enabled)) }
+                    account.setSyncEnabled(enabled)
+                }))
                 .font(.subheadline)
                 .tint(Ink.seal)
                 .padding(.horizontal, Gutter.page)
                 .padding(.vertical, 12)
-                .onChange(of: syncEnabled) { _, enabled in
-                    analytics.settingChanged(.malSync, .on(enabled))
-                }
             divider
             Toggle("Automatically add new titles", isOn: Binding(
                 get: { automaticallyAddsTitles },

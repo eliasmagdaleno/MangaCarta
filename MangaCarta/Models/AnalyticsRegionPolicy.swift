@@ -1,6 +1,10 @@
 import Foundation
+import StoreKit
 
 enum AnalyticsRegionPolicy {
+    static func currentRegion() async -> (storefrontCountryCode: String?, localeRegionCode: String?) {
+        (await Storefront.current?.countryCode, Locale.current.region?.identifier)
+    }
     private static let consentRegionCodes: Set<String> = [
         "AT", "AUT", "BE", "BEL", "BG", "BGR", "HR", "HRV", "CY", "CYP",
         "CZ", "CZE", "DK", "DNK", "EE", "EST", "FI", "FIN", "FR", "FRA",

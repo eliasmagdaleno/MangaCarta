@@ -30,16 +30,21 @@ struct AnalyticsNotice: View {
         .padding(Gutter.page)
         .background(RoundedRectangle(cornerRadius: 14).fill(Ink.surface))
         .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Ink.hairline, lineWidth: 1))
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("analyticsNotice")
     }
 
     private func noticeButton(_ title: String, id: String, action: @escaping () -> Void) -> some View {
-        Button(title, action: action)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(Ink.primary)
-            .frame(maxWidth: .infinity, minHeight: 44)
-            .background(RoundedRectangle(cornerRadius: 10).fill(Ink.background))
-            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Ink.hairline, lineWidth: 1))
+        Button(action: action) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Ink.primary)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .background(RoundedRectangle(cornerRadius: 10).fill(Ink.background))
+                .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Ink.hairline, lineWidth: 1))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
             .accessibilityIdentifier(id)
     }
 }

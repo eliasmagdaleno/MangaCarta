@@ -32,8 +32,7 @@ private struct SearchScreen: View {
 
     var body: some View {
         NavigationStack {
-            Color.clear.frame(width: 0, height: 0)
-                .onAppear { vm.searchStarted = analytics.searchUsed }
+            Group {
             if let source = vm.source {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: Gutter.section) {
@@ -89,6 +88,8 @@ private struct SearchScreen: View {
                     action: { selectAppTab(.settings) }
                 )
             }
+            }
+            .onAppear { vm.searchStarted = analytics.searchUsed }
         }
     }
 }

@@ -3,7 +3,6 @@ import SwiftUI
 struct AnalyticsSettingsSection: View {
     @EnvironmentObject private var consent: AnalyticsConsentStore
     @EnvironmentObject private var analytics: AnalyticsRecorder
-    @EnvironmentObject private var readingModes: ReadingModeStore
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {

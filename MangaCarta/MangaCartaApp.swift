@@ -292,6 +292,10 @@ struct MangaCartaApp: App {
                     if let analyticsRegion {
                         analyticsConsent.updateRegion(storefrontCountryCode: analyticsRegion,
                                                       localeRegionCode: nil)
+                    } else {
+                        let region = await AnalyticsRegionPolicy.currentRegion()
+                        analyticsConsent.updateRegion(storefrontCountryCode: region.storefrontCountryCode,
+                                                      localeRegionCode: region.localeRegionCode)
                     }
                     await Self.importUITestFixtureIfRequested(library: library, works: works, registry: registry,
                                                               readingModes: readingModes)
@@ -302,8 +306,9 @@ struct MangaCartaApp: App {
                         }
                     }
 #else
-                    analyticsConsent.updateRegion(storefrontCountryCode: nil,
-                                                  localeRegionCode: Locale.current.region?.identifier)
+                    let region = await AnalyticsRegionPolicy.currentRegion()
+                    analyticsConsent.updateRegion(storefrontCountryCode: region.storefrontCountryCode,
+                                                  localeRegionCode: region.localeRegionCode)
                     queue.start()
                     refresh.startForeground { [notifier] events in
                         await notifier.schedule(events)
