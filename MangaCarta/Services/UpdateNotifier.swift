@@ -91,7 +91,7 @@ final class UpdateNotifier {
                                                              actions: actions, intentIdentifiers: [], options: [])])
     }
 
-    func schedule(_ events: [UpdateEvent]) async {
+    func schedule(_ events: [UpdateEvent], trigger: UNNotificationTrigger? = nil) async {
         guard defaults.object(forKey: Self.notificationsEnabledKey) as? Bool ?? true else { return }
         guard await notifications.authorizationStatus().allowsNotifications else { return }
 
@@ -107,7 +107,7 @@ final class UpdateNotifier {
             let request = UNNotificationRequest(
                 identifier: UpdateStateStore.notificationIdentifier(for: event.workId),
                 content: content,
-                trigger: nil
+                trigger: trigger
             )
             await notifications.add(request)
         }

@@ -52,6 +52,56 @@ final class AccessibilityAuditUITests: XCTestCase {
         try audit(app, screen: "settings")
     }
 
+    /// Notification-actions AC 10: the muted state is spoken, the unmute control is a named
+    /// native control reachable without sight, and Home with a muted row passes the audit.
+    func testNotificationMuteControlsAreAccessible() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-uitest-updates-state", "updates-filter"]
+        app.launch()
+        let row = app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Fixture Update Title,")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10), "positive control: the update row exists")
+        XCTAssertFalse(row.label.contains("Muted"))
+
+        row.press(forDuration: 1.0)
+        let mute = app.buttons["Mute notifications"]
+        XCTAssertTrue(mute.waitForExistence(timeout: 5))
+        mute.tap()   // closes the menu by its own entry (CI's iOS 26.2 quirk)
+        XCTAssertTrue(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label CONTAINS %@", "Muted"), object: row)],
+                                     timeout: 5) == .completed,
+                      "VoiceOver hears the muted state in the row: \(row.label)")
+
+        row.press(forDuration: 1.0)
+        let unmute = app.buttons["Unmute notifications"]
+        XCTAssertTrue(unmute.waitForExistence(timeout: 5), "the unmute control is named, not an icon")
+        // Close the menu by tapping its entry; unmuting is not under test here, so mute again.
+        unmute.tap()
+        row.press(forDuration: 1.0)
+        XCTAssertTrue(mute.waitForExistence(timeout: 5))
+        mute.tap()
+        XCTAssertTrue(row.label.contains("Muted"))
+
+        // Scoped to the row and its control: Home's other controls have their own audit in
+        // testCoreScreensPassTheAccessibilityAudit, and their findings are not this feature's.
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "a11y-home-muted-update-row"
+        shot.lifetime = .keepAlways
+        add(shot)
+        var rowAudited = false
+        try app.performAccessibilityAudit(for: Self.audited) { issue in
+            guard let element = issue.element else { return true }
+            let isRow = element.label.hasPrefix("Fixture Update Title,")
+                || element.identifier == "workMuteToggle"
+            if isRow {
+                rowAudited = true
+                XCTFail("[home-muted-update-row] \(issue.compactDescription): '\(element.label)'")
+            }
+            return true
+        }
+        XCTAssertFalse(rowAudited, "the muted row and its control pass the audit")
+    }
+
     /// Fails once per finding, naming the screen and element, and attaches the screen so a
     /// failure can be judged without re-running.
     private func audit(_ app: XCUIApplication, screen: String) throws {

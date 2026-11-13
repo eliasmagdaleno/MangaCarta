@@ -142,6 +142,8 @@ struct MangaCartaApp: App {
             // the one that registers a second.
             updateRegistry = updateState == .twoListings
                 ? SourceRegistry(sources: [UpdatesUITestSource(), UpdatesUITestAltSource()])
+                : updateState == .notificationActions
+                ? SourceRegistry(sources: [NotificationActionsUITestSource()])
                 : SourceRegistry(sources: [UpdatesUITestSource()])
         }
         if ProcessInfo.processInfo.arguments.contains("-uitest-zero-sources") {
@@ -430,6 +432,7 @@ enum UpdatesUITestFixture {
         /// predates its second use, and one seeding path with isolated storage is worth
         /// more than a tidier spelling.
         case twoListings = "two-listings"
+        case notificationActions = "notification-actions"
     }
 
     static var state: State? {
@@ -452,8 +455,11 @@ enum UpdatesUITestFixture {
     @MainActor
     static func seed(_ state: State, in composition: AppComposition) {
         guard state != .empty else { return }
-        let manga = Manga(id: "update-fixture", sourceId: UpdatesUITestSource.sourceID,
-                          title: "Fixture Update Title", description: "", status: "ongoing",
+        let sourceID = state == .notificationActions
+            ? NotificationActionsUITestSource.sourceID : UpdatesUITestSource.sourceID
+        let title = state == .notificationActions ? "Notification Action Title" : "Fixture Update Title"
+        let manga = Manga(id: "update-fixture", sourceId: sourceID,
+                          title: title, description: "", status: "ongoing",
                           year: nil, coverURL: nil, malId: nil)
         composition.library.toggle(manga)
         let workId = composition.works.mint(from: manga)
@@ -476,6 +482,31 @@ enum UpdatesUITestFixture {
                                   status: "ongoing", year: nil, coverURL: nil, malId: nil)
             let alternateWork = composition.works.mint(from: alternate)
             composition.works.merge(alternateWork, into: workId)
+        case .notificationActions:
+            _ = composition.updates.absorb(workId: workId, listing: listing,
+                                           rawNumbers: ["1"], now: .now)
+            _ = composition.updates.absorb(workId: workId, listing: listing,
+                                           rawNumbers: ["1", "2", "3"], now: .now)
+            // A real notification for UpdatesUITests.testDeliveredNotificationMarkReadAction,
+            // built by the production notifier, capturing chapter 2 only. It is scheduled when
+            // the app *enters the background*, so it can never fire while the app is still in
+            // front (a fixed delay from launch did, whenever permission was already granted).
+            Task { @MainActor in
+                guard await composition.notifier.authorizationSummary() != .unavailable else { return }
+                if await composition.notifier.shouldOfferAuthorization() {
+                    await composition.notifier.requestAuthorizationIfNeeded()
+                }
+                let event = UpdateEvent(workId: workId, title: manga.title, newChapterCount: 1,
+                                        didExceedCap: false, isAdult: false,
+                                        discoveredOrdinals: [ChapterOrdinal.parse("2")!])
+                let backgrounded = NotificationCenter.default.notifications(
+                    named: UIApplication.didEnterBackgroundNotification)
+                for await _ in backgrounded {
+                    await composition.notifier.schedule(
+                        [event], trigger: UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false))
+                    break
+                }
+            }
         }
     }
 }
@@ -493,6 +524,21 @@ struct UpdatesUITestSource: MangaSource {
     }
     func chapters(mangaId: String) async throws -> [Chapter] {
         [Chapter(id: "fixture-chapter", number: "1", title: nil)]
+    }
+    func pageURLs(chapterId: String, preferDataSaver: Bool) async throws -> [URL] { [] }
+}
+
+struct NotificationActionsUITestSource: MangaSource {
+    static let sourceID = "notification-actions-ui-test"
+    let id = sourceID
+    let name = "Notification Actions Fixture"
+    func search(title: String, limit: Int, offset: Int) async throws -> [Manga] { [] }
+    func popular(limit: Int, offset: Int) async throws -> [Manga] { [] }
+    func mangaDetail(id: String) async throws -> MangaDetail {
+        MangaDetail(description: "", authors: [], tags: [], contentRating: nil)
+    }
+    func chapters(mangaId: String) async throws -> [Chapter] {
+        (1...3).map { Chapter(id: "na-chapter-\($0)", number: "\($0)", title: nil) }
     }
     func pageURLs(chapterId: String, preferDataSaver: Bool) async throws -> [URL] { [] }
 }

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct WorkUpdateRow: View {
     @EnvironmentObject private var registry: SourceRegistry
+    @EnvironmentObject private var updates: UpdateStateStore
     let summary: WorkUpdateSummary
 
     var body: some View {
@@ -44,11 +45,29 @@ struct WorkUpdateRow: View {
                     .accessibilityHidden(true)
             }
             .contentShape(.rect)
+            // On the link's *content*: the link's button takes its label from here. Applied to
+            // the link itself, as it was, the button still read its children ("…, NEW"), so
+            // "Muted" and the new-chapter count were never spoken (found by
+            // AccessibilityAuditUITests.testNotificationMuteControlsAreAccessible).
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(summary.accessibilityLabel)
         }
         .buttonStyle(.plain)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(summary.accessibilityLabel)
+        // The row is one element, so the menu's item is also offered as a named action.
+        .accessibilityAction(named: muteTitle) {
+            updates.setMuted(!isMuted, workId: summary.id)
+        }
+        .contextMenu {
+            Button {
+                updates.setMuted(!isMuted, workId: summary.id)
+            } label: {
+                Label(muteTitle, systemImage: isMuted ? "bell" : "bell.slash")
+            }
+            .accessibilityIdentifier("workMuteToggle")
+        }
     }
 
     private var chapterText: String { summary.unreadChapterText }
+    private var isMuted: Bool { summary.isMuted }
+    private var muteTitle: String { isMuted ? "Unmute notifications" : "Mute notifications" }
 }
