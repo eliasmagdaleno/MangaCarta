@@ -88,7 +88,10 @@ struct LibraryRefreshCoordinatorTests {
         let events = await fixture.coordinator.run(budget: .foreground)
 
         #expect(events == [UpdateEvent(workId: workId, title: "series",
-                                      newChapterCount: 3, didExceedCap: false, isAdult: false)])
+                                      newChapterCount: 3, didExceedCap: false, isAdult: false,
+                                      discoveredOrdinals: [ChapterOrdinal.parse("2")!,
+                                                           ChapterOrdinal.parse("3")!,
+                                                           ChapterOrdinal.parse("4")!])])
     }
 
     @MainActor

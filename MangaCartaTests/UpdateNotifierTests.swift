@@ -293,6 +293,93 @@ struct UpdateNotifierTests {
         #expect(opened == winner)
     }
 
+    @MainActor
+    @Test("Notification category and captured payload are registered")
+    func notificationCategoryAndPayload() async throws {
+        let fixture = Fixture()
+        fixture.notifier.registerCategories()
+        let work = fixture.mint("Payload")
+        let event = UpdateEvent(workId: work, title: "Payload", newChapterCount: 2,
+                                didExceedCap: false, isAdult: false,
+                                discoveredOrdinals: [ChapterOrdinal.parse("2")!, ChapterOrdinal.parse("30")!])
+        await fixture.notifier.schedule([event])
+        #expect(fixture.notifications.categories.count == 1)
+        let category = try #require(fixture.notifications.categories.first)
+        #expect(category.identifier == UpdateNotifier.categoryIdentifier)
+        #expect(category.actions.map(\.identifier) == [UpdateNotifier.markReadActionIdentifier, UpdateNotifier.muteActionIdentifier])
+        #expect(category.actions.allSatisfy { !$0.options.contains(.foreground) })
+        let request = try #require(fixture.notifications.requests.last)
+        #expect(request.content.categoryIdentifier == UpdateNotifier.categoryIdentifier)
+        #expect(request.content.threadIdentifier == UpdateNotifier.threadIdentifier)
+        #expect(request.content.userInfo[UpdateNotifier.workIdUserInfoKey] as? String == work.raw.uuidString)
+        #expect(category.actions.map(\.title) == ["Mark Read", "Mute"])
+        #expect(request.content.userInfo[UpdateNotifier.actionVersionUserInfoKey] as? Int == 1)
+        #expect(request.content.userInfo[UpdateNotifier.discoveredOrdinalsUserInfoKey] as? [String] == ["2", "30"])
+    }
+
+    @MainActor
+    @Test("Unmute schedules only the next event")
+    func unmuteSchedulesNextEventWithoutReplay() async {
+        let fixture = Fixture()
+        let work = fixture.mint("Unmute")
+        fixture.discover(work)
+        fixture.updates.setMuted(true, workId: work)
+        await fixture.notifier.schedule([fixture.event(work, count: 1)])
+        fixture.updates.setMuted(false, workId: work)
+        await fixture.notifier.schedule([UpdateEvent(workId: work, title: "Unmute", newChapterCount: 1,
+                                                     didExceedCap: false, isAdult: false,
+                                                     discoveredOrdinals: [ChapterOrdinal.parse("3")!])])
+        #expect(fixture.notifications.requests.count == 1)
+        #expect(fixture.notifications.requests.first?.content.userInfo[UpdateNotifier.discoveredOrdinalsUserInfoKey] as? [String] == ["3"])
+    }
+
+    @MainActor
+    @Test("Mute from a notification removes the Work's pending request and silences later events")
+    func muteActionCancelsPendingRequest() async throws {
+        let fixture = Fixture()
+        defer { fixture.suite.remove() }
+        let manga = fixture.manga("Muted")
+        fixture.library.toggle(manga)
+        let workId = try #require(fixture.works.workId(for: ListingKey(manga)))
+        let other = fixture.mint("Other")
+        fixture.discover(workId)
+        fixture.discover(other)
+        await fixture.notifier.schedule([fixture.event(workId, count: 1)])
+        #expect(fixture.notifications.requests.count == 1)
+        let before = try #require(fixture.updates.state(for: workId))
+        let registry = SourceRegistry(sources: [NoticeSource(id: "mangadex", isNSFW: false)],
+                                      defaults: fixture.defaults)
+        let preferences = SourcePreferenceStore(defaults: fixture.defaults, works: fixture.works)
+        let handler = NotificationActionHandler(
+            works: fixture.works, history: HistoryStore(defaults: fixture.defaults, works: fixture.works),
+            updates: fixture.updates, library: fixture.library,
+            fulfillment: FulfillmentCoordinator(
+                works: fixture.works, registry: registry,
+                counts: ListingCountCache(directory: fixture.directory.appendingPathComponent("counts")),
+                preferences: preferences),
+            registry: registry, notifications: fixture.notifications)
+
+        let outcome = await handler.perform(
+            actionIdentifier: UpdateNotifier.muteActionIdentifier,
+            userInfo: [UpdateNotifier.workIdUserInfoKey: workId.raw.uuidString])
+
+        #expect(outcome == .muted)
+        #expect(fixture.notifications.removed == [[UpdateStateStore.notificationIdentifier(for: workId)]])
+        await fixture.notifier.schedule([fixture.event(workId, count: 1), fixture.event(other, count: 1)])
+        #expect(fixture.notifications.requests.map(\.identifier) == [
+            UpdateStateStore.notificationIdentifier(for: workId),
+            UpdateStateStore.notificationIdentifier(for: other)
+        ], "the muted Work posts nothing more; its sibling still does")
+        let after = try #require(fixture.updates.state(for: workId))
+        #expect(after.isMuted)
+        #expect(after.frontier == before.frontier)
+        #expect(after.newlyDiscovered == before.newlyDiscovered)
+        #expect(after.hasBaseline == before.hasBaseline)
+        // Persisted before the action completes: a fresh store reads the mute from disk.
+        #expect(UpdateStateStore(directory: fixture.directory, works: fixture.works)
+            .state(for: workId)?.isMuted == true)
+    }
+
     private func event(_ workId: WorkID, count: Int, capped: Bool = false) -> UpdateEvent {
         UpdateEvent(workId: workId, title: "Dandadan", newChapterCount: count,
                     didExceedCap: capped, isAdult: false)
@@ -369,6 +456,7 @@ private final class FakeNotificationCenter: NotificationScheduling {
     var requests: [UNNotificationRequest] = []
     var removed: [[String]] = []
     var authorizationRequests = 0
+    var categories: Set<UNNotificationCategory> = []
 
     init(status: UNAuthorizationStatus) { self.status = status }
     func authorizationStatus() async -> UNAuthorizationStatus { status }
@@ -378,6 +466,7 @@ private final class FakeNotificationCenter: NotificationScheduling {
     }
     func add(_ request: UNNotificationRequest) async { requests.append(request) }
     func removePending(withIdentifiers identifiers: [String]) { removed.append(identifiers) }
+    func setCategories(_ categories: Set<UNNotificationCategory>) { self.categories = categories }
 }
 
 private struct NoticeSource: MangaSource {

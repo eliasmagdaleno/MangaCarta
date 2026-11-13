@@ -91,11 +91,21 @@ struct BookmarksView: View {
                                             } label: {
                                                 Label("Delete from Device", systemImage: "trash")
                                             }
+                                        } else if let workID = workID(for: item) {
+                                            let muted = updates.state(for: workID)?.isMuted == true
+                                            Button {
+                                                updates.setMuted(!muted, workId: workID)
+                                            } label: {
+                                                Label(muted ? "Unmute notifications" : "Mute notifications",
+                                                      systemImage: muted ? "bell" : "bell.slash")
+                                            }
+                                            .accessibilityIdentifier("workMuteToggle")
                                         }
                                     }
                                     // The grid's only stable handle for UI tests; the label is
                                     // the title, which varies with whatever is in the library.
                                     .accessibilityIdentifier("libraryCoverCard")
+                                    .accessibilityValue(mutedValue(for: item))
                                 }
                             }
                             .padding(.horizontal, Gutter.page)
@@ -345,6 +355,20 @@ struct BookmarksView: View {
             works: works, library: library, history: history,
             updates: updates
         ).filter { $0.newlyDiscoveredCount > 0 }.map(\.displayManga.id))
+    }
+
+    /// The saved card's Work, for the mute control (notification-actions Amendment 1 item 4).
+    /// Keyed the way `LibraryUpdatesPresentation` keys a saved item, legacy MangaDex included.
+    /// Local is never on an update surface, so it has none.
+    private func workID(for item: LibraryItem) -> WorkID? {
+        let sourceId = item.sourceId ?? LegacySourceID.unattributed
+        guard sourceId != LocalSource.sourceID else { return nil }
+        return works.workId(for: ListingKey(sourceId: sourceId, mangaId: item.id))
+    }
+
+    private func mutedValue(for item: LibraryItem) -> String {
+        guard let workID = workID(for: item), updates.state(for: workID)?.isMuted == true else { return "" }
+        return "Muted"
     }
 
     private var displayedLibraryItems: [LibraryItem] {

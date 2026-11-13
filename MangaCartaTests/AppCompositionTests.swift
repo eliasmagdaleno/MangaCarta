@@ -424,6 +424,67 @@ final class AppCompositionTests: XCTestCase {
         XCTAssertEqual(composition.workNavigator.requestedWork, workId)
     }
 
+    func testNotificationActionSurvivesWithOnlyTheDelegateHeld() async throws {
+        var delegate: UpdateNotificationDelegate!
+        var workID: WorkID!
+        do {
+            let composition = makeComposition()
+            let manga = savedManga("delegate-lifetime")
+            composition.library.toggle(manga)
+            workID = try XCTUnwrap(composition.works.workId(for: ListingKey(manga)))
+            composition.updates.absorb(workId: workID,
+                                       listing: ListingKey(manga), rawNumbers: ["1"], now: Date())
+            composition.updates.flush()
+            delegate = composition.notificationDelegate
+        }
+
+        var completed = false
+        delegate.receive(actionIdentifier: UpdateNotifier.muteActionIdentifier,
+                          userInfo: [UpdateNotifier.workIdUserInfoKey: workID.raw.uuidString]) {
+            completed = true
+        }
+        let didComplete = await waitUntil { completed }
+        XCTAssertTrue(didComplete)
+        let fresh = UpdateStateStore(directory: directory,
+                                     works: WorkStore(directory: directory))
+        XCTAssertTrue(fresh.state(for: workID)?.isMuted == true)
+    }
+
+    /// AC 8: a cold launch builds a fresh graph over persisted stores; the action must reach
+    /// that graph's fulfillment, registry and stores, and its effect must be on disk before
+    /// completion, because the system can end the process right after.
+    func testColdNotificationActionUsesComposedGraph() async throws {
+        let manga = savedManga("cold-action")
+        let source = GrowingSource(["cold-action": ["1", "2", "3"]])
+        let workID: WorkID
+        do {
+            let first = updatesComposition(source)
+            first.library.toggle(manga)
+            workID = try XCTUnwrap(first.works.workId(for: ListingKey(manga)))
+            _ = first.updates.absorb(workId: workID, listing: ListingKey(manga), rawNumbers: ["1"])
+            _ = first.updates.absorb(workId: workID, listing: ListingKey(manga), rawNumbers: ["1", "2", "3"])
+            first.updates.flush()
+            first.history.flush()
+            first.works.flush()
+        }
+        do {
+            let second = updatesComposition(source)
+            var completed = false
+            second.notificationDelegate.receive(
+                actionIdentifier: UpdateNotifier.markReadActionIdentifier,
+                userInfo: [UpdateNotifier.workIdUserInfoKey: workID.raw.uuidString,
+                           UpdateNotifier.discoveredOrdinalsUserInfoKey: ["2"]]) { completed = true }
+            let completedInTime = await waitUntil { completed }
+            XCTAssertTrue(completedInTime)
+            // No flush here on purpose: the handler must have flushed before completing.
+        }
+        let third = updatesComposition(source)
+        let chapters = try await source.chapters(mangaId: "cold-action")
+        XCTAssertTrue(third.history.isRead(chapters[1], in: manga), "chapter 2 is read on disk")
+        XCTAssertFalse(third.history.isRead(chapters[2], in: manga), "chapter 3 was not captured")
+        XCTAssertEqual(third.updates.state(for: workID)?.newlyDiscovered, [ChapterOrdinal.parse("3")!])
+    }
+
     /// #343: a notification posted by the foreground pass is shown while the app is open.
     func testForegroundNotificationsPresentAsBannerAndList() {
         XCTAssertEqual(UpdateNotificationDelegate.foregroundPresentationOptions, [.banner, .list])
@@ -485,4 +546,5 @@ private final class PromptTestNotificationCenter: NotificationScheduling {
     }
     func add(_ request: UNNotificationRequest) async {}
     func removePending(withIdentifiers identifiers: [String]) {}
+    func setCategories(_ categories: Set<UNNotificationCategory>) {}
 }
