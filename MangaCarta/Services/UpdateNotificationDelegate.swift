@@ -9,9 +9,12 @@ final class UpdateNotificationDelegate: NSObject, UNUserNotificationCenterDelega
     nonisolated static let foregroundPresentationOptions: UNNotificationPresentationOptions = [.banner, .list]
 
     private let handleResponse: ([AnyHashable: Any]) -> Void
+    private let handleAction: (String, [AnyHashable: Any], @escaping () -> Void) -> Void
 
-    init(handleResponse: @escaping ([AnyHashable: Any]) -> Void) {
+    init(handleResponse: @escaping ([AnyHashable: Any]) -> Void,
+         handleAction: @escaping (String, [AnyHashable: Any], @escaping () -> Void) -> Void = { _, _, completion in completion() }) {
         self.handleResponse = handleResponse
+        self.handleAction = handleAction
     }
 
     /// What `didReceive` does with a tapped notification's payload; its own method because a
@@ -20,13 +23,24 @@ final class UpdateNotificationDelegate: NSObject, UNUserNotificationCenterDelega
         handleResponse(userInfo)
     }
 
+    func receive(actionIdentifier: String, userInfo: [AnyHashable: Any], completion: @escaping () -> Void) {
+        if actionIdentifier == UNNotificationDefaultActionIdentifier {
+            handleResponse(userInfo)
+            completion()
+        } else {
+            handleAction(actionIdentifier, userInfo, completion)
+        }
+    }
+
     // The center calls both on the main thread.
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,
                                             didReceive response: UNNotificationResponse,
                                             withCompletionHandler completionHandler: @escaping () -> Void) {
         let userInfo = response.notification.request.content.userInfo
-        MainActor.assumeIsolated { receive(userInfo: userInfo) }
-        completionHandler()
+        MainActor.assumeIsolated {
+            receive(actionIdentifier: response.actionIdentifier, userInfo: userInfo,
+                    completion: completionHandler)
+        }
     }
 
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,

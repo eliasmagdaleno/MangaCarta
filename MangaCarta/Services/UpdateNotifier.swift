@@ -7,6 +7,7 @@ protocol NotificationScheduling {
     func requestAuthorization() async -> Bool
     func add(_ request: UNNotificationRequest) async
     func removePending(withIdentifiers identifiers: [String])
+    func setCategories(_ categories: Set<UNNotificationCategory>)
 }
 
 struct UNUserNotificationCenterAdapter: NotificationScheduling {
@@ -31,6 +32,10 @@ struct UNUserNotificationCenterAdapter: NotificationScheduling {
     func removePending(withIdentifiers identifiers: [String]) {
         center.removePendingNotificationRequests(withIdentifiers: identifiers)
     }
+
+    func setCategories(_ categories: Set<UNNotificationCategory>) {
+        center.setNotificationCategories(categories)
+    }
 }
 
 enum NotificationAuthorizationSummary: Equatable {
@@ -45,6 +50,11 @@ final class UpdateNotifier {
     static let notificationsEnabledKey = "updates.notificationsEnabled"
     static let workIdUserInfoKey = "workId"
     static let threadIdentifier = "library-updates"
+    static let categoryIdentifier = "library-update-actions"
+    static let markReadActionIdentifier = "library-update-mark-read"
+    static let muteActionIdentifier = "library-update-mute"
+    static let actionVersionUserInfoKey = "actionVersion"
+    static let discoveredOrdinalsUserInfoKey = "discoveredOrdinals"
 
     private let notifications: NotificationScheduling
     private let updates: UpdateStateStore
@@ -72,7 +82,16 @@ final class UpdateNotifier {
         self.openWork = openWork
     }
 
-    func schedule(_ events: [UpdateEvent]) async {
+    func registerCategories() {
+        let actions = [
+            UNNotificationAction(identifier: Self.markReadActionIdentifier, title: "Mark Read", options: []),
+            UNNotificationAction(identifier: Self.muteActionIdentifier, title: "Mute", options: [])
+        ]
+        notifications.setCategories([UNNotificationCategory(identifier: Self.categoryIdentifier,
+                                                             actions: actions, intentIdentifiers: [], options: [])])
+    }
+
+    func schedule(_ events: [UpdateEvent], trigger: UNNotificationTrigger? = nil) async {
         guard defaults.object(forKey: Self.notificationsEnabledKey) as? Bool ?? true else { return }
         guard await notifications.authorizationStatus().allowsNotifications else { return }
 
@@ -81,11 +100,14 @@ final class UpdateNotifier {
             content.title = "Library Updates"
             content.body = Self.body(for: event, hidesAdultDetails: hidesAdultDetails(for: event.workId))
             content.threadIdentifier = Self.threadIdentifier
-            content.userInfo = [Self.workIdUserInfoKey: event.workId.raw.uuidString]
+            content.categoryIdentifier = Self.categoryIdentifier
+            content.userInfo = [Self.workIdUserInfoKey: event.workId.raw.uuidString,
+                                Self.actionVersionUserInfoKey: 1,
+                                Self.discoveredOrdinalsUserInfoKey: event.discoveredOrdinals.map { $0.value.description }]
             let request = UNNotificationRequest(
                 identifier: UpdateStateStore.notificationIdentifier(for: event.workId),
                 content: content,
-                trigger: nil
+                trigger: trigger
             )
             await notifications.add(request)
         }

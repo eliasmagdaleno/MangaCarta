@@ -11,6 +11,17 @@ struct UpdateEvent: Equatable {
     let newChapterCount: Int
     let didExceedCap: Bool
     let isAdult: Bool
+    let discoveredOrdinals: [ChapterOrdinal]
+
+    init(workId: WorkID, title: String, newChapterCount: Int, didExceedCap: Bool,
+         isAdult: Bool, discoveredOrdinals: [ChapterOrdinal] = []) {
+        self.workId = workId
+        self.title = title
+        self.newChapterCount = newChapterCount
+        self.didExceedCap = didExceedCap
+        self.isAdult = isAdult
+        self.discoveredOrdinals = discoveredOrdinals
+    }
 }
 
 enum RefreshStep: Equatable {
@@ -134,7 +145,8 @@ final class LibraryRefreshCoordinator {
                                    title: work.displayTitle,
                                    newChapterCount: count,
                                    didExceedCap: exceedsCap,
-                                   isAdult: successes.contains { $0.sourceIsAdult })
+                                   isAdult: successes.contains { $0.sourceIsAdult },
+                                   discoveredOrdinals: released.sorted())
         return .advanced(workId, count: count)
     }
 
