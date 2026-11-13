@@ -251,6 +251,11 @@ and persists until changed. Distinct from the primary source in both scope and f
 source is no longer registered falls back to the ranking but is **not** deleted, because an
 uninstalled extension is usually temporary and the reader's choice is not.
 
+**Migrate** — switching many saved titles from one Source to another at once. Each switched title gains
+the new Source's copy and is pinned to it, unless it is already pinned to a third Source; the old copy is kept as a backup or removed (as the same title,
+so its reads still count), as the reader chooses once per batch. Only confident matches are switched
+without the reader's pick. Not a Work merge. See `docs/superpowers/specs/2026-11-12-library-migrate-design.md`.
+
 **Count cache** — the evictable `(sourceId, mangaId) → (English chapter count, fetchedAt)` cache
 that fulfillment ranks on. **Disposable by design**: deleting it costs one default route until the
 background refresh repopulates, so it lives apart from the Work store — hot, TTL'd, losable data
