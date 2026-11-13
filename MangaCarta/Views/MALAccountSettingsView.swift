@@ -14,6 +14,7 @@ import SwiftUI
 
 struct MALAccountSettingsView: View {
     @EnvironmentObject private var account: MALAccountStore
+    @EnvironmentObject private var analytics: AnalyticsRecorder
     @State private var signOutFailed = false
 
     private var presentation: MALAccountPresentation {
@@ -106,7 +107,10 @@ struct MALAccountSettingsView: View {
             divider
             Toggle("Sync reading progress", isOn: Binding(
                 get: { syncEnabled },
-                set: { account.setSyncEnabled($0) }))
+                set: { enabled in
+                    if enabled != syncEnabled { analytics.settingChanged(.malSync, .on(enabled)) }
+                    account.setSyncEnabled(enabled)
+                }))
                 .font(.subheadline)
                 .tint(Ink.seal)
                 .padding(.horizontal, Gutter.page)

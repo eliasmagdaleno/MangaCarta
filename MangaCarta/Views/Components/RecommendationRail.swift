@@ -14,11 +14,12 @@ struct RecommendationRail: View {
     let items: [ScoredManga]
     let onNotInterested: (Manga) -> Void
     let onMoreLikeThis: (Manga) -> Void
+    var onOpen: ((Manga, Int) -> Void)? = nil
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(alignment: .top, spacing: Gutter.rail) {
-                ForEach(items) { rec in
+                ForEach(Array(items.enumerated()), id: \.element.id) { index, rec in
                     NavigationLink(destination: MangaDetailView(manga: rec.manga, registry: registry)) {
                         MangaCoverCard(
                             title: rec.manga.title,
@@ -28,6 +29,7 @@ struct RecommendationRail: View {
                         )
                     }
                     .buttonStyle(.plain)
+                    .simultaneousGesture(TapGesture().onEnded { onOpen?(rec.manga, index) })
                     .accessibilityIdentifier("recommendationCard")
                     .contextMenu {
                         Button("More like this", systemImage: "plus.circle") {

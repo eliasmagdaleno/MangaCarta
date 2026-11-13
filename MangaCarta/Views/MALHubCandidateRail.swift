@@ -7,6 +7,7 @@ struct MALHubCandidateRail: View {
     @Environment(\.malSourceChoiceStore) private var choiceStore
     let candidates: [MALDiscoveryCandidate]
     let detailManga: Manga
+    var onOpen: ((MALDiscoveryCandidate, Manga, Int) -> Void)? = nil
     @State private var selected: MALDiscoveryCandidate?
     @State private var opened: Manga?
     @State private var openedID: String?
@@ -14,7 +15,7 @@ struct MALHubCandidateRail: View {
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(alignment: .top, spacing: Gutter.rail) {
-                ForEach(candidates) { candidate in
+                ForEach(Array(candidates.enumerated()), id: \.element.id) { _, candidate in
                     Button {
                         selected = candidate
                     } label: {
@@ -38,6 +39,7 @@ struct MALHubCandidateRail: View {
                 selected = nil
                 opened = manga
                 openedID = manga.id
+                onOpen?(candidate, manga, candidates.firstIndex(where: { $0.id == candidate.id }) ?? 0)
             }
         }
         .navigationDestination(item: $openedID) { _ in

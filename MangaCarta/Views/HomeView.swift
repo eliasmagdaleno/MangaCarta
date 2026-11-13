@@ -48,6 +48,8 @@ private struct HomeScreen: View {
     @AppStorage("settings.showAdultSources") private var showAdultSources = false
     @State private var showingImporter = false
     @EnvironmentObject private var importer: LocalImportViewModel
+    @EnvironmentObject private var consent: AnalyticsConsentStore
+    @EnvironmentObject private var analytics: AnalyticsRecorder
 
     var body: some View {
         // Capture the browse source as a value so the escaping "See all" fetch closures
@@ -56,6 +58,10 @@ private struct HomeScreen: View {
             if let source = vm.source {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: Gutter.section) {
+                    if consent.shouldShowNotice {
+                        AnalyticsNotice()
+                            .padding(.horizontal, Gutter.page)
+                    }
 
                     // Source switcher — every visible source, one tap away.
                     VStack(alignment: .leading, spacing: 8) {
@@ -158,7 +164,11 @@ private struct HomeScreen: View {
                             RecommendationRail(
                                 items: engine.recommendations,
                                 onNotInterested: { engine.markNotInterested($0) },
-                                onMoreLikeThis: { engine.markMoreLikeThis($0) }
+                                onMoreLikeThis: { engine.markMoreLikeThis($0) },
+                                onOpen: { manga, rank in
+                                    let reason = engine.recommendations.first(where: { $0.manga.id == manga.id })?.reasonKind ?? .other
+                                    analytics.forYouOpened(manga: manga, rank: rank, reason: reason)
+                                }
                             )
                             // Only when the rail is thinner than the history behind it.
                             // At parity it renders nothing — see ForYouBasisNotice.
@@ -166,6 +176,7 @@ private struct HomeScreen: View {
                                 ForYouBasisNotice(tagged: tagged, of: of)
                             }
                         }
+                        .onAppear { analytics.forYouShown(count: engine.recommendations.count) }
                     } else if engine.railState == .noTaggableSignal {
                         // The only closed gate that gets words. `building` and
                         // `needMoreReading` still render nothing, deliberately: a
@@ -235,7 +246,13 @@ private struct HomeScreen: View {
                 if case .success(let urls) = result { importer.importFiles(urls) }
             }
             } else {
-                noSourcesState
+                VStack(alignment: .leading, spacing: Gutter.section) {
+                    if consent.shouldShowNotice {
+                        AnalyticsNotice()
+                            .padding(.horizontal, Gutter.page)
+                    }
+                    noSourcesState
+                }
                     .navigationTitle("Read")
                     .navigationBarTitleDisplayMode(.large)
                     .fileImporter(isPresented: $showingImporter,

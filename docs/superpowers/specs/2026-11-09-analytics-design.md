@@ -773,3 +773,69 @@ The owner approved every recommended answer above in one pass:
 Questions 2 and 3 were already settled (Linked: Yes; one toggle). The owner also directed that **slice 1 be built
 next** (2026-11-12).
 
+
+## Amendment 1 (2026-11-12): slice 1 rechecked against `main`
+
+The "Current code" table was written against `b57c356`. Every row was re-grepped on `main` at `1c4a874`, with
+#396 (detail-page sections) read from its branch. Line numbers drifted everywhere; the rows below changed *how*
+slice 1 is built. Every decision above, and every owner decision, stands.
+
+1. **Saving has three paths, not one.** Besides `LibraryStore.toggle(_:)` (now `:192`), `toggleCollection(for:
+   collectionId:)` and `setCollections(for:collectionIds:)` each insert a new `LibraryItem` for an unsaved title,
+   and the detail page's collection menu calls `toggleCollection`. `configureWorkSaved((Manga, WorkID) -> Void)`
+   fires from **every branch that inserts a new item**. The recorder sends `work_saved` only for a Work **not
+   already in the ledger**, so saving a second Listing of a saved Work is not a second save. That mirrors
+   `reportWorksThatLeft`, which reports a Work only when its last Listing leaves (`LibraryStore.swift:367-381`).
+   Test: `AnalyticsRecorderTests.testEachSavePathRecordsOnce`.
+2. **More Like This is `MALHubCandidateRail`, used by both MAL panes.** After #396, `MangaDetailView` draws
+   `relatedPane` and `moreLikeThisPane`, each over `MALHubCandidateRail(candidates:detailManga:)`. A card tap
+   opens `MALHubPreviewView` in a sheet; the title opens only when the preview's `open` callback hands back a
+   `Manga`. So:
+   - `MALHubCandidateRail` gains `onOpen: ((MALDiscoveryCandidate, Manga, Int) -> Void)? = nil`, called from
+     that callback with the card's index. Opening the preview sheet is not an open.
+   - Only `moreLikeThisPane` passes it. `relatedPane` passes nil, which is owner decision 9.
+   - `to` is the candidate's `malId`. The `to` side's eligibility is checked against the **opened `Manga`**, the
+     Listing the preview resolved. It has a Source, so §3 rule 4 still applies to it. `from` is the detail page's
+     `Manga` and Work.
+   - `MangaRail` gets no hook: no analytics surface uses it any more.
+3. **For You reasons are free text, and one kind contains a title.** `ScoredManga.reason` is `"More <tag>"`
+   (tag provider), `"Because you read <title>"` (MAL provider), an AniList pool phrase, or `"Recommended"`.
+   `RecommendationEngine.compose` then mixes a core with a seeded **explore** sample from the tail. Deriving a
+   kind from the string would be fragile and could leak a title. Instead, `ScoredManga` gains
+   `var reasonKind: ForYouReasonKind = .other` (`tag`, `anilist`, `mal`, `explore`, `other`). Each provider sets
+   its own kind, `CompositeCandidateProvider` carries the kind with the same precedence as the reason string
+   (tag < AniList < MAL), and `compose` sets `.explore` on its explore sample. `for_you_opened.reason` is that
+   kind's raw value. The defaulted `var` keeps every existing `ScoredManga(...)` call compiling.
+4. **`isAdult` is on the value `TagVocabulary`, and `TagVocabularyStore` is an `actor`.** A synchronous
+   `@MainActor` recorder cannot ask an actor. The recorder holds `var vocabulary: TagVocabulary?`, which the app
+   sets after its launch-time `refreshIfNeeded()` from `await vocabularyStore.cachedVocabulary()`. §3 rule 3
+   becomes: a Work is ineligible if any snapshot genre or tag is adult by the vocabulary, **or** is named
+   `Hentai` or `Erotica` (case-insensitive; AniList's adult *genre* is not in its tag vocabulary, and those are
+   MAL's two adult genres), **or** the Work has a snapshot genre or tag while the vocabulary is nil. Unknown means
+   excluded, as in rule 4.
+5. **Composition order.** `TagVocabularyStore` is built after `HistoryStore` (`AppComposition.swift:440`). That
+   doesn't matter, because of item 4: the recorder is built after `WorkStore` and before `HistoryStore`, as §11.1
+   says, and takes the registry and the `WorkStore` directly. The completion sink is now at
+   `AppComposition.swift:374-377` and `configureWorkLeftLibrary` at `:399`.
+6. **UI tests share `UserDefaults.standard` with the seeded simulator.** Undecided consent would show the notice
+   at the top of Home in every UI test. So, in DEBUG builds:
+   - any `-uitest-` launch argument **other than** `-uitest-analytics-*` hides the notice, and consent stays
+     undecided, so nothing is recorded;
+   - `-uitest-analytics-region <code>` stands in for the storefront and selects an isolated defaults suite and
+     data directory, keyed by `MANGACARTA_UI_TEST_STORAGE_ID` as the other fixtures are: fresh on a new id, kept
+     across relaunches with the same id, so a test can relaunch and see the notice persist.
+   Slice 1 has no transport at all, so AC 13's "no-op transport" is moot until slice 2.
+7. **The region is async.** `Storefront.current` is read in a launch task. Until it answers, the card asks (the
+   EU row, fail closed). It never changes whether data flows, which is decided by consent alone (§5.2).
+8. **Feature-usage hook points (§2.3), as they are now:**
+   - `search_used`: `SearchViewModel.queryChanged` debounces into `runSearch` on every keystroke. The event is
+     recorded when `hasSearched` goes false → true, once per search that starts from an empty field.
+   - `reader_opened.mode`: from `ReadingMode` `leftToRight` / `rightToLeft` / `vertical`, mapped to
+     `ltr` / `rtl` / `vertical`.
+   - `setting_changed` `mal_sync`: the toggle is in `MALAccountSettingsView` (`:107`), not `SettingsView`.
+   - `for_you_shown`: `railState` is `.ready(tagged:of:)`, which can hold no recommendations. The event is
+     recorded when the rail renders with a non-empty list, at most once per UTC day, with `count` the list's size.
+9. **Settings placement.** The MAL section is `MALAccountSettingsView()` (`SettingsView.swift:234`), followed by
+   About. The Privacy section goes between them, as §10.2 says.
+10. **Docs.** The glossary's *avoid* note is now `docs/glossary.md:231`. `PRODUCT.md:38-39` already records the
+    consent decision; the link-back replaces both lines with one line pointing here.

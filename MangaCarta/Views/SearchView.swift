@@ -28,9 +28,11 @@ private struct SearchScreen: View {
     @Environment(\.selectAppTab) private var selectAppTab
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var query = ""
+    @EnvironmentObject private var analytics: AnalyticsRecorder
 
     var body: some View {
         NavigationStack {
+            Group {
             if let source = vm.source {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: Gutter.section) {
@@ -86,6 +88,8 @@ private struct SearchScreen: View {
                     action: { selectAppTab(.settings) }
                 )
             }
+            }
+            .onAppear { vm.searchStarted = analytics.searchUsed }
         }
     }
 }

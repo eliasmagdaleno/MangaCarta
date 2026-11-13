@@ -98,6 +98,8 @@ struct AppComposition {
     let history: HistoryStore
     let taste: TasteProfileStore
     let works: WorkStore
+    let analyticsConsent: AnalyticsConsentStore
+    let analytics: AnalyticsRecorder
     let engine: RecommendationEngine
     let queue: MetadataUpgradeQueue
     let updates: UpdateStateStore
@@ -352,7 +354,8 @@ struct AppComposition {
          repositoryTransport: (any RepositoryTransport)? = nil,
          notifications: NotificationScheduling? = nil,
          malSourceChoiceStore: MALSourceChoiceStore? = nil,
-         listingCountDirectory: URL? = nil) {
+         listingCountDirectory: URL? = nil,
+         analyticsNoticeSuppressed: Bool = false) {
         let identityMigrationError = Self.runIdentityMigrations(directory: directory, defaults: defaults)
         let resolvedRegistry = registry ?? .shared
         let resolvedMALResolver = malResolver ?? MALEntityResolver(
@@ -362,6 +365,13 @@ struct AppComposition {
         // mint into it, so they must share this one instance (ADR-0007).
         let wk = WorkStore(directory: directory)
         let lib = LibraryStore(defaults: defaults, works: wk)
+        let analyticsConsent = AnalyticsConsentStore(defaults: defaults,
+                                                     noticeSuppressed: analyticsNoticeSuppressed)
+        let analyticsBuffer = AnalyticsEventBuffer(
+            directory: directory.appendingPathComponent("analytics", isDirectory: true))
+        let analytics = AnalyticsRecorder(
+            consent: analyticsConsent, buffer: analyticsBuffer, works: wk,
+            source: { resolvedRegistry.source(id: $0) }, defaults: defaults)
 
         // Built before `HistoryStore` because the history store takes the completion sink
         // at construction.
@@ -372,8 +382,9 @@ struct AppComposition {
         // The completion sink. Synchronous and network-free by contract — it writes the
         // completed chapter to the outbox and returns.
         let hist = HistoryStore(defaults: defaults, works: wk,
-                                chapterCompleted: { [weak malProgress] completion in
+                                chapterCompleted: { [weak malProgress, weak analytics] completion in
                                     malProgress?.chapterCompleted(completion)
+                                    analytics?.chapterCompleted(completion)
                                 })
         let ts = TasteProfileStore(defaults: defaults)
 
@@ -396,7 +407,13 @@ struct AppComposition {
         }
         // ADR-0021: removing a Work from the Library deletes its notification state, so
         // re-adding it establishes a fresh baseline (#342).
-        lib.configureWorkLeftLibrary { [weak updateNotifier] in updateNotifier?.forget(workId: $0) }
+        lib.configureWorkLeftLibrary { [weak updateNotifier, weak analytics] in
+            updateNotifier?.forget(workId: $0)
+            analytics?.workUnsaved(workID: $0)
+        }
+        lib.configureWorkSaved { [weak analytics] manga, workID in
+            analytics?.workSaved(manga: manga, workID: workID)
+        }
         let notificationDelegate = UpdateNotificationDelegate(handleResponse: { [weak updateNotifier] in
             updateNotifier?.handleResponse(userInfo: $0)
         })
@@ -489,8 +506,13 @@ struct AppComposition {
             // paired with the Work it was recorded for.
             tagBlocked: { memory.suppresses($0) },
             admits: { resolvedRegistry.admitsForDiscovery($0) })
+        rec.feedbackRecorded = { [weak analytics] kind, manga in
+            analytics?.recommendationFeedback(kind, manga: manga)
+        }
 
         self.works = wk
+        self.analyticsConsent = analyticsConsent
+        self.analytics = analytics
         self.library = lib
         self.history = hist
         self.taste = ts
@@ -530,6 +552,9 @@ struct AppComposition {
                                                    registry: self.registry,
                                                    rateLimiters: self.hostRateLimiters)
         self.extensions = extensionResult.composition
+        self.extensions?.installer.installed = { [weak analytics] adult in
+            analytics?.sourceInstalled(adult)
+        }
         self.extensionStorageError = extensionResult.error ?? identityMigrationError
     }
 

@@ -117,6 +117,7 @@ struct ReaderView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @EnvironmentObject private var history: HistoryStore
+    @EnvironmentObject private var analytics: AnalyticsRecorder
 
     /// The open title's Work. Opening a chapter mints it, so `nil` is not expected; when it
     /// happens the menu edits the default instead (ADR-0026).
@@ -235,7 +236,10 @@ struct ReaderView: View {
         .statusBarHidden(!chromeVisible)
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
-        .task { await vm.begin() }
+        .task {
+            analytics.readerOpened(mode)
+            await vm.begin()
+        }
         .onChange(of: vm.lastCompletedRequest) { _, _ in didCompleteLoad() }
         // Entering a paged mode adopts the vertical reader's live position. `currentPage` is
         // otherwise assigned only in `didCompleteLoad`, so webtoon strip 5 → paged used to

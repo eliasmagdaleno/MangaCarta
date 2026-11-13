@@ -99,6 +99,7 @@ final class LibraryStore: ObservableObject {
     /// Called with a Work whose last Library item was just removed, by any path. The
     /// composition wires it to `UpdateNotifier.forget(workId:)` (ADR-0021, #342).
     private var workLeftLibrary: (WorkID) -> Void = { _ in }
+    private var workSaved: (Manga, WorkID) -> Void = { _, _ in }
     private var registry: SourceRegistry { registryOverride ?? .shared }
 
     init(defaults: UserDefaults = .standard, works: WorkStore? = nil, registry: SourceRegistry? = nil) {
@@ -195,7 +196,7 @@ final class LibraryStore: ObservableObject {
             let key = ListingKey(manga)
             items.removeAll { listingKey(for: $0) == key }
         } else {
-            _ = works?.mint(from: manga)
+            let workID = works?.mint(from: manga)
             let primaryCollectionId = enabledCollections.first?.id ?? LibraryCollection.readingID
             items.insert(
                 LibraryItem(
@@ -207,6 +208,7 @@ final class LibraryStore: ObservableObject {
                 ),
                 at: 0
             )
+            if let workID { workSaved(manga, workID) }
         }
         saveItems()
     }
@@ -254,7 +256,7 @@ final class LibraryStore: ObservableObject {
                 items[idx] = updated
             }
         } else {
-            _ = works?.mint(from: manga)
+            let workID = works?.mint(from: manga)
             items.insert(
                 LibraryItem(
                     id: manga.id,
@@ -265,6 +267,7 @@ final class LibraryStore: ObservableObject {
                 ),
                 at: 0
             )
+            if let workID { workSaved(manga, workID) }
         }
         saveItems()
     }
@@ -278,11 +281,12 @@ final class LibraryStore: ObservableObject {
             saveItems()
             return
         }
-        _ = works?.mint(from: manga)
+        let mintedWorkID = works?.mint(from: manga)
         let key = ListingKey(manga)
         if let idx = items.firstIndex(where: { listingKey(for: $0) == key }) {
             items[idx].collectionIds = collectionIds
         } else {
+            let workID = mintedWorkID
             items.insert(
                 LibraryItem(
                     id: manga.id,
@@ -293,6 +297,7 @@ final class LibraryStore: ObservableObject {
                 ),
                 at: 0
             )
+            if let workID { workSaved(manga, workID) }
         }
         saveItems()
     }
@@ -361,6 +366,10 @@ final class LibraryStore: ObservableObject {
 
     func configureWorkLeftLibrary(_ handler: @escaping (WorkID) -> Void) {
         workLeftLibrary = handler
+    }
+
+    func configureWorkSaved(_ handler: @escaping (Manga, WorkID) -> Void) {
+        workSaved = handler
     }
 
     /// Every removal path assigns `items`, so diffing here covers all of them.

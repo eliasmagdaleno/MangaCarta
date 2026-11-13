@@ -147,7 +147,7 @@ final class AppCompositionTests: XCTestCase {
     /// A signed-in account, assembled the way a relaunch assembles one: a cached profile in
     /// the isolated defaults and a credential in an in-memory Keychain stand-in. No network
     /// and no web sheet — the sign-in flow has its own suite.
-    private func signedInComposition(userID: Int = 7) -> AppComposition {
+    private func signedInComposition(userID: Int = 7, registry: SourceRegistry? = nil) -> AppComposition {
         let dataStore = MALInMemoryCredentialDataStore()
         let credentials = MALCredentialStore(
             dataStore: dataStore,
@@ -173,7 +173,8 @@ final class AppCompositionTests: XCTestCase {
             malResolver: MALEntityResolver(
                 store: EntityResolutionStore(defaults: defaults),
                 search: { title in [MALCandidate(malId: 121_496, titles: [title])] },
-                bridgeSearch: MALEntityResolver.noBridge))
+                bridgeSearch: MALEntityResolver.noBridge),
+            registry: registry)
         composition.account.restore()
         return composition
     }
@@ -206,6 +207,39 @@ final class AppCompositionTests: XCTestCase {
         XCTAssertEqual(composition.malOutbox.summary(userID: 7).pending, 1)
         XCTAssertEqual(composition.malOutbox.nextEligible(userID: 7, at: Date())?.mangaID,
                        121_496)
+    }
+
+    func testCompletionReachesBothSinks() {
+        let source = AppCompositionAnalyticsSource()
+        let composition = signedInComposition(registry: SourceRegistry(sources: [source]))
+        composition.analyticsConsent.accept()
+
+        completeRead(composition, Manga(id: "md-analytics", sourceId: source.id, title: "Analytics",
+                                        description: "", status: "ongoing", year: nil,
+                                        coverURL: nil, malId: 121_496))
+
+        XCTAssertEqual(composition.malOutbox.summary(userID: 7).pending, 1)
+        XCTAssertEqual(composition.analytics.events.filter { $0.event.name == "chapter_completed" }.count, 1)
+    }
+
+    /// The save, unsave and feedback hooks must reach the recorder the composition built, not
+    /// only a recorder wired by hand in a unit test.
+    func testCompositionWiresSaveUnsaveAndFeedbackToTheRecorder() {
+        let source = AppCompositionAnalyticsSource()
+        let composition = AppComposition(defaults: defaults, directory: directory,
+                                         registry: SourceRegistry(sources: [source]))
+        composition.analyticsConsent.accept()
+        let manga = Manga(id: "md-wired", sourceId: source.id, title: "Wired", description: "",
+                          status: "ongoing", year: nil, coverURL: nil, malId: 21)
+
+        composition.library.toggle(manga)
+        composition.library.toggle(manga)
+        composition.engine.markNotInterested(manga)
+
+        let names = composition.analytics.events.map(\.event.name)
+        XCTAssertEqual(names.filter { $0 == "work_saved" }.count, 1)
+        XCTAssertEqual(names.filter { $0 == "work_unsaved" }.count, 1)
+        XCTAssertEqual(names.filter { $0 == "rec_not_interested" }.count, 1)
     }
 
     /// The whole promotion chain in one, which is the only place it exists: a chapter
@@ -394,6 +428,19 @@ final class AppCompositionTests: XCTestCase {
     func testForegroundNotificationsPresentAsBannerAndList() {
         XCTAssertEqual(UpdateNotificationDelegate.foregroundPresentationOptions, [.banner, .list])
     }
+}
+
+private struct AppCompositionAnalyticsSource: MangaSource {
+    let id = "analytics-composition-test"
+    let name = "Analytics Composition Test"
+
+    func search(title: String, limit: Int, offset: Int) async throws -> [Manga] { [] }
+    func popular(limit: Int, offset: Int) async throws -> [Manga] { [] }
+    func mangaDetail(id: String) async throws -> MangaDetail {
+        MangaDetail(description: "", authors: [], tags: [], contentRating: nil)
+    }
+    func chapters(mangaId: String) async throws -> [Chapter] { [] }
+    func pageURLs(chapterId: String, preferDataSaver: Bool) async throws -> [URL] { [] }
 }
 
 /// A source whose chapter lists a test can grow between refresh runs.
