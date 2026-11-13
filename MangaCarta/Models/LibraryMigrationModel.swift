@@ -20,11 +20,16 @@ struct LibraryMigrationRow: Identifiable {
     let fromSourceId: String
     var status: LibraryMigrationStatus
     var choices: [AddSourceRow]
+    var choiceDetails: [LibraryMigrationChoice]
     var chosen: AddSourceRow?
     var isTicked: Bool
-    var otherWorkId: WorkID?
-    var otherWorkTitle: String?
-    var reason: String?
+    var alreadyOnTarget: ListingKey?
+}
+
+struct LibraryMigrationChoice {
+    let row: AddSourceRow
+    let otherWorkId: WorkID?
+    let otherWorkTitle: String?
 }
 
 struct LibraryMigrationSummary {
@@ -60,6 +65,7 @@ final class LibraryMigrationModel: ObservableObject {
     private let concurrency: Int
     private let includeAdult: Bool
     private var cancelled = false
+    private var cancelSearch: (() -> Void)?
 
     init(library: LibraryStore, works: WorkStore, coordinator: WorkSourcesCoordinator,
          registry: SourceRegistry, search: SourceTitleSearch, counts: MALHubChapterCountLoader,
@@ -78,7 +84,7 @@ final class LibraryMigrationModel: ObservableObject {
             $0 != LocalSource.sourceID && !InstalledSourceIDMigration.legacyIDs.contains($0)
         }
         let workListings = works.allWorkIds().compactMap(works.work).flatMap { $0.listings }
-        let ids = Set(remote + workListings.map(\ .sourceId).filter {
+        let ids = Set(remote + workListings.map(\.sourceId).filter {
             $0 != LocalSource.sourceID && !InstalledSourceIDMigration.legacyIDs.contains($0)
         })
         fromOptions = ids.compactMap { id in
@@ -99,7 +105,6 @@ final class LibraryMigrationModel: ObservableObject {
     }
 
     func candidates(from sourceId: String, to targetId: String) {
-        toOptions = toOptions(from: sourceId).filter { $0.id == targetId || $0.id != sourceId }
         rows = library.items(in: nil).compactMap { item in
             let ownKey = ListingKey(sourceId: item.sourceId ?? LegacySourceID.unattributed, mangaId: item.id)
             let workId = works.workId(for: ownKey)
@@ -108,9 +113,8 @@ final class LibraryMigrationModel: ObservableObject {
             let targetKey = work?.listings.first(where: { $0.sourceId == targetId })
             let ready = targetKey != nil
             return LibraryMigrationRow(id: ownKey, item: item, workId: workId, fromSourceId: sourceId,
-                                       status: ready ? .ready : .notSearched, choices: [], chosen: nil,
-                                       isTicked: ready, otherWorkId: nil, otherWorkTitle: nil,
-                                       reason: ready ? "Already on \(targetId)" : nil)
+                                       status: ready ? .ready : .notSearched, choices: [], choiceDetails: [], chosen: nil,
+                                       isTicked: ready, alreadyOnTarget: targetKey)
         }
         totalToSearch = rows.filter { $0.status == .notSearched }.count
         searchedCount = 0; cancelled = false
@@ -120,29 +124,34 @@ final class LibraryMigrationModel: ObservableObject {
         candidates(from: sourceId, to: targetId); await searchRemaining(targetId: targetId)
     }
 
-    func start() async {
-        guard let from = fromOptions.first?.sourceId, let to = toOptions.first?.id else { return }
-        await start(from: from, to: to)
+    func cancel() {
+        cancelled = true
+        cancelSearch?()
     }
-
-    func cancel() { cancelled = true }
 
     private func searchRemaining(targetId: String) async {
         isSearching = true; defer { isSearching = false }
         let indexes = rows.indices.filter { rows[$0].status == .notSearched }
         await withTaskGroup(of: (Int, [SourceTitleSearch.SourceOutcome]?).self) { group in
+            let tasks = MigrationSearchTasks()
+            cancelSearch = { tasks.cancelAll() }
+            defer { cancelSearch = nil }
             var next = indexes.makeIterator()
             func add() {
                 if let index = next.next() {
-                    group.addTask { [self] in
-                        (index, await self.search(row: self.rows[index], targetId: targetId))
+                    let task = Task { [self] in
+                        await self.search(row: self.rows[index], targetId: targetId)
                     }
+                    tasks.append(task)
+                    group.addTask { (index, await task.value) }
                 }
             }
             for _ in 0..<concurrency { add() }
             while let (index, outcome) = await group.next() {
-                if cancelled { rows[index].status = .notSearched } else if let outcome { apply(outcome, at: index, targetId: targetId) }
-                searchedCount += 1; add()
+                if cancelled { rows[index].status = .notSearched; continue }
+                apply(outcome ?? [], at: index, targetId: targetId)
+                searchedCount += 1
+                if !cancelled { add() }
             }
         }
         guard !cancelled else { return }
@@ -151,8 +160,7 @@ final class LibraryMigrationModel: ObservableObject {
 
     private func search(row: LibraryMigrationRow, targetId: String) async -> [SourceTitleSearch.SourceOutcome] {
         let work = row.workId.flatMap(works.work)
-        var spellings = [String]()
-        if let work { spellings = [work.displayTitle] + work.knownTitles } else { spellings = [row.item.title] }
+        let spellings = spellings(for: row)
         return await searcher.search(spellings: spellings, sourceIDs: [targetId]) { mangas in
             mangas.contains {
                 SourceMatchGrader.grade(referenceMALID: work?.externalIds.mal,
@@ -161,41 +169,50 @@ final class LibraryMigrationModel: ObservableObject {
         }
     }
 
+    private func spellings(for row: LibraryMigrationRow) -> [String] {
+        guard let work = row.workId.flatMap(works.work) else { return [row.item.title] }
+        return [work.displayTitle] + work.knownTitles.filter { $0 != work.displayTitle }
+    }
+
     private func apply(_ outcomes: [SourceTitleSearch.SourceOutcome], at index: Int, targetId: String) {
         guard let outcome = outcomes.first(where: { $0.sourceId == targetId }) else { rows[index].status = .couldNotCheck; return }
         guard case .found(let mangas) = outcome.result else { rows[index].status = .couldNotCheck; return }
         guard !mangas.isEmpty else { rows[index].status = .notFound; return }
         let work = rows[index].workId.flatMap(works.work)
-        let spellings = [work?.displayTitle].compactMap { $0 } + (work?.knownTitles ?? [rows[index].item.title])
+        let spellings = spellings(for: rows[index])
         var choices: [AddSourceRow] = []
+        var details: [LibraryMigrationChoice] = []
         for manga in mangas {
             let grade = SourceMatchGrader.grade(referenceMALID: work?.externalIds.mal,
                                                 spellings: spellings, candidate: manga, matcher: matcher)
             let key = ListingKey(manga)
             let owner = works.workId(for: key) ?? (manga.malId.flatMap { works.workId(externalId: ExternalIDs(mal: $0, anilist: nil)) })
             let other = owner.flatMap { id in work?.id == id ? nil : id }
-            choices.append(AddSourceRow(manga: manga, sourceName: outcome.sourceName, grade: grade,
+            let row = AddSourceRow(manga: manga, sourceName: outcome.sourceName, grade: grade,
                                         matchedAlternateTitle: nil, isAlreadyLinked: owner == work?.id,
                                         wasRemovedEarlier: work?.removedListings.contains { $0.key == key } == true,
-                                        chapterCount: nil))
-            if let other { rows[index].otherWorkId = other; rows[index].otherWorkTitle = works.work(other)?.displayTitle }
+                                        chapterCount: nil)
+            choices.append(row)
+            details.append(LibraryMigrationChoice(row: row, otherWorkId: other,
+                                                  otherWorkTitle: other.flatMap { works.work($0)?.displayTitle }))
         }
         rows[index].choices = choices
-        let usable = choices.filter { row in
-            row.grade != .ungraded && row.grade != .differentEntry && !row.wasRemovedEarlier &&
-                (rows[index].otherWorkId == nil || row.isAlreadyLinked)
+        rows[index].choiceDetails = details
+        let usable = details.filter { choice in
+            choice.row.grade != .ungraded && choice.row.grade != .differentEntry &&
+                !choice.row.wasRemovedEarlier && choice.otherWorkId == nil
         }
-        let oneLikely = usable.count == 1 && usable[0].grade == .likely &&
-            choices.filter { $0.grade == .differentEntry }.isEmpty
-        if usable.count == 1 && (usable[0].grade == .sameEntry || oneLikely) {
-            rows[index].status = .ready; rows[index].chosen = usable[0]; rows[index].isTicked = true
+        let oneLikely = usable.count == 1 && usable[0].row.grade == .likely &&
+            details.filter { $0.row.grade == .differentEntry }.isEmpty
+        if usable.count == 1 && (usable[0].row.grade == .sameEntry || oneLikely) {
+            rows[index].status = .ready; rows[index].chosen = usable[0].row; rows[index].isTicked = true
         } else { rows[index].status = .needsPick; rows[index].isTicked = false }
     }
 
     private func countReadyRows() async {
         let indexes = Array(rows.indices).filter { index in
             guard rows[index].status == .ready, rows[index].chosen != nil else { return false }
-            return !(rows[index].reason ?? "").hasPrefix("Already on")
+            return rows[index].alreadyOnTarget == nil
         }
         let workItems = indexes.compactMap { index -> (Int, Manga)? in
             guard let manga = rows[index].chosen?.manga else { return nil }
@@ -220,7 +237,19 @@ final class LibraryMigrationModel: ObservableObject {
         }
     }
 
-    func toggle(_ id: ListingKey) { if let i = rows.firstIndex(where: { $0.id == id }) { rows[i].isTicked.toggle() } }
+    private func countReadyRow(_ index: Int) async {
+        guard let chosen = rows[index].chosen else { return }
+        let values = await counts.load([chosen.manga])
+        rows[index].chosen?.chapterCount = values[chosen.id]
+        rows[index].chosen?.countRequested = true
+    }
+
+    func toggle(_ id: ListingKey) {
+        if let i = rows.firstIndex(where: { $0.id == id }),
+           rows[i].chosen != nil || rows[i].alreadyOnTarget != nil {
+            rows[i].isTicked.toggle()
+        }
+    }
 
     func pick(_ id: ListingKey, choice: AddSourceRow, confirmDifferentEntry: Bool = false) -> LibraryMigrationPickDecision {
         guard let i = rows.firstIndex(where: { $0.id == id }) else { return .unavailable }
@@ -235,7 +264,7 @@ final class LibraryMigrationModel: ObservableObject {
         guard let i = rows.firstIndex(where: { $0.id == id }), rows[i].status == .couldNotCheck else { return }
         let outcome = await search(row: rows[i], targetId: targetId)
         apply(outcome, at: i, targetId: targetId)
-        if rows[i].status == .ready { await countReadyRows() }
+        if rows[i].status == .ready { await countReadyRow(i) }
     }
 
     func apply(removingOld: Bool) async -> LibraryMigrationSummary {
@@ -251,9 +280,7 @@ final class LibraryMigrationModel: ObservableObject {
             guard let workId else { continue }
             let chosen = row.chosen
             let target: Manga
-            if let chosen { target = chosen.manga } else if let key = works.work(workId)?.listings.first(where: {
-                $0.sourceId != row.fromSourceId
-            }) {
+            if let chosen { target = chosen.manga } else if let key = row.alreadyOnTarget {
                 target = Manga(id: key.mangaId, sourceId: key.sourceId,
                                title: works.work(workId)?.displayTitle ?? row.item.title,
                                description: "", status: "unknown", year: nil, coverURL: nil,
@@ -266,5 +293,19 @@ final class LibraryMigrationModel: ObservableObject {
             }
         }
         works.flush(); await requestRefresh(); return LibraryMigrationSummary(migratedCount: migrated, skipped: skipped)
+    }
+}
+
+private final class MigrationSearchTasks: @unchecked Sendable {
+    private let lock = NSLock()
+    private var tasks: [Task<[SourceTitleSearch.SourceOutcome], Never>] = []
+
+    func append(_ task: Task<[SourceTitleSearch.SourceOutcome], Never>) {
+        lock.lock(); tasks.append(task); lock.unlock()
+    }
+
+    func cancelAll() {
+        lock.lock(); let pending = tasks; lock.unlock()
+        pending.forEach { $0.cancel() }
     }
 }
