@@ -1,6 +1,7 @@
 import CryptoKit
 import Foundation
 import UIKit
+import PDFKit
 
 /// A saved local cover URL is absolute, and the app's container moves on reinstall and on a
 /// restore from backup (#295). `relocated` re-roots anything under a `LocalLibrary` directory
@@ -28,6 +29,8 @@ struct LocalImportProgress: Sendable, Equatable {
     let total: Int
 }
 
+enum PDFImportMode: Sendable { case raster, vector }
+
 enum LocalImportError: Error, Equatable {
     case noImages
     case unreadableArchive(ZipArchiveError)
@@ -52,10 +55,12 @@ private struct PDFImportRequest {
 actor LocalLibraryStore {
     static let shared = LocalLibraryStore(root: LocalLibraryPaths.defaultRoot)
     let root: URL
+    private let pdfImport: PDFImportMode
     private let fm = FileManager.default
 
-    init(root: URL) {
+    init(root: URL, pdfImport: PDFImportMode = .raster) {
         self.root = root
+        self.pdfImport = pdfImport
         try? fm.createDirectory(at: root, withIntermediateDirectories: true)
         let staging = root.appendingPathComponent(".staging")
         try? fm.removeItem(at: staging)
@@ -183,6 +188,9 @@ actor LocalLibraryStore {
     private func importPDF(_ request: PDFImportRequest,
                            progress: (@Sendable (LocalImportProgress) -> Void)?) async throws -> LocalImportResult {
         do {
+            if pdfImport == .vector {
+                return try await importVectorPDF(request, progress: progress)
+            }
             let pageDir = request.item.appendingPathComponent("pages/1")
             let files = try await PDFPageRasterizer().rasterize(source: request.archive, to: pageDir) { completed, total in
                 progress?(LocalImportProgress(fileName: request.source.lastPathComponent, completed: completed, total: total))
@@ -206,12 +214,50 @@ actor LocalLibraryStore {
             return .imported(record)
         } catch is CancellationError {
             throw LocalImportError.cancelled
+        } catch let error as LocalImportError {
+            throw error
         } catch let error as PDFRasterizationError {
             if error == .passwordProtected { throw LocalImportError.passwordProtectedPDF }
             throw LocalImportError.unreadablePDF
         } catch {
             throw isOutOfSpace(error) ? LocalImportError.insufficientSpace : LocalImportError.unreadablePDF
         }
+    }
+
+    private func importVectorPDF(_ request: PDFImportRequest,
+                                 progress: (@Sendable (LocalImportProgress) -> Void)?) async throws -> LocalImportResult {
+        try Task.checkCancellation()
+        guard let document = PDFDocument(url: request.archive) else {
+            // PDFKit may return nil rather than an isLocked document for some encrypted files.
+            if let bytes = try? Data(contentsOf: request.archive), bytes.range(of: Data("/Encrypt".utf8)) != nil {
+                throw LocalImportError.passwordProtectedPDF
+            }
+            throw LocalImportError.unreadablePDF
+        }
+        if document.isLocked { throw LocalImportError.passwordProtectedPDF }
+        guard document.pageCount > 0, let page = document.page(at: 0) else { throw LocalImportError.unreadablePDF }
+        progress?(LocalImportProgress(fileName: request.source.lastPathComponent, completed: 1, total: 2))
+        try Task.checkCancellation()
+        try fm.createDirectory(at: request.item, withIntermediateDirectories: true)
+        let box = page.bounds(for: .cropBox)
+        let scale = min(1, 512 / max(box.width, box.height))
+        let thumbnail = page.thumbnail(of: CGSize(width: max(1, box.width * scale), height: max(1, box.height * scale)), for: .cropBox)
+        guard let data = thumbnail.jpegData(compressionQuality: 0.9) else { throw LocalImportError.unreadablePDF }
+        try data.write(to: request.item.appendingPathComponent("cover.jpg"), options: .atomic)
+        try fm.moveItem(at: request.archive, to: request.item.appendingPathComponent("document.pdf"))
+        let chapter = LocalChapter(number: 1, title: request.title, pageCount: document.pageCount, documentFilename: "document.pdf")
+        let record = LocalItemRecord(itemId: request.itemId, title: request.title, sourceFilename: request.source.lastPathComponent,
+                                     sha256: request.hash, byteSize: request.byteSize, importedAt: Date(), chapters: [chapter])
+        try JSONEncoder().encode(record).write(to: request.item.appendingPathComponent("item.json"), options: .atomic)
+        progress?(LocalImportProgress(fileName: request.source.lastPathComponent, completed: 2, total: 2))
+        try Task.checkCancellation()
+        if fm.fileExists(atPath: request.destination.appendingPathComponent("item.json").path) {
+            try? fm.removeItem(at: request.staging)
+            return .duplicate(itemId: request.itemId)
+        }
+        try fm.moveItem(at: request.item, to: request.destination)
+        try? fm.removeItem(at: request.staging)
+        return .imported(record)
     }
 
     func record(itemId: String) -> LocalItemRecord? {
@@ -286,7 +332,8 @@ actor LocalLibraryStore {
     func pageURLs(itemId: String, chapter: Int) -> [URL] {
         guard let record = record(itemId: itemId),
               let chapterRecord = record.chapters.first(where: { $0.number == chapter }) else { return [] }
-        return chapterRecord.pageFiles.map { root.appendingPathComponent(itemId).appendingPathComponent("pages/\(chapter)/\($0)") }
+        guard case .images(let files) = chapterRecord.pageStorage else { return [] }
+        return files.map { root.appendingPathComponent(itemId).appendingPathComponent("pages/\(chapter)/\($0)") }
     }
 
     func coverURL(itemId: String) -> URL? {
