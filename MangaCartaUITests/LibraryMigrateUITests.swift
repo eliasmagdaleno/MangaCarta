@@ -16,8 +16,10 @@ final class LibraryMigrateUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["migrateSummary"].label.contains("Migrated 3 titles."))
         app.buttons["Done"].tap()
         openSameEntryDetail(app)
+        // Pinned to B, not merely pinned: the stamp reads "Source: <name>, <detail>, pinned".
         let stamp = app.buttons["sourcePicker"]
-        XCTAssertTrue(stamp.label.contains("pinned"))
+        XCTAssertTrue(stamp.label.hasPrefix("Source: Source B"), stamp.label)
+        XCTAssertTrue(stamp.label.hasSuffix(", pinned"), stamp.label)
         openSourceMenu(app)
         let sourceB = sourceMenuButton(app, source: "Source B")
         let sourceA = sourceMenuButton(app, source: "Source A")
@@ -37,10 +39,10 @@ final class LibraryMigrateUITests: XCTestCase {
         app.buttons["Done"].tap()
         openSameEntryDetail(app)
         openSourceMenu(app)
-        let sourceA = sourceMenuButton(app, source: "Source A")
-        XCTAssertFalse(sourceA.exists)
+        // Wait for the menu (B is in it) before asserting A's absence, so it can't pass on a closed menu.
         let sourceB = sourceMenuButton(app, source: "Source B")
         XCTAssertTrue(sourceB.waitForExistence(timeout: 5))
+        XCTAssertFalse(sourceMenuButton(app, source: "Source A").exists)
         sourceB.tap()
         let readChapter = app.descendants(matching: .any).matching(NSPredicate(
             format: "label CONTAINS %@ AND label CONTAINS %@", "Chapter 1", "Read")).firstMatch

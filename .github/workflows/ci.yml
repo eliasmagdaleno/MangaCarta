@@ -251,7 +251,7 @@ jobs:
             -only-testing:MangaCartaUITests/MALHubUITests \
             -only-testing:MangaCartaUITests/TitleSourcesUITests \
             -only-testing:MangaCartaUITests/DetailSectionsUITests \
-            -only-testing:MangaCartaUITests/AnalyticsSettingsUITests
+            -only-testing:MangaCartaUITests/AnalyticsSettingsUITests \
             -only-testing:MangaCartaUITests/LibraryMigrateUITests
 
       - name: Documentation only — nothing to test

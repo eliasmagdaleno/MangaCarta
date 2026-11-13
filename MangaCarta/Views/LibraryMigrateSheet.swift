@@ -14,6 +14,7 @@ struct LibraryMigrateSheet: View {
     @State private var removingOld = false
     @State private var summary: LibraryMigrationSummary?
     @State private var runID = UUID()
+    @State private var isApplying = false
 
     init(library: LibraryStore, works: WorkStore, coordinator: WorkSourcesCoordinator,
          registry: SourceRegistry, listingCountCache: ListingCountCache,
@@ -56,7 +57,7 @@ struct LibraryMigrateSheet: View {
                     }
                         .buttonStyle(.borderedProminent).frame(maxWidth: .infinity).padding()
                         .accessibilityIdentifier("migrateApplyButton")
-                        .disabled(model.rows.filter(\.isTicked).isEmpty)
+                        .disabled(model.rows.filter(\.isTicked).isEmpty || isApplying)
                 }
             }
             .confirmationDialog("Migrate \(model.rows.filter(\.isTicked).count) titles to \(targetName)?",
@@ -90,10 +91,16 @@ struct LibraryMigrateSheet: View {
             await model.start(from: fromID, to: toID)
         }
         .onDisappear { model.cancel() }
+        // Every ten titles, and once when the search ends (finished or cancelled), per design §3.
         .onChange(of: model.searchedCount) { _, value in
-            if value > 0 && (value.isMultiple(of: 10) || value == model.totalToSearch) {
-                AccessibilityNotification.Announcement("Searched \(value) of \(model.totalToSearch)").post()
-            }
+            if value > 0 && value.isMultiple(of: 10) && value != model.totalToSearch { announceProgress() }
+        }
+        .onChange(of: model.isSearching) { wasSearching, isSearching in
+            if wasSearching && !isSearching { announceProgress() }
+        }
+        // A From that the To list can't serve (To == From) moves To to the first valid choice.
+        .onChange(of: fromID) { _, _ in
+            if !toOptions.contains(where: { $0.id == toID }) { toID = toOptions.first?.id }
         }
         .challengeSheets(nested: true)
     }
@@ -121,7 +128,7 @@ struct LibraryMigrateSheet: View {
                     .pickerStyle(.menu)
                     .accessibilityIdentifier("migrateToPicker")
                     if toOptions.isEmpty { Text("No other installed Sources."); repositoryHint }
-            Button("Find titles on \(targetName)") {
+                    Button("Find titles on \(targetName)") {
                         guard let fromID, let toID else { return }
                         model.candidates(from: fromID, to: toID)
                         runID = UUID()
@@ -237,6 +244,7 @@ struct LibraryMigrateSheet: View {
         let group = statusTitle(row.status)
         let choice = row.chosen
         var label = "\(row.item.title), \(group)"
+        if choice == nil, row.alreadyOnTarget != nil { label += ", already on \(targetName)" }
         if let choice {
             label += ", match \(choice.manga.title), \(choice.grade.label ?? "Unmatched")"
             if let alternate = choice.matchedAlternateTitle { label += ", also known as \(alternate)" }
@@ -322,8 +330,17 @@ struct LibraryMigrateSheet: View {
     private func statusIsRetry(_ status: LibraryMigrationStatus) -> Bool { status == .couldNotCheck }
 
     private func apply(removing: Bool) {
+        guard !isApplying else { return }
         removingOld = removing
-        Task { summary = await model.apply(removingOld: removingOld) }
+        isApplying = true
+        Task {
+            summary = await model.apply(removingOld: removingOld)
+            isApplying = false
+        }
+    }
+
+    private func announceProgress() {
+        AccessibilityNotification.Announcement("Searched \(model.searchedCount) of \(model.totalToSearch)").post()
     }
 
     private func summaryView(_ summary: LibraryMigrationSummary) -> some View {
