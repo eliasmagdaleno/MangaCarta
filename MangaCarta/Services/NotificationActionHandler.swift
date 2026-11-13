@@ -82,7 +82,7 @@ final class NotificationActionHandler {
                               description: "", status: "unknown", year: nil,
                               coverURL: item?.coverURL, malId: nil, altTitles: nil, contentRating: nil)
             history.markRead(manga: manga, chapters: matched)
-            updates.clearNewlyDiscovered(captured, workId: resolved)
+            updates.clearNewlyDiscovered(captured, workId: workId)
             history.flush()
             updates.flush()
             return .markedRead

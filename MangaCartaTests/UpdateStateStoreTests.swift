@@ -71,6 +71,40 @@ final class UpdateStateStoreTests {
     }
 
     @MainActor
+    @Test("Mute round trips while retaining discovery")
+    func muteRoundTripsAndRetainsDiscovery() throws {
+        let fixture = fixture()
+        _ = fixture.updates.absorb(workId: fixture.workId, listing: fixture.listing, rawNumbers: ["1"], now: date(1))
+        _ = fixture.updates.absorb(workId: fixture.workId, listing: fixture.listing, rawNumbers: ["2"], now: date(2))
+        fixture.updates.setMuted(true, workId: fixture.workId)
+        fixture.updates.flush()
+        let fresh = UpdateStateStore(directory: fixture.directory, works: fixture.works)
+        let state = try #require(fresh.state(for: fixture.workId))
+        #expect(state.isMuted)
+        #expect(state.newlyDiscovered == [ordinal("2")])
+        #expect(state.frontier.max == ordinal("2"))
+        #expect(state.hasBaseline)
+    }
+
+    @MainActor
+    @Test("Targeted clearing removes only given ordinals")
+    func clearsOnlyTheGivenOrdinals() throws {
+        let fixture = fixture()
+        _ = fixture.updates.absorb(workId: fixture.workId, listing: fixture.listing, rawNumbers: ["1"], now: date(1))
+        _ = fixture.updates.absorb(workId: fixture.workId, listing: fixture.listing, rawNumbers: ["2", "3"], now: date(2))
+        fixture.updates.setMuted(true, workId: fixture.workId)
+        let before = try #require(fixture.updates.state(for: fixture.workId))
+        fixture.updates.clearNewlyDiscovered([ordinal("2"), ordinal("9")], workId: fixture.workId)
+        var expected = before
+        expected.newlyDiscovered = [ordinal("3")]
+        #expect(fixture.updates.state(for: fixture.workId) == expected,
+                "only the given ordinals go; frontier, baseline, check dates and mute stay")
+        fixture.updates.flush()
+        #expect(UpdateStateStore(directory: fixture.directory, works: fixture.works)
+            .state(for: fixture.workId) == expected)
+    }
+
+    @MainActor
     @Test("Listing backoff doubles and a success clears it")
     func backoffDoublesAndClears() throws {
         let fixture = fixture()
@@ -213,7 +247,8 @@ final class UpdateStateStoreTests {
         let works = WorkStore(directory: directory)
         let listing = ListingKey(sourceId: "mangadex", mangaId: UUID().uuidString)
         let workId = works.mint(from: manga(listing))
-        return Fixture(updates: UpdateStateStore(directory: directory, works: works),
+        return Fixture(directory: directory, works: works,
+                       updates: UpdateStateStore(directory: directory, works: works),
                        workId: workId,
                        listing: listing)
     }
@@ -237,6 +272,8 @@ final class UpdateStateStoreTests {
 }
 
 private struct Fixture {
+    let directory: URL
+    let works: WorkStore
     let updates: UpdateStateStore
     let workId: WorkID
     let listing: ListingKey
