@@ -76,7 +76,7 @@ final class LibraryMigrationModelTests: XCTestCase {
         _ = f.works.addListing(match, to: work, recordExternalIds: false)
         _ = f.works.removeListing(ListingKey(match), from: work, keepingReadState: true)
         await f.model.start(from: "a", to: "b")
-        XCTAssertEqual(try XCTUnwrap(f.model.rows.first).status, .needsPick)
+        XCTAssertEqual(try XCTUnwrap(f.model.rows.first).status, .notFound)
     }
 
     func testMatchOwnedByOtherWorkIsNeverReady() async throws {
