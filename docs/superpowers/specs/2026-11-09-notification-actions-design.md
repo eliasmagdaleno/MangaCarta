@@ -322,3 +322,90 @@ target; otherwise extend the existing test files and avoid new project entries.
 3. **Missing ordinals:** an action whose payload lacks `discoveredOrdinals` falls back to the Work's
    current `newlyDiscovered` set, preserving backward compatibility and the requested `workId`-only
    simulator fixture.
+
+## Amendment 1 (2026-11-12): rechecked against `main` at `c722db7`
+
+The design was written before the MAL hub, per-title Sources (#390–#394), detail sections
+(#396) and analytics slice 1 (#399) merged. Every claim in "Current code" was grepped again on
+`c722db7`. The goal, non-goals and owner decisions all stand. What changes is *how* it is built,
+in seven places. Line numbers in "Current code" have drifted; the files and symbols are right
+except where listed here.
+
+1. **Don't fetch the `Manga`; build it from the Listing.** `MangaSource.manga(id:)` has a default
+   implementation that returns `nil` (`Models/MangaSource.swift:138`). Every Source that doesn't
+   override it would make Mark Read a no-op. `HistoryStore.markRead(manga:chapters:)` reads only
+   `manga.id` and `manga.sourceId`. So the handler builds the `Manga` from the chosen
+   `ListingKey`, the same way `LibraryUpdatesPresentation.summaries` already does, and fetches
+   only `chapters(mangaId:)`. One network call, not two.
+2. **The completion sink now has two consumers.** `HistoryStore`'s `chapterCompleted` feeds both
+   `MALProgressCoordinator` and `AnalyticsRecorder` (`AppComposition.swift:384-389`). A manual mark
+   never calls it, so Mark Read writes **no MAL outbox row and no analytics event**. That matches
+   chapter-list marks today. AC 4's test asserts both: the outbox is empty and so is the analytics
+   buffer.
+3. **Composition order.** `UpdateNotificationDelegate` is built at `AppComposition.swift:417`, but
+   `fulfillment` doesn't exist until `:542`. The delegate must be built *after* `makeFulfillment`,
+   so that it captures a handler holding the composed `FulfillmentCoordinator` and registry.
+   Separately, `UpdateNotifier` is constructed **without** `registry:` and falls back to
+   `SourceRegistry.shared` (the bug class `CLAUDE.md` names). In production that's the same
+   object; under an injected registry (every UI-test fixture), the adult-copy check reads the
+   wrong one. This PR passes `resolvedRegistry`, since the notifier is in scope.
+4. **Unmute had nowhere to live.** The Home rows show only Works with `newlyDiscoveredCount > 0`
+   (`HomeView.swift:100`). The Library "Updates" filter is a chip over the cover grid with the
+   same filter (`BookmarksView.swift:342-346`). Opening a title clears `newlyDiscovered`
+   (`MangaDetailView.swift:181`, `ChapterListView.swift:208`). So a muted Work vanishes from
+   both surfaces as soon as it's opened, and its Unmute goes with it. Decision 2 asks for undo
+   from the rows, so:
+   - The Home `WorkUpdateRow` gets a context menu with "Mute notifications" / "Unmute
+     notifications". It also gets the same item as a named accessibility action, because the
+     row is one combined element (`.accessibilityElement(children: .ignore)`).
+   - The Library cover card's existing `.contextMenu` (`BookmarksView.swift:87`) gets the same
+     item on **every non-Local saved card, under every filter**, not only "Updates". That makes
+     Unmute always reachable. Local is excluded from update surfaces, so a Local card shows no
+     item.
+   - The Updates-screen design isn't built. Its trailing-menu item is out of scope here, and AC 7
+     and AC 10 cover only Home and Library.
+   - The in-app control writes through `UpdateStateStore.setMuted`. It doesn't touch pending
+     requests: muting stops *future* scheduling, which is the promise.
+5. **Category registration goes through the scheduling seam.** `NotificationScheduling` gains
+   `setCategories(_:)`, so AC 1 can assert the registered category through the existing fake.
+   `UpdateNotifier.registerCategories()` is called in `MangaCartaApp.init`, next to the
+   delegate assignment, before the scheduler registers.
+6. **The background UI test can't use `simctl push`, and the cold path can't be hermetic.** An
+   XCUITest runs on the device side and has no host shell, so it can't call `xcrun simctl`. A
+   cold background launch also starts the app with **no** launch arguments, so the
+   `-uitest-updates-state` fixture wouldn't apply. The action would run against the simulator's
+   real stores. So:
+   - **AC 9** (`UpdatesUITests.testDeliveredNotificationMarkReadAction`) uses a new fixture state,
+     `notification-actions`. It seeds one Work with chapters 1–3 and discovered {2, 3}, then
+     schedules a real local notification through `UpdateNotifier.schedule` with a short
+     time-interval trigger, carrying captured ordinal {2}. The test sends the app to the
+     background, finds the banner through SpringBoard, expands it and taps "Mark Read". It
+     asserts the app never came to the foreground. Then it activates the app (same process, no
+     relaunch) and asserts chapter 2 is read and 3 is still new. If permission hasn't been
+     decided, the test taps the system "Allow" alert. That's always true on CI's fresh simulator.
+   - **Cold composition** is proven by the unit test of AC 8
+     (`AppCompositionTests.testColdNotificationActionUsesComposedGraph`). It builds a fresh
+     `AppComposition` over stores persisted by an earlier one, drives the action through
+     `notificationDelegate.receive(actionIdentifier:userInfo:completion:)`, and asserts the
+     effect landed in the composed stores and on disk.
+   - A manual `simctl push` cold-launch check on the seeded simulator joins the deferred testing
+     list in the handoff. It uses the payload in the handoff's 2026-10-07 note, plus
+     `aps.category`.
+   - The time-trigger fixture is `#if DEBUG` and runs only under `-uitest-updates-state
+     notification-actions`.
+7. **Test names follow each framework.** The unit suites named in the ACs are Swift Testing
+   (`UpdateNotifierTests`, `UpdateStateStoreTests`) and keep their names exactly.
+   `NotificationActionTests` is a new Swift Testing suite in a new file (added with `xcp`).
+   `AppCompositionTests`, `UpdatesUITests` and `AccessibilityAuditUITests` are XCTest, so their
+   names get the `test` prefix: `testColdNotificationActionUsesComposedGraph`,
+   `testUnmuteRestoresFutureNotifications`, `testDeliveredNotificationMarkReadAction`,
+   `testNotificationMuteControlsAreAccessible`. AC 7's "the next event is scheduled and old ones
+   are not replayed" can't be observed from a UI test, so it also gets a unit test,
+   `UpdateNotifierTests.unmuteSchedulesNextEventWithoutReplay`. The UI test proves the control
+   toggles the row's persisted "Muted" state from both surfaces.
+
+Unchanged and confirmed: `UpdateEvent` is still built in `LibraryRefreshCoordinator.step()` with
+the uncapped `released` set in hand; `setMuted`, `clearNewlyDiscovered(workId:)`, `forget`, and
+`flush()` exist as described; `FulfillmentCoordinator.chosenListing(for:)` is cache-only and
+honors the pin; `HistoryStore.markRead(manga:chapters:)` is one save and idempotent; there is
+still no `setNotificationCategories`, action identifier, or `.apns` file in the repository.
