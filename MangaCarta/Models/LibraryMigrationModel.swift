@@ -203,19 +203,15 @@ final class LibraryMigrationModel: ObservableObject {
         }
         rows[index].choices = choices
         rows[index].choiceDetails = details
-        let pickable = details.filter { !$0.row.wasRemovedEarlier && $0.otherWorkId == nil }
-        let usable = pickable.filter {
-            $0.row.grade != .ungraded && $0.row.grade != .differentEntry
+        let usable = details.filter { choice in
+            choice.row.grade != .ungraded && choice.row.grade != .differentEntry &&
+                !choice.row.wasRemovedEarlier && choice.otherWorkId == nil
         }
         let oneLikely = usable.count == 1 && usable[0].row.grade == .likely &&
             details.filter { $0.row.grade == .differentEntry }.isEmpty
         if usable.count == 1 && (usable[0].row.grade == .sameEntry || oneLikely) {
             rows[index].status = .ready; rows[index].chosen = usable[0].row; rows[index].isTicked = true
-        } else if pickable.isEmpty {
-            rows[index].status = .notFound; rows[index].isTicked = false
-        } else {
-            rows[index].status = .needsPick; rows[index].isTicked = false
-        }
+        } else { rows[index].status = .needsPick; rows[index].isTicked = false }
     }
 
     private func countReadyRows() async {
