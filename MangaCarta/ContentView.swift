@@ -29,9 +29,17 @@ extension EnvironmentValues {
 }
 
 struct ContentView: View {
-    @State private var selectedTab: AppTab = .home
+    @State private var selectedTab: AppTab = Self.initialTab
     @EnvironmentObject private var localImporter: LocalImportViewModel
     @EnvironmentObject private var workNavigator: WorkNavigator
+
+    private static var initialTab: AppTab {
+#if DEBUG
+        return LibraryMigrateUITestFixture.isRequested ? .bookmarks : .home
+#else
+        return .home
+#endif
+    }
 
     var body: some View {
         Group {
