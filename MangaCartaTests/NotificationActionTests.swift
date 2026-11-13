@@ -100,24 +100,7 @@ final class NotificationActionTests {
             : f.save("failing", chapters: 2)
         f.absorb(work, through: 0)
         f.absorb(work, through: 2)
-        var action = Action.markRead
-        var info = f.payload(work, ordinals: ["1", "2"])
-
-        switch failure {
-        case .fetchThrows: f.source.fails = true
-        case .cancelled: f.source.cancels = true
-        case .missingWork: info = f.payload(WorkID(), ordinals: ["1"])
-        case .unsavedWork: f.library.toggle(f.manga("failing"))
-        case .noRegisteredListing: break
-        case .missingOrdinal: info = f.payload(work, ordinals: ["1", "2", "7"])
-        case .malformedOrdinals: info = f.payload(work, ordinals: ["two"])
-        case .emptyOrdinals: info = f.payload(work, ordinals: [])
-        case .malformedWorkId: info = [UpdateNotifier.workIdUserInfoKey: "not-a-uuid"]
-        case .unknownAction: action = .unknown
-        case .muteUnsavedWork:
-            action = .mute
-            f.library.toggle(f.manga("failing"))
-        }
+        let (action, info) = arrange(failure, work: work, in: f)
         let before = f.updates.state(for: work)
         let marksBefore = f.readMarks()
         #expect(before?.newlyDiscovered.count == 2, "precondition: two discoveries to protect")
@@ -134,6 +117,32 @@ final class NotificationActionTests {
         #expect(f.readMarks() == marksBefore)
         #expect(f.updates.state(for: work) == before)
         #expect(f.center.removed.isEmpty)
+    }
+
+    /// Sets up one failure and returns the action and payload that should hit it.
+    private func arrange(_ failure: Failure, work: WorkID,
+                         in f: Fixture) -> (Action, [AnyHashable: Any]) {
+        switch failure {
+        case .fetchThrows: f.source.fails = true
+        case .cancelled: f.source.cancels = true
+        case .unsavedWork, .muteUnsavedWork: f.library.toggle(f.manga("failing"))
+        default: break
+        }
+        let action: Action = failure == .unknownAction ? .unknown
+            : failure == .muteUnsavedWork ? .mute : .markRead
+        return (action, payload(for: failure, work: work, in: f))
+    }
+
+    private func payload(for failure: Failure, work: WorkID,
+                         in f: Fixture) -> [AnyHashable: Any] {
+        switch failure {
+        case .missingWork: f.payload(WorkID(), ordinals: ["1"])
+        case .missingOrdinal: f.payload(work, ordinals: ["1", "2", "7"])
+        case .malformedOrdinals: f.payload(work, ordinals: ["two"])
+        case .emptyOrdinals: f.payload(work, ordinals: [])
+        case .malformedWorkId: [UpdateNotifier.workIdUserInfoKey: "not-a-uuid"]
+        default: f.payload(work, ordinals: ["1", "2"])
+        }
     }
 
     // MARK: - Owner decision 3, aliases, retries
