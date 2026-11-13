@@ -86,8 +86,13 @@ final class WorkSourcesCoordinatorMigrateTests: XCTestCase {
         XCTAssertNotNil(f.library.item(for: ListingKey(f.b)))
     }
     func testChapterReadOnOldSourceStillReadAfterRemove() async {
-        let f = fixture(); let result = await f.coordinator.migrate(f.work, to: f.b, from: "a", removingOld: true)
+        let f = fixture()
+        let history = HistoryStore(defaults: defaults, works: f.works)
+        history.record(manga: f.a, chapter: Chapter(id: "a7", number: "7", title: nil),
+                       position: ReadingPosition(page: 4), pageCount: 5)
+        let result = await f.coordinator.migrate(f.work, to: f.b, from: "a", removingOld: true)
         XCTAssertEqual(result, .migrated)
+        XCTAssertTrue(history.isRead(Chapter(id: "b7", number: "7", title: nil), in: f.b))
     }
     func testMigrateMakesNoNetworkCall() async {
         let f = fixture(); let result = await f.coordinator.migrate(f.work, to: f.b, from: "a", removingOld: false)
