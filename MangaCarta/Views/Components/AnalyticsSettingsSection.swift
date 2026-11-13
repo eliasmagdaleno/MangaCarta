@@ -83,6 +83,7 @@ private struct AnalyticsSentView: View {
                     .font(.system(.footnote, design: .monospaced))
                     .textSelection(.enabled)
                     .accessibilityLabel("Analytics ID")
+                    .accessibilityValue(analytics.installID?.uuidString ?? "None yet")
                     .accessibilityIdentifier("analyticsInstallID")
             }
         }
