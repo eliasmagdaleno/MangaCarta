@@ -103,6 +103,16 @@ final class UpdateStateStore: ObservableObject {
         markDirty()
     }
 
+    func clearNewlyDiscovered(_ ordinals: Set<ChapterOrdinal>, workId: WorkID) {
+        loadIfNeeded()
+        guard var state = states[workId] else { return }
+        let remaining = state.newlyDiscovered.subtracting(ordinals)
+        guard remaining != state.newlyDiscovered else { return }
+        state.newlyDiscovered = remaining
+        states[workId] = state
+        markDirty()
+    }
+
     func setMuted(_ isMuted: Bool, workId: WorkID) {
         loadIfNeeded()
         var state = states[workId] ?? WorkUpdateState()

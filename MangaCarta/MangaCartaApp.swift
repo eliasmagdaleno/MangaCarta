@@ -200,6 +200,7 @@ struct MangaCartaApp: App {
         _notificationPrompt = StateObject(wrappedValue: composed.notificationPrompt)
         // Before launch finishes, so a tap that launched the app is delivered (ADR-0021).
         UNUserNotificationCenter.current().delegate = composed.notificationDelegate
+        composed.notifier.registerCategories()
         self.extensions = composed.extensions
         self.extensionStorageError = composed.extensionStorageError
         self.imageCache = composed.imageCache

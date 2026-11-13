@@ -378,6 +378,7 @@ private final class FakeNotificationCenter: NotificationScheduling {
     }
     func add(_ request: UNNotificationRequest) async { requests.append(request) }
     func removePending(withIdentifiers identifiers: [String]) { removed.append(identifiers) }
+    func setCategories(_ categories: Set<UNNotificationCategory>) {}
 }
 
 private struct NoticeSource: MangaSource {

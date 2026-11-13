@@ -424,6 +424,32 @@ final class AppCompositionTests: XCTestCase {
         XCTAssertEqual(composition.workNavigator.requestedWork, workId)
     }
 
+    func testNotificationActionSurvivesWithOnlyTheDelegateHeld() async throws {
+        var delegate: UpdateNotificationDelegate!
+        var workID: WorkID!
+        do {
+            let composition = makeComposition()
+            let manga = savedManga("delegate-lifetime")
+            composition.library.toggle(manga)
+            workID = try XCTUnwrap(composition.works.workId(for: ListingKey(manga)))
+            composition.updates.absorb(workId: workID,
+                                       listing: ListingKey(manga), rawNumbers: ["1"], now: Date())
+            composition.updates.flush()
+            delegate = composition.notificationDelegate
+        }
+
+        var completed = false
+        delegate.receive(actionIdentifier: UpdateNotifier.muteActionIdentifier,
+                          userInfo: [UpdateNotifier.workIdUserInfoKey: workID.raw.uuidString]) {
+            completed = true
+        }
+        let didComplete = await waitUntil { completed }
+        XCTAssertTrue(didComplete)
+        let fresh = UpdateStateStore(directory: directory,
+                                     works: WorkStore(directory: directory))
+        XCTAssertTrue(fresh.state(for: workID)?.isMuted == true)
+    }
+
     /// #343: a notification posted by the foreground pass is shown while the app is open.
     func testForegroundNotificationsPresentAsBannerAndList() {
         XCTAssertEqual(UpdateNotificationDelegate.foregroundPresentationOptions, [.banner, .list])
@@ -485,4 +511,5 @@ private final class PromptTestNotificationCenter: NotificationScheduling {
     }
     func add(_ request: UNNotificationRequest) async {}
     func removePending(withIdentifiers identifiers: [String]) {}
+    func setCategories(_ categories: Set<UNNotificationCategory>) {}
 }

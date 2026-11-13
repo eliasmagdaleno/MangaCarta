@@ -113,6 +113,7 @@ struct AppComposition {
     /// Set as `UNUserNotificationCenter.current().delegate` at launch; held here because
     /// that property is weak.
     let notificationDelegate: UpdateNotificationDelegate
+    let notificationActions: NotificationActionHandler
 
     /// The one attempt memory. Exposed because it is *shared* — see `init` — and a shared
     /// instance is exactly the kind of thing a test needs to reach to prove the sharing.
@@ -395,9 +396,14 @@ struct AppComposition {
         let refreshCoordinator = LibraryRefreshCoordinator(
             works: wk, library: lib, history: hist, updates: updateState, registry: resolvedRegistry)
         lib.configureRefreshCoordinator(refreshCoordinator)
+        let fulfillmentParts = Self.makeFulfillment(works: wk, registry: resolvedRegistry,
+                                                     defaults: defaults, countDirectory: listingCountDirectory)
+        let composedFulfillment = fulfillmentParts.2
+        let resolvedNotifications = notifications ?? UNUserNotificationCenterAdapter()
         let navigator = WorkNavigator()
-        let updateNotifier = UpdateNotifier(notifications: notifications,
+        let updateNotifier = UpdateNotifier(notifications: resolvedNotifications,
                                             updates: updateState, works: wk, library: lib,
+                                            registry: resolvedRegistry,
                                             defaults: defaults,
                                             openWork: { navigator.open($0) })
         // ADR-0021: the first save explains notifications before the system asks (#356).
@@ -414,8 +420,14 @@ struct AppComposition {
         lib.configureWorkSaved { [weak analytics] manga, workID in
             analytics?.workSaved(manga: manga, workID: workID)
         }
+        let actionHandler = NotificationActionHandler(works: wk, history: hist, updates: updateState,
+                                                       library: lib, fulfillment: composedFulfillment,
+                                                       registry: resolvedRegistry,
+                                                       notifications: resolvedNotifications)
         let notificationDelegate = UpdateNotificationDelegate(handleResponse: { [weak updateNotifier] in
             updateNotifier?.handleResponse(userInfo: $0)
+        }, handleAction: { action, info, completion in
+            actionHandler.handle(actionIdentifier: action, userInfo: info, completion: completion)
         })
         let updateScheduler = UpdateScheduler(
             coordinator: refreshCoordinator,
@@ -524,6 +536,7 @@ struct AppComposition {
         self.notificationPrompt = notificationPrompt
         self.workNavigator = navigator
         self.notificationDelegate = notificationDelegate
+        self.notificationActions = actionHandler
         self.scheduler = updateScheduler
         self.engine = rec
         self.vocabularyStore = vocab
@@ -539,9 +552,7 @@ struct AppComposition {
         self.malSourceChoiceStore = malSourceChoiceStore
         self.malDetailFetch = malDetailFetch
         self.entityResolutionStore = entityResolutionStore ?? .shared
-        (self.listingCounts, self.sourcePreferences, self.fulfillment) =
-            Self.makeFulfillment(works: wk, registry: self.registry, defaults: defaults,
-                                 countDirectory: listingCountDirectory)
+        (self.listingCounts, self.sourcePreferences, self.fulfillment) = fulfillmentParts
         self.workSources = Self.makeWorkSources(works: wk, preferences: self.sourcePreferences,
                                                 fulfillment: self.fulfillment, library: lib,
                                                 malChoices: malSourceChoiceStore, updates: updateState)
