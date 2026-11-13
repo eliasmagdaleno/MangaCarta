@@ -18,22 +18,23 @@ Merged, branches deleted unless noted:
 so **neither has a PR**, and neither finished its final UI run. Both sessions' own handoffs call their work "in
 review"; that is not true yet. Each branch carries its own replacement handoff (see "Resuming" below).
 
-### Notification actions — not pushed, final UI run unfinished
-Session: "Build notification actions (Codex Luna via Orca)" in Claude Desktop. Branch
+### Notification actions — in review (its PR), verified
+Session: "Build notification actions (Codex Luna via Orca)" in Claude Desktop, resumed 2026-11-12 night. Branch
 `eliasmagdaleno/notification-actions`, worktree `~/orca/workspaces/Manga-Reader/notification-actions` (holds an
 untracked `Secrets.xcconfig` — never commit it). Commits on top of `main`: design Amendment 1 (`287cc6a`), service
 layer (`d7066a6`), tests (`2456401`), a merge of #400 (`b422ed7`), Mute/Unmute in Home update rows and Library cards
-plus a delivered-notification UI test (`02057ea`), a lint split (`eafadde`).
-- **Verified:** turn 1's five mutations red (after a broken mutation script was fixed and re-run); full unit suite
-  green (1,182 XCTest, 5 skipped; 381 Swift Testing).
-- **Not verified:** the 9 CI-gated hermetic UI suites with `MAL_CLIENT_ID = ci-placeholder`. They were running on the
-  session's own simulator `DC07F0A8-F826-443C-BCF6-79F1F0DA588D` ("NA-UI iPhone 17 Pro") when it stopped. Turn 2
-  (`02057ea`: Mute/Unmute UI, fixture, UI test) has had no coordinator mutations yet.
-- **Uncommitted:** its handoff (`2026-11-12-notification-actions.md`, staged, with the archive move).
-- **To finish:** review `02057ea` against the design; mutations of your own on turn 2; the 9-suite UI run; replace
-  its handoff per "Resuming"; push; PR. Orca worker `ctx_aa858603949f` (run `run_ba493a4ffb2e`) and coordinator
-  terminal `term_905717d4-1add-40b6-b59e-f1f12a07901c`. After `MERGED`: release, close, remove worktree, delete local
-  branch, ask before the remote one, and delete the extra simulator unless it has become useful.
+plus a delivered-notification UI test (`02057ea`), a lint split (`eafadde`), a merge of #401.
+- **Verified:** turn 1's five mutations red; turn 2 reviewed against Amendment 1, and five coordinator-chosen
+  mutations on it all red (row label off the link content; context menu deleted; card item gated on the Updates
+  filter; card's muted value blanked; Mark Read ignoring the captured ordinals, which `NotificationActionTests` also
+  catches). The 9 CI-gated hermetic UI suites with `MAL_CLIENT_ID = ci-placeholder`: 49/49 passed, on the session's
+  own simulator `DC07F0A8-F826-443C-BCF6-79F1F0DA588D` ("NA-UI iPhone 17 Pro"). Full unit suite green (1,182 XCTest,
+  5 skipped; 381 Swift Testing in 52 suites). SwiftLint 0, no `swiftlint:disable`.
+- **Not verified:** CI's iOS 26.2 for `testDeliveredNotificationMarkReadAction`, which drives SpringBoard (banner
+  long-press, "Mark Read"). It passes on 26.5; if it goes red only on CI, suspect the 26.2 scroll-to-visible quirk
+  first (tap by coordinate).
+- **After `MERGED`:** remove the worktree, delete the local branch, ask before the remote one, and delete the `NA-UI
+  iPhone 17 Pro` simulator.
 
 ### Vector PDF slice 1 — not pushed, second full UI run unfinished
 Session: "Build vector PDF reader (Codex Luna via Orca)" in Claude Desktop. Branch `eliasmagdaleno/vector-pdf-slice1`,
