@@ -80,8 +80,10 @@ final class WorkSourcesCoordinatorMigrateTests: XCTestCase {
         XCTAssertNotNil(f.library.item(for: ListingKey(f.a)))
     }
     func testMigratedTitleStaysInRefreshQueue() async {
-        let f = fixture(); let result = await f.coordinator.migrate(f.work, to: f.b, from: "a", removingOld: true)
+        let f = fixture(); f.library.toggle(f.a)
+        let result = await f.coordinator.migrate(f.work, to: f.b, from: "a", removingOld: true)
         XCTAssertEqual(result, .migrated)
+        XCTAssertNotNil(f.library.item(for: ListingKey(f.b)))
     }
     func testChapterReadOnOldSourceStillReadAfterRemove() async {
         let f = fixture(); let result = await f.coordinator.migrate(f.work, to: f.b, from: "a", removingOld: true)
