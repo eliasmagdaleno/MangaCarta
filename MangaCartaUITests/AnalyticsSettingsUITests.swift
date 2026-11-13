@@ -17,6 +17,10 @@ final class AnalyticsSettingsUITests: XCTestCase {
         assertEqualButtonFrames(app.buttons["analyticsNotice.accept"], app.buttons["analyticsNotice.decline"])
         attach("notice-asking", app)
 
+        openSettings(app)
+        let undecidedToggle = app.switches["analyticsToggle"]
+        XCTAssertTrue(undecidedToggle.waitForExistence(timeout: 10))
+        XCTAssertEqual(undecidedToggle.value as? String, "0")
         openWhatIsSent(app)
         XCTAssertFalse(app.descendants(matching: .any)["analyticsEventRow"].exists)
         XCTAssertEqual(app.staticTexts["analyticsInstallID"].value as? String, "None yet")

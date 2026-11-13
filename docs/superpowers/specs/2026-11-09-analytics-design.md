@@ -822,9 +822,8 @@ slice 1 is built. Every decision above, and every owner decision, stands.
    - any `-uitest-` launch argument **other than** `-uitest-analytics-*` hides the notice, and consent stays
      undecided, so nothing is recorded;
    - `-uitest-analytics-region <code>` stands in for the storefront and selects an isolated defaults suite and
-     analytics directory;
-   - `-uitest-analytics-reset` clears both at launch, so a test can then relaunch without it and see the
-     notice persist.
+     data directory, keyed by `MANGACARTA_UI_TEST_STORAGE_ID` as the other fixtures are: fresh on a new id, kept
+     across relaunches with the same id, so a test can relaunch and see the notice persist.
    Slice 1 has no transport at all, so AC 13's "no-op transport" is moot until slice 2.
 7. **The region is async.** `Storefront.current` is read in a launch task. Until it answers, the card asks (the
    EU row, fail closed). It never changes whether data flows, which is decided by consent alone (§5.2).
