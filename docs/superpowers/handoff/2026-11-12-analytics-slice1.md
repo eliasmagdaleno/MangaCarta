@@ -15,7 +15,7 @@ Merged, branches deleted unless noted:
   `~/orca/workspaces/Manga-Reader/detail-sections` removed, local and remote `eliasmagdaleno/detail-sections` deleted.
 - **#398's branch `docs/analytics-decisions` still exists locally and on the remote.** It is merged; deleting the
   remote branch needs the owner's yes (classifier-blocked otherwise).
-- **#PRNUM, analytics slice 1** (branch `eliasmagdaleno/analytics-slice1`, worktree
+- **#399, analytics slice 1** (branch `eliasmagdaleno/analytics-slice1`, worktree
   `~/orca/workspaces/Manga-Reader/analytics-slice1`, which holds an untracked `Secrets.xcconfig` — never commit it).
   Open for the owner to merge; not merged unasked. What it is: design Amendment 1 (the "Current code" table rechecked
   against `main`), then consent model and region table, events/wire form, eligibility, 500-event buffer, recorder
