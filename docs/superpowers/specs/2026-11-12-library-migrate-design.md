@@ -356,3 +356,52 @@ how slice 1 is built:
    survives (step 2), and the item would lose B's cover. So the order is add, pin, **re-point to B with B's cover**,
    then remove A's copies. The cleanup then finds no item on A and leaves it alone. Add still comes before remove, so
    the last-copy refusal is still never met.
+
+## Amendment 2 (2026-11-12): slice 2 rechecked against slice 1 (#404)
+
+The claims slice 2 depends on were checked against `eliasmagdaleno/migrate-slice1` at `767d922`, which is `main` plus
+#404. Still true: `SourceTitleSearch.search(spellings:sourceIDs:excluding:stopWhen:)` limits itself to four requests
+per call and pauses its 8-second clock while a Cloudflare challenge is showing; `SourceMatchGrader.grade` is shared;
+`WorkSourcesCoordinator.migrate` adds, pins, re-points and removes for one title and fetches nothing;
+`WorkStore.flush()` exists; and the Library does not hide adult Sources' titles, so a hidden adult Source can still
+be a From. Eight points change how slice 2 is built.
+
+1. **A cancelled search reports `.failed`.** `SourceTitleSearch` turns a `CancellationError` into
+   `Result.failed`, the same value as a real failure. The model must decide "Not searched" from its **own** cancel
+   state (a flag set by `cancel()`, or `Task.isCancelled` after the call returns), never from the result. Otherwise
+   every title that was in flight at Cancel lands in "Couldn't check". `testCancelKeepsResultsAndWritesNothing` also
+   asserts that the in-flight titles are "Not searched".
+2. **An empty outcome list means B couldn't be asked.** `search` returns `[]` when B isn't among
+   `visibleSources(includeAdult:)`, for example when B was disabled after the sheet opened. That is "Couldn't check",
+   not "Not found on B". Test: `testUnavailableTargetIsCouldNotCheck`.
+3. **The count loader counts only three.** `MALHubChapterCountLoader.load(_ mangas:)` counts only the first
+   `countedChoices` (3) and drops the rest. The model calls `load([match])` once per Ready row, through its own limit
+   of four at a time, so every Ready row is counted. Test: `testEveryReadyRowIsCounted`, with five Ready rows.
+4. **"Belongs to another Work" has two causes.** `addListing` refuses a copy that another Work holds, **and** a copy
+   whose MAL id another Work owns. When grading, the model checks both: `works.workId(for: key)` and
+   `works.workId(externalId: ExternalIDs(mal: …))` for the result's MAL id, each other than this title's Work. Either
+   one keeps the row out of Ready. Otherwise the row is pre-ticked and then skipped on apply. Test:
+   `testMatchWhoseMalIdAnotherWorkOwnsIsNeverReady`.
+5. **Spellings and the MAL id come from the Work, not from `AddSourceModel`.** `spellingsForWork()` is private and
+   keyed on the listing the detail page opened. The model builds its own: the Work's `displayTitle`, then its
+   `knownTitles`; for a saved item with no Work, the item's `title`. The grade's reference MAL id is the Work's
+   `externalIds.mal`, or `nil` when there is no Work. A `LibraryItem` has no MAL id. There is no extraction here.
+6. **A dead Source is not in the registry.** `ExtensionSourceRegistrar` registers only active installs, so a
+   disabled or uninstalled From has no `MangaSource`. Its name comes from
+   `RepositoryStore.source(QualifiedSourceID)?.declaration?.name`, then the raw id when there is none. The model
+   takes a name lookup (`(String) -> String?`) injected at construction, with the composition passing the
+   `RepositoryStore`-backed one, and marks the From "Not installed" when `registry.source(id:)` is `nil`. Legacy ids
+   (`InstalledSourceIDMigration.legacyIDs`) and a `nil` `sourceId` are never offered (Non-goals).
+7. **A saved item with no Work, and "Already on B" rows.** A candidate is a Library item whose own Listing is on A,
+   or whose Work has a Listing on A. On apply, an item with no Work gets one through `ensureWork(for:)` with a `Manga`
+   built from the item (`id`, `sourceId`, `title`, `coverURL`), the same way `LocalLibraryDeletion` builds one. An
+   "Already on B" row has a `ListingKey` but no searched `Manga`, so the model builds a target `Manga` from the key,
+   with the Work's display title and a `nil` cover. `migrate` then keeps the item's cover. **Accepted gap:** after a
+   Remove run, such an item shows A's cover until something re-saves it. That needs a fetch, and §6 fetches nothing.
+8. **The Library refresh is `LibraryStore.refresh()`.** It goes through `LibraryRefreshCoordinator.refreshLibrary()`
+   and returns at once when a refresh is already running (`isRefreshing`). **Accepted:** if one is running, the
+   migrated titles' badges appear at the next refresh, not this one. The model calls it after `works.flush()`, through
+   an injected closure so tests can count the call (`testApplyFlushesWorkStore` also asserts one refresh request).
+
+`testApplyRechecksAndReportsSkips` covers both skip reasons `migrate` returns (`.belongsToOtherWork` and
+`.workNotFound`).
