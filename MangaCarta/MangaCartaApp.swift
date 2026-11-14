@@ -94,7 +94,18 @@ struct MangaCartaApp: App {
         }
         analyticsRegion = nil
 #if DEBUG
-        if let region = AnalyticsUITestFixture.region {
+        if LibraryMigrateUITestFixture.isRequested {
+            let storage = LibraryMigrateUITestFixture.storage()
+            defaults = storage.defaults
+            directory = storage.directory
+            fixtureCountDirectory = storage.directory.appendingPathComponent("ListingCounts")
+            updateRegistry = LibraryMigrateUITestFixture.registry(defaults: defaults)
+            fixtureDetailFetch = { id in
+                MyAnimeListMangaDetail(id: id, title: "Fixture title", synopsis: "", mainPicture: nil,
+                                       genres: [], relatedManga: [], recommendations: [], nsfw: .white,
+                                       alternativeTitles: .init(synonyms: [], en: nil, ja: nil))
+            }
+        } else if let region = AnalyticsUITestFixture.region {
             let storage = AnalyticsUITestFixture.storage()
             defaults = storage.defaults
             directory = storage.directory
@@ -179,6 +190,9 @@ struct MangaCartaApp: App {
 #if DEBUG
         if MALHubUITestFixture.state != nil {
             MALHubUITestFixture.seed(composed)
+        }
+        if LibraryMigrateUITestFixture.isRequested {
+            LibraryMigrateUITestFixture.seed(composed)
         }
         if TitleSourcesUITestFixture.isRequested {
             TitleSourcesUITestFixture.seed(composed)

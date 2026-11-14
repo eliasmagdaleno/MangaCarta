@@ -33,15 +33,17 @@ Merged, branches deleted unless noted:
   local branch are removed.
 - Orca worker `ctx_7a3d8ccb0435` reported `retained` on release; it has no live process. Leave it.
 
-### Migrate slice 3 (UI) — building in its own session
-Session "Build Migrate slice 3 UI (Codex Luna via Orca)" (`local_66226106-71f6-4d7b-8b11-5b1414ebd459`) in Claude
-Desktop, started 2026-11-12 ~22:56 and gated on #406 merging (it merged ~23:20). It dispatches a Codex `gpt-6-luna`
-worker through Orca into its own `migrate-slice3` worktree, reviews it, and opens the slice 3 PR. Its spec covers the
-More menu, the From/To sheet, the review screen, the picker, the keep/remove dialog, the summary, the
-`-uitest-library-migrate` fixture, `LibraryMigrateUITests`, and the CI hermetic-list entry. It uses the `MIG iPhone 17
-Pro` simulator (`934F7792-FE9D-409A-B2C8-088EDB49CBF5`) only. **Check that session and `gh pr list` before
-starting any Migrate work here.** Its PR edits this section to "in review". After it merges: remove the worktree and
-local branch, ask before the remote one, and delete the MIG simulator.
+### Migrate slice 3 (UI) — in review (its PR)
+Branch `eliasmagdaleno/migrate-slice3`, worktree `~/orca/workspaces/Manga-Reader/migrate-slice3` (untracked
+`Secrets.xcconfig`, never commit it). Built by a Codex `gpt-6-luna` worker through Orca (dispatches `ctx_ea7d3ed4808c`
+and its follow-ups, run `run_030ae74a0fcd`, coordinator terminal `term_6d51b07e-fcb6-4937-ad78-597812db551c`) and
+reviewed by Claude. The More menu, `LibraryMigrateSheet` (From/To, progress, review groups, picker, keep/remove
+dialog, summary), the `-uitest-library-migrate` fixture, `LibraryMigrateUITests` (5), and the CI hermetic-list entry.
+The PR body has the verification. Review caught a CI-list line missing its `\` (the new suite would never have run)
+and two UI assertions that could pass vacuously.
+**After it merges:** remove the worktree and local branch, ask before the remote one, release the Orca worker, close the
+coordinator terminal, and delete the `MIG iPhone 17 Pro` simulator (`934F7792-FE9D-409A-B2C8-088EDB49CBF5`). Migrate is
+then complete.
 
 **Working tree:** `MangaCarta/Info.plist` may still carry an uncommitted Xcode rewrite that drops
 `LSSupportsOpeningDocumentsInPlace` (#294). Never commit it as is. `stash@{0}` and `stash@{1}` are old Xcode churn and
