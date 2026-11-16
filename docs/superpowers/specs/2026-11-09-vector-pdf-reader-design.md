@@ -447,3 +447,32 @@ are settled for slice 2:
    group). `ReaderPage` is `Equatable, Sendable` and carries no PDFKit object. `MangaSource` is not changed.
 
 Slice 2's acceptance: criterion 2's reference half, criterion 4's reference half, and criterion 5.
+
+## Amendment 3 (2026-11-15): slice 3 rechecked against `main` after #410
+
+Slice 2 (#410) left `ReaderViewModel.pages` as `[ReaderPage]` and an `UndrawnPDFPage` placeholder at both
+`ReaderView` call sites. `ZoomableContainer` (`Components/ZoomableContainer.swift`) zooms by scaling a
+`UIHostingController`'s view inside a `UIScrollView`, 1×–4×, and re-roots the hosted view when `contentID`
+changes. Five things are settled for slice 3:
+
+1. **Draw the Core Graphics page, not the PDFKit page.** `CATiledLayer` draws tiles on several background
+   threads at once, and PDFKit's `PDFPage` is not documented as safe for that (and `PDFDocument.write` already
+   failed under concurrency in this repository's tests). The canvas draws `pdfPage.pageRef` (`CGPDFPage`),
+   which Core Graphics can draw from any thread, using `CGPDFPage.getDrawingTransform(.cropBox, rect:,
+   rotate: 0, preserveAspectRatio: true)`, which applies the crop box and the page's `/Rotate`. This replaces
+   §3's `PDFPage.draw(with:to:)`.
+2. **The leaf takes a `ReaderPage`.** `ZoomablePage` takes `page: ReaderPage` and switches *inside* the
+   `ZoomableContainer`: `.image` is today's `CachedAsyncImage` content, `.pdf` is `PDFPageCanvas`. The
+   container, its zoom, double-tap, chrome tap, 1× reset and the page's accessibility label stay as they are
+   for both. `contentID` for a PDF page is `"<documentURL>#<pageIndex>"`.
+3. **Sharp at 4×.** The canvas's `CATiledLayer` sets `levelsOfDetail` and `levelsOfDetailBias` so tiles are
+   redrawn at up to the container's 4× maximum (bias ≥ 2). The zoom transform is on an ancestor view, which
+   `CATiledLayer`'s level-of-detail selection accounts for.
+4. **`PDFDocumentSession`** (`Models/PDFDocumentSession.swift`), `@MainActor`, owned by `ReaderView` for the
+   reader's lifetime. It opens each document URL once and keeps at most two open (the current chapter's and
+   one more, least recently used out), and hands out a page by index. A document that cannot be opened, is
+   locked, or lacks the index gives a failure, which the leaf shows as `UndrawnPDFPage` (no Retry, design §7).
+   Documents are opened lazily on first page request, never all pages at once.
+5. **Webtoon is slice 4.** The webtoon call site keeps `UndrawnPDFPage` in this slice.
+
+What a user sees if only this slice ships: nothing, because PDF imports still default to `.raster`.
