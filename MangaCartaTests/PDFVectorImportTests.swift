@@ -134,6 +134,62 @@ final class PDFVectorImportTests {
         #expect(encodedPDF["pageFiles"] as? [String] == [])
     }
 
+    @Test func testVectorReferencesAreOrderedPDFPages() async throws {
+        let source = try makePDF(named: "sample.pdf", pageCount: 3)
+        let store = vectorStore()
+        let record = try importedRecord(await store.importArchive(at: source))
+        let document = library.appendingPathComponent(record.itemId).appendingPathComponent("document.pdf")
+        #expect(await store.pageReferences(itemId: record.itemId, chapter: 1) == [
+            .pdf(documentURL: document, pageIndex: 0),
+            .pdf(documentURL: document, pageIndex: 1),
+            .pdf(documentURL: document, pageIndex: 2)
+        ])
+    }
+
+    @Test func testVectorReferencesFollowTheCurrentRoot() async throws {
+        let source = try makePDF(named: "sample.pdf", pageCount: 2)
+        let store = vectorStore()
+        let record = try importedRecord(await store.importArchive(at: source))
+        let moved = root.appendingPathComponent("moved-library")
+        try FileManager.default.moveItem(at: library, to: moved)
+        let newStore = LocalLibraryStore(root: moved, pdfImport: .vector)
+        let expected = moved.appendingPathComponent(record.itemId).appendingPathComponent("document.pdf")
+        #expect(await newStore.pageReferences(itemId: record.itemId, chapter: 1) == [
+            .pdf(documentURL: expected, pageIndex: 0), .pdf(documentURL: expected, pageIndex: 1)
+        ])
+    }
+
+    @Test func testLegacyRecordGivesImageReferencesAndIsNotRewritten() async throws {
+        let itemId = "legacy"
+        let item = library.appendingPathComponent(itemId)
+        let pages = item.appendingPathComponent("pages/1")
+        try FileManager.default.createDirectory(at: pages, withIntermediateDirectories: true)
+        try Data([1]).write(to: pages.appendingPathComponent("0001.jpg"))
+        let recordURL = item.appendingPathComponent("item.json")
+        let legacy = #"""
+        {"itemId":"legacy","title":"Legacy","sourceFilename":"old.pdf","sha256":"x","byteSize":1,
+        "importedAt":784000000,"chapters":[{"number":1,"title":"Legacy","pageCount":1,"pageFiles":["0001.jpg"]}]}
+        """#
+        try Data(legacy.utf8).write(to: recordURL)
+        let before = try Data(contentsOf: recordURL)
+        let store = vectorStore()
+        let urls = await store.pageURLs(itemId: itemId, chapter: 1)
+        #expect(await store.pageReferences(itemId: itemId, chapter: 1) == urls.map(ReaderPage.image))
+        #expect(try Data(contentsOf: recordURL) == before)
+    }
+
+    @Test func testUnknownItemOrChapterGivesNoReferences() async {
+        let store = vectorStore()
+        #expect(await store.pageReferences(itemId: "missing", chapter: 1).isEmpty)
+    }
+
+    @Test func testUnknownChapterGivesNoReferences() async throws {
+        let source = try makePDF(named: "sample.pdf", pageCount: 1)
+        let store = vectorStore()
+        let record = try importedRecord(await store.importArchive(at: source))
+        #expect(await store.pageReferences(itemId: record.itemId, chapter: 99).isEmpty)
+    }
+
     // MARK: - Criterion 9: delete
 
     @Test func deletingVectorItemRemovesDocumentAndMetadata() async throws {

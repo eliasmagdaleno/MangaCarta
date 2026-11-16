@@ -413,3 +413,37 @@ criterion 4's decode half (a pre-vector `item.json` decodes as `.images` and is 
 criterion 9's delete half (deleting a vector item removes the document and metadata). Plus: the
 vector path reports exactly two progress milestones, writes a cover at most 512 px on its long edge
 from page one, and never deletes the source file; cancellation still leaves nothing behind.
+
+## Amendment 2 (2026-11-15): slice 2 rechecked against `main` at `357d80b`
+
+Every claim slice 2 depends on was grepped on `main` at `357d80b` (after Migrate slice 3, #408). Slice 1's
+`LocalPageStorage` is at `MangaCarta/Models/LocalItemRecord.swift:4-30`; `LocalLibraryStore` is an `actor`
+(`LocalLibraryStore.swift:55`) whose `pageURLs(itemId:chapter:)` returns `[]` for a `.pdf` chapter (`:343-348`);
+`LocalSource` is a `struct` (`LocalSource.swift:3`) whose `pageURLs` throws on an empty result (`:63-69`);
+`ReaderViewModel.pages` is `[URL]` (`ReaderViewModel.swift:43`), its prefetch closure is
+`([URL], Int, ImageLoadReportTarget?) -> Void` (`:71`, five test call sites), and `fetchPages` is `:189-193`.
+`ReaderView` reads `vm.pages` at `:232`, `:330`, `:482-487`, `:500-502`, `:529` and `:543-548`. Six things
+are settled for slice 2:
+
+1. **Slice 2 changes the view model's state, not the leaf views.** `ReaderViewModel.pages` becomes
+   `[ReaderPage]`. `ZoomablePage` and `WebtoonPage` keep taking a `URL` until slice 3. `ReaderView` switches
+   at its two call sites: `.image(url)` goes to the existing view unchanged; `.pdf` shows the existing
+   permanent page-load failure treatment. **Nothing a user sees changes**, because production imports stay
+   `.raster` (Amendment 1 item 1), so no `.pdf` chapter exists outside tests.
+2. **The prefetch closure keeps its `[URL]` type.** The view model passes only the `.image` URLs and does
+   not call prefetch when there are none. PDF pages never enter `ImageCache` (design §2).
+3. **`LocalLibraryStore.pageReferences(itemId:chapter:) -> [ReaderPage]`:** `.images` gives the same URLs
+   as `pageURLs`, wrapped in `.image`; `.pdf(documentFilename:)` gives `pageCount` references
+   `.pdf(documentURL: root/<itemId>/<documentFilename>, pageIndex: 0..<pageCount)`, built from the store's
+   current root at call time. It does not open the PDF; the count is the one recorded at import. An unknown
+   item or chapter gives `[]`.
+4. **`LocalSource` conforms to `VectorPageProviding`.** `pageReferences(chapterId:)` parses the chapter id
+   exactly as `pageURLs` does and throws `SourceError.extractionFailed` on a malformed id or an empty result.
+   `pageURLs` is unchanged.
+5. **One seam in the view model.** `fetchPages` asks `source as? VectorPageProviding` for references, and
+   otherwise maps `pageURLs` to `.image`. An empty result is still `ReaderError.noPages`. Landing, advance,
+   retreat and progress use `pages.count` exactly as today.
+6. **`ReaderPage` and `VectorPageProviding` live in `MangaCarta/Models/ReaderPage.swift`** (a synchronized
+   group). `ReaderPage` is `Equatable, Sendable` and carries no PDFKit object. `MangaSource` is not changed.
+
+Slice 2's acceptance: criterion 2's reference half, criterion 4's reference half, and criterion 5.

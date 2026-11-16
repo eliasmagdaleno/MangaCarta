@@ -480,10 +480,19 @@ struct ReaderView: View {
                     InterstitialPage(chapter: prev, isNext: false)
                         .tag(index)
                 } else if index >= 0, index < vm.pages.count {
-                    ZoomablePage(url: vm.pages[index], index: index, currentIndex: currentPage,
-                                 pageCount: vm.pages.count, reportTarget: vm.reportTarget,
-                                 onTap: toggleChrome)
-                        .tag(index)
+                    Group {
+                        switch vm.pages[index] {
+                        case .image(let url):
+                            ZoomablePage(url: url, index: index, currentIndex: currentPage,
+                                         pageCount: vm.pages.count, reportTarget: vm.reportTarget,
+                                         onTap: toggleChrome)
+                        case .pdf:
+                            UndrawnPDFPage(index: index, pageCount: vm.pages.count)
+                                .contentShape(Rectangle())
+                                .onTapGesture(perform: toggleChrome)
+                        }
+                    }
+                    .tag(index)
                 } else if index == vm.pages.count, let next = vm.nextChapter {
                     InterstitialPage(chapter: next, isNext: true)
                         .tag(index)
@@ -540,10 +549,18 @@ struct ReaderView: View {
                     // reader had not reached, and the max then made that win over the real
                     // position — resuming a full viewport ahead (ADR-0014 decision 7). In
                     // vertical mode the viewport top is the only position feed.
-                    ForEach(Array(vm.pages.enumerated()), id: \.offset) { index, url in
-                        WebtoonPage(url: url, index: index, pageCount: vm.pages.count,
-                                    reportTarget: vm.reportTarget)
-                            .id(index)
+                    ForEach(Array(vm.pages.enumerated()), id: \.offset) { index, page in
+                        Group {
+                            switch page {
+                            case .image(let url):
+                                WebtoonPage(url: url, index: index, pageCount: vm.pages.count,
+                                            reportTarget: vm.reportTarget)
+                            case .pdf:
+                                UndrawnPDFPage(index: index, pageCount: vm.pages.count)
+                                    .frame(height: 460)
+                            }
+                        }
+                        .id(index)
                     }
                     if !vm.pages.isEmpty && !vm.isLoading {
                         if let next = vm.nextChapter {
@@ -844,6 +861,28 @@ private struct WebtoonPage: View {
                                           isDecoded: isDecoded)]
             )
         }
+    }
+}
+
+// MARK: - Undrawn PDF page
+
+/// Stands in for a PDF page until the vector canvas exists (vector PDF design, Amendment 2
+/// item 1). Unreachable in production while PDF imports default to `.raster`. Keeps the
+/// page's VoiceOver label so a page element never loses it. No Retry: retrying can't draw it.
+private struct UndrawnPDFPage: View {
+    let index: Int
+    let pageCount: Int
+
+    var body: some View {
+        Screentone(opacity: 0.5)
+            .overlay(
+                Text("PAGE COULD NOT BE LOADED")
+                    .font(.inkMono(11, weight: .semibold))
+                    .tracking(1.5)
+                    .foregroundStyle(Ink.secondary)
+            )
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(ReaderAccessibility.pageLabel(index: index, pageCount: pageCount))
     }
 }
 

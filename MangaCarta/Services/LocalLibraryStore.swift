@@ -347,6 +347,18 @@ actor LocalLibraryStore {
         return files.map { root.appendingPathComponent(itemId).appendingPathComponent("pages/\(chapter)/\($0)") }
     }
 
+    func pageReferences(itemId: String, chapter: Int) -> [ReaderPage] {
+        guard let record = record(itemId: itemId),
+              let chapterRecord = record.chapters.first(where: { $0.number == chapter }) else { return [] }
+        switch chapterRecord.pageStorage {
+        case .images:
+            return pageURLs(itemId: itemId, chapter: chapter).map(ReaderPage.image)
+        case .pdf(let documentFilename):
+            let documentURL = root.appendingPathComponent(itemId).appendingPathComponent(documentFilename)
+            return (0..<chapterRecord.pageCount).map { .pdf(documentURL: documentURL, pageIndex: $0) }
+        }
+    }
+
     func coverURL(itemId: String) -> URL? {
         let url = root.appendingPathComponent(itemId).appendingPathComponent("cover.jpg")
         return fm.fileExists(atPath: url.path) ? url : nil

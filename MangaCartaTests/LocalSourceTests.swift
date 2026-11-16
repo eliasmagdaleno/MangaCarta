@@ -14,4 +14,9 @@ struct LocalSourceTests {
         let source = LocalSource()
         await #expect(throws: SourceError.self) { try await source.chapters(mangaId: "deleted") }
     }
+
+    @Test func testMalformedChapterIdThrows() async {
+        let source = LocalSource()
+        await #expect(throws: SourceError.self) { try await source.pageReferences(chapterId: "bad-id") }
+    }
 }
