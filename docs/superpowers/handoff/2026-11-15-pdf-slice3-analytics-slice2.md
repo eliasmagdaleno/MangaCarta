@@ -58,6 +58,13 @@ Merged, branches deleted (local and remote) unless noted:
    date. **Check that session and `gh pr list` before any analytics work here.** It must not touch the reader or
    PDF files; PDF work must not touch analytics files.
 
+4. **CI cold-simulator flake — its own Claude Desktop session**, "Fix CI's first-UI-test cold-simulator timeout"
+   (`local_4911e6cc-2aca-46df-b7ba-2875b3e3c58b`), started ~20:50. Twice (#408 run `43394253501`, #412 run
+   `43803195698`) the hermetic job failed only its **first** test, `AccessibilityAuditUITests`, on a freshly booted
+   simulator (a launch timeout, then "Audit failed to complete in time"); reruns passed. The session edits only
+   `ci.yml`'s UI job and that test, without blanket retries. Until it lands, a lone failure of the first test is a
+   rerun (`gh run rerun <id> --failed`), not a regression. #412's rerun was started ~20:50.
+
 **Cleanup owed:** Orca worker `ctx_7a3d8ccb0435` reported `retained` on release earlier; it has no live process.
 Leave it.
 
