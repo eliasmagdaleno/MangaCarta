@@ -29,27 +29,15 @@ Merged, branches deleted (local and remote) unless noted:
    it; Pages is enabled with `build_type: workflow`. Its first CI run needed a rerun (the cold-simulator flake,
    item 4). Still owed: delete the `docs/privacy-pages` branch (ask first). The default Jekyll theme loads
    `anchor.min.js` from cdnjs; a plain theme would remove that third-party request (owner's call).
-2. **Vector PDF slice 3 — Codex `gpt-6-luna` worker via Orca**, dispatched ~20:20 from `main` at `d76220a`.
-   - Run `run_0ddf30a8665d`, task `task_8668817dda20`, dispatch `ctx_21bc1dfd885d`, coordinator terminal
-     `term_53c58795-aaea-493a-9996-c3a6ca9546b6`, worktree `~/orca/workspaces/Manga-Reader/pdf-slice3`,
-     branch `eliasmagdaleno/pdf-slice3`.
-   - The spec (also in the worker's task) commits design **Amendment 3** first: draw `pdfPage.pageRef`
-     (`CGPDFPage`) with `getDrawingTransform(.cropBox…)`, not `PDFPage.draw`, because `CATiledLayer` draws on
-     several background threads; `ZoomablePage` takes a `ReaderPage` and switches inside `ZoomableContainer`;
-     `levelsOfDetailBias ≥ 2`; `PDFDocumentSession` (`@MainActor`, ≤ 2 open documents, LRU); webtoon keeps the
-     placeholder until slice 4. Acceptance names `PDFPageGeometryTests`, `PDFDocumentSessionTests`,
-     `PDFPageCanvasTests`, 7 mutations, both unit counts, the 10 hermetic suites with `ci-placeholder`, and two
-     evidence PNGs (1× and 4×) under `/private/tmp/pdf-slice3-evidence/`.
-   - To collect its report from a new session: `orca orchestration check --terminal
-     term_53c58795-aaea-493a-9996-c3a6ca9546b6 --run run_0ddf30a8665d --wait --timeout-ms 3000000 --json > <file>`
-     in the harness's background mode, parsed with `raw_decode` (see Operating notes). If the terminal handle is
-     gone, `orca orchestration inbox --terminal run:run_0ddf30a8665d --limit 50` shows its mail.
-   - Then review the diff against Amendment 3 (not the report), run a mutation of your own, look at the PNGs,
-     rebase on `main`, push, open the PR. Never stacked.
-   - Simulator: **`PDF2 iPhone 17 Pro` (`06CB4285-0173-4CDB-B844-A539740A7028`)**, reserved for the PDF slices.
-     Keep it until slice 4 merges, then delete it.
-   - After the PR merges: remove the worktree and local branch, ask before the remote one, release the worker
-     (`orca orchestration worker-release --dispatch ctx_21bc1dfd885d`).
+2. **Vector PDF slice 3 is in review as #415** (opened ~21:50, Auto-fix on, not set to auto-merge). Paged mode
+   draws PDF pages through a `CATiledLayer` canvas; design Amendment 3. Review found three bugs the worker's
+   green tests couldn't see (no scale-up via `getDrawingTransform`; a single 4× tile level; `CGPDFPage` outliving
+   its evicted document), all fixed with tests and mutations M8–M10; Claude added a four-rotation corner test
+   (`testPageTopLeftLandsWhereTheRotationPutsIt`) and its mutation. After it merges: remove the worktree
+   `~/orca/workspaces/Manga-Reader/pdf-slice3` and its local branch, ask before deleting the remote
+   `eliasmagdaleno/pdf-slice3`, and release the Orca worker (`orca orchestration worker-release --dispatch
+   ctx_f3bfddd47ab5`; the original dispatch was `ctx_21bc1dfd885d`). Keep the **`PDF2 iPhone 17 Pro`**
+   simulator (`06CB4285-0173-4CDB-B844-A539740A7028`) for slice 4, then delete it.
 3. **Analytics slice 2 — its own Claude Desktop session**, "Build analytics slice 2 (provider integration)"
    (`local_e4018574-f6df-40e1-88a1-4526bb1e8fdb`), started ~20:30 in its own worktree. It writes the Worker,
    D1 schema, `wrangler` config and a setup checklist; **the owner runs every Cloudflare step** (account, login,
