@@ -1,6 +1,9 @@
 # UnRAR licence and default-on analytics consent
 
 > **Research, not legal advice. A qualified lawyer must review before analytics slice 2 ships.**
+>
+> **Superseded on review (2026-11-15):** the owner chose to ship analytics without a legal review and
+> accepts the risk. See the analytics design's Amendment 2 (`docs/superpowers/specs/2026-11-09-analytics-design.md`).
 
 **Checked:** 2026-11-10 (Pacific). Every source below was read that day unless a row says
 otherwise. **Owner:** this document owns the research findings on the UnRAR licence and on consent

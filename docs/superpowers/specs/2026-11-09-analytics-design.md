@@ -839,3 +839,19 @@ slice 1 is built. Every decision above, and every owner decision, stands.
    About. The Privacy section goes between them, as §10.2 says.
 10. **Docs.** The glossary's *avoid* note is now `docs/glossary.md:231`. `PRODUCT.md:38-39` already records the
     consent decision; the link-back replaces both lines with one line pointing here.
+
+## Amendment 2 (2026-11-15): owner decision 8 revised — no legal review
+
+The owner decided on 2026-11-15 to go ahead **without a legal review** and accepts the risk. This revises owner
+decision 8 (2026-11-12). The questions the review was to settle are now answered by the owner:
+
+1. **Switzerland stays in the second row of §5.2** (informed, "OK" / "Turn off"), on the research's reading of
+   TCA 45c. The conditional move back to the first row is dropped; nothing will trigger it.
+2. **"OK" on the informing card is the agreement** for Guideline 5.1.1(ii), as §5.2 already says. The owner
+   was offered consent asked in every region instead and chose to keep the design.
+3. **The 16+ age rating needs no children's-privacy flow.**
+
+**The hosted privacy-policy URL is still required before slice 2 merges.** App Store Connect requires one,
+slice 2's Settings link points at it, and it must state the §10.3 facts. Item 8 of §10.3 ("the reviewer
+confirms Switzerland") now reads: consent is the legal basis everywhere, with Switzerland handled as in item 1.
+Every other owner decision stands.
