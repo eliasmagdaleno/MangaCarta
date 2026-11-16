@@ -487,8 +487,9 @@ struct ReaderView: View {
                                          pageCount: vm.pages.count, reportTarget: vm.reportTarget,
                                          onTap: toggleChrome)
                         case .pdf:
-                            Screentone(opacity: 0.5)
-                                .overlay(Text("PAGE COULD NOT BE LOADED"))
+                            UndrawnPDFPage(index: index, pageCount: vm.pages.count)
+                                .contentShape(Rectangle())
+                                .onTapGesture(perform: toggleChrome)
                         }
                     }
                     .tag(index)
@@ -555,9 +556,8 @@ struct ReaderView: View {
                                 WebtoonPage(url: url, index: index, pageCount: vm.pages.count,
                                             reportTarget: vm.reportTarget)
                             case .pdf:
-                                Screentone(opacity: 0.5)
+                                UndrawnPDFPage(index: index, pageCount: vm.pages.count)
                                     .frame(height: 460)
-                                    .overlay(Text("PAGE COULD NOT BE LOADED"))
                             }
                         }
                         .id(index)
@@ -861,6 +861,28 @@ private struct WebtoonPage: View {
                                           isDecoded: isDecoded)]
             )
         }
+    }
+}
+
+// MARK: - Undrawn PDF page
+
+/// Stands in for a PDF page until the vector canvas exists (vector PDF design, Amendment 2
+/// item 1). Unreachable in production while PDF imports default to `.raster`. Keeps the
+/// page's VoiceOver label so a page element never loses it. No Retry: retrying can't draw it.
+private struct UndrawnPDFPage: View {
+    let index: Int
+    let pageCount: Int
+
+    var body: some View {
+        Screentone(opacity: 0.5)
+            .overlay(
+                Text("PAGE COULD NOT BE LOADED")
+                    .font(.inkMono(11, weight: .semibold))
+                    .tracking(1.5)
+                    .foregroundStyle(Ink.secondary)
+            )
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(ReaderAccessibility.pageLabel(index: index, pageCount: pageCount))
     }
 }
 

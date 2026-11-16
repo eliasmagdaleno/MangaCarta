@@ -56,10 +56,10 @@ final class ReaderPagePipelineTests: XCTestCase {
         XCTAssertEqual(left.pages.count, right.pages.count)
         let clampedImage = ReaderViewModel(manga: manga, chapter: chapters[1], chapters: chapters,
                                            initialPosition: ReadingPosition(page: 9), source: image,
-                                           imageCache: .shared)
+                                           imageCache: .shared, prefetch: { _, _, _ in })
         let clampedVector = ReaderViewModel(manga: manga, chapter: chapters[1], chapters: chapters,
                                             initialPosition: ReadingPosition(page: 9), source: vector,
-                                            imageCache: .shared)
+                                            imageCache: .shared, prefetch: { _, _, _ in })
         await clampedImage.begin()
         await clampedVector.begin()
         XCTAssertEqual(clampedImage.pagerTarget, clampedVector.pagerTarget)
