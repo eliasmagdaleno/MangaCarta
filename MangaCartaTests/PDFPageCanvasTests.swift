@@ -74,6 +74,24 @@ struct PDFPageGeometryTests {
         #expect(abs(mapped.x - bounds.minX) < 0.001)
         #expect(abs(mapped.y - bounds.minY) < 0.001)
     }
+
+    /// `/Rotate` turns the page clockwise. A bounding-box check can't tell a rotation from its mirror, so this
+    /// follows the page's own top-left corner. In the transform's y-up space the displayed top is `maxY`.
+    @Test(arguments: [
+        (0, CGPoint(x: 0, y: 400)),
+        (90, CGPoint(x: 400, y: 300)),
+        (180, CGPoint(x: 300, y: 0)),
+        (270, CGPoint(x: 0, y: 0))
+    ])
+    func testPageTopLeftLandsWhereTheRotationPutsIt(rotation: Int, expected: CGPoint) {
+        let crop = CGRect(x: 10, y: 20, width: 300, height: 400)
+        let displayed = PDFPageGeometry.displayedSize(cropBox: crop, rotation: rotation)
+        let bounds = CGRect(origin: .zero, size: displayed)
+        let transform = PDFPageGeometry.drawingTransform(cropBox: crop, rotation: rotation, in: bounds)
+        let mapped = CGPoint(x: crop.minX, y: crop.maxY).applying(transform)
+        #expect(abs(mapped.x - expected.x) < 0.001)
+        #expect(abs(mapped.y - expected.y) < 0.001)
+    }
 }
 
 @MainActor
