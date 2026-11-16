@@ -481,13 +481,11 @@ struct ReaderView: View {
                     InterstitialPage(chapter: prev, isNext: false)
                         .tag(index)
                 } else if index >= 0, index < vm.pages.count {
-                    Group {
-                        ZoomablePage(page: vm.pages[index], session: pdfSession,
-                                     index: index, currentIndex: currentPage,
-                                     pageCount: vm.pages.count, reportTarget: vm.reportTarget,
-                                     onTap: toggleChrome)
-                    }
-                    .tag(index)
+                    ZoomablePage(page: vm.pages[index], session: pdfSession,
+                                 index: index, currentIndex: currentPage,
+                                 pageCount: vm.pages.count, reportTarget: vm.reportTarget,
+                                 onTap: toggleChrome)
+                        .tag(index)
                 } else if index == vm.pages.count, let next = vm.nextChapter {
                     InterstitialPage(chapter: next, isNext: true)
                         .tag(index)
@@ -792,6 +790,9 @@ private struct ZoomablePage: View {
                 }
             }
         }
+        // A bare page is not a destination: without this the pager had nothing for
+        // VoiceOver to land on, and no way to say where in the chapter it was — which
+        // right-to-left, a *reversed* page order, makes worse (issue #90, checklist 6.5).
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(ReaderAccessibility.pageLabel(index: index, pageCount: pageCount))
     }

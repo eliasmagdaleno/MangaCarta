@@ -269,6 +269,69 @@ struct PDFPageCanvasTests {
         #expect(recorder.transform == expected)
         #expect(recorder.transform != media)
     }
+
+    /// Draws through the production renderer, not a recorder, so the y-axis flip between PDF space
+    /// (y up) and a layer's context (y down, like `UIGraphicsImageRenderer`'s) is under test. The
+    /// fixture's band is at the top of the page as a reader sees it; drawn upside down it lands at
+    /// the bottom.
+    @Test func testPageDrawsRightSideUp() throws {
+        let directory = try makePDFCanvasTestDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("top-band.pdf")
+        let side: CGFloat = 100
+        let data = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: side, height: side)).pdfData { context in
+            context.beginPage()
+            context.cgContext.setFillColor(UIColor.red.cgColor)
+            context.cgContext.fill(CGRect(x: 0, y: 0, width: side, height: 20))
+        }
+        let document = try #require(PDFDocument(data: data))
+        #expect(PDFFixtureWriter.write(document, to: url))
+        let reopened = try #require(PDFDocument(url: url))
+        let page = try #require(reopened.page(at: 0)?.pageRef)
+        let view = PDFPageCanvasView(page: PDFDocumentPage(document: reopened, page: page))
+        view.frame = CGRect(x: 0, y: 0, width: side, height: side)
+
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let image = UIGraphicsImageRenderer(size: view.bounds.size, format: format).image { context in
+            view.draw(view.layer, in: context.cgContext)
+        }
+        let pixels = try #require(RGBAPixels(image))
+
+        #expect(pixels.isRed(x: 50, y: 10), "the band should be at the top")
+        #expect(!pixels.isRed(x: 50, y: 90), "the bottom should be empty")
+    }
+}
+
+/// An image redrawn into a known RGBA8 layout, top row first, so pixels can be read by point.
+private struct RGBAPixels {
+    let width: Int
+    let bytes: [UInt8]
+
+    init?(_ image: UIImage) {
+        guard let cgImage = image.cgImage else { return nil }
+        let width = cgImage.width
+        let height = cgImage.height
+        var buffer = [UInt8](repeating: 0, count: width * height * 4)
+        let drawn = buffer.withUnsafeMutableBytes { raw -> Bool in
+            guard let context = CGContext(data: raw.baseAddress, width: width, height: height,
+                                          bitsPerComponent: 8, bytesPerRow: width * 4,
+                                          space: CGColorSpaceCreateDeviceRGB(),
+                                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
+                return false
+            }
+            context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+            return true
+        }
+        guard drawn else { return nil }
+        self.width = width
+        bytes = buffer
+    }
+
+    func isRed(x: Int, y: Int) -> Bool {
+        let offset = (y * width + x) * 4
+        return bytes[offset] > 200 && bytes[offset + 1] < 60 && bytes[offset + 2] < 60 && bytes[offset + 3] > 200
+    }
 }
 
 private func makeSinglePagePDF(bounds: CGRect = CGRect(x: 0, y: 0, width: 100, height: 100)) throws -> PDFDocument {
