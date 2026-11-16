@@ -1,5 +1,10 @@
 import PDFKit
 
+struct PDFDocumentPage: @unchecked Sendable {
+    let document: PDFDocument
+    let page: CGPDFPage
+}
+
 /// Lazily opens PDF documents and retains only the two most recently used documents.
 @MainActor
 final class PDFDocumentSession {
@@ -18,7 +23,7 @@ final class PDFDocumentSession {
         openDocument = opener
     }
 
-    func page(documentURL: URL, pageIndex: Int) -> CGPDFPage? {
+    func page(documentURL: URL, pageIndex: Int) -> PDFDocumentPage? {
         let key = documentURL.standardizedFileURL
         accessClock &+= 1
         var entry: Entry
@@ -33,7 +38,7 @@ final class PDFDocumentSession {
               let page = entry.document.page(at: pageIndex)?.pageRef else { return nil }
         entries[key] = entry
         evictIfNeeded()
-        return page
+        return PDFDocumentPage(document: entry.document, page: page)
     }
 
     private func evictIfNeeded() {

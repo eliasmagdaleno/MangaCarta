@@ -26,6 +26,39 @@ struct PDFPageGeometryTests {
         #expect(PDFPageGeometry.displayedSize(cropBox: CGRect(x: 100, y: 200, width: 600, height: 800), rotation: 0)
                 == CGSize(width: 600, height: 800))
     }
+
+    @Test func testSmallPageScalesUpToFill() {
+        let crop = CGRect(x: 0, y: 0, width: 300, height: 400)
+        let bounds = CGRect(x: 0, y: 0, width: 600, height: 800)
+        let transform = PDFPageGeometry.drawingTransform(cropBox: crop, rotation: 0, in: bounds)
+        let mappedMin = crop.origin.applying(transform)
+        let mappedMax = CGPoint(x: crop.maxX, y: crop.maxY).applying(transform)
+        #expect(abs(mappedMin.x - bounds.minX) < 0.001)
+        #expect(abs(mappedMin.y - bounds.minY) < 0.001)
+        #expect(abs(mappedMax.x - bounds.maxX) < 0.001)
+        #expect(abs(mappedMax.y - bounds.maxY) < 0.001)
+    }
+
+    @Test func testRotatedPageFitsBounds() {
+        let crop = CGRect(x: 0, y: 0, width: 600, height: 800)
+        let bounds = CGRect(x: 0, y: 0, width: 800, height: 600)
+        let transform = PDFPageGeometry.drawingTransform(cropBox: crop, rotation: 90, in: bounds)
+        let corners = [CGPoint(x: crop.minX, y: crop.minY), CGPoint(x: crop.maxX, y: crop.minY),
+                       CGPoint(x: crop.minX, y: crop.maxY), CGPoint(x: crop.maxX, y: crop.maxY)]
+            .map { $0.applying(transform) }
+        #expect(abs(corners.map(\.x).min()! - bounds.minX) < 0.001)
+        #expect(abs(corners.map(\.x).max()! - bounds.maxX) < 0.001)
+        #expect(abs(corners.map(\.y).min()! - bounds.minY) < 0.001)
+        #expect(abs(corners.map(\.y).max()! - bounds.maxY) < 0.001)
+    }
+
+    @Test func testCropBoxOriginIsHonoured() {
+        let crop = CGRect(x: 50, y: 50, width: 300, height: 400)
+        let bounds = CGRect(x: 0, y: 0, width: 600, height: 800)
+        let mapped = crop.origin.applying(PDFPageGeometry.drawingTransform(cropBox: crop, rotation: 0, in: bounds))
+        #expect(abs(mapped.x - bounds.minX) < 0.001)
+        #expect(abs(mapped.y - bounds.minY) < 0.001)
+    }
 }
 
 @MainActor
@@ -66,6 +99,34 @@ struct PDFDocumentSessionTests {
         #expect(opens[a] == 2)
         #expect(opens[b] == 1)
         #expect(opens[c] == 1)
+    }
+
+    @Test func testHolderKeepsTheDocumentAliveAfterEviction() throws {
+        let a = try makeFixture(pageCount: 1)
+        let b = try makeFixture(pageCount: 1)
+        let c = try makeFixture(pageCount: 1)
+        defer { try? FileManager.default.removeItem(at: a.deletingLastPathComponent()) }
+        defer { try? FileManager.default.removeItem(at: b.deletingLastPathComponent()) }
+        defer { try? FileManager.default.removeItem(at: c.deletingLastPathComponent()) }
+        let trackedDocument = WeakPDFDocumentReference()
+        let session = PDFDocumentSession { url in
+            let document = PDFDocument(url: url)
+            if url == a {
+                trackedDocument.value = document
+            }
+            return document
+        }
+        var holder: PDFPageHolder?
+        try autoreleasepool {
+            var pageA: PDFDocumentPage? = try #require(session.page(documentURL: a, pageIndex: 0))
+            holder = pageA.map(PDFPageHolder.init(_:))
+            pageA = nil
+            _ = session.page(documentURL: b, pageIndex: 0)
+            _ = session.page(documentURL: c, pageIndex: 0)
+        }
+        #expect(trackedDocument.value != nil)
+        holder = nil
+        #expect(trackedDocument.value == nil)
     }
 
     @Test func testMissingPageIndexFails() throws {
@@ -118,6 +179,7 @@ struct PDFPageCanvasTests {
         let view = PDFPageCanvasView(page: nil)
         let layer = try #require(view.layer as? CATiledLayer)
         #expect(pow(2.0, Double(layer.levelsOfDetailBias)) >= 4)
+        #expect(layer.levelsOfDetail >= layer.levelsOfDetailBias + 1)
     }
 
     @Test func testCanvasIsNotAnAccessibilityElement() {
@@ -133,10 +195,11 @@ struct PDFPageCanvasTests {
         let document = try makeSinglePagePDF()
         #expect(PDFFixtureWriter.write(document, to: url))
         let reopened = try #require(PDFDocument(url: url))
-        let page = try #require(reopened.page(at: 0)?.pageRef)
-        var holder: PDFPageHolder? = PDFPageHolder(page: page)
+        let pdfPage = try #require(reopened.page(at: 0))
+        let documentPage = PDFDocumentPage(document: reopened, page: try #require(pdfPage.pageRef))
+        var holder: PDFPageHolder? = PDFPageHolder(documentPage)
         let weakHolder = WeakPDFPageHolder(holder)
-        let view = PDFPageCanvasView(page: try #require(holder).page)
+        let view = PDFPageCanvasView(page: documentPage)
         holder = nil
         PDFPageCanvas.dismantleUIView(view, coordinator: ())
         #expect(view.layer.contents == nil)
@@ -154,16 +217,20 @@ struct PDFPageCanvasTests {
         pdfKitPage.rotation = 90
         #expect(PDFFixtureWriter.write(document, to: output))
         let reopened = try #require(PDFDocument(url: output))
-        let page = try #require(reopened.page(at: 0)?.pageRef)
+        let pdfPage = try #require(reopened.page(at: 0))
+        let page = try #require(pdfPage.pageRef)
+        let documentPage = PDFDocumentPage(document: reopened, page: page)
         let recorder = PDFPageRenderingRecorder()
-        let view = PDFPageCanvasView(page: page, renderer: recorder)
+        let view = PDFPageCanvasView(page: documentPage, renderer: recorder)
         view.frame = CGRect(x: 0, y: 0, width: 300, height: 400)
         let context = try #require(CGContext(data: nil, width: 300, height: 400, bitsPerComponent: 8,
                                               bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
                                               bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
         view.draw(view.layer, in: context)
-        let expected = page.getDrawingTransform(.cropBox, rect: view.bounds, rotate: 0, preserveAspectRatio: true)
-        let media = page.getDrawingTransform(.mediaBox, rect: view.bounds, rotate: 0, preserveAspectRatio: true)
+        let expected = PDFPageGeometry.drawingTransform(cropBox: page.getBoxRect(.cropBox),
+                                                        rotation: Int(page.rotationAngle), in: view.bounds)
+        let media = PDFPageGeometry.drawingTransform(cropBox: page.getBoxRect(.mediaBox),
+                                                     rotation: Int(page.rotationAngle), in: view.bounds)
         #expect(recorder.pageNumber == 1)
         #expect(recorder.box == .cropBox)
         #expect(recorder.transform == expected)
@@ -189,6 +256,11 @@ private final class WeakPDFPageHolder {
     init(_ value: PDFPageHolder?) {
         self.value = value
     }
+}
+
+@MainActor
+private final class WeakPDFDocumentReference {
+    weak var value: PDFDocument?
 }
 
 private final class PDFPageRenderingRecorder: PDFPageRendering, @unchecked Sendable {

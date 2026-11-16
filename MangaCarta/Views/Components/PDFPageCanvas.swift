@@ -20,10 +20,12 @@ private struct CoreGraphicsPDFPageRenderer: PDFPageRendering {
 }
 
 final class PDFPageHolder: @unchecked Sendable {
+    let document: PDFDocument
     let page: CGPDFPage
 
-    init(page: CGPDFPage) {
-        self.page = page
+    init(_ documentPage: PDFDocumentPage) {
+        document = documentPage.document
+        page = documentPage.page
     }
 }
 
@@ -32,8 +34,8 @@ private final class PDFPageCanvasDrawingState: @unchecked Sendable {
     private var holder: PDFPageHolder?
     private var renderer: any PDFPageRendering
 
-    init(page: CGPDFPage?, renderer: any PDFPageRendering) {
-        holder = page.map(PDFPageHolder.init(page:))
+    init(page: PDFDocumentPage?, renderer: any PDFPageRendering) {
+        holder = page.map(PDFPageHolder.init(_:))
         self.renderer = renderer
     }
 
@@ -43,9 +45,9 @@ private final class PDFPageCanvasDrawingState: @unchecked Sendable {
         return (holder, renderer)
     }
 
-    func update(page: CGPDFPage, renderer: any PDFPageRendering) {
+    func update(page: PDFDocumentPage, renderer: any PDFPageRendering) {
         lock.lock()
-        holder = PDFPageHolder(page: page)
+        holder = PDFPageHolder(page)
         self.renderer = renderer
         lock.unlock()
     }
@@ -58,7 +60,7 @@ private final class PDFPageCanvasDrawingState: @unchecked Sendable {
 }
 
 struct PDFPageCanvas: UIViewRepresentable {
-    let page: CGPDFPage
+    let page: PDFDocumentPage
     var renderer: any PDFPageRendering = CoreGraphicsPDFPageRenderer()
 
     func makeUIView(context: Context) -> PDFPageCanvasView {
@@ -83,14 +85,14 @@ final class PDFPageCanvasView: UIView {
         drawingState.snapshot().0
     }
 
-    init(page: CGPDFPage?, renderer: any PDFPageRendering = CoreGraphicsPDFPageRenderer()) {
+    init(page: PDFDocumentPage?, renderer: any PDFPageRendering = CoreGraphicsPDFPageRenderer()) {
         drawingState = PDFPageCanvasDrawingState(page: page, renderer: renderer)
         super.init(frame: .zero)
         isOpaque = false
         isAccessibilityElement = false
         accessibilityElementsHidden = true
         if let tiledLayer = layer as? CATiledLayer {
-            tiledLayer.levelsOfDetail = 1
+            tiledLayer.levelsOfDetail = 3
             tiledLayer.levelsOfDetailBias = 2
             tiledLayer.tileSize = CGSize(width: 512, height: 512)
         }
@@ -100,7 +102,7 @@ final class PDFPageCanvasView: UIView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    func setPage(_ page: CGPDFPage, renderer: any PDFPageRendering) {
+    func setPage(_ page: PDFDocumentPage, renderer: any PDFPageRendering) {
         drawingState.update(page: page, renderer: renderer)
         layer.setNeedsDisplay()
     }
@@ -116,7 +118,8 @@ final class PDFPageCanvasView: UIView {
         guard let page = holder?.page else { return }
         let bounds = layer.bounds
         let box = CGPDFBox.cropBox
-        let transform = page.getDrawingTransform(box, rect: bounds, rotate: 0, preserveAspectRatio: true)
+        let transform = PDFPageGeometry.drawingTransform(cropBox: page.getBoxRect(.cropBox),
+                                                         rotation: Int(page.rotationAngle), in: bounds)
         renderer.draw(page: page, in: context, bounds: bounds, box: box, transform: transform)
     }
 }

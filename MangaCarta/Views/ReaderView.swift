@@ -782,8 +782,8 @@ private struct ZoomablePage: View {
                 .id(reloadToken)
             case .pdf(let documentURL, let pageIndex):
                 if let pageRef = session.page(documentURL: documentURL, pageIndex: pageIndex) {
-                    let size = PDFPageGeometry.displayedSize(cropBox: pageRef.getBoxRect(.cropBox),
-                                                            rotation: Int(pageRef.rotationAngle))
+                    let size = PDFPageGeometry.displayedSize(cropBox: pageRef.page.getBoxRect(.cropBox),
+                                                            rotation: Int(pageRef.page.rotationAngle))
                     PDFPageCanvas(page: pageRef)
                         .aspectRatio(size, contentMode: .fit)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
