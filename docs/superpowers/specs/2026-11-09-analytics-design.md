@@ -855,3 +855,127 @@ decision 8 (2026-11-12). The questions the review was to settle are now answered
 slice 2's Settings link points at it, and it must state the §10.3 facts. Item 8 of §10.3 ("the reviewer
 confirms Switzerland") now reads: consent is the legal basis everywhere, with Switzerland handled as in item 1.
 Every other owner decision stands.
+
+## Amendment 3 (2026-11-15): slice 2 rechecked against `main`
+
+Every slice-2 row of the "Current code" table, §11.1, §11.3 and §13 was re-read on `main` at `d76220a`, with slice 1
+(#399) as built. Every decision above, every owner decision and Amendment 2 stand. These findings change *how* slice 2
+is built.
+
+### What was found
+
+1. **There is one erase point.** `AnalyticsRecorder.eraseLocalState()` is called by `consentChanged` (granted → not
+   granted) and by `resetAnalyticsID()`. `deleteMyData()` is `consent.setCollecting(false)`, so "Delete my analytics
+   data" also turns the toggle off, which is §7.2's "same as turning off". Slice 2 queues the server delete **inside
+   `eraseLocalState()`, before the id file is removed**. Each of the three reader actions then queues exactly one delete
+   for the old id, and none is queued when no id was ever minted.
+2. **`pending-deletes.json`** (§12) sits beside `install.json` in `Application Support/analytics/`.
+   `AnalyticsEventBuffer.eraseAll()` must **not** remove it. Each entry is the install id plus the date it was queued.
+   A delete is retried until a 2xx or a 4xx answers it, or 30 days after it was queued, when it is dropped unsent.
+3. **The wire form is flat.** Each encoded event holds the envelope keys (`v`, `install`, `day`, `app`), `name` and
+   that event's fields, with nothing nested under an `event` key. `install` is Foundation's upper-case `uuidString`,
+   and the delete path uses the same spelling. The server lower-cases both, so a delete always matches its rows. The
+   batch body is `{ "v": 1, "events": [ … ] }`, as §11.3 says.
+4. **Launch is not a scene transition.** `.onChange(of: scenePhase)` (`MangaCartaApp.swift:370`) does not fire for
+   the first `.active`, so the uploader is also started at the end of the launch `.task`, next to the vocabulary load.
+   Both call the same `drainIfDue()`. The 15-minute floor and the backoff are kept in the injected `UserDefaults`
+   (`analytics.nextUploadAfter`, `analytics.uploadBackoff`), so relaunching inside 15 minutes uploads nothing.
+5. **Deletes don't wait for the floor.** A delete is sent when it is queued (the reader is in the app, in the
+   foreground, having just tapped a control) and again on every `drainIfDue()`. The 15-minute floor and backoff apply
+   to event batches only.
+6. **The uploader serializes.** One operation runs at a time, so a delete queued during an in-flight batch is sent
+   after that batch's response. On a 2xx it removes **the envelopes it sent, by value**, not the first *n*. A reset
+   mid-request erases the buffer, and the events recorded afterwards under the new id must survive the old batch's
+   success. It checks consent before each batch and after each response (§13).
+7. **Choosing the transport (§13).** `Info.plist` gains `AnalyticsHost = $(ANALYTICS_HOST)`, a **bare host name**,
+   because an xcconfig line treats `//` as a comment, so a full URL can't be written there. The app builds
+   `https://<host>/v1/…` itself, so plain HTTP is not possible. One pure function picks it:
+   `AnalyticsTransportSelection.make(host:arguments:isDebug:)` returns **nil** (no network transport, so no uploader
+   is built) when the host is empty or an unexpanded `$(…)`, when any `-uitest-` argument is present, and in Debug
+   builds unless the launch argument `-analytics-debug-uploads` is set (for the owner to try a deployed Worker). With
+   no uploader, the buffer behaves exactly as in slice 1.
+8. **The Worker lives in this repository** at `server/analytics-worker/`, not "outside this repo" as §11.1 says, so
+   that it is reviewed and versioned with the client that talks to it. It is one plain JavaScript module with no npm
+   runtime dependency, plus `schema.sql`, `wrangler.toml` and a setup checklist (`README.md`). Its tests run with
+   `node --test` against `node:sqlite`, which stands in for D1 (both are SQLite). CI doesn't run them yet.
+9. **The server validates strictly and stores only the event.** The batch must be `v: 1` with 1–100 events and at most
+   64 KB. Each event must have `v: 1`, a UUID `install`, a `yyyy-MM-dd` `day` no later than tomorrow (UTC), an `app` of
+   at most 32 printable characters, a `name` from §2.2/§2.3, exactly that name's fields with their closed values, and
+   positive integer ids. **Any invalid event rejects the whole batch with 400**, which the client drops (§11.3). A row
+   holds the validated fields, rebuilt from them rather than copied from the body, plus `received`, the server's UTC
+   day. It has no IP, user agent, header or time of day, and the Worker never calls `console.*`. Retention is measured
+   from `received`.
+10. **Owner decision 7's adult list.** The table is `adult_catalogue(kind, id)`, with `kind` being `mal` or `anilist`.
+    The daily cron does three things in order:
+    - it deletes rows received more than 12 months ago;
+    - it classifies up to 200 catalogue ids seen in rows and not checked in the last 30 days, through AniList's
+      public GraphQL API (`isAdult`, or the genre `Hentai`). That API needs no key, whereas MAL's API would need a
+      client-id secret on the Worker. The request carries only catalogue ids, never an install id;
+    - it deletes every row whose `mal`, `anilist`, `to_mal` or `to_anilist` is in the list.
+
+    The owner can also add ids to the list by hand (README).
+11. **Cloudflare logging (§7.1).** `wrangler.toml` sets `observability.enabled = false`, `logpush = false` and
+    `preview_urls = false`. The README checklist has the owner confirm in the dashboard that Workers Logs,
+    observability, Logpush and Tail are off. Until that is confirmed, the policy's no-IP sentence is false. **The D1
+    location** (`--location`, or `--jurisdiction eu`) is the owner's choice. It is recorded here and in the policy's
+    "Where it goes" once it is made.
+12. **Docs that drifted.** `PRODUCT.md:38-39` is now one line (`:38`), which slice 1 linked here. Slice 2 changes it to
+    say that analytics is sent to the self-hosted endpoint. The glossary's **Analytics event** (`docs/glossary.md:233`)
+    still says "in a later slice sends" and is corrected. The manifest's Product Interaction entry is
+    `PrivacyInfo.xcprivacy:52-62`. The Privacy section is `AnalyticsSettingsSection`, placed at
+    `SettingsView.swift:243`. The privacy policy (`docs/app-store/privacy-policy.md`, #411) is published at
+    `https://eliasmagdaleno.github.io/MangaCarta/privacy/` by #412. The Settings `Link` points there, as the last row
+    of the Privacy card, with identifier `analyticsPrivacyPolicy`.
+
+### What a reader sees if only this slice ships
+
+The slice merges with `ANALYTICS_HOST` unset, because the Worker isn't deployed yet and CI's placeholder
+`Secrets.xcconfig` has no host. **Nothing is sent.** No uploader is built, and the app behaves exactly as slice 1 did.
+The one visible change is a **"Privacy policy" link** at the bottom of Settings › Privacy.
+
+The manifest now declares Device ID and the Analytics purpose. Declaring more than is sent is the safe direction, and
+App Store submission waits for the Worker anyway.
+
+Once the owner deploys the Worker and sets `ANALYTICS_HOST` in the archive machine's `Secrets.xcconfig`, a reader who
+agreed has their buffered events sent on the next foreground: at most 500, all recorded after their agreement. Turning
+analytics off, resetting the id or deleting the data then also removes the server's rows. The privacy policy's "Where
+it goes" gains the D1 location and a new effective date after that deploy, not in this PR.
+
+### Acceptance → tests → mutations
+
+AC 14–16 are split as follows. Each mutation must turn its test red. The ones marked † are run, and their results
+recorded in the PR.
+
+| AC | Test | Mutations it must catch |
+|---|---|---|
+| 14 | `AnalyticsUploaderTests.testSuccessRemovesOnlySentEvents` (a 2xx removes the batch; an event recorded under a new id during the request survives) | † remove the first *n* instead of the sent envelopes; † `removeAll` |
+| 14 | `.testClientErrorDropsBatch` | † treat 4xx as retry |
+| 14 | `.testServerErrorAndOfflineKeepEventsAndBackOff` (15 → 30 → 60 min … capped at 24 h; a success resets it) | † no doubling; † no cap; success doesn't reset |
+| 14 | `.testDrainIsThrottledToFifteenMinutes` (across a new uploader instance on the same defaults) | † floor removed; floor kept in memory only |
+| 14 | `.testBatchesHoldAtMost100Events` (250 → 100/100/50; body is `{"v":1,"events":[…]}`) | † batch size 500 |
+| 14 | `.testConsentRevokedMidDrainStopsFurtherBatches` | † no consent check after the response |
+| 14 | `AnalyticsRecorderTests.testOptOutResetAndDeleteEachQueueOneDelete` (also: no id ever minted → no delete) | † no queueing in `eraseLocalState`; † queue after the erase (id already nil) |
+| 14 | `AnalyticsUploaderTests.testQueuedDeleteRetriesUntilAnswered` (5xx/offline keep it; 2xx and 4xx remove it) | † removed on failure; † kept on 4xx |
+| 14 | `.testQueuedDeleteExpiresAfterThirtyDays` (29 days: sent; 30 days + 1 s: dropped without a request) | † expiry removed; † expiry measured from the last attempt |
+| 14 | `.testPendingDeletesSurviveEraseAndRelaunch` | † `pending-deletes.json` added to `eraseAll` |
+| 14 | `.testDeleteIsSentWhenQueued` (no throttle, no scene change needed) | † delete waits for the next drain |
+| 14 | `URLSessionAnalyticsTransportTests.testRequestShapesAndStatusMapping` (a `URLProtocol` stub: POST `https://<host>/v1/events` with JSON, DELETE `/v1/installs/<id>`, ephemeral session that sends no cookies; 2xx → accepted, 4xx → rejected, 5xx or a thrown error → retry) | † 4xx mapped to retry; † a cookie-sending session |
+| 15 | `AnalyticsUploaderTests.testUITestLaunchUsesNoOpTransport` (nil for any `-uitest-` argument, Debug without the flag, an empty host and an unexpanded `$(ANALYTICS_HOST)`; non-nil for a Release build with a host) | † the `-uitest-` check removed; † the Debug check removed; † an empty host accepted |
+| 15 | `AppCompositionTests.testNoAnalyticsHostBuildsNoUploader` | † composition builds an uploader unconditionally |
+| 16 | `PrivacyManifestTests.testAnalyticsEntries` (bundled plist: Device ID linked, not tracking, Analytics; Product Interaction with App Functionality **and** Analytics; tracking false; no tracking domains) | † the Analytics purpose string removed; † Device ID `Linked` false |
+| — | `AnalyticsSettingsUITests.testPrivacyPolicyLinkIsShown`, and `AnalyticsUploaderTests.testPrivacyPolicyURL` (the URL is the published one) | † the `Link` removed; † the URL changed |
+
+Worker tests (`server/analytics-worker/test/*.test.mjs`, `node --test`):
+
+| Test | Mutations it must catch |
+|---|---|
+| a valid batch stores one row per event, and no column or value holds the request's IP, user agent or any header | † a header stored |
+| each invalid input rejects the whole batch with 400 and writes nothing: unknown batch `v`, unknown event `v`, unknown `name`, more than 100 events, a non-integer or non-positive id, an unknown key, a bad UUID, a bad or future `day`, an oversized body | † each check removed in turn (one mutation each for `name`, count, id type, unknown key) |
+| DELETE removes every row for the id whatever its case, and returns 204 for an unknown id; a malformed id is 400 | † case-sensitive match; † 404 for an unknown id |
+| the purge removes rows received more than 12 months ago and keeps the rest | † 13 months; † purge by `day` instead of `received` |
+| the adult purge removes a row when any of its four id columns is listed | † only `mal` checked |
+| classification records `isAdult` or `Hentai` ids, skips ids checked within 30 days, and sends no install id to AniList | † the genre check dropped; † the 30-day skip dropped |
+| `wrangler.toml` has observability off, `logpush = false`, `preview_urls = false`, and the source has no `console.` call | † `enabled = true` |
+
+**Files that need `xcp add-file`:** `MangaCartaTests/AnalyticsUploaderTests.swift` (which also holds
+`URLSessionAnalyticsTransportTests`) and `MangaCartaTests/PrivacyManifestTests.swift`.
