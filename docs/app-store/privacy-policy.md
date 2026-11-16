@@ -1,15 +1,16 @@
 <!--
-DRAFT, not yet published. Sources: the analytics design §2, §3, §4, §6, §7 and §10.3
+Published at https://eliasmagdaleno.github.io/MangaCarta/privacy/ by .github/workflows/pages.yml
+(this comment is stripped). Sources: the analytics design §2, §3, §4, §6, §7 and §10.3
 (docs/superpowers/specs/2026-11-09-analytics-design.md, Amendment 2), the MAL label research
 (docs/superpowers/research/2026-09-11-issue-149-mal-privacy-label.md) and submission-copy.md §5.
-Before publishing, fill every [BRACKET] and recheck each claim against the build that ships
-analytics slice 2 (in particular: Cloudflare request logging, Workers Logs and Logpush are OFF,
-and the D1 region).
+Published 2026-11-15, before analytics slice 2's server exists. When slice 2 deploys it: add the
+D1 region to "Where it goes", recheck every claim against that build (in particular Cloudflare
+request logging, Workers Logs and Logpush are OFF), and update the effective date.
 -->
 
 # MangaCarta Privacy Policy
 
-**Effective:** [DATE OF PUBLICATION]
+**Effective:** 15 November 2026
 
 MangaCarta is a manga reader for iPhone. This policy explains what leaves your device, who receives it,
 and how to stop it. Most of what you do in MangaCarta never leaves your device at all.
@@ -80,8 +81,8 @@ contain no analytics IDs and say nothing about any one person.
 
 ### Where it goes
 
-Events are sent in batches to a server run for MangaCarta on **Cloudflare** (Cloudflare, Inc., a US company),
-and stored in [D1 REGION]. **Your IP address is not stored.** The server reads only the event contents, and
+Events are sent in batches to a server run for MangaCarta on **Cloudflare** (Cloudflare, Inc., a US company).
+**Your IP address is not stored.** The server reads only the event contents, and
 Cloudflare's request logging for this service is switched off.
 
 ### How long it is kept
