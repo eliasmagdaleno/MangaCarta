@@ -1,6 +1,6 @@
 import Foundation
 
-struct LocalSource: MangaSource {
+struct LocalSource: MangaSource, VectorPageProviding {
     static let sourceID = "local"
     let id = sourceID
     let name = "Local"
@@ -66,6 +66,16 @@ struct LocalSource: MangaSource {
         let urls = await store.pageURLs(itemId: String(parts[0]), chapter: number)
         guard !urls.isEmpty else { throw SourceError.extractionFailed("unknown chapter") }
         return urls
+    }
+
+    func pageReferences(chapterId: String) async throws -> [ReaderPage] {
+        let parts = chapterId.split(separator: "/")
+        guard parts.count == 2, let number = Int(parts[1]), !parts[0].isEmpty else {
+            throw SourceError.extractionFailed("unknown chapter")
+        }
+        let references = await store.pageReferences(itemId: String(parts[0]), chapter: number)
+        guard !references.isEmpty else { throw SourceError.extractionFailed("unknown chapter") }
+        return references
     }
 
     func popular(limit: Int, offset: Int) async throws -> [Manga] { throw SourceError.unsupported("popular") }

@@ -40,7 +40,7 @@ final class ReaderViewModel: ObservableObject {
 
     @Published private(set) var currentChapter: Chapter
     @Published private(set) var chapters: [Chapter]
-    @Published private(set) var pages: [URL] = []
+    @Published private(set) var pages: [ReaderPage] = []
     @Published private(set) var errorMessage: String?
     @Published private(set) var failureIsTransient = true
     @Published private(set) var isLoading = false
@@ -167,7 +167,11 @@ final class ReaderViewModel: ObservableObject {
             currentChapter = chapter
             pages = fetched
             pagerTarget = Self.landingPosition(landing, pageCount: fetched.count)
-            prefetch(fetched, source.imagePrefetchConcurrency, reportTarget)
+            let imageURLs = fetched.compactMap { page -> URL? in
+                guard case .image(let url) = page else { return nil }
+                return url
+            }
+            if !imageURLs.isEmpty { prefetch(imageURLs, source.imagePrefetchConcurrency, reportTarget) }
         } catch {
             guard isCurrent() else { return }
 
@@ -186,10 +190,15 @@ final class ReaderViewModel: ObservableObject {
 
     /// A fetch that returned nothing is a failure, not an empty success — both sources
     /// `compactMap` their page lists and can hand back `[]` without throwing.
-    private func fetchPages(for chapter: Chapter) async throws -> [URL] {
-        let urls = try await source.pageURLs(chapterId: chapter.id, preferDataSaver: true)
-        guard !urls.isEmpty else { throw ReaderError.noPages }
-        return urls
+    private func fetchPages(for chapter: Chapter) async throws -> [ReaderPage] {
+        let pages: [ReaderPage]
+        if let provider = source as? VectorPageProviding {
+            pages = try await provider.pageReferences(chapterId: chapter.id)
+        } else {
+            pages = try await source.pageURLs(chapterId: chapter.id, preferDataSaver: true).map(ReaderPage.image)
+        }
+        guard !pages.isEmpty else { throw ReaderError.noPages }
+        return pages
     }
 
     private static func landingPosition(_ landing: Landing, pageCount: Int) -> ReadingPosition {

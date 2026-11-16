@@ -480,10 +480,18 @@ struct ReaderView: View {
                     InterstitialPage(chapter: prev, isNext: false)
                         .tag(index)
                 } else if index >= 0, index < vm.pages.count {
-                    ZoomablePage(url: vm.pages[index], index: index, currentIndex: currentPage,
-                                 pageCount: vm.pages.count, reportTarget: vm.reportTarget,
-                                 onTap: toggleChrome)
-                        .tag(index)
+                    Group {
+                        switch vm.pages[index] {
+                        case .image(let url):
+                            ZoomablePage(url: url, index: index, currentIndex: currentPage,
+                                         pageCount: vm.pages.count, reportTarget: vm.reportTarget,
+                                         onTap: toggleChrome)
+                        case .pdf:
+                            Screentone(opacity: 0.5)
+                                .overlay(Text("PAGE COULD NOT BE LOADED"))
+                        }
+                    }
+                    .tag(index)
                 } else if index == vm.pages.count, let next = vm.nextChapter {
                     InterstitialPage(chapter: next, isNext: true)
                         .tag(index)
@@ -540,10 +548,19 @@ struct ReaderView: View {
                     // reader had not reached, and the max then made that win over the real
                     // position — resuming a full viewport ahead (ADR-0014 decision 7). In
                     // vertical mode the viewport top is the only position feed.
-                    ForEach(Array(vm.pages.enumerated()), id: \.offset) { index, url in
-                        WebtoonPage(url: url, index: index, pageCount: vm.pages.count,
-                                    reportTarget: vm.reportTarget)
-                            .id(index)
+                    ForEach(Array(vm.pages.enumerated()), id: \.offset) { index, page in
+                        Group {
+                            switch page {
+                            case .image(let url):
+                                WebtoonPage(url: url, index: index, pageCount: vm.pages.count,
+                                            reportTarget: vm.reportTarget)
+                            case .pdf:
+                                Screentone(opacity: 0.5)
+                                    .frame(height: 460)
+                                    .overlay(Text("PAGE COULD NOT BE LOADED"))
+                            }
+                        }
+                        .id(index)
                     }
                     if !vm.pages.isEmpty && !vm.isLoading {
                         if let next = vm.nextChapter {
