@@ -23,12 +23,12 @@ Merged, branches deleted (local and remote) unless noted:
     contact eliasrmagdaleno@gmail.com, owner-approved).
 
 **In flight — check each before acting:**
-1. **#412: privacy policy on GitHub Pages.** Auto-merge was on at ~20:25. It adds `.github/workflows/pages.yml`,
-   which stages **only** the policy file (stripping its top comment) and deploys it to
-   **`https://eliasmagdaleno.github.io/MangaCarta/privacy/`**. Pages is enabled on the repo with
-   `build_type: workflow`. After it merges: confirm the Pages run passed and `curl -s -o /dev/null -w
-   "%{http_code}" <url>` gives 200, then delete the `docs/privacy-pages` branch (owner already said yes to
-   deleting merged docs branches this session; re-ask if unsure).
+1. **#412 merged ~21:11: the privacy policy is live** at **`https://eliasmagdaleno.github.io/MangaCarta/privacy/`**
+   (200, the policy with effective date 15 November 2026, no maintainer comment; the site root is 404).
+   `.github/workflows/pages.yml` stages **only** `docs/app-store/privacy-policy.md` and redeploys on any change to
+   it; Pages is enabled with `build_type: workflow`. Its first CI run needed a rerun (the cold-simulator flake,
+   item 4). Still owed: delete the `docs/privacy-pages` branch (ask first). The default Jekyll theme loads
+   `anchor.min.js` from cdnjs; a plain theme would remove that third-party request (owner's call).
 2. **Vector PDF slice 3 — Codex `gpt-6-luna` worker via Orca**, dispatched ~20:20 from `main` at `d76220a`.
    - Run `run_0ddf30a8665d`, task `task_8668817dda20`, dispatch `ctx_21bc1dfd885d`, coordinator terminal
      `term_53c58795-aaea-493a-9996-c3a6ca9546b6`, worktree `~/orca/workspaces/Manga-Reader/pdf-slice3`,
