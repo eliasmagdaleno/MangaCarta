@@ -235,6 +235,33 @@ jobs:
           xcrun simctl boot "${{ steps.sim.outputs.name }}" || true
           xcrun simctl bootstatus "${{ steps.sim.outputs.name }}" -b
 
+      - name: Build for testing
+        if: needs.changes.outputs.code == 'true'
+        run: |
+          xcodebuild \
+            -scheme MangaCarta \
+            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.name }}" \
+            build-for-testing
+
+      # A booted simulator is still a cold one. With the boot step above in place, the
+      # run's first test still failed twice while all 53 others passed: at app.launch()
+      # ("Timed out while acquiring background assertion", #408) and in its first
+      # accessibility audit ("Audit failed to complete in time", #412). This walks those
+      # two first-time paths once, and is NON-GATING on purpose: it asserts nothing, and a
+      # failure here is the cold start being absorbed, not a finding. Real failures still
+      # surface below, where no retry is allowed.
+      - name: Warm up the simulator (non-gating)
+        if: needs.changes.outputs.code == 'true'
+        continue-on-error: true
+        timeout-minutes: 10
+        run: |
+          xcodebuild \
+            -scheme MangaCarta \
+            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.name }}" \
+            -parallel-testing-enabled NO \
+            test-without-building \
+            -only-testing:MangaCartaUITests/ColdStartWarmUpUITests
+
       - name: Run the hermetic UI suites
         if: needs.changes.outputs.code == 'true'
         run: |
@@ -242,7 +269,7 @@ jobs:
             -scheme MangaCarta \
             -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.name }}" \
             -parallel-testing-enabled NO \
-            test \
+            test-without-building \
             -only-testing:MangaCartaUITests/UpdatesUITests \
             -only-testing:MangaCartaUITests/SourcePreferenceUITests \
             -only-testing:MangaCartaUITests/RepositorySettingsUITests \
