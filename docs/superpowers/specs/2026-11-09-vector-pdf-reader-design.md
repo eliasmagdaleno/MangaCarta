@@ -458,15 +458,19 @@ changes. Five things are settled for slice 3:
 1. **Draw the Core Graphics page, not the PDFKit page.** `CATiledLayer` draws tiles on several background
    threads at once, and PDFKit's `PDFPage` is not documented as safe for that (and `PDFDocument.write` already
    failed under concurrency in this repository's tests). The canvas draws `pdfPage.pageRef` (`CGPDFPage`),
-   which Core Graphics can draw from any thread, using `CGPDFPage.getDrawingTransform(.cropBox, rect:,
-   rotate: 0, preserveAspectRatio: true)`, which applies the crop box and the page's `/Rotate`. This replaces
-   §3's `PDFPage.draw(with:to:)`.
+   which Core Graphics can draw from any thread. This replaces §3's `PDFPage.draw(with:to:)`. The transform is
+   `PDFPageGeometry.drawingTransform(cropBox:rotation:in:)`, a pure aspect-fit of the crop box under the page's
+   clockwise `/Rotate`, **not** `CGPDFPage.getDrawingTransform`: that call never scales a page up, so a page
+   smaller than the canvas would draw small and centred (found in review). The canvas also retains the owning
+   `PDFDocument` with the `CGPDFPage`, because the page's storage belongs to its document and the session may
+   evict that document while the page is still on screen (`PDFDocumentPage`).
 2. **The leaf takes a `ReaderPage`.** `ZoomablePage` takes `page: ReaderPage` and switches *inside* the
    `ZoomableContainer`: `.image` is today's `CachedAsyncImage` content, `.pdf` is `PDFPageCanvas`. The
    container, its zoom, double-tap, chrome tap, 1× reset and the page's accessibility label stay as they are
    for both. `contentID` for a PDF page is `"<documentURL>#<pageIndex>"`.
-3. **Sharp at 4×.** The canvas's `CATiledLayer` sets `levelsOfDetail` and `levelsOfDetailBias` so tiles are
-   redrawn at up to the container's 4× maximum (bias ≥ 2). The zoom transform is on an ancestor view, which
+3. **Sharp at 4×.** The canvas's `CATiledLayer` uses `levelsOfDetailBias = 2` and `levelsOfDetail = 3`, so tiles
+   are drawn at 1×, 2× and 4×. A single level with bias 2 would render every page at 4× even unzoomed, 16 times
+   the pixels (found in review). The zoom transform is on an ancestor view, which
    `CATiledLayer`'s level-of-detail selection accounts for.
 4. **`PDFDocumentSession`** (`Models/PDFDocumentSession.swift`), `@MainActor`, owned by `ReaderView` for the
    reader's lifetime. It opens each document URL once and keeps at most two open (the current chapter's and
