@@ -5,6 +5,7 @@ import Testing
 import UIKit
 @testable import MangaCarta
 
+@MainActor
 struct PDFPageGeometryTests {
     @Test func unrotatedCropBoxKeepsPortraitAspect() {
         #expect(PDFPageGeometry.displayedSize(cropBox: CGRect(x: 0, y: 0, width: 600, height: 800), rotation: 0)
@@ -27,10 +28,24 @@ struct PDFPageGeometryTests {
                 == CGSize(width: 600, height: 800))
     }
 
-    @Test func testSmallPageScalesUpToFill() {
+    @Test func testSmallPageScalesUpToFill() throws {
         let crop = CGRect(x: 0, y: 0, width: 300, height: 400)
         let bounds = CGRect(x: 0, y: 0, width: 600, height: 800)
-        let transform = PDFPageGeometry.drawingTransform(cropBox: crop, rotation: 0, in: bounds)
+        let directory = try makePDFCanvasTestDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("small-page.pdf")
+        let document = try makeSinglePagePDF(bounds: crop)
+        #expect(PDFFixtureWriter.write(document, to: url))
+        let reopened = try #require(PDFDocument(url: url))
+        let page = try #require(reopened.page(at: 0)?.pageRef)
+        let recorder = PDFPageRenderingRecorder()
+        let view = PDFPageCanvasView(page: PDFDocumentPage(document: reopened, page: page), renderer: recorder)
+        view.frame = bounds
+        let context = try #require(CGContext(data: nil, width: 600, height: 800, bitsPerComponent: 8,
+                                              bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
+                                              bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        view.draw(view.layer, in: context)
+        let transform = try #require(recorder.transform)
         let mappedMin = crop.origin.applying(transform)
         let mappedMax = CGPoint(x: crop.maxX, y: crop.maxY).applying(transform)
         #expect(abs(mappedMin.x - bounds.minX) < 0.001)
