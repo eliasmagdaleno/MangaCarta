@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import ImageIO
 import PDFKit
@@ -5,9 +6,7 @@ import Testing
 import UIKit
 @testable import MangaCarta
 
-/// Slice 1 of the vector PDF reader (design `2026-11-09-vector-pdf-reader-design.md`, Amendment 1):
-/// a `.vector` store keeps the PDF and renders only a cover. Production still uses `.raster`
-/// until the reader can draw a PDF; `rasterModeIsStillTheDefault` pins that.
+/// The local store keeps imported PDFs as vectors and renders only a cover.
 @Suite("PDFVectorImportTests")
 final class PDFVectorImportTests {
     private let directory = TestDirectory("PDFVectorImportTests")
@@ -152,7 +151,7 @@ final class PDFVectorImportTests {
         let record = try importedRecord(await store.importArchive(at: source))
         let moved = root.appendingPathComponent("moved-library")
         try FileManager.default.moveItem(at: library, to: moved)
-        let newStore = LocalLibraryStore(root: moved, pdfImport: .vector)
+        let newStore = LocalLibraryStore(root: moved)
         let expected = moved.appendingPathComponent(record.itemId).appendingPathComponent("document.pdf")
         #expect(await newStore.pageReferences(itemId: record.itemId, chapter: 1) == [
             .pdf(documentURL: expected, pageIndex: 0), .pdf(documentURL: expected, pageIndex: 1)
@@ -225,18 +224,58 @@ final class PDFVectorImportTests {
         try expectLibraryIsEmpty()
     }
 
-    @Test func rasterModeIsStillTheDefault() async throws {
+    @Test func productionStoreImportsPDFsAsVector() async throws {
         let source = try makePDF(named: "sample.pdf", pageCount: 2)
         let store = LocalLibraryStore(root: library)
 
         let record = try importedRecord(await store.importArchive(at: source))
 
-        #expect(record.chapters[0].pageStorage == .images(["0001.jpg", "0002.jpg"]))
-        let urls = await store.pageURLs(itemId: record.itemId, chapter: 1)
-        #expect(urls.count == 2)
-        #expect(urls.allSatisfy { FileManager.default.fileExists(atPath: $0.path) })
         let item = library.appendingPathComponent(record.itemId)
-        #expect(!FileManager.default.fileExists(atPath: item.appendingPathComponent("document.pdf").path))
+        #expect(record.chapters[0].pageStorage == .pdf(documentFilename: "document.pdf"))
+        #expect(FileManager.default.fileExists(atPath: item.appendingPathComponent("document.pdf").path))
+    }
+
+    @MainActor @Test func legacyRasterPDFDuplicateExplainsReimport() async throws {
+        let source = try makePDF(named: "x.pdf", pageCount: 1)
+        let bytes = try Data(contentsOf: source)
+        let itemId = Self.itemID(for: bytes)
+        try writeLegacyRecord(itemId: itemId, sourceFilename: "x.pdf", bytes: bytes)
+        let store = LocalLibraryStore(root: library)
+        let context = makeImporter(store: store)
+        defer { context.defaults.remove() }
+
+        await context.importer.importFilesAndWait([source])
+
+        let expected = "x.pdf: Already in your library as an older import. Delete it and import again for sharp pages."
+        #expect(context.importer.errors == [expected])
+    }
+
+    @MainActor @Test func archiveDuplicateKeepsTheExistingMessage() async throws {
+        let source = root.appendingPathComponent("archive.cbz")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try LocalTestZip.write([("001.png", LocalTestZip.png)], to: source)
+        let bytes = try Data(contentsOf: source)
+        let itemId = Self.itemID(for: bytes)
+        try writeLegacyRecord(itemId: itemId, sourceFilename: "archive.cbz", bytes: bytes)
+        let store = LocalLibraryStore(root: library)
+        let context = makeImporter(store: store)
+        defer { context.defaults.remove() }
+
+        await context.importer.importFilesAndWait([source])
+
+        #expect(context.importer.errors == ["archive.cbz: Already in your library"])
+    }
+
+    @MainActor @Test func vectorPDFDuplicateKeepsTheExistingMessage() async throws {
+        let source = try makePDF(named: "vector.pdf", pageCount: 1)
+        let store = LocalLibraryStore(root: library)
+        _ = try importedRecord(await store.importArchive(at: source))
+        let context = makeImporter(store: store)
+        defer { context.defaults.remove() }
+
+        await context.importer.importFilesAndWait([source])
+
+        #expect(context.importer.errors == ["vector.pdf: Already in your library"])
     }
 
     @Test func rotatedFirstPageCoverIsLandscape() async throws {
@@ -253,7 +292,39 @@ final class PDFVectorImportTests {
     // MARK: - Helpers
 
     private func vectorStore() -> LocalLibraryStore {
-        LocalLibraryStore(root: library, pdfImport: .vector)
+        LocalLibraryStore(root: library)
+    }
+
+    @MainActor
+    private func makeImporter(store: LocalLibraryStore) -> ImporterTestContext {
+        let defaults = TestDefaults("pdf-duplicate-\(UUID().uuidString)")
+        let works = WorkStore(directory: root.appendingPathComponent("works"))
+        let registry = SourceRegistry(sources: [LocalSource(store: store)], defaults: defaults.defaults)
+        let library = LibraryStore(defaults: defaults.defaults, works: works, registry: registry)
+        let importer = LocalImportViewModel()
+        importer.configure(registry: registry, library: library, works: works,
+                           readingModes: ReadingModeStore(defaults: defaults.defaults, works: works))
+        return ImporterTestContext(importer: importer, library: library, works: works, defaults: defaults)
+    }
+
+    private func writeLegacyRecord(itemId: String, sourceFilename: String, bytes: Data) throws {
+        let item = library.appendingPathComponent(itemId)
+        try FileManager.default.createDirectory(at: item, withIntermediateDirectories: true)
+        let legacy = """
+        {"itemId":"\(itemId)","title":"Legacy",
+        "sourceFilename":"\(sourceFilename)","sha256":"\(Self.hash(bytes))",
+        "byteSize":\(bytes.count),"importedAt":784000000,
+        "chapters":[{"number":1,"title":"Legacy","pageCount":1,"pageFiles":["0001.jpg"]}]}
+        """
+        try Data(legacy.utf8).write(to: item.appendingPathComponent("item.json"))
+    }
+
+    private static func itemID(for bytes: Data) -> String {
+        String(hash(bytes).prefix(32))
+    }
+
+    private static func hash(_ bytes: Data) -> String {
+        SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
     }
 
     private func importedRecord(_ result: LocalImportResult) throws -> LocalItemRecord {
@@ -276,12 +347,11 @@ final class PDFVectorImportTests {
                 UIRectFill(CGRect(x: 0, y: 0, width: 300, height: 400))
             }
         }
-        try data.write(to: url)
+        let document = try #require(PDFDocument(data: data))
         if rotateFirstPage {
-            let document = try #require(PDFDocument(url: url))
             try #require(document.page(at: 0)).rotation = 90
-            #expect(PDFFixtureWriter.write(document, to: url))
         }
+        #expect(PDFFixtureWriter.write(document, to: url))
         return url
     }
 
@@ -323,6 +393,13 @@ enum PDFFixtureWriter {
 
 private enum ImportExpectation: Error {
     case notImported(LocalImportResult)
+}
+
+private struct ImporterTestContext {
+    let importer: LocalImportViewModel
+    let library: LibraryStore
+    let works: WorkStore
+    let defaults: TestDefaults
 }
 
 private final class ProgressLog: @unchecked Sendable {
