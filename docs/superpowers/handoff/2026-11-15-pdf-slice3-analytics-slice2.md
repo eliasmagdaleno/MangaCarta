@@ -53,6 +53,24 @@ Merged, branches deleted (local and remote) unless noted:
    rerun (`gh run rerun <id> --failed`), not a regression. Its PR is **#414**
    (`claude/ci-cold-sim-warmup`), open as of 2026-11-19.
 
+5. **Vector PDF slice 4 — building, started 2026-11-19 ~09:30.** The design was rechecked against `main` at
+   `b2c3b01`; the result is Amendment 4, eight items. Its main points: webtoon PDF rows share the image rows'
+   frame reporter and anchor grid; the canvas takes no touches (else webtoon's chrome tap breaks); off-window
+   rows drop their tiles; the flip deletes `PDFImportMode` and `PDFPageRasterizer` and removes `PDFImportTests`;
+   `isLegacyRasterPDF` drives the duplicate message; the UI fixture route needs no change, since PDFs are
+   detected by bytes. The worker spec and Amendment 4 are in `docs/superpowers/specs/pdf-slice4-worker/`
+   (`spec.md`: four pieces A–D, acceptance→test table, mutations M1–M9). The worker appends Amendment 4 to the
+   design doc as its first commit.
+   - Codex `gpt-6-luna` (medium) via Orca: dispatch `ctx_f8f53ef77a61`, task `task_4d195afb20cf`, run
+     `run_366e2086a9f0`, coordinator terminal `term_4c61b8e7-3519-4db8-b52f-083ba9fb79cf`, new top-level
+     worktree `pdf-slice4` (path in `orca worktree list`). It does one piece per turn; Piece A (Amendment 4
+     commit, webtoon rows, touches, tile release, two canvas tests) was the first. Send the next piece with
+     `orca orchestration send --to dispatch:ctx_f8f53ef77a61 --from <coordinator> …` after reviewing.
+   - Simulator: `PDF2 iPhone 17 Pro` only (`06CB4285-…`). Delete it after the PR merges.
+   - After it merges: remove the worktree and local branch, ask before the remote, release the worker, close
+     the coordinator terminal, delete `docs/superpowers/specs/pdf-slice4-worker/`. Slice 5 (manual device
+     checks) is on the deferred list.
+
 **Cleanup owed:** Orca worker `ctx_7a3d8ccb0435` reported `retained` on release earlier; it has no live process.
 Leave it.
 
@@ -63,7 +81,7 @@ main checkout.
 
 ## Next
 
-1. **Vector PDF slice 4** (slice 3 merged as #415): webtoon rows draw the same canvas (frame reporter
+1. **Vector PDF slice 4** (building — in-flight item 5; slice 3 merged as #415): webtoon rows draw the same canvas (frame reporter
    and strip anchors included; slice 2's `UndrawnPDFPage` webtoon row has neither, so progress capture/restore
    can't address an undrawn PDF row), the hermetic `LocalPDFReaderUITests` (criteria 6–8, 10; add to CI's hermetic
    list; the fixture goes through `LocalImportUITests`' `-uitest-import-fixture` route), **and the flip**: default
