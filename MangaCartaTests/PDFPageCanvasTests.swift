@@ -208,6 +208,35 @@ struct PDFDocumentSessionTests {
 
 @MainActor
 struct PDFPageCanvasTests {
+    @Test func testCanvasDoesNotTakeTouches() {
+        #expect(!PDFPageCanvasView(page: nil).isUserInteractionEnabled)
+    }
+
+    @Test func testLeavingTheWindowReleasesTilesAndReturningRedraws() throws {
+        let directory = try makePDFCanvasTestDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("window.pdf")
+        let document = try makeSinglePagePDF()
+        #expect(PDFFixtureWriter.write(document, to: url))
+        let reopened = try #require(PDFDocument(url: url))
+        let pdfPage = try #require(reopened.page(at: 0)?.pageRef)
+        let view = PDFPageCanvasView(page: PDFDocumentPage(document: reopened, page: pdfPage))
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 100, height: 100))
+        window.rootViewController = UIViewController()
+        window.makeKeyAndVisible()
+        window.rootViewController?.view.addSubview(view)
+        #expect(view.window === window)
+        view.layer.contents = NSObject()
+
+        view.removeFromSuperview()
+        #expect(view.layer.contents == nil)
+
+        let redrawRequestsBeforeReturn = view.redrawRequestCount
+        window.rootViewController?.view.addSubview(view)
+        #expect(view.window === window)
+        #expect(view.redrawRequestCount > redrawRequestsBeforeReturn)
+    }
+
     @Test func testTiledLayerRedrawsUpToFourTimes() throws {
         let view = PDFPageCanvasView(page: nil)
         let layer = try #require(view.layer as? CATiledLayer)

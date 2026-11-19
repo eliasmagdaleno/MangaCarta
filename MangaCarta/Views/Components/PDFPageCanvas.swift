@@ -80,6 +80,7 @@ final class PDFPageCanvasView: UIView {
     override static var layerClass: AnyClass { CATiledLayer.self }
 
     nonisolated private let drawingState: PDFPageCanvasDrawingState
+    private(set) var redrawRequestCount = 0
 
     var pageHolder: PDFPageHolder? {
         drawingState.snapshot().0
@@ -89,6 +90,7 @@ final class PDFPageCanvasView: UIView {
         drawingState = PDFPageCanvasDrawingState(page: page, renderer: renderer)
         super.init(frame: .zero)
         isOpaque = false
+        isUserInteractionEnabled = false
         isAccessibilityElement = false
         accessibilityElementsHidden = true
         if let tiledLayer = layer as? CATiledLayer {
@@ -104,12 +106,25 @@ final class PDFPageCanvasView: UIView {
 
     func setPage(_ page: PDFDocumentPage, renderer: any PDFPageRendering) {
         drawingState.update(page: page, renderer: renderer)
-        layer.setNeedsDisplay()
+        requestRedraw()
     }
 
     func releasePage() {
         drawingState.clear()
         layer.contents = nil
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window == nil {
+            layer.contents = nil
+        } else if pageHolder != nil {
+            requestRedraw()
+        }
+    }
+
+    private func requestRedraw() {
+        redrawRequestCount += 1
         layer.setNeedsDisplay()
     }
 

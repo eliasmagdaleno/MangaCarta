@@ -548,9 +548,9 @@ struct ReaderView: View {
                             case .image(let url):
                                 WebtoonPage(url: url, index: index, pageCount: vm.pages.count,
                                             reportTarget: vm.reportTarget)
-                            case .pdf:
-                                UndrawnPDFPage(index: index, pageCount: vm.pages.count)
-                                    .frame(height: 460)
+                            case .pdf(let documentURL, let pageIndex):
+                                WebtoonPDFPage(documentURL: documentURL, pageIndex: pageIndex,
+                                               session: pdfSession, index: index, pageCount: vm.pages.count)
                             }
                         }
                         .id(index)
@@ -818,29 +818,13 @@ private struct WebtoonPage: View {
     var body: some View {
         CachedAsyncImage(url: url, reportTarget: reportTarget) { phase in
             strip(for: phase)
-                .background(frameReporter(isDecoded: isDecoded(phase)))
-                .overlay(anchorGrid)
+                .modifier(WebtoonStripModifier(index: index, isDecoded: isDecoded(phase)))
         }
         .id(reloadToken)
         // Same reason as `ZoomablePage`: an unlabelled strip is nothing to land on. The
         // anchor grid underneath is layout machinery and stays out of the way (issue #90).
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(ReaderAccessibility.pageLabel(index: index, pageCount: pageCount))
-    }
-
-    /// The addressable slices of this strip. The `VStack` inherits the strip's measured
-    /// height and `Color` is infinitely flexible, so this divides it into N equal parts with
-    /// no height arithmetic — and it keeps working as the height changes underneath.
-    ///
-    /// `allowsHitTesting(false)` is not optional: the chrome toggle is a tap gesture on an
-    /// ancestor, and this overlay covers the whole strip (ADR-0014 decision 9).
-    private var anchorGrid: some View {
-        VStack(spacing: 0) {
-            ForEach(0..<stripAnchorSlots, id: \.self) { slot in
-                Color.clear.id(StripAnchor(page: index, slot: slot))
-            }
-        }
-        .allowsHitTesting(false)
     }
 
     @ViewBuilder private func strip(for phase: AsyncImagePhase) -> some View {
@@ -867,14 +851,60 @@ private struct WebtoonPage: View {
         return false
     }
 
-    private func frameReporter(isDecoded: Bool) -> some View {
-        GeometryReader { geo in
-            Color.clear.preference(
-                key: StripFramesKey.self,
-                value: [index: StripFrame(rect: geo.frame(in: .named(readerScrollSpace)),
-                                          isDecoded: isDecoded)]
-            )
+}
+
+/// Shared position reporting and addressable restore points for every vertical strip row.
+private struct WebtoonStripModifier: ViewModifier {
+    let index: Int
+    let isDecoded: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .background {
+                GeometryReader { geo in
+                    Color.clear.preference(
+                        key: StripFramesKey.self,
+                        value: [index: StripFrame(rect: geo.frame(in: .named(readerScrollSpace)),
+                                                  isDecoded: isDecoded)]
+                    )
+                }
+            }
+            .overlay {
+                VStack(spacing: 0) {
+                    ForEach(0..<stripAnchorSlots, id: \.self) { slot in
+                        Color.clear.id(StripAnchor(page: index, slot: slot))
+                    }
+                }
+                .allowsHitTesting(false)
+            }
+    }
+}
+
+/// A vector page in the continuous reader. Its final aspect is known as soon as PDFKit opens it.
+private struct WebtoonPDFPage: View {
+    let documentURL: URL
+    let pageIndex: Int
+    let session: PDFDocumentSession
+    let index: Int
+    let pageCount: Int
+
+    var body: some View {
+        Group {
+            if let page = session.page(documentURL: documentURL, pageIndex: pageIndex) {
+                let size = PDFPageGeometry.displayedSize(cropBox: page.page.getBoxRect(.cropBox),
+                                                        rotation: Int(page.page.rotationAngle))
+                PDFPageCanvas(page: page)
+                    .aspectRatio(size, contentMode: .fit)
+                    .frame(maxWidth: .infinity)
+                    .modifier(WebtoonStripModifier(index: index, isDecoded: true))
+            } else {
+                UndrawnPDFPage(index: index, pageCount: pageCount)
+                    .frame(height: 460)
+                    .modifier(WebtoonStripModifier(index: index, isDecoded: false))
+            }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(ReaderAccessibility.pageLabel(index: index, pageCount: pageCount))
     }
 }
 
