@@ -90,6 +90,7 @@ struct ReaderView: View {
     let manga: Manga
 
     @StateObject private var vm: ReaderViewModel
+    @State private var pdfSession = PDFDocumentSession()
 
     /// - Parameter source: where pages come from. Passed in rather than resolved here,
     ///   because this `init` builds a `@StateObject` and so runs before the environment
@@ -480,19 +481,11 @@ struct ReaderView: View {
                     InterstitialPage(chapter: prev, isNext: false)
                         .tag(index)
                 } else if index >= 0, index < vm.pages.count {
-                    Group {
-                        switch vm.pages[index] {
-                        case .image(let url):
-                            ZoomablePage(url: url, index: index, currentIndex: currentPage,
-                                         pageCount: vm.pages.count, reportTarget: vm.reportTarget,
-                                         onTap: toggleChrome)
-                        case .pdf:
-                            UndrawnPDFPage(index: index, pageCount: vm.pages.count)
-                                .contentShape(Rectangle())
-                                .onTapGesture(perform: toggleChrome)
-                        }
-                    }
-                    .tag(index)
+                    ZoomablePage(page: vm.pages[index], session: pdfSession,
+                                 index: index, currentIndex: currentPage,
+                                 pageCount: vm.pages.count, reportTarget: vm.reportTarget,
+                                 onTap: toggleChrome)
+                        .tag(index)
                 } else if index == vm.pages.count, let next = vm.nextChapter {
                     InterstitialPage(chapter: next, isNext: true)
                         .tag(index)
@@ -737,13 +730,12 @@ struct ReaderView: View {
 
 // MARK: - Zoomable page
 
-/// A single paged image hosted inside a `ZoomableContainer`, which supplies
-/// native UIScrollView pinch / pan / double-tap-to-point zoom. This view owns
-/// the page content phases (image, screentone placeholder, retry) and the
-/// reload token; the container resets zoom when `index` stops matching the
-/// pager's `currentIndex`.
+/// A single page hosted inside a `ZoomableContainer`, which supplies native
+/// UIScrollView pinch / pan / double-tap-to-point zoom. Image pages retain
+/// their loading and retry phases; PDF pages use the reader's document session.
 private struct ZoomablePage: View {
-    let url: URL
+    let page: ReaderPage
+    let session: PDFDocumentSession
     let index: Int
     let currentIndex: Int
     let pageCount: Int
@@ -752,31 +744,53 @@ private struct ZoomablePage: View {
 
     @State private var reloadToken = 0
 
+    private var contentID: String {
+        switch page {
+        case .image(let url):
+            return "\(url.absoluteString)-\(reloadToken)"
+        case .pdf(let documentURL, let pageIndex):
+            return "\(documentURL.absoluteString)#\(pageIndex)"
+        }
+    }
+
     var body: some View {
         ZoomableContainer(
             isActive: index == currentIndex,
-            contentID: "\(url.absoluteString)-\(reloadToken)",
+            contentID: contentID,
             onSingleTap: onTap
         ) {
-            CachedAsyncImage(url: url, reportTarget: reportTarget) { phase in
-                switch phase {
-                case .success(let img):
-                    img.resizable().scaledToFit()
-                case .empty:
-                    Screentone()
-                        .overlay(
-                            Text(String(format: "%03d", index + 1))
-                                .font(.inkMono(13, weight: .semibold))
-                                .foregroundStyle(Ink.tertiary)
-                        )
-                default:
-                    Screentone(opacity: 0.5)
-                        .overlay(PageRetry { reloadToken += 1 })
+            switch page {
+            case .image(let url):
+                CachedAsyncImage(url: url, reportTarget: reportTarget) { phase in
+                    switch phase {
+                    case .success(let img):
+                        img.resizable().scaledToFit()
+                    case .empty:
+                        Screentone()
+                            .overlay(
+                                Text(String(format: "%03d", index + 1))
+                                    .font(.inkMono(13, weight: .semibold))
+                                    .foregroundStyle(Ink.tertiary)
+                            )
+                    default:
+                        Screentone(opacity: 0.5)
+                            .overlay(PageRetry { reloadToken += 1 })
+                    }
+                }
+                .id(reloadToken)
+            case .pdf(let documentURL, let pageIndex):
+                if let pageRef = session.page(documentURL: documentURL, pageIndex: pageIndex) {
+                    let size = PDFPageGeometry.displayedSize(cropBox: pageRef.page.getBoxRect(.cropBox),
+                                                            rotation: Int(pageRef.page.rotationAngle))
+                    PDFPageCanvas(page: pageRef)
+                        .aspectRatio(size, contentMode: .fit)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    UndrawnPDFPage(index: index, pageCount: pageCount)
                 }
             }
-            .id(reloadToken)
         }
-        // A bare image is not a destination: without this the pager had nothing for
+        // A bare page is not a destination: without this the pager had nothing for
         // VoiceOver to land on, and no way to say where in the chapter it was — which
         // right-to-left, a *reversed* page order, makes worse (issue #90, checklist 6.5).
         .accessibilityElement(children: .ignore)

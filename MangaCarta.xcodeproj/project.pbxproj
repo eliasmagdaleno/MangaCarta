@@ -45,6 +45,7 @@
 		5976320E5D809570EFB52521 /* MALAccountPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28F0E06D7EC96A13D6FC582B /* MALAccountPresentationTests.swift */; };
 		59C62D59A91E86032670B615 /* DetailSectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F48BDC7013923DFF1F22F47 /* DetailSectionTests.swift */; };
 		5A4912206FCD4BACD63E9575 /* RepositorySettingsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FDB4839B0D46079491B9A04 /* RepositorySettingsUITests.swift */; };
+		5E13C43AFBA8DE735B3B674A /* PDFPageCanvasTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE76311B1E190687A8A078B7 /* PDFPageCanvasTests.swift */; };
 		5E28475B06BC1AD035A4A9E9 /* AnalyticsEligibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A77C2E396120688CFA25291E /* AnalyticsEligibilityTests.swift */; };
 		5F5E1957F0530F4F9C9AA861 /* SimulatorSeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1F8F25CDCFB39414F501863 /* SimulatorSeed.swift */; };
 		62786603ED6C1507118332E7 /* MALTokenManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 692709FBEDCACC3B7ADB0FA2 /* MALTokenManagerTests.swift */; };
@@ -302,6 +303,7 @@
 		ED10F20BF60C2CD05761BFCB /* MALAccountStoreTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = MALAccountStoreTests.swift; path = MALAccountStoreTests.swift; sourceTree = "<group>"; };
 		ED7F1B3F62C457F2A33C01D1 /* MALHubRailsTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = MALHubRailsTests.swift; path = MALHubRailsTests.swift; sourceTree = "<group>"; };
 		EDCCA6CDCEB2CD41CBF4021B /* LiveUITestRepositoryInstallTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = LiveUITestRepositoryInstallTests.swift; path = LiveUITestRepositoryInstallTests.swift; sourceTree = "<group>"; };
+		EE76311B1E190687A8A078B7 /* PDFPageCanvasTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = PDFPageCanvasTests.swift; path = PDFPageCanvasTests.swift; sourceTree = "<group>"; };
 		F1A3C860E87DEAC28334AADD /* SourceCapabilityTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = SourceCapabilityTests.swift; path = SourceCapabilityTests.swift; sourceTree = "<group>"; };
 		F3A793CC30333D68B9CCECA4 /* SourcePreferenceStoreTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = SourcePreferenceStoreTests.swift; path = SourcePreferenceStoreTests.swift; sourceTree = "<group>"; };
 		F669CDDBD648E0E5352BAC67 /* AccessibilityAuditUITests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = AccessibilityAuditUITests.swift; path = AccessibilityAuditUITests.swift; sourceTree = "<group>"; };
@@ -536,6 +538,7 @@
 				18C853EBC39CEC52B84387D4 /* PDFVectorImportTests.swift */,
 				CF5A0B430D180E73C156EB44 /* LibraryMigrationModelTests.swift */,
 				059E6633DA76E0362830673C /* ReaderPagePipelineTests.swift */,
+				EE76311B1E190687A8A078B7 /* PDFPageCanvasTests.swift */,
 			);
 			path = MangaCartaTests;
 			sourceTree = "<group>";
@@ -848,6 +851,7 @@
 				7C3463BAC8AB8FC8852F8DA6 /* PDFVectorImportTests.swift in Sources */,
 				EEA10D4C95D64CE1D33998C5 /* LibraryMigrationModelTests.swift in Sources */,
 				8587078BB2D68090BA80E7C2 /* ReaderPagePipelineTests.swift in Sources */,
+				5E13C43AFBA8DE735B3B674A /* PDFPageCanvasTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
