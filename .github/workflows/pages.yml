@@ -1,0 +1,54 @@
+# Publishes the privacy policy, and nothing else, to GitHub Pages:
+# https://eliasmagdaleno.github.io/MangaCarta/privacy/
+#
+# The source of truth is docs/app-store/privacy-policy.md. This job copies only that file into
+# an empty staging folder, so no other part of docs/ (specs, handoffs, research) is ever served.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/app-store/privacy-policy.md
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stage the privacy policy only
+        run: |
+          mkdir -p _staging/privacy
+          {
+            printf -- '---\ntitle: MangaCarta Privacy Policy\n---\n\n'
+            # Drop the leading HTML comment (maintainer notes), keep the policy.
+            sed '1,/^-->$/d' docs/app-store/privacy-policy.md
+          } > _staging/privacy/index.md
+          printf 'title: MangaCarta\n' > _staging/_config.yml
+      - uses: actions/configure-pages@v5
+      - uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./_staging
+          destination: ./_site
+      - uses: actions/upload-pages-artifact@v4
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}privacy/
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
