@@ -850,10 +850,11 @@ private struct WebtoonPage: View {
         if case .success = phase { return true }
         return false
     }
-
 }
 
-/// Shared position reporting and addressable restore points for every vertical strip row.
+/// Shares position reporting and addressable restore points across vertical strip rows.
+/// `isDecoded` keeps capture from persisting placeholder geometry before an image resolves
+/// (ADR-0014 decision 9, second amendment).
 private struct WebtoonStripModifier: ViewModifier {
     let index: Int
     let isDecoded: Bool
@@ -870,6 +871,12 @@ private struct WebtoonStripModifier: ViewModifier {
                 }
             }
             .overlay {
+                // The addressable slices of this strip. The `VStack` inherits the strip's
+                // measured height and `Color` is infinitely flexible, so this divides it into
+                // N equal parts with no height arithmetic — and it keeps working as the height
+                // changes underneath. `allowsHitTesting(false)` is not optional: the chrome
+                // toggle is a tap gesture on an ancestor, and this overlay covers the whole
+                // strip (ADR-0014 decision 9).
                 VStack(spacing: 0) {
                     ForEach(0..<stripAnchorSlots, id: \.self) { slot in
                         Color.clear.id(StripAnchor(page: index, slot: slot))

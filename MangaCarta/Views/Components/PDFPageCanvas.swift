@@ -80,6 +80,7 @@ final class PDFPageCanvasView: UIView {
     override static var layerClass: AnyClass { CATiledLayer.self }
 
     nonisolated private let drawingState: PDFPageCanvasDrawingState
+    /// Test seam for confirming that returning to a window requests a redraw.
     private(set) var redrawRequestCount = 0
 
     var pageHolder: PDFPageHolder? {
