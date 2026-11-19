@@ -1,6 +1,6 @@
-# Handoff: Migrate and vector PDF slice 2 merged; PDF slice 3 building; analytics slice 2 in its own session
+# Handoff: Migrate and vector PDF slices 2–3 merged; PDF slice 4 next; analytics slice 2 in its own session
 
-Date: 2026-11-15 (evening, ~20:35). This is the one live handoff. The previous one,
+Date: 2026-11-15 (evening, ~20:35); updated 2026-11-19 (~09:05) after #415 merged. This is the one live handoff. The previous one,
 `archive/2026-11-12-migrate-slice3.md`, is superseded, and every open item in it is carried here. Recheck
 GitHub, the worktrees and the working tree before acting.
 
@@ -21,23 +21,22 @@ Merged, branches deleted (local and remote) unless noted:
     design Amendment 2. Still dark (`.raster` default).
   - **#411** `docs/app-store/privacy-policy.md`, the privacy policy (controller Elias Magdaleno,
     contact eliasrmagdaleno@gmail.com, owner-approved).
+- **2026-11-16:** **#412**, the privacy policy published on GitHub Pages, live at
+  **`https://eliasmagdaleno.github.io/MangaCarta/privacy/`** (the site root is 404).
+  `.github/workflows/pages.yml` stages **only** `docs/app-store/privacy-policy.md` and redeploys on any change to
+  it; Pages is enabled with `build_type: workflow`. The default Jekyll theme loads `anchor.min.js` from cdnjs; a
+  plain theme would remove that third-party request (owner's call, still open).
+- **2026-11-19:** **#415 vector PDF slice 3**: paged mode draws PDF pages through a `CATiledLayer` canvas
+  (`PDFPageCanvas`, `PDFPageGeometry`, `PDFDocumentSession`); design Amendment 3. Still dark (`.raster` default);
+  webtoon keeps the placeholder. Review found three bugs the worker's green tests couldn't see (no scale-up via
+  `getDrawingTransform`; a single 4× tile level; `CGPDFPage` outliving its evicted document), all fixed with
+  mutations M8–M10. Claude's final review added `testPageDrawsRightSideUp`, the first test through the production
+  renderer (lesson below). Worktree, local and remote branch removed; Orca worker `ctx_f3bfddd47ab5` released.
+  **Keep the `PDF2 iPhone 17 Pro` simulator** (`06CB4285-0173-4CDB-B844-A539740A7028`) for slice 4, then delete it.
 
 **In flight — check each before acting:**
-1. **#412 merged ~21:11: the privacy policy is live** at **`https://eliasmagdaleno.github.io/MangaCarta/privacy/`**
-   (200, the policy with effective date 15 November 2026, no maintainer comment; the site root is 404).
-   `.github/workflows/pages.yml` stages **only** `docs/app-store/privacy-policy.md` and redeploys on any change to
-   it; Pages is enabled with `build_type: workflow`. Its first CI run needed a rerun (the cold-simulator flake,
-   item 4). Still owed: delete the `docs/privacy-pages` branch (ask first). The default Jekyll theme loads
-   `anchor.min.js` from cdnjs; a plain theme would remove that third-party request (owner's call).
-2. **Vector PDF slice 3 is in review as #415** (opened ~21:50, Auto-fix on, not set to auto-merge). Paged mode
-   draws PDF pages through a `CATiledLayer` canvas; design Amendment 3. Review found three bugs the worker's
-   green tests couldn't see (no scale-up via `getDrawingTransform`; a single 4× tile level; `CGPDFPage` outliving
-   its evicted document), all fixed with tests and mutations M8–M10; Claude added a four-rotation corner test
-   (`testPageTopLeftLandsWhereTheRotationPutsIt`) and its mutation. After it merges: remove the worktree
-   `~/orca/workspaces/Manga-Reader/pdf-slice3` and its local branch, ask before deleting the remote
-   `eliasmagdaleno/pdf-slice3`, and release the Orca worker (`orca orchestration worker-release --dispatch
-   ctx_f3bfddd47ab5`; the original dispatch was `ctx_21bc1dfd885d`). Keep the **`PDF2 iPhone 17 Pro`**
-   simulator (`06CB4285-0173-4CDB-B844-A539740A7028`) for slice 4, then delete it.
+1. *(Done: the privacy policy, #412, above.)*
+2. *(Done: PDF slice 3, #415, above.)*
 3. **Analytics slice 2 — its own Claude Desktop session**, "Build analytics slice 2 (provider integration)"
    (`local_e4018574-f6df-40e1-88a1-4526bb1e8fdb`), started ~20:30 in its own worktree. It writes the Worker,
    D1 schema, `wrangler` config and a setup checklist; **the owner runs every Cloudflare step** (account, login,
@@ -51,7 +50,8 @@ Merged, branches deleted (local and remote) unless noted:
    `43803195698`) the hermetic job failed only its **first** test, `AccessibilityAuditUITests`, on a freshly booted
    simulator (a launch timeout, then "Audit failed to complete in time"); reruns passed. The session edits only
    `ci.yml`'s UI job and that test, without blanket retries. Until it lands, a lone failure of the first test is a
-   rerun (`gh run rerun <id> --failed`), not a regression. #412's rerun was started ~20:50.
+   rerun (`gh run rerun <id> --failed`), not a regression. Its PR is **#414**
+   (`claude/ci-cold-sim-warmup`), open as of 2026-11-19.
 
 **Cleanup owed:** Orca worker `ctx_7a3d8ccb0435` reported `retained` on release earlier; it has no live process.
 Leave it.
@@ -63,7 +63,7 @@ main checkout.
 
 ## Next
 
-1. **Vector PDF slice 3** (in flight, above), then **slice 4**: webtoon rows draw the same canvas (frame reporter
+1. **Vector PDF slice 4** (slice 3 merged as #415): webtoon rows draw the same canvas (frame reporter
    and strip anchors included; slice 2's `UndrawnPDFPage` webtoon row has neither, so progress capture/restore
    can't address an undrawn PDF row), the hermetic `LocalPDFReaderUITests` (criteria 6–8, 10; add to CI's hermetic
    list; the fixture goes through `LocalImportUITests`' `-uitest-import-fixture` route), **and the flip**: default
@@ -116,6 +116,16 @@ Known and deliberately unfiled:
   caller of `link` appears, add a test through it.
 
 ## Lessons from this session
+
+- **A seam that every test replaces leaves the real thing untested.** Slice 3's drawing tests all injected a
+  recording `PDFPageRendering`, so the production renderer, including its y-axis flip, never ran in a test:
+  deleting the flip left the suite green with every page upside down. `testPageDrawsRightSideUp` draws through
+  the default renderer into a `UIGraphicsImageRenderer` (y-down, like a layer's context) and checks a top band
+  lands at the top. When a worker adds an injectable seam, ask which test runs the default implementation. For
+  slice 4's webtoon rows, draw through the real renderer too.
+- **A shell loop over `"a b"` pairs doesn't split in zsh.** `for pair in "415 branch"; do set -- $pair` left `$1` as
+  the whole string; the merged-state gate failed closed and nothing was deleted. Pass the values as separate
+  function arguments instead.
 
 - **A UI test can fail before it tests anything.** #408's CI failed `AccessibilityAuditUITests` at
   `app.launch()` with "Failed to get background assertion … Timed out": the first launch on a cold CI simulator.
@@ -386,9 +396,9 @@ is done.** Don't start any of it unprompted. Nothing here is lost by waiting.
   `settings.showAdultSources` is still false.
 - The MangaDex Source is on **bundle v3** (declares image-load reports). WeebCentral is unchanged.
 - History gained Dorohedoro ch. 2, read to page 4 of 26.
-- Four leftover worker simulators (`Luna-R186`, `Luna-230`, `Luna-190`, `Luna-removal2-final`) are
-  also iPhone 17 Pros, so **name-based destinations are ambiguous**. Target the seeded simulator by
-  id.
+- The leftover `Luna-*` worker simulators were gone by 2026-11-19, but `PDF2 iPhone 17 Pro` and
+  `AN2 iPhone 17 Pro` are still iPhone 17 Pros, so **name-based destinations are ambiguous**. Target the
+  seeded simulator by id.
 
 ## Watch list
 
