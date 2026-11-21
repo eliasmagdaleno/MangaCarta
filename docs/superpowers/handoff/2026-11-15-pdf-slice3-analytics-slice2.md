@@ -1,6 +1,6 @@
 # Handoff: Migrate and vector PDF slices 2–3 merged; PDF slice 4 next; analytics slice 2 in its own session
 
-Date: 2026-11-15 (evening, ~20:35); updated 2026-11-19 (~09:05) after #415 merged. This is the one live handoff. The previous one,
+Date: 2026-11-15 (evening, ~20:35); updated 2026-11-19 (~09:05) after #415 merged, and 2026-11-20 with PDF slice 4's state. This is the one live handoff. The previous one,
 `archive/2026-11-12-migrate-slice3.md`, is superseded, and every open item in it is carried here. Recheck
 GitHub, the worktrees and the working tree before acting.
 
@@ -53,23 +53,40 @@ Merged, branches deleted (local and remote) unless noted:
    rerun (`gh run rerun <id> --failed`), not a regression. Its PR is **#414**
    (`claude/ci-cold-sim-warmup`), open as of 2026-11-19.
 
-5. **Vector PDF slice 4 — building, started 2026-11-19 ~09:30.** The design was rechecked against `main` at
-   `b2c3b01`; the result is Amendment 4, eight items. Its main points: webtoon PDF rows share the image rows'
-   frame reporter and anchor grid; the canvas takes no touches (else webtoon's chrome tap breaks); off-window
-   rows drop their tiles; the flip deletes `PDFImportMode` and `PDFPageRasterizer` and removes `PDFImportTests`;
-   `isLegacyRasterPDF` drives the duplicate message; the UI fixture route needs no change, since PDFs are
-   detected by bytes. The worker spec and Amendment 4 are in `docs/superpowers/specs/pdf-slice4-worker/`
-   (`spec.md`: four pieces A–D, acceptance→test table, mutations M1–M9). The worker appends Amendment 4 to the
-   design doc as its first commit.
-   - Codex `gpt-6-luna` (medium) via Orca: dispatch `ctx_f8f53ef77a61`, task `task_4d195afb20cf`, run
-     `run_366e2086a9f0`, coordinator terminal `term_4c61b8e7-3519-4db8-b52f-083ba9fb79cf`, new top-level
-     worktree `pdf-slice4` (path in `orca worktree list`). It does one piece per turn; Piece A (Amendment 4
-     commit, webtoon rows, touches, tile release, two canvas tests) was the first. Send the next piece with
-     `orca orchestration send --to dispatch:ctx_f8f53ef77a61 --from <coordinator> …` after reviewing.
-   - Simulator: `PDF2 iPhone 17 Pro` only (`06CB4285-…`). Delete it after the PR merges.
-   - After it merges: remove the worktree and local branch, ask before the remote, release the worker, close
-     the coordinator terminal, delete `docs/superpowers/specs/pdf-slice4-worker/`. Slice 5 (manual device
-     checks) is on the deferred list.
+5. **Vector PDF slice 4 — Pieces A–C committed and pushed; Piece D (mutations + verification) remains.**
+   Branch **`eliasmagdaleno/pdf-slice4`** at **`51a0d00`**, pushed (no PR yet), worktree
+   `~/orca/workspaces/Manga-Reader/pdf-slice4` (untracked `Secrets.xcconfig`, restored to the real file; never
+   commit it). The plan of record is **Amendment 4**, now in the design doc (commit `fa6686a`); the worker spec
+   with the acceptance→test table and mutations M1–M9 is `docs/superpowers/specs/pdf-slice4-worker/spec.md`.
+   - **A** (`3f24e44`, `1ebaaa8`): `WebtoonPDFPage` and a shared `WebtoonStripModifier` (frame reporter + anchor
+     grid), canvas `isUserInteractionEnabled = false`, tiles released in `didMoveToWindow`; two canvas tests.
+   - **B** (`e26c2f8`): the flip. `PDFImportMode`, `PDFPageRasterizer`, `PDFRasterizationError` and
+     `PDFImportTests` deleted; `isLegacyRasterPDF` + the "delete it and import again for sharp pages" duplicate
+     message; `productionStoreImportsPDFsAsVector` and three duplicate-message tests. Unit suite: 1,231 XCTest
+     (5 skipped) + 417 Swift Testing. **For the PR body:** archive `writeCover` failures now say "No images found"
+     instead of a raw system error (forced by the deleted error type; effectively unreachable).
+   - **C** (`51a0d00`): `LocalPDFReaderUITests` (3 tests) and its `ci.yml` hermetic-list line (has its ` \`).
+     **Deviation from the spec, accepted:** webtoon has no page indicator by design, so the restore check asserts
+     page elements on screen (page 3 shown and page 1 not, after reopening; page 1 shown at first open as the
+     control). Locally passed: `LocalPDFReaderUITests` 3/3, `LocalImportUITests`, `AccessibilityAuditUITests`,
+     `AnalyticsSettingsUITests`, `DetailSectionsUITests`, `LibraryMigrateUITests`, and 3 `MALHubUITests` tests.
+     **Not run locally** (machine overloaded, see lessons): the rest of `MALHubUITests`, `TitleSourcesUITests`,
+     `UpdatesUITests`, `SourcePreferenceUITests`, `RepositorySettingsUITests`; CI runs them on the PR.
+   - **Piece D, still owed:** run M1–M9 from the spec, each by test name, reverting and `git status` after every
+     one (M3, M4, M6, M7, M8 are unit tests; M1, M2, M5, M9 need `LocalPDFReaderUITests`). Then the full unit suite
+     with both counts, SwiftLint on changed files, open the PR (Amendment 4 summary, the deviation, the
+     `writeCover` note, the mutation table), and let CI run all 11 hermetic suites. Check the machine's load
+     (`uptime`) before UI runs. **Do it yourself rather than through the worker** (below); it is mostly running
+     tests.
+   - **The Orca worker went unresponsive** during C: after I stopped two wedged test runs, it sat idle and never
+     answered two follow-ups. Dispatches `ctx_f8f53ef77a61` (A), `ctx_3133c06e4b94` (B), `ctx_25c30cfec09e` (C,
+     shows `in_progress`), run `run_366e2086a9f0`, coordinator terminal
+     `term_4c61b8e7-3519-4db8-b52f-083ba9fb79cf`. Release `ctx_25c30cfec09e` (`orca orchestration
+     worker-release --dispatch ctx_25c30cfec09e`) and close the terminal before starting D, so it can't wake and
+     commit over you.
+   - Simulator: `PDF2 iPhone 17 Pro` only (`06CB4285-0173-4CDB-B844-A539740A7028`). Delete it after the PR merges.
+   - After it merges: remove the worktree and local branch, ask before the remote, delete
+     `docs/superpowers/specs/pdf-slice4-worker/`. Slice 5 (manual device checks) is on the deferred list.
 
 **Cleanup owed:** Orca worker `ctx_7a3d8ccb0435` reported `retained` on release earlier; it has no live process.
 Leave it.
@@ -81,7 +98,7 @@ main checkout.
 
 ## Next
 
-1. **Vector PDF slice 4** (building — in-flight item 5; slice 3 merged as #415): webtoon rows draw the same canvas (frame reporter
+1. **Vector PDF slice 4** (Pieces A–C done, Piece D left — in-flight item 5; slice 3 merged as #415): webtoon rows draw the same canvas (frame reporter
    and strip anchors included; slice 2's `UndrawnPDFPage` webtoon row has neither, so progress capture/restore
    can't address an undrawn PDF row), the hermetic `LocalPDFReaderUITests` (criteria 6–8, 10; add to CI's hermetic
    list; the fixture goes through `LocalImportUITests`' `-uitest-import-fixture` route), **and the flip**: default
@@ -134,6 +151,20 @@ Known and deliberately unfiled:
   caller of `link` appears, add a test through it.
 
 ## Lessons from this session
+
+- **A wedged simulator looks like a hung test, not a failed one.** Mid-run, every step of `MALHubUITests` hit
+  "Timed out while synthesizing event" and tests took 25–70 minutes each; the PDF suites before it had passed.
+  Read the failure text: a timeout *synthesizing an event* is the simulator, not the app. Stop the run, then
+  `simctl shutdown` + `boot` before rerunning.
+- **Check `uptime` before a long UI run.** After a reboot the same suite still took 6–21 minutes per test: the
+  load average was ~45, with an Android emulator and a second simulator running. At load ~5 it is normal. When
+  only suites the change can't affect remain, let CI run them instead of waiting hours locally.
+- **Stopping a worker's process can leave the worker silent.** After I killed its wedged `xcodebuild` twice, the
+  Codex worker sat idle at 0% CPU, `in_progress`, and never acted on two follow-ups (it has no terminal to nudge).
+  Finishing the piece myself took minutes. Before killing a worker's run, expect to finish its piece yourself.
+- **A spec can ask a test to read UI that doesn't exist.** Mine had the webtoon restore test read the page
+  indicator, which webtoon never shows; the worker asked instead of adding one to production, which was right.
+  Grep for each element a UI test step names before writing the spec.
 
 - **A seam that every test replaces leaves the real thing untested.** Slice 3's drawing tests all injected a
   recording `PDFPageRendering`, so the production renderer, including its y-axis flip, never ran in a test:
