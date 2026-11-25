@@ -100,6 +100,7 @@ struct AppComposition {
     let works: WorkStore
     let analyticsConsent: AnalyticsConsentStore
     let analytics: AnalyticsRecorder
+    let analyticsUploader: AnalyticsUploader?
     let engine: RecommendationEngine
     let queue: MetadataUpgradeQueue
     let updates: UpdateStateStore
@@ -356,7 +357,8 @@ struct AppComposition {
          notifications: NotificationScheduling? = nil,
          malSourceChoiceStore: MALSourceChoiceStore? = nil,
          listingCountDirectory: URL? = nil,
-         analyticsNoticeSuppressed: Bool = false) {
+         analyticsNoticeSuppressed: Bool = false,
+         analyticsTransport: (any AnalyticsTransport)? = AnalyticsTransportSelection.current()) {
         let identityMigrationError = Self.runIdentityMigrations(directory: directory, defaults: defaults)
         let resolvedRegistry = registry ?? .shared
         let resolvedMALResolver = malResolver ?? MALEntityResolver(
@@ -373,6 +375,13 @@ struct AppComposition {
         let analytics = AnalyticsRecorder(
             consent: analyticsConsent, buffer: analyticsBuffer, works: wk,
             source: { resolvedRegistry.source(id: $0) }, defaults: defaults)
+        let analyticsUploader = analyticsTransport.map {
+            AnalyticsUploader(buffer: analyticsBuffer, consent: analyticsConsent, transport: $0,
+                              defaults: defaults, bufferChanged: { [weak analytics] in analytics?.reloadFromBuffer() })
+        }
+        analytics.deletionQueued = { [weak analyticsUploader] in
+            Task { await analyticsUploader?.sendPendingDeletes() }
+        }
 
         // Built before `HistoryStore` because the history store takes the completion sink
         // at construction.
@@ -525,6 +534,7 @@ struct AppComposition {
         self.works = wk
         self.analyticsConsent = analyticsConsent
         self.analytics = analytics
+        self.analyticsUploader = analyticsUploader
         self.library = lib
         self.history = hist
         self.taste = ts

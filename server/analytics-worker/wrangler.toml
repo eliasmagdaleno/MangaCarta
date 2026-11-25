@@ -1,0 +1,42 @@
+# MangaCarta analytics ingest Worker. Setup: README.md. Design: docs/superpowers/specs/
+# 2026-11-09-analytics-design.md §7.1 and Amendment 3 items 8–11.
+#
+# Privacy promise this file helps keep: "Your IP address is not stored." The Worker itself
+# never reads headers; the settings below stop Cloudflare's own logging from storing them.
+# test/config.test.mjs fails if any of them is flipped.
+
+name = "mangacarta-analytics"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+# The one public URL the app talks to (<name>.<subdomain>.workers.dev).
+workers_dev = true
+
+# No per-version preview URLs: each would be a second, unreviewed copy of the endpoint (§7.1).
+preview_urls = false
+
+# No Logpush: a Logpush job ships each request's IP and user agent to storage (§7.1).
+logpush = false
+
+# No Workers Logs, invocation logs or traces: each stores request metadata, including the
+# client IP, on Cloudflare's side (§7.1). The Worker never calls console.* either.
+[observability]
+enabled = false
+
+[observability.logs]
+enabled = false
+invocation_logs = false
+
+[observability.traces]
+enabled = false
+
+# The event store. Its location (--location or --jurisdiction at `d1 create`) is named in the
+# privacy policy's "Where it goes", so it is the owner's choice and must be reported back.
+[[d1_databases]]
+binding = "DB"
+database_name = "mangacarta-analytics"
+database_id = "REPLACE_WITH_ID_FROM_wrangler_d1_create"
+
+# Daily maintenance at 03:17 UTC: 12-month purge, adult classification, adult purge (§7.1).
+[triggers]
+crons = ["17 3 * * *"]

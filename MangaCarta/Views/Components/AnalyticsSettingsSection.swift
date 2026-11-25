@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct AnalyticsSettingsSection: View {
+    static let privacyPolicyURL = URL(string: "https://eliasmagdaleno.github.io/MangaCarta/privacy/")!
     @EnvironmentObject private var consent: AnalyticsConsentStore
     @EnvironmentObject private var analytics: AnalyticsRecorder
 
@@ -37,6 +38,11 @@ struct AnalyticsSettingsSection: View {
                 .padding(.horizontal, Gutter.page)
                 .frame(minHeight: 50, alignment: .leading)
                 .accessibilityIdentifier("analyticsDelete")
+                Divider().overlay(Ink.hairline).padding(.leading, Gutter.page)
+                Link("Privacy policy", destination: Self.privacyPolicyURL)
+                    .padding(.horizontal, Gutter.page)
+                    .frame(minHeight: 50, alignment: .leading)
+                    .accessibilityIdentifier("analyticsPrivacyPolicy")
             }
             .background(RoundedRectangle(cornerRadius: 14).fill(Ink.surface))
             .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Ink.hairline, lineWidth: 1))
