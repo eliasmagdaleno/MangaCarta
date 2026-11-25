@@ -191,6 +191,7 @@ struct CompositeCandidateProvider: CandidateProvider {
     /// `var`, not `let`: a `let` carrying a default value is excluded from the memberwise
     /// initializer entirely, which would make it unsettable.
     var ani: CandidateProvider = EmptyCandidateProvider()
+    var co: CandidateProvider = EmptyCandidateProvider()
 
     // Tuning constants. Non-private and injectable (the memberwise init defaults them, so
     // `CompositeCandidateProvider(tag:mal:)` still reads the same) for two reasons: the golden
@@ -203,6 +204,7 @@ struct CompositeCandidateProvider: CandidateProvider {
     /// is the best-evidenced of the three) but because it is the only one that has never
     /// faced a real device. The golden file is the instrument for raising it.
     var wAniList = 0.6
+    var wCo = 0.6
     /// Scales the geometric-mean agreement term. Deliberately left at the flat bonus's old
     /// value so the formula change could be evaluated on its own — note the geometric bonus is
     /// always ≤ the flat one it replaced, reaching 0.25 only when a title tops both pools, so
@@ -215,21 +217,24 @@ struct CompositeCandidateProvider: CandidateProvider {
         async let tagPool = tag.candidates(for: profile, excluding: excluding, limit: limit)
         async let malPool = mal.candidates(for: profile, excluding: excluding, limit: limit)
         async let aniPool = ani.candidates(for: profile, excluding: excluding, limit: limit)
+        async let coPool = co.candidates(for: profile, excluding: excluding, limit: limit)
         // Any pool failing degrades to empty (MAL failing ⇒ tag-only rail).
         let tags = (try? await tagPool) ?? []
         let mals = (try? await malPool) ?? []
         let anis = (try? await aniPool) ?? []
+        let cos = (try? await coPool) ?? []
 
         let tagNorm = Self.normalized(tags)
         let malNorm = Self.normalized(mals)
         let aniNorm = Self.normalized(anis)
+        let coNorm = Self.normalized(cos)
 
         var score: [String: Double] = [:]
         var manga: [String: Manga] = [:]
         var reason: [String: String] = [:]
         var reasonKind: [String: ForYouReasonKind] = [:]
 
-        // Reason precedence is tag < AniList < MAL, applied by assignment order (ADR-0011).
+        // Reason precedence is tag < co-occurrence < AniList < MAL.
         // "Because you read Solo Leveling" names a book the user chose and beats any tag
         // phrasing; a two-tag conjunction is strictly more informative than the single broad
         // tag that surfaced the same title, so it overrides "More Action".
@@ -238,6 +243,12 @@ struct CompositeCandidateProvider: CandidateProvider {
             reason[c.manga.id] = c.reason
             reasonKind[c.manga.id] = c.reasonKind
             score[c.manga.id, default: 0] += wTag * (tagNorm[c.manga.id] ?? 0)
+        }
+        for c in cos {
+            if manga[c.manga.id] == nil { manga[c.manga.id] = c.manga }
+            reason[c.manga.id] = c.reason
+            reasonKind[c.manga.id] = c.reasonKind
+            score[c.manga.id, default: 0] += wCo * (coNorm[c.manga.id] ?? 0)
         }
         for c in anis {
             if manga[c.manga.id] == nil { manga[c.manga.id] = c.manga }
@@ -262,7 +273,7 @@ struct CompositeCandidateProvider: CandidateProvider {
         // to fix, and holding the balance would mean cutting agreementBonus to ~0.08 —
         // quietly weakening two-pool agreement as a side effect of adding a third pool.
         for id in manga.keys {
-            let contributing = [tagNorm[id], aniNorm[id], malNorm[id]].compactMap { $0 }
+            let contributing = [tagNorm[id], coNorm[id], aniNorm[id], malNorm[id]].compactMap { $0 }
                 .filter { $0 > 0 }
             guard contributing.count >= 2 else { continue }
             let product = contributing.reduce(1.0, *)

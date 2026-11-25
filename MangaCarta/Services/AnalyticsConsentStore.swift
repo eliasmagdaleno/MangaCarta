@@ -21,6 +21,8 @@ final class AnalyticsConsentStore: ObservableObject {
     private let noticeSuppressed: Bool
     private var consentChanged: ((_ old: AnalyticsConsent, _ new: AnalyticsConsent) -> Void)?
 
+    private var observations = Set<AnyCancellable>()
+
     init(defaults: UserDefaults = .standard, noticeSuppressed: Bool = false) {
         self.defaults = defaults
         self.noticeSuppressed = noticeSuppressed
@@ -48,6 +50,11 @@ final class AnalyticsConsentStore: ObservableObject {
         _ handler: @escaping (_ old: AnalyticsConsent, _ new: AnalyticsConsent) -> Void
     ) {
         consentChanged = handler
+    }
+
+    /// Calls `handler` with the current consent and every later one, for as long as this store lives.
+    func observe(_ handler: @escaping (AnalyticsConsent) -> Void) {
+        $consent.sink(receiveValue: handler).store(in: &observations)
     }
 
     func accept() {

@@ -1,19 +1,23 @@
 # MangaCarta analytics Worker
 
 The server half of opt-in analytics: one Cloudflare Worker and one D1 database. It accepts batches of the
-events in the analytics design (`docs/superpowers/specs/2026-11-09-analytics-design.md`, §2 and Amendment 3),
-deletes one install's events on request, and runs a daily purge. It reads only the request body: no IP
+events in the analytics design (`docs/superpowers/specs/2026-11-09-analytics-design.md`, §2 and Amendments 3–5),
+deletes one install's events on request, runs a daily purge, and publishes anonymous co-occurrence counts. It reads only the request body: no IP
 address, user agent, header or time of day is read or stored.
 
 | File | What it is |
 |---|---|
-| `src/index.js` | The Worker: `POST /v1/events`, `DELETE /v1/installs/{id}`, and the daily cron |
-| `schema.sql` | The D1 tables (`events`, `adult_catalogue`, `catalogue_checked`). Safe to run again |
+| `src/index.js` | The Worker: ingest and delete endpoints, `GET /v1/cooccurrence-v1.json`, and daily maintenance |
+| `schema.sql` | The D1 tables (`events`, `adult_catalogue`, `catalogue_checked`, `catalogue_known`, `published`). Safe to run again |
 | `wrangler.toml` | Deploy config. Every logging switch is off; each line says why |
 | `test/` | `node --test` tests over a D1 stand-in built on `node:sqlite` |
 
 Every command below uses **wrangler 4.162.0**, pinned so these steps keep meaning the same thing. Run them
 from this directory (`server/analytics-worker/`).
+
+## Recommendation table
+
+Daily maintenance publishes distinct-install, k ≥ 20 MAL co-occurrence counts from saved and completed Works at `GET /v1/cooccurrence-v1.json`. After changing the Worker or schema, re-run setup steps **6 (schema)** and **7 (deploy)**.
 
 ## Owner setup checklist
 

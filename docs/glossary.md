@@ -238,6 +238,12 @@ lists what is waiting. Not an image-load report, which goes to a Source's operat
 [analytics design](superpowers/specs/2026-11-09-analytics-design.md).
 _Avoid_: telemetry, tracking (Apple's "tracking" means ad linking, which this never does).
 
+**Co-occurrence table** — the published counts of how many analytics ids saved or finished a chapter of the same two
+titles, for pairs at least 20 ids share. It names titles only by MyAnimeList number and holds no analytics id. A reader
+who agreed to analytics downloads it, and it is matched to their Library on the device. See the
+[analytics design, Amendment 5](superpowers/specs/2026-11-09-analytics-design.md).
+_Avoid_: recommendation model, similar titles (MyAnimeList's own signal).
+
 **Fulfillment** — choosing *which* Listing to actually read a Work from, when several sources
 have it. Ranked by English chapter completeness; ties go to the reader's **primary source** — see
 [ADR-0004](adr/0004-fulfillment-routing.md) for the full order.
