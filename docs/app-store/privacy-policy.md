@@ -77,7 +77,9 @@ Analytics is **not used for advertising, not sold, and not shared with data brok
 with data from other companies' apps or websites.
 
 Shared recommendations are built only from counts across at least 20 different analytics IDs. These counts
-contain no analytics IDs and say nothing about any one person.
+contain no analytics IDs. If you have agreed to analytics, the app downloads the list of these counts about once
+a week and matches it to your library **on your device**. The download request contains nothing about you or your
+library. If you have not agreed, the app does not download it.
 
 ### Where it goes
 
@@ -88,7 +90,7 @@ Cloudflare's request logging for this service is switched off.
 ### How long it is kept
 
 Events are kept for **12 months** and then deleted automatically. The recommendation counts described above
-are kept for as long as they are useful; they contain no identifiers.
+are replaced every day; they contain no identifiers.
 
 ### Deleting your data
 
@@ -102,8 +104,8 @@ are kept for as long as they are useful; they contain no identifiers.
   them deleted sooner, email **eliasrmagdaleno@gmail.com** with your analytics ID (copy it from
   **Settings › Privacy › What is sent** before deleting the app).
 
-Removing one person's events does not change the recommendation counts already calculated, since those
-counts are not about any one person.
+The recommendation counts are calculated again every day from the events still stored, so deleted events stop
+counting the next day. Copies of the list already downloaded to other devices are replaced within about a week.
 
 To ask what is stored under your analytics ID, email **eliasrmagdaleno@gmail.com** with the ID.
 

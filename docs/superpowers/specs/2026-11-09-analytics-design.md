@@ -1077,6 +1077,12 @@ decision above stands. These findings change *how* slice 3 is built.
     closed set gains it **in the same PR**: a server without it rejects the whole batch (Amendment 3 item 9). The
     Worker isn't deployed yet. From now on a new value is deployed to the Worker before an app that sends it.
 
+### Policy
+
+15. The privacy policy gains the download (item 7). Its "counts … say nothing about any one person" is removed, because
+    item 4's residual risk contradicts it. §7.2's "not recomputed" and the policy's matching sentence are replaced by
+    item 5's daily recalculation. Effective date unchanged: the same day as slice 2's.
+
 ### What a reader sees if only this slice ships
 
 Nothing: `ANALYTICS_HOST` is unset. Once the Worker is deployed, the table stays empty until some pair reaches 20
