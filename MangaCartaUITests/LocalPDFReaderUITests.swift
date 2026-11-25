@@ -64,13 +64,19 @@ final class LocalPDFReaderUITests: XCTestCase {
         XCTAssertTrue(scrollToPageThree(app, pageThree: pageThree))
         XCTAssertTrue(pageThree.frame.minY <= app.frame.midY)
         attach(app, name: "pdf-webtoon-page-three-before-close")
+        let savedFrames = frames(in: app)
         close.tap()
 
         let read = readButton(in: app)
         XCTAssertTrue(read.waitForExistence(timeout: 10))
         read.tap()
         XCTAssertTrue(pageThree.waitForExistence(timeout: 10))
-        XCTAssertTrue(waitForFrameIntersection(pageThree, app: app, timeout: 15))
+        let restored = waitForFrameIntersection(pageThree, app: app, timeout: 15)
+        attach(app, name: "pdf-webtoon-restore-result")
+        XCTAssertTrue(restored, """
+            page 3 is off screen after reopening; screen \(app.frame), pages when closed \(savedFrames), \
+            now \(frames(in: app))
+            """)
         XCTAssertFalse(waitForFrameIntersection(pageOne, app: app, timeout: 3))
         attach(app, name: "pdf-webtoon-page-three-restored")
 
@@ -129,6 +135,14 @@ final class LocalPDFReaderUITests: XCTestCase {
         app.descendants(matching: .any).matching(NSPredicate(
             format: "label == %@ AND identifier != 'readerPageIndicator'", "Page \(number) of 6"
         )).firstMatch
+    }
+
+    /// Each realized page's frame, for a failure message.
+    private func frames(in app: XCUIApplication) -> String {
+        (1...6).compactMap { number in
+            let page = pageElement(number, in: app)
+            return page.exists ? "\(number): \(page.frame)" : nil
+        }.joined(separator: ", ")
     }
 
     private func selectMode(_ title: String, in app: XCUIApplication) {
