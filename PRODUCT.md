@@ -35,7 +35,7 @@ The product unifies multiple chapter sources around source-independent Works whi
 - Open question: App Store positioning now that the release ships no content Sources and local file import is its first-run purpose (ADR-0003 Amendment 6; local import spec forthcoming).
 - Source-independent Work identity connects Listings, metadata, history signals, and recommendations without treating a provider identifier as the app's identity.
 - Recommendations are derived from reading activity and metadata, with conservative entity resolution that prefers an omission over linking the wrong manga.
-- Library state, reading history, and recommendation inputs are stored on-device. Analytics — collected only after the reader agrees, sending only catalogue numbers and feature use — is designed and decided in `docs/superpowers/specs/2026-11-09-analytics-design.md`.
+- Library state, reading history, and recommendation inputs are stored on-device. Analytics — collected only after the reader agrees, sending only catalogue numbers and feature use to MangaCarta's own self-hosted endpoint — is designed and decided in `docs/superpowers/specs/2026-11-09-analytics-design.md`.
 - Adult sources and content remain opt-in.
 - Release accessibility baseline: primary tasks must work with VoiceOver, text must support Dynamic Type and readable contrast, interactive targets must be at least 44 points, and meaningful motion must honor Reduce Motion. Deeper capabilities such as custom rotors, a dedicated Assistive Access layout, and comprehensive keyboard optimization may follow after the initial public release.
 - No third-party runtime dependencies are currently used.

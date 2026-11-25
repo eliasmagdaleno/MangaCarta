@@ -10,7 +10,7 @@ request logging, Workers Logs and Logpush are OFF), and update the effective dat
 
 # MangaCarta Privacy Policy
 
-**Effective:** 15 November 2026
+**Effective:** 25 November 2026
 
 MangaCarta is a manga reader for iPhone. This policy explains what leaves your device, who receives it,
 and how to stop it. Most of what you do in MangaCarta never leaves your device at all.
@@ -94,7 +94,7 @@ are kept for as long as they are useful; they contain no identifiers.
 
 - **Turning analytics off** stops recording immediately, deletes the events waiting on your device, deletes
   your analytics ID, and asks the server to delete every event stored under that ID. If you're offline, the
-  app keeps trying on later launches for up to 30 days.
+  app keeps trying on later launches until the server confirms it.
 - **Settings › Privacy › Reset analytics ID** does the same deletion and starts a new ID, without turning
   analytics off.
 - **Settings › Privacy › Delete my analytics data** deletes everything as above.

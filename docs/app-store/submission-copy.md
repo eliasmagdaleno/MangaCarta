@@ -172,8 +172,8 @@ recognisable series.
 
 ## 5. Privacy label
 
-`MangaCarta/PrivacyInfo.xcprivacy` declares optional MyAnimeList sync (#149) and image-load
-reports. Reports (ADR-0003 Amendment 9) are the second way data leaves the device, and the
+`MangaCarta/PrivacyInfo.xcprivacy` declares optional MyAnimeList sync (#149), image-load
+reports, and usage analytics (below). Reports (ADR-0003 Amendment 9) are the second way data leaves the device, and the
 amendment requires the label to describe them.
 
 - **What is sent.** One report per page image downloaded from an origin the installed Source
@@ -195,3 +195,29 @@ amendment requires the label to describe them.
 - Recheck all of this against the build that ships Host API 1.3. The reader wiring has shipped
   (#275–#281); no report is sent until an installed Source declares
   `network.imageLoadReports`, and no published Source does yet.
+
+### Usage analytics
+
+Analytics is the third way data leaves the device, and the only one whose recipient is the developer. The design
+is [`2026-11-09-analytics-design.md`](../superpowers/specs/2026-11-09-analytics-design.md); §8 there gives the
+reasoning, and Amendment 3 records the slice-2 build.
+
+- **What is sent.** It is sent only after the reader agrees on the first-launch card or in Settings › Privacy, in
+  every region. It goes to the developer's own Cloudflare Worker. Each event carries a random install id, a UTC day,
+  the app version and one event from a closed list: titles saved, removed or finished, by MyAnimeList and AniList
+  number only; responses to recommendations; and feature-use counts. It never carries titles, search text, Source
+  ids, anything about local files, or anything about adult titles. The server stores no IP address or user agent,
+  and keeps raw events for 12 months.
+- **Answers.**
+  - Identifiers › **Device ID**: **linked**, **not used for tracking**, purpose **Analytics**. The random install id
+    is the conservative fit for Apple's "other device-level ID". It is linked because a persistent id with a usage
+    history is personal data under the GDPR, and Apple counts that as linked.
+  - Usage Data › **Product Interaction**: add purpose **Analytics** to the existing entry, which stays **linked** and
+    keeps **App Functionality** for MyAnimeList sync. A data type can appear only once.
+  - Everything else is unchanged. Name and User ID are for MyAnimeList only; the analytics id is not a User ID.
+    Performance Data is for image-load reports. **Data Used to Track You: none.** `NSPrivacyTracking` stays false
+    with no tracking domains, because the data is never used for advertising, sold or shared with data brokers.
+- **Privacy policy URL:** <https://eliasmagdaleno.github.io/MangaCarta/privacy/>. Settings › Privacy links to it.
+- **Before submitting a build that sends,** the Worker must be deployed with its logging switched off
+  (`server/analytics-worker/README.md`). Its D1 location must also be in the policy. A build without `ANALYTICS_HOST`
+  sends nothing, and the label then over-declares, which is the safe direction.

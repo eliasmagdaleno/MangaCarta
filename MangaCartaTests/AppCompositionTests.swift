@@ -47,6 +47,11 @@ final class AppCompositionTests: XCTestCase {
         AppComposition(defaults: defaults, directory: directory)
     }
 
+    /// Analytics Amendment 3 item 7: a build with no host (this one) has nothing that can upload.
+    func testNoAnalyticsHostBuildsNoUploader() {
+        XCTAssertNil(makeComposition().analyticsUploader)
+    }
+
     /// ADR-0003 Amendment 9, design §4: the composition owns the image cache, and its
     /// reporter sends through the graph's one rate-limiter registry. A view reaching for
     /// `ImageCache.shared` instead would load with no reporter at all.

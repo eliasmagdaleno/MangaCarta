@@ -230,7 +230,7 @@ image origins it names. A page served from the app's own cache is not a download
 See [ADR-0003 Amendment 9](adr/0003-extension-substrate.md).
 _Avoid_: at-home report (MangaDex's name for its own instance), analytics, telemetry.
 
-**Analytics event** — one record the app keeps, and in a later slice sends, to MangaCarta's own endpoint about how the
+**Analytics event** — one record the app keeps and then sends to MangaCarta's own endpoint about how the
 app is used: a save, a finished chapter, a recommendation tapped, a feature used. Recorded only after the reader
 agrees on the first-launch card or in Settings, and it names a title only by its MyAnimeList or AniList number,
 never by name. Adult titles and the reader's own files are never included. Settings → Privacy → "What is sent"

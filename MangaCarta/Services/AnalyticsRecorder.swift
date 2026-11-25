@@ -17,6 +17,7 @@ final class AnalyticsRecorder: ObservableObject {
     @Published private(set) var events: [AnalyticsEnvelope]
     @Published private(set) var installID: UUID?
     var vocabulary: TagVocabulary?
+    var deletionQueued: (() -> Void)?
 
     private let consent: AnalyticsConsentStore
     private let buffer: AnalyticsEventBuffer
@@ -140,6 +141,11 @@ final class AnalyticsRecorder: ObservableObject {
     func resetAnalyticsID() { eraseLocalState() }
     func deleteMyData() { consent.setCollecting(false) }
 
+    func reloadFromBuffer() {
+        events = buffer.events
+        installID = buffer.installID
+    }
+
     @discardableResult
     private func record(_ event: AnalyticsEvent) -> Bool {
         guard consent.isCollecting else { return false }
@@ -157,9 +163,13 @@ final class AnalyticsRecorder: ObservableObject {
     }
 
     private func eraseLocalState() {
+        if let id = buffer.installID {
+            buffer.queueDelete(id, at: now())
+            deletionQueued?()
+        }
         buffer.eraseAll(); ledger.removeAll(); removeLedger()
         defaults.removeObject(forKey: Self.forYouDayKey); defaults.removeObject(forKey: Self.activeDayKey)
-        events = buffer.events; installID = buffer.installID
+        reloadFromBuffer()
     }
 
     private func canonical(_ id: WorkID) -> WorkID? { works.work(id)?.id }

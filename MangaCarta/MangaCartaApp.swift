@@ -54,6 +54,7 @@ struct MangaCartaApp: App {
     /// app's lifetime because the drain is its own serial task, and a rebuilt coordinator
     /// would be a second one.
     private let malProgress: MALProgressCoordinator
+    private let analyticsUploader: AnalyticsUploader?
     private let refresh: LibraryRefreshCoordinator
     private let notifier: UpdateNotifier
     private let scheduler: UpdateScheduler
@@ -208,6 +209,7 @@ struct MangaCartaApp: App {
         self.vocabularyStore = composed.vocabularyStore
         self.poolStore = composed.poolStore
         self.malProgress = composed.malProgress
+        self.analyticsUploader = composed.analyticsUploader
         self.refresh = composed.refresh
         self.notifier = composed.notifier
         self.scheduler = composed.scheduler
@@ -365,12 +367,14 @@ struct MangaCartaApp: App {
                     await vocabularyStore.refreshIfNeeded()
 #endif
                     analytics.vocabulary = await vocabularyStore.cachedVocabulary()
+                    await analyticsUploader?.drainIfDue()
                 }
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:
                 analytics.appActive()
+                Task { await analyticsUploader?.drainIfDue() }
 #if DEBUG
                 guard UpdatesUITestFixture.state == nil else { break }
 #endif
