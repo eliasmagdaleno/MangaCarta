@@ -1032,9 +1032,12 @@ decision above stands. These findings change *how* slice 3 is built.
    (no pair of a rarer id can reach 20); at most 500 such ids are kept, by install count then id; and at most 100
    ids per install, its most widely held first, ties by id. The last two are limits on work, not on privacy.
 4. **Published counts are rounded down to a multiple of 5.** The endpoint is anonymous, so someone can add fake
-   installs and watch a count. Exact counts would show one reader's arrival; rounding blunts that and doesn't stop
-   it. k = 20 bounds what one pair says about anyone: it names no install and no day. Sybil installs can still forge
-   a pair, which costs readers a poor suggestion, never data.
+   installs and watch a count; rounding hides single arrivals above the threshold, **not at it**. An install also
+   counts only once it has events received on 3 different days spanning at least 7, so fake ones need a week of
+   upkeep. **Residual risk:** k counts client-chosen ids, so it is not a guarantee against an attacker. With 19 aged
+   fake installs, a pair appearing shows that one more install holds both titles; someone who already knows a rare
+   title a reader holds could test for others. Forged pairs can also spoil suggestions. Closing this needs device
+   attestation (App Attest) or calibrated noise; neither is built. The owner decides before the Worker is deployed.
 5. **It runs daily,** last in `runDailyMaintenance`, after the adult purge, and **replaces** the table. A deleted
    install, an expired row or a newly adult id therefore leaves the table the next night. An error leaves the
    previous table in place. The job writes no intermediate table, so no second copy of an install id exists.
@@ -1085,6 +1088,7 @@ installs. The privacy policy says a reader who agreed downloads the table.
 |---|---|
 | Worker: 19 installs publish nothing; 20 do; one install repeating a pair counts once | k = 19; `COUNT(*)` instead of distinct |
 | Worker: only `work_saved` and `chapter_completed` count; rows without a MAL id don't | another event name admitted; completions dropped |
+| Worker: an install seen on 2 days, or on 3 days within 6, does not count | days 2; span 6 |
 | Worker: an id unchecked, checked-but-unknown or adult never appears, on either id column | each of the three conditions removed, for `mal` and for `anilist` |
 | Worker: known follows the answer; unanswered ids are removed; a failed chunk changes nothing | no insert; no removal; removal on failure |
 | Worker: counts round down; a list holds at most 20, by count then id | rounding removed; cap removed; order reversed |

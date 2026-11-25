@@ -17,6 +17,8 @@ const CO_MAX_IDS = 500;
 const CO_MAX_PER_INSTALL = 100;
 const CO_MAX_NEIGHBORS = 20;
 const CO_ROUNDING = 5;
+const CO_MIN_DAYS = 3;
+const CO_MIN_SPAN_DAYS = 7;
 const EARLIEST_DAY = "2026-01-01";
 const ANILIST_URL = "https://graphql.anilist.co";
 
@@ -415,8 +417,12 @@ const COOCCURRENCE_QUERY = `
         EXISTS (SELECT 1 FROM catalogue_checked c JOIN catalogue_known k USING (kind, id)
           WHERE c.kind = 'anilist' AND c.id = events.anilist)
         AND NOT EXISTS (SELECT 1 FROM adult_catalogue a WHERE a.kind = 'anilist' AND a.id = events.anilist)))
+  ), mature AS MATERIALIZED (
+    SELECT install FROM events GROUP BY install
+    HAVING COUNT(DISTINCT received) >= ${CO_MIN_DAYS}
+      AND julianday(MAX(received)) - julianday(MIN(received)) >= ${CO_MIN_SPAN_DAYS}
   ), install_ids AS MATERIALIZED (
-    SELECT DISTINCT install, mal FROM eligible_events
+    SELECT DISTINCT install, mal FROM eligible_events WHERE install IN (SELECT install FROM mature)
   ), id_counts AS MATERIALIZED (
     SELECT mal, COUNT(*) AS installs FROM install_ids GROUP BY mal
     HAVING COUNT(*) >= ${CO_MIN_INSTALLS}

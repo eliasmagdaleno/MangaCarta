@@ -8,7 +8,12 @@ function uuid(n) {
   return `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 }
 
-function addInstall(DB, install, ids, { name = "work_saved", anilist = null } = {}) {
+/** Events for one install, plus the history that lets it count: three days over a week. */
+function addInstall(DB, install, ids, { name = "work_saved", anilist = null, days = ["2026-11-08", "2026-11-10"] } = {}) {
+  for (const day of days) {
+    DB.sqlite.prepare("INSERT INTO events (install, day, received, app, name, attrs) VALUES (?, ?, ?, 'test', 'app_active', '{}')")
+      .run(install, day, day);
+  }
   for (const mal of ids) {
     DB.sqlite.prepare("INSERT INTO events (install, day, received, app, name, mal, anilist, attrs) VALUES (?, '2026-11-15', '2026-11-15', 'test', ?, ?, ?, '{}')")
       .run(install, name, mal, anilist);
@@ -67,6 +72,22 @@ test("two widely held titles that 19 installs share are not a pair", async () =>
   addInstall(DB, uuid(1), [1, 2, 1, 2], { name: "chapter_completed" });
   assert.deepEqual((await aggregate(DB)).pairs, {});
 });
+
+for (const [label, days] of [
+  ["two days", ["2026-11-08"]],
+  ["three days within six", ["2026-11-09", "2026-11-10"]],
+]) {
+  test(`an install seen on ${label} does not count`, async () => {
+    const DB = makeD1();
+    classifyIds(DB, "mal", [1, 2]);
+    for (let i = 1; i <= 19; i += 1) addInstall(DB, uuid(i), [1, 2]);
+    addInstall(DB, uuid(20), [1, 2], { days });
+    assert.deepEqual((await aggregate(DB)).pairs, {});
+    // The same install with its history counts, so only the history kept it out.
+    addInstall(DB, uuid(20), [], {});
+    assert.deepEqual((await aggregate(DB)).pairs["1"], [[2, 20]]);
+  });
+}
 
 test("only saves and completions with MAL ids count", async () => {
   const DB = makeD1();
