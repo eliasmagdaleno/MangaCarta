@@ -4,7 +4,7 @@ import { handleRequest, MAX_BODY_BYTES } from "../src/index.js";
 import { makeD1 } from "./support/d1.mjs";
 import { event, INSTALL, NOW, post } from "./support/fixtures.mjs";
 
-const EVENT_COLUMNS = ["id", "install", "day", "received", "app", "name", "mal", "anilist", "to_mal", "to_anilist", "attrs"];
+const EVENT_COLUMNS = ["id", "install", "day", "received", "app", "name", "mal", "anilist", "to_mal", "to_anilist", "attrs", "attested"];
 
 /** A request that throws if the Worker reads its headers or `cf`: the Worker reads only the body. */
 function bodyOnly(request) {

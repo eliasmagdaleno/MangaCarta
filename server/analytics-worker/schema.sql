@@ -20,7 +20,8 @@ CREATE TABLE IF NOT EXISTS events (
   anilist INTEGER,
   to_mal INTEGER,
   to_anilist INTEGER,
-  attrs TEXT NOT NULL
+  attrs TEXT NOT NULL,
+  attested INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS events_install ON events(install);
@@ -29,6 +30,27 @@ CREATE INDEX IF NOT EXISTS events_mal ON events(mal);
 CREATE INDEX IF NOT EXISTS events_anilist ON events(anilist);
 CREATE INDEX IF NOT EXISTS events_to_mal ON events(to_mal);
 CREATE INDEX IF NOT EXISTS events_to_anilist ON events(to_anilist);
+
+CREATE TABLE IF NOT EXISTS attested_keys (
+  install TEXT PRIMARY KEY,
+  key_id TEXT NOT NULL UNIQUE,
+  public_key TEXT NOT NULL,
+  counter INTEGER NOT NULL,
+  last_used TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS challenges (
+  install TEXT PRIMARY KEY,
+  challenge TEXT NOT NULL,
+  expires INTEGER NOT NULL
+);
+
+CREATE TRIGGER IF NOT EXISTS attested_counter_rises
+BEFORE UPDATE OF counter ON attested_keys
+WHEN NEW.counter <= OLD.counter
+BEGIN
+  SELECT RAISE(ABORT, 'attestation counter must rise');
+END;
 
 -- Catalogue ids known to be adult (owner decision 7). Filled by the daily classification
 -- against AniList, or by hand (README). Every event naming one of these is purged nightly.

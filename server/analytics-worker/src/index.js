@@ -2,10 +2,14 @@
 //
 // Design: docs/superpowers/specs/2026-11-09-analytics-design.md §1 (option B), §2, §7, §13
 // and Amendment 3. The Worker reads only the request body: it never touches request
-// headers, `request.cf` or a time of day, and it never logs (§7.1). Any invalid event rejects
+// headers or `request.cf`, and it never logs (§7.1). Events store days only; challenge
+// expiry alone uses seconds (App Attest Amendment 1). Any invalid event rejects
 // the whole batch with 400 and nothing is written (Amendment 3 item 9).
 
+import { base64, unbase64, utf8, concat, sha256, verifyAttestation, verifyAssertion } from "./appattest.js";
+
 export const MAX_BODY_BYTES = 65536;
+export const MAX_REQUEST_BYTES = 131072;
 export const MAX_EVENTS = 100;
 const MAX_CATALOGUE_ID = 2 ** 31 - 1;
 const MAX_CLASSIFY = 200;
@@ -198,8 +202,8 @@ export function validateBatch(json, now) {
   }
 }
 
-/** Reads at most MAX_BODY_BYTES of the body; null if it is longer. Counts real bytes. */
-async function readCappedBody(request) {
+/** Reads at most cap bytes of the body; null if it is longer. Counts real bytes. */
+async function readCappedBody(request, cap = MAX_REQUEST_BYTES) {
   if (!request.body) return new Uint8Array(0);
   const reader = request.body.getReader();
   const chunks = [];
@@ -208,7 +212,7 @@ async function readCappedBody(request) {
     const { done, value } = await reader.read();
     if (done) break;
     total += value.byteLength;
-    if (total > MAX_BODY_BYTES) {
+    if (total > cap) {
       await reader.cancel();
       return null;
     }
@@ -229,36 +233,120 @@ function reply(status, word, allow) {
 }
 
 const INSERT_EVENT =
-  "INSERT INTO events (install, day, received, app, name, mal, anilist, to_mal, to_anilist, attrs) " +
-  "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+  "INSERT INTO events (install, day, received, app, name, mal, anilist, to_mal, to_anilist, attrs, attested) " +
+  "SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?";
+
+async function requestJSON(request) {
+  const bytes = await readCappedBody(request);
+  if (bytes === null) fail();
+  try { return { json: JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)), bytes }; }
+  catch { fail(); }
+}
+
+function installID(value) {
+  if (typeof value !== "string" || !UUID.test(value)) fail();
+  return value.toLowerCase();
+}
+
+function decodeBase64(value, max) {
+  try { return unbase64(value, max); } catch { fail(); }
+}
+
+async function challenge(request, env, now) {
+  const { json } = await requestJSON(request);
+  if (!isObject(json) || !hasExactKeys(json, ["install"])) fail();
+  const install = installID(json.install);
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  const expires = Math.floor(+now / 1000) + 600;
+  await env.DB.prepare("INSERT OR REPLACE INTO challenges (install, challenge, expires) VALUES (?, ?, ?)")
+    .bind(install, base64(bytes), expires).run();
+  return Response.json({ challenge: base64(bytes) });
+}
+
+async function attest(request, env, now) {
+  const { json } = await requestJSON(request);
+  if (!isObject(json) || !hasExactKeys(json, ["install", "key", "attestation"])) fail();
+  const install = installID(json.install);
+  const key = decodeBase64(json.key, 32);
+  if (key.length !== 32) fail();
+  const attestation = decodeBase64(json.attestation, 16384);
+  // DELETE RETURNING consumes exactly once even when two verifications race.
+  const issued = await env.DB.prepare("DELETE FROM challenges WHERE install = ? AND expires > ? RETURNING challenge")
+    .bind(install, Math.floor(+now / 1000)).first();
+  if (!issued) fail();
+  let result;
+  try {
+    result = await verifyAttestation({ attestation, keyId: key,
+      clientDataHash: await sha256(concat(unbase64(issued.challenge, 32), utf8(install))),
+      appID: env.APP_ATTEST_APP_ID, now });
+  } catch { fail(); }
+  try {
+    // Replacement deliberately resets the counter; UPDATE is reserved for assertions.
+    await env.DB.batch([
+      env.DB.prepare("DELETE FROM attested_keys WHERE install = ?").bind(install),
+      env.DB.prepare("INSERT INTO attested_keys (install, key_id, public_key, counter, last_used) VALUES (?, ?, ?, 0, ?)")
+        .bind(install, json.key, result.publicKey, utcDay(now)),
+    ]);
+  } catch (error) {
+    if (String(error).includes("UNIQUE constraint failed")) fail();
+    throw error;
+  }
+  return reply(204);
+}
 
 async function ingest(request, env, now) {
-  const bytes = await readCappedBody(request);
-  if (bytes === null) return reply(400, "bad request");
-  let json;
-  try {
-    json = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
-  } catch {
-    return reply(400, "bad request");
+  let { json, bytes } = await requestJSON(request);
+  let signed = null;
+  if (json?.v === 2) {
+    if (!isObject(json) || !hasExactKeys(json, ["v", "install", "key", "assertion", "body"])) fail();
+    const install = installID(json.install);
+    if (decodeBase64(json.key, 32).length !== 32) fail();
+    const assertion = decodeBase64(json.assertion, 1024);
+    if (typeof json.body !== "string") fail();
+    bytes = utf8(json.body);
+    signed = { install, key: json.key, assertion };
+    try { json = JSON.parse(json.body); } catch { fail(); }
   }
+  if (bytes.length > MAX_BODY_BYTES) fail();
   const rows = validateBatch(json, now);
   if (rows === null) return reply(400, "bad request");
+  let verified;
+  if (signed) {
+    if (!env.APP_ATTEST_APP_ID || rows.some((r) => r.install !== signed.install)) return reply(409, "assertion failed");
+    const stored = await env.DB.prepare("SELECT public_key, counter FROM attested_keys WHERE install = ? AND key_id = ?")
+      .bind(signed.install, signed.key).first();
+    if (!stored) return reply(409, "assertion failed");
+    const { public_key: publicKey, counter } = stored;
+    try {
+      verified = await verifyAssertion({ assertion: signed.assertion, clientData: bytes,
+        publicKey, counter, appID: env.APP_ATTEST_APP_ID });
+    } catch { return reply(409, "assertion failed"); }
+  }
   const received = utcDay(now);
-  await env.DB.batch(
-    rows.map((row) =>
-      env.DB.prepare(INSERT_EVENT).bind(
+  const statements = rows.map((row) =>
+      env.DB.prepare(INSERT_EVENT + (signed ? " WHERE EXISTS (SELECT 1 FROM attested_keys WHERE install = ? AND key_id = ? AND counter = ?)" : "")).bind(
         row.install, row.day, received, row.app, row.name,
-        row.mal, row.anilist, row.to_mal, row.to_anilist, row.attrs,
+        row.mal, row.anilist, row.to_mal, row.to_anilist, row.attrs, signed ? 1 : 0,
+        ...(signed ? [signed.install, signed.key, verified.counter] : []),
       ),
-    ),
   );
+  if (signed) statements.unshift(env.DB.prepare("UPDATE attested_keys SET counter = ?, last_used = ? WHERE install = ? AND key_id = ?")
+    .bind(verified.counter, received, signed.install, signed.key));
+  try {
+    const results = await env.DB.batch(statements);
+    if (signed && results[0].meta.changes !== 1) return reply(409, "assertion failed");
+  } catch (error) {
+    if (signed && String(error).includes("attestation counter must rise")) return reply(409, "assertion failed");
+    throw error;
+  }
   return reply(204);
 }
 
 async function deleteInstall(id, env) {
   if (!UUID.test(id)) return reply(400, "bad request");
   // 204 whether or not rows existed: the response never reveals whether an id was known (§13).
-  await env.DB.prepare("DELETE FROM events WHERE install = lower(?)").bind(id).run();
+  await env.DB.batch(["events", "attested_keys", "challenges"].map((table) =>
+    env.DB.prepare(`DELETE FROM ${table} WHERE install = lower(?)`).bind(id)));
   return reply(204);
 }
 
@@ -270,6 +358,11 @@ async function deleteInstall(id, env) {
 export async function handleRequest(request, env, now) {
   const { pathname } = new URL(request.url);
   try {
+    if (pathname === "/v1/challenges" || pathname === "/v1/attestations") {
+      if (!env.APP_ATTEST_APP_ID) return reply(404, "not found");
+      if (request.method !== "POST") return reply(405, "method not allowed", "POST");
+      return pathname === "/v1/challenges" ? await challenge(request, env, now) : await attest(request, env, now);
+    }
     if (pathname === "/v1/events") {
       if (request.method !== "POST") return reply(405, "method not allowed", "POST");
       return await ingest(request, env, now);
@@ -289,7 +382,8 @@ export async function handleRequest(request, env, now) {
       return await deleteInstall(install[1], env);
     }
     return reply(404, "not found");
-  } catch {
+  } catch (error) {
+    if (error instanceof Invalid) return reply(400, "bad request");
     // A storage failure. 5xx makes the client keep its events and retry later (§11.3).
     return reply(500, "error");
   }
@@ -399,6 +493,8 @@ export async function runDailyMaintenance(env, { now, fetchImpl }) {
   const today = utcDay(now);
   const cutoff = subtractMonths(today, RETENTION_MONTHS);
   await env.DB.prepare("DELETE FROM events WHERE received < ?").bind(cutoff).run();
+  await env.DB.prepare("DELETE FROM challenges WHERE expires <= ?").bind(Math.floor(+now / 1000)).run();
+  await env.DB.prepare("DELETE FROM attested_keys WHERE last_used < ?").bind(cutoff).run();
   await classify(env, today, fetchImpl);
   await env.DB.prepare(ADULT_PURGE).run();
   await publishCooccurrence(env);
@@ -409,7 +505,7 @@ export async function runDailyMaintenance(env, { now, fetchImpl }) {
 const COOCCURRENCE_QUERY = `
   WITH eligible_events AS MATERIALIZED (
     SELECT install, mal FROM events
-    WHERE name IN ('work_saved', 'chapter_completed') AND mal IS NOT NULL
+    WHERE attested = 1 AND name IN ('work_saved', 'chapter_completed') AND mal IS NOT NULL
       AND EXISTS (SELECT 1 FROM catalogue_checked c JOIN catalogue_known k USING (kind, id)
         WHERE c.kind = 'mal' AND c.id = events.mal)
       AND NOT EXISTS (SELECT 1 FROM adult_catalogue a WHERE a.kind = 'mal' AND a.id = events.mal)
@@ -418,7 +514,7 @@ const COOCCURRENCE_QUERY = `
           WHERE c.kind = 'anilist' AND c.id = events.anilist)
         AND NOT EXISTS (SELECT 1 FROM adult_catalogue a WHERE a.kind = 'anilist' AND a.id = events.anilist)))
   ), mature AS MATERIALIZED (
-    SELECT install FROM events GROUP BY install
+    SELECT install FROM events WHERE attested = 1 GROUP BY install
     HAVING COUNT(DISTINCT received) >= ${CO_MIN_DAYS}
       AND julianday(MAX(received)) - julianday(MIN(received)) >= ${CO_MIN_SPAN_DAYS}
   ), install_ids AS MATERIALIZED (
