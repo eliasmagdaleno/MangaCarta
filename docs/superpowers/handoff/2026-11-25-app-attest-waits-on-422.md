@@ -55,19 +55,12 @@ Merged, branches deleted (local and remote) unless noted:
    coordinator terminal are closed. `ctx_f8f53ef77a61` and `ctx_3133c06e4b94` reported `retained` (ownership transferred); leave
    them. **Read `main`'s CI run for `c388517`** (run `45713206664`): the first full one with #420 too.
 
-2. **Analytics slice 3: [#422](https://github.com/eliasmagdaleno/MangaCarta/pull/422), auto-merge ON (owner, ~14:22) at `45ff204`.** Its first CI run
-   failed to compile one expression on Xcode 16.4; fixed there with typed lets. At 14:30 the rerun's unit and UI tests were pending. CI's merge-in of `main` has **not** been tested
-   with #418; whichever merges second, read the run on `main` after it. It is the first full one with #420 too.
-   Branch `eliasmagdaleno/analytics-slice3` in `.claude/worktrees/analytics-slice2-927aae` (the local branch
-   `claude/analytics-slice2-927aae`, merged as #420, is also still there). Design Amendment 5.
-   - **Owner, 2026-11-25: yes** to download by consenting readers only, and **yes** to the privacy policy changes, which
-     publish on merge. **Yes** to the merge too.
-   - 1,274 unit tests run (5 skipped), 91 Worker tests (not in CI), mutations app 46/46 and Worker 32/33 red (the survivor is redundant).
-   - Two Luna workers built it and reported `failed` for unrun mutations; review found three real bugs their green tests missed.
-   - **After it merges:** remove the worktree and local branches, the remote (ask), simulator `AN2 iPhone 17 Pro`
-     (`56D99060-D9F7-49A9-8CD8-B0F9DC40D604`), `/private/tmp/an3*`; close terminal
-     `term_4acfa881-cc30-4d24-9f3f-76b9358f190e` (run `run_2bf314820656`).
-   - A desktop session was moved into that worktree and back during the day; check nothing is open there before removing it.
+2. **Analytics slice 3: [#422](https://github.com/eliasmagdaleno/MangaCarta/pull/422) merged 2026-11-25 (`5f1bd15`), cleanup done.**
+   Design Amendment 5; the privacy policy changes published on merge. Worktree, both local branches, the remote branch, the
+   `AN2` simulator, `/private/tmp/an3*` and coordinator terminal are removed. Its push cancelled #418's run on `main` mid-UI-tests
+   (every finished suite had passed), so **run `45717123177` is the first on `main` with #418, #420 and #422 together: read it.**
+   Desktop session `local_e4018574-f6df-40e1-88a1-4526bb1e8fdb` ("Build analytics slice 2") pointed at the removed worktree;
+   archive it if the owner agrees.
 
 3. **App Attest:** owner decided 2026-11-25 to add it **before the Worker is deployed**. Draft:
    `docs/superpowers/specs/2026-11-25-app-attest-design.md`. Approved 2026-11-25 without the keys-per-device count.
@@ -94,7 +87,7 @@ main checkout.
 
 ## Next
 
-1. **Land #422** (#418 merged). PDF slice 5 (manual device checks) is on the deferred list. The
+1. **#418 and #422 are merged.** PDF slice 5 (manual device checks) is on the deferred list. The
    CBR/EPUB/folders design also edits `LocalChapter`; whichever lands second rebases onto `pageStorage`.
 2. **App Attest** (in-flight item 3): resume its session once #422 is on `main`; recheck the design against the code, then slice 1.
    Known gaps **analytics** slice 1 left, all
