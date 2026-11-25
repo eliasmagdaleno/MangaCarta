@@ -101,6 +101,8 @@ struct AppComposition {
     let analyticsConsent: AnalyticsConsentStore
     let analytics: AnalyticsRecorder
     let analyticsUploader: AnalyticsUploader?
+    let coOccurrenceStore: CoOccurrenceStore
+    let coOccurrenceEnabled: Bool
     let engine: RecommendationEngine
     let queue: MetadataUpgradeQueue
     let updates: UpdateStateStore
@@ -357,6 +359,7 @@ struct AppComposition {
          notifications: NotificationScheduling? = nil,
          malSourceChoiceStore: MALSourceChoiceStore? = nil,
          listingCountDirectory: URL? = nil,
+         coOccurrenceDirectory: URL? = nil,
          analyticsNoticeSuppressed: Bool = false,
          analyticsTransport: (any AnalyticsTransport)? = AnalyticsTransportSelection.current()) {
         let identityMigrationError = Self.runIdentityMigrations(directory: directory, defaults: defaults)
@@ -370,6 +373,12 @@ struct AppComposition {
         let lib = LibraryStore(defaults: defaults, works: wk)
         let analyticsConsent = AnalyticsConsentStore(defaults: defaults,
                                                      noticeSuppressed: analyticsNoticeSuppressed)
+        let coStore = CoOccurrenceStore(directory: coOccurrenceDirectory ?? CoOccurrenceStore.cachesDirectory())
+        // Withdrawing consent deletes the downloaded table. The store holds the observation:
+        // this struct is gone once `MangaCartaApp` has copied the fields it keeps.
+        analyticsConsent.observe { consent in
+            if consent != .granted { Task { await coStore.clear() } }
+        }
         let analyticsBuffer = AnalyticsEventBuffer(
             directory: directory.appendingPathComponent("analytics", isDirectory: true))
         let analytics = AnalyticsRecorder(
@@ -477,6 +486,7 @@ struct AppComposition {
 
         let vocab = TagVocabularyStore(fetch: { try await limiter.run { try await anilist.tagVocabulary() } })
         let pool = AniListPoolStore()
+        let coFetching = analyticsTransport as? any CoOccurrenceFetching
         let malDetailStore = malDetailStore ?? MALDetailStore()
         let malSourceChoiceStore = malSourceChoiceStore ?? MALSourceChoiceStore()
 
@@ -516,7 +526,18 @@ struct AppComposition {
                         },
                         resolve: { works in
                             await reverse.resolve(works: works, limit: poolResolveLimit)
-                        }))
+                        }),
+                    co: coFetching.map { transport in
+                        CoOccurrenceCandidateProvider(
+                            isEnabled: { await MainActor.run { analyticsConsent.isCollecting } },
+                            fetchTable: { await transport.fetchCoOccurrenceTable() },
+                            loadWorks: { await MainActor.run { wk.allWorkIds().compactMap { wk.work($0) } } },
+                            titles: { ids in
+                                try await limiter.run { try await anilist.media(malIds: ids, limit: ids.count) }
+                            },
+                            resolve: { works in await reverse.resolve(works: works, limit: works.count) },
+                            store: coStore)
+                    } ?? EmptyCandidateProvider())
             },
             pushPriority: { upgrades.setPriority($0) },
             // The one read-only question the recommender may ask the queue's memory
@@ -535,6 +556,8 @@ struct AppComposition {
         self.analyticsConsent = analyticsConsent
         self.analytics = analytics
         self.analyticsUploader = analyticsUploader
+        self.coOccurrenceStore = coStore
+        self.coOccurrenceEnabled = coFetching != nil
         self.library = lib
         self.history = hist
         self.taste = ts

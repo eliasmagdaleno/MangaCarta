@@ -1,0 +1,11 @@
+C|3.1327|Because you read Berserk
+B|1.6908|More Demons + Magic
+A|1.3335|Because you read Berserk
+D|0.9649|Readers also saved this
+H|0.3542|Because you read Berserk
+E|0.3387|More Romance
+I|0.2833|Because you read Vinland Saga
+J|0.2700|More Dungeon + Revenge
+F|0.2258|More Romance
+G|0.1935|More Isekai
+K|0.1500|Readers also saved this
