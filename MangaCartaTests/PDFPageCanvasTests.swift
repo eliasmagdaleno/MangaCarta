@@ -96,6 +96,39 @@ struct PDFPageGeometryTests {
 
 @MainActor
 struct PDFDocumentSessionTests {
+    /// PDFKit opens a page whose crop box has no area. It can't be drawn (the scale would divide by
+    /// zero), so it has no page to show, and the document's other pages still open.
+    @Test(arguments: ["[0 0 0 0]", "[10 10 10 400]", "[10 10 400 10]"])
+    func testPageWithoutACropAreaIsNotDrawable(cropBox: String) throws {
+        let pdf = """
+        %PDF-1.4
+        1 0 obj
+        << /Type /Catalog /Pages 2 0 R >>
+        endobj
+        2 0 obj
+        << /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>
+        endobj
+        3 0 obj
+        << /Type /Page /Parent 2 0 R /MediaBox [0 0 600 900] >>
+        endobj
+        4 0 obj
+        << /Type /Page /Parent 2 0 R /MediaBox [0 0 600 900] /CropBox \(cropBox) >>
+        endobj
+        trailer
+        << /Root 1 0 R >>
+        %%EOF
+
+        """
+        let document = try #require(PDFDocument(data: Data(pdf.utf8)))
+        #expect(document.pageCount == 2)
+        #expect(document.page(at: 1)?.pageRef != nil)
+        let session = PDFDocumentSession { _ in document }
+        let url = URL(fileURLWithPath: "/crop.pdf")
+
+        #expect(session.page(documentURL: url, pageIndex: 0) != nil)
+        #expect(session.page(documentURL: url, pageIndex: 1) == nil)
+    }
+
     @Test func testOpensEachDocumentOnce() throws {
         let fixture = try makeFixture(pageCount: 20)
         defer { try? FileManager.default.removeItem(at: fixture.deletingLastPathComponent()) }
@@ -208,6 +241,45 @@ struct PDFDocumentSessionTests {
 
 @MainActor
 struct PDFPageCanvasTests {
+    @Test func testCanvasDoesNotTakeTouches() {
+        #expect(!PDFPageCanvasView(page: nil).isUserInteractionEnabled)
+    }
+
+    /// Runs the real `CATiledLayer`: it must draw, drop its contents when it leaves the window, and
+    /// draw again on return. Cleared contents are not redrawn by themselves, so without the
+    /// redraw request a returning page stays blank.
+    @Test func testLeavingTheWindowReleasesTilesAndReturningRedraws() async throws {
+        let document = try makeSinglePagePDF()
+        let pdfPage = try #require(document.page(at: 0)?.pageRef)
+        let renderer = DrawCountingRenderer()
+        let view = PDFPageCanvasView(page: PDFDocumentPage(document: document, page: pdfPage), renderer: renderer)
+        view.frame = CGRect(x: 0, y: 0, width: 200, height: 200)
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
+        let controller = UIViewController()
+        window.rootViewController = controller
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true }
+        controller.view.addSubview(view)
+        #expect(await waitUntil { renderer.count > 0 && view.layer.contents != nil })
+
+        view.removeFromSuperview()
+        #expect(view.layer.contents == nil)
+
+        let drawsBeforeReturn = renderer.count
+        controller.view.addSubview(view)
+        #expect(await waitUntil { renderer.count > drawsBeforeReturn })
+    }
+
+    private func waitUntil(_ condition: () -> Bool) async -> Bool {
+        let deadline = ContinuousClock.now + .seconds(10)
+        while ContinuousClock.now < deadline {
+            if condition() { return true }
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        return condition()
+    }
+
     @Test func testTiledLayerRedrawsUpToFourTimes() throws {
         let view = PDFPageCanvasView(page: nil)
         let layer = try #require(view.layer as? CATiledLayer)
@@ -369,5 +441,23 @@ private final class PDFPageRenderingRecorder: PDFPageRendering, @unchecked Senda
         pageNumber = page.pageNumber
         self.box = box
         self.transform = transform
+    }
+}
+
+private final class DrawCountingRenderer: PDFPageRendering, @unchecked Sendable {
+    private let lock = NSLock()
+    private var draws = 0
+
+    var count: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return draws
+    }
+
+    func draw(page: CGPDFPage, in context: CGContext, bounds: CGRect, box: CGPDFBox,
+              transform: CGAffineTransform) {
+        lock.lock()
+        draws += 1
+        lock.unlock()
     }
 }

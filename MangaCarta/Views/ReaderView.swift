@@ -48,6 +48,21 @@ final class StripMetrics {
     /// Only a chapter change clears it.
     var live: ReadingPosition?
 
+    /// The load the mounted vertical reader has been positioned for, `nil` while none is mounted.
+    /// Until it names the current load, a measurement shows where the scroll view *happens* to be
+    /// — the top, on a fresh mount — and not where the reader is. Capturing it would overwrite
+    /// the target restore is about to read. Undecoded images hid this; a PDF strip is decoded
+    /// from its first layout (ADR-0014 decision 10, second 2026-11-25 amendment).
+    var positionedRequest: Int?
+
+    /// Measures the live position, if the reader has been positioned for `completedRequest`.
+    /// Returns whether the measurement counts.
+    func capture(completedRequest: Int) -> Bool {
+        guard positionedRequest == completedRequest else { return false }
+        if let position = stripPosition(frames: frames, viewport: viewport) { live = position }
+        return true
+    }
+
     /// Raised by the settle loop for its duration. Gates the *record* path, not the
     /// measurement: the loop renders overshoots it then rejects, and overshoot is the only
     /// transient `record`'s max preserves. Set from commit 3.
@@ -341,9 +356,7 @@ struct ReaderView: View {
     /// the last known position alone — and decide whether this measurement is allowed to
     /// reach the store.
     private func measurementChanged() {
-        if let position = stripPosition(frames: metrics.frames, viewport: metrics.viewport) {
-            metrics.live = position
-        }
+        guard metrics.capture(completedRequest: vm.lastCompletedRequest) else { return }
         guard !metrics.isRestoring else { return }
 
         let now = Date()
@@ -422,23 +435,31 @@ struct ReaderView: View {
         // ADR-0013's fixed 50ms sleep: the wait is now on the thing the scroll needs, not on
         // a number that happened to work.
         let realizeBy = Date().addingTimeInterval(settleRealizeTimeout)
-        while measuredStrip(target.page) == nil {
+        // The viewport too: a PDF strip has its height at once, before the scroll view can obey a
+        // scroll, and the loop cannot tell a lost scroll from a landed one without it.
+        while measuredStrip(target.page) == nil || metrics.viewport.height <= 0 {
             guard !Task.isCancelled, Date() < realizeBy else { return }
             proxy.scrollTo(target.page, anchor: .top)
             try? await Task.sleep(for: .milliseconds(settlePollInterval))
         }
 
         var aim: StripAnchor?
-        for attempt in 0..<settleAttemptBudget {
+        var attempt = 0
+        while attempt < settleAttemptBudget {
             switch settleStep(target: target, strip: measuredStrip(target.page),
                               viewport: metrics.viewport, currentAim: aim, attempt: attempt) {
             case .stop:
                 return
             case .realize(let page):
+                aim = nil
                 proxy.scrollTo(page, anchor: .top)
+                // A lost scroll is waited out in time, not attempts: while the reader is still
+                // being presented, ten attempts are gone in half a second.
+                if Date() >= realizeBy { attempt += 1 }
             case .scroll(let anchor):
                 aim = anchor
                 proxy.scrollTo(anchor, anchor: .top)
+                attempt += 1
             }
             await waitForRemeasure(of: target.page)
             if Task.isCancelled { return }
@@ -548,9 +569,9 @@ struct ReaderView: View {
                             case .image(let url):
                                 WebtoonPage(url: url, index: index, pageCount: vm.pages.count,
                                             reportTarget: vm.reportTarget)
-                            case .pdf:
-                                UndrawnPDFPage(index: index, pageCount: vm.pages.count)
-                                    .frame(height: 460)
+                            case .pdf(let documentURL, let pageIndex):
+                                WebtoonPDFPage(documentURL: documentURL, pageIndex: pageIndex,
+                                               session: pdfSession, index: index, pageCount: vm.pages.count)
                             }
                         }
                         .id(index)
@@ -604,6 +625,7 @@ struct ReaderView: View {
             // view, but nothing guarantees it lands before the pop. Also fires on a
             // reading-mode switch, which is the other way out of this reader.
             .onDisappear {
+                metrics.positionedRequest = nil
                 guard !metrics.isRestoring else { return }
                 recordLivePosition()
             }
@@ -620,8 +642,11 @@ struct ReaderView: View {
             // advances were unaffected either way: `pages` stays populated across a commit, so
             // the reader stays mounted.
             .task(id: vm.lastCompletedRequest) {
-                guard vm.errorMessage == nil else { return }
-                await restorePosition(using: proxy)
+                let request = vm.lastCompletedRequest
+                if vm.errorMessage == nil { await restorePosition(using: proxy) }
+                // A cancelled task belongs to a load, or a mount, that is already over.
+                guard !Task.isCancelled else { return }
+                metrics.positionedRequest = request
             }
         }
     }
@@ -818,29 +843,13 @@ private struct WebtoonPage: View {
     var body: some View {
         CachedAsyncImage(url: url, reportTarget: reportTarget) { phase in
             strip(for: phase)
-                .background(frameReporter(isDecoded: isDecoded(phase)))
-                .overlay(anchorGrid)
+                .modifier(WebtoonStripModifier(index: index, isDecoded: isDecoded(phase)))
         }
         .id(reloadToken)
         // Same reason as `ZoomablePage`: an unlabelled strip is nothing to land on. The
         // anchor grid underneath is layout machinery and stays out of the way (issue #90).
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(ReaderAccessibility.pageLabel(index: index, pageCount: pageCount))
-    }
-
-    /// The addressable slices of this strip. The `VStack` inherits the strip's measured
-    /// height and `Color` is infinitely flexible, so this divides it into N equal parts with
-    /// no height arithmetic — and it keeps working as the height changes underneath.
-    ///
-    /// `allowsHitTesting(false)` is not optional: the chrome toggle is a tap gesture on an
-    /// ancestor, and this overlay covers the whole strip (ADR-0014 decision 9).
-    private var anchorGrid: some View {
-        VStack(spacing: 0) {
-            ForEach(0..<stripAnchorSlots, id: \.self) { slot in
-                Color.clear.id(StripAnchor(page: index, slot: slot))
-            }
-        }
-        .allowsHitTesting(false)
     }
 
     @ViewBuilder private func strip(for phase: AsyncImagePhase) -> some View {
@@ -866,15 +875,68 @@ private struct WebtoonPage: View {
         if case .success = phase { return true }
         return false
     }
+}
 
-    private func frameReporter(isDecoded: Bool) -> some View {
-        GeometryReader { geo in
-            Color.clear.preference(
-                key: StripFramesKey.self,
-                value: [index: StripFrame(rect: geo.frame(in: .named(readerScrollSpace)),
-                                          isDecoded: isDecoded)]
-            )
+/// Shares position reporting and addressable restore points across vertical strip rows.
+/// `isDecoded` keeps capture from persisting placeholder geometry before an image resolves
+/// (ADR-0014 decision 9, second amendment).
+private struct WebtoonStripModifier: ViewModifier {
+    let index: Int
+    let isDecoded: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .background {
+                GeometryReader { geo in
+                    Color.clear.preference(
+                        key: StripFramesKey.self,
+                        value: [index: StripFrame(rect: geo.frame(in: .named(readerScrollSpace)),
+                                                  isDecoded: isDecoded)]
+                    )
+                }
+            }
+            .overlay {
+                // The addressable slices of this strip. The `VStack` inherits the strip's
+                // measured height and `Color` is infinitely flexible, so this divides it into
+                // N equal parts with no height arithmetic — and it keeps working as the height
+                // changes underneath. `allowsHitTesting(false)` is not optional: the chrome
+                // toggle is a tap gesture on an ancestor, and this overlay covers the whole
+                // strip (ADR-0014 decision 9).
+                VStack(spacing: 0) {
+                    ForEach(0..<stripAnchorSlots, id: \.self) { slot in
+                        Color.clear.id(StripAnchor(page: index, slot: slot))
+                    }
+                }
+                .allowsHitTesting(false)
+            }
+    }
+}
+
+/// A vector page in the continuous reader. Its final aspect is known as soon as PDFKit opens it.
+private struct WebtoonPDFPage: View {
+    let documentURL: URL
+    let pageIndex: Int
+    let session: PDFDocumentSession
+    let index: Int
+    let pageCount: Int
+
+    var body: some View {
+        Group {
+            if let page = session.page(documentURL: documentURL, pageIndex: pageIndex) {
+                let size = PDFPageGeometry.displayedSize(cropBox: page.page.getBoxRect(.cropBox),
+                                                        rotation: Int(page.page.rotationAngle))
+                PDFPageCanvas(page: page)
+                    .aspectRatio(size, contentMode: .fit)
+                    .frame(maxWidth: .infinity)
+                    .modifier(WebtoonStripModifier(index: index, isDecoded: true))
+            } else {
+                UndrawnPDFPage(index: index, pageCount: pageCount)
+                    .frame(height: 460)
+                    .modifier(WebtoonStripModifier(index: index, isDecoded: false))
+            }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(ReaderAccessibility.pageLabel(index: index, pageCount: pageCount))
     }
 }
 

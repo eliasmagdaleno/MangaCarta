@@ -35,7 +35,6 @@
 		3F09684CEAF72FFBAB5FC149 /* ReaderPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C6FEFC3040D33CD88650572 /* ReaderPresentationTests.swift */; };
 		4181CDECEDD25ED42D32BABC /* UpdateNotifierTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B2B7CE0937C316EF0F01BE1 /* UpdateNotifierTests.swift */; };
 		41F32C017B40DE1CEFEEEA1B /* LocalSourceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10FB6AEDA2B5867D1C5715D0 /* LocalSourceTests.swift */; };
-		478B2580616827759823D67B /* PDFImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E407B24777AF4329D9F3990 /* PDFImportTests.swift */; };
 		4B857C32E6BA88F06A664622 /* LocalImportSlice2Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25F4731A8944E45ED19460F9 /* LocalImportSlice2Tests.swift */; };
 		4C1D634E57F8909F79E447FD /* AnalyticsConsentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13774968E69745F4E516D564 /* AnalyticsConsentTests.swift */; };
 		4C97ADEAD9C4238A1365A208 /* TagVocabularyStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBC6F29C8208094651FCAC5C /* TagVocabularyStoreTests.swift */; };
@@ -56,6 +55,7 @@
 		673B9B5805DB37426A0071D5 /* MangaDetailRetargetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3B6993ADB787E853D2AA745 /* MangaDetailRetargetTests.swift */; };
 		6FB3C6A88ECE9ABE9FF0A62A /* ReaderViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3077F8455CE3CDC586CB6F0 /* ReaderViewModelTests.swift */; };
 		71343276D5D16C28E58D714C /* zip-command.zip in Resources */ = {isa = PBXBuildFile; fileRef = 6B7BE509945A53D61A65F8C3 /* zip-command.zip */; };
+		7140FFEC990FC134495546EC /* LocalPDFReaderUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88ED6D38C02DF1B10B6BFB06 /* LocalPDFReaderUITests.swift */; };
 		738BCE4E6AFDD6D640428CBA /* SourcePreferenceStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3A793CC30333D68B9CCECA4 /* SourcePreferenceStoreTests.swift */; };
 		75E67AE756E06B6B4F7705DF /* MALReadingProgressTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FA67CD30FC7B8F6A41AE61C /* MALReadingProgressTests.swift */; };
 		793C6B63B0E7B541FBD18F63 /* SectionHeaderPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 425A9211A2A05AB2A037004A /* SectionHeaderPresentationTests.swift */; };
@@ -210,7 +210,6 @@
 		48D07F7D8ABE9A56C85049E3 /* WebKitPartitioningSpikeTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = WebKitPartitioningSpikeTests.swift; path = WebKitPartitioningSpikeTests.swift; sourceTree = "<group>"; };
 		4CCD748B5E02FB523BD29FB6 /* MALHubProjectionTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = MALHubProjectionTests.swift; path = MALHubProjectionTests.swift; sourceTree = "<group>"; };
 		4DAFC1B6DC1B892DB348D885 /* TagPairSeedingTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; path = TagPairSeedingTests.swift; sourceTree = "<group>"; };
-		4E407B24777AF4329D9F3990 /* PDFImportTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = PDFImportTests.swift; path = PDFImportTests.swift; sourceTree = "<group>"; };
 		5230FD01E25E27D46B7F6BCF /* FulfillmentRoutingTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = FulfillmentRoutingTests.swift; path = FulfillmentRoutingTests.swift; sourceTree = "<group>"; };
 		54DF9AC06BC3503F0EFAA8F4 /* LocalLibraryStoreTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = LocalLibraryStoreTests.swift; path = LocalLibraryStoreTests.swift; sourceTree = "<group>"; };
 		558870572443F52BE0F33C08 /* ExtensionInstallerTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = ExtensionInstallerTests.swift; path = ExtensionInstallerTests.swift; sourceTree = "<group>"; };
@@ -243,6 +242,7 @@
 		846EC8488D4E46DAB7E152EC /* AniListPoolTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; path = AniListPoolTests.swift; sourceTree = "<group>"; };
 		8727FEA4531BFBA624F1EC6B /* ColdStartWarmUpUITests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = ColdStartWarmUpUITests.swift; path = ColdStartWarmUpUITests.swift; sourceTree = "<group>"; };
 		88AEBBAAB25C6B09F0FE797B /* ExtensionSourceTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = ExtensionSourceTests.swift; path = ExtensionSourceTests.swift; sourceTree = "<group>"; };
+		88ED6D38C02DF1B10B6BFB06 /* LocalPDFReaderUITests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = LocalPDFReaderUITests.swift; path = LocalPDFReaderUITests.swift; sourceTree = "<group>"; };
 		8F73C8CA840CBCFD5968B2FE /* TestDirectory.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = TestDirectory.swift; path = TestDirectory.swift; sourceTree = "<group>"; };
 		8FA67CD30FC7B8F6A41AE61C /* MALReadingProgressTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = MALReadingProgressTests.swift; path = MALReadingProgressTests.swift; sourceTree = "<group>"; };
 		8FDB4839B0D46079491B9A04 /* RepositorySettingsUITests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = RepositorySettingsUITests.swift; path = RepositorySettingsUITests.swift; sourceTree = "<group>"; };
@@ -511,7 +511,6 @@
 				10FB6AEDA2B5867D1C5715D0 /* LocalSourceTests.swift */,
 				B4D62FDA51410716093066F1 /* SourceRegistryTests.swift */,
 				110525E44AB9F4DEB9FA813B /* LocalLibraryDeletionTests.swift */,
-				4E407B24777AF4329D9F3990 /* PDFImportTests.swift */,
 				3A53238F7135B4DDED8A7AE8 /* MangaDexEngineTests.swift */,
 				EDCCA6CDCEB2CD41CBF4021B /* LiveUITestRepositoryInstallTests.swift */,
 				63B0B08B21E70C6502707BF4 /* AdultContentFilterTests.swift */,
@@ -566,6 +565,7 @@
 				F70E6D51979BCF41A8BC2D4C /* DetailSectionsUITests.swift */,
 				FB51DFF353B9F59CF5E0EDBC /* AnalyticsSettingsUITests.swift */,
 				F8A8936F5F63F2565B07AFF4 /* LibraryMigrateUITests.swift */,
+				88ED6D38C02DF1B10B6BFB06 /* LocalPDFReaderUITests.swift */,
 				8727FEA4531BFBA624F1EC6B /* ColdStartWarmUpUITests.swift */,
 			);
 			path = MangaCartaUITests;
@@ -827,7 +827,6 @@
 				41F32C017B40DE1CEFEEEA1B /* LocalSourceTests.swift in Sources */,
 				F71909E2DE1998083100EF3D /* SourceRegistryTests.swift in Sources */,
 				3EFFDE697B4008BC4764E3E1 /* LocalLibraryDeletionTests.swift in Sources */,
-				478B2580616827759823D67B /* PDFImportTests.swift in Sources */,
 				1B380F1C8F244BA751725C9C /* MangaDexEngineTests.swift in Sources */,
 				388B4FC0EE846AC49A3AA873 /* LiveUITestRepositoryInstallTests.swift in Sources */,
 				B9FC94DA7454BA51009BF098 /* AdultContentFilterTests.swift in Sources */,
@@ -882,6 +881,7 @@
 				F8EA7026E17C94A13472E9E7 /* DetailSectionsUITests.swift in Sources */,
 				B1A7D9C358A1673B09FC64F8 /* AnalyticsSettingsUITests.swift in Sources */,
 				A6B65F3DFDD7A3F713DB5731 /* LibraryMigrateUITests.swift in Sources */,
+				7140FFEC990FC134495546EC /* LocalPDFReaderUITests.swift in Sources */,
 				A92223F7C3C31EE2619F05FF /* ColdStartWarmUpUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

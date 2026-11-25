@@ -2,6 +2,12 @@ import CoreGraphics
 
 /// PDF crop-box dimensions after applying the page's intrinsic rotation.
 enum PDFPageGeometry {
+    /// False for a crop box with no area, which PDFKit opens but nothing can scale to fit.
+    static func isDrawable(cropBox: CGRect) -> Bool {
+        let size = cropBox.standardized.size
+        return size.width > 0 && size.height > 0
+    }
+
     static func displayedSize(cropBox: CGRect, rotation: Int) -> CGSize {
         let size = cropBox.standardized.size
         switch ((rotation % 360) + 360) % 360 {
