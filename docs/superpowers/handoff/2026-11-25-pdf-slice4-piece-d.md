@@ -1,8 +1,8 @@
-# Handoff: Migrate and vector PDF slices 2–3 merged; PDF slice 4 next; analytics slice 2 in its own session
+# Handoff: PDF slice 4 needs Piece D; analytics slice 2 stalled with uncommitted work; #414 and #417 await merge
 
-Date: 2026-11-15 (evening, ~20:35); updated 2026-11-19 (~09:05) after #415 merged. This is the one live handoff. The previous one,
-`archive/2026-11-12-migrate-slice3.md`, is superseded, and every open item in it is carried here. Recheck
-GitHub, the worktrees and the working tree before acting.
+Date: 2026-11-25 (~11:00). This is the one live handoff. The previous one,
+`archive/2026-11-15-pdf-slice3-analytics-slice2.md`, is superseded, and every open item in it is carried here.
+Recheck GitHub, the worktrees and the working tree before acting.
 
 **The owner's instruction stands: features first, testing last** (memory `features-first-testing-last`).
 
@@ -34,45 +34,74 @@ Merged, branches deleted (local and remote) unless noted:
   renderer (lesson below). Worktree, local and remote branch removed; Orca worker `ctx_f3bfddd47ab5` released.
   **Keep the `PDF2 iPhone 17 Pro` simulator** (`06CB4285-0173-4CDB-B844-A539740A7028`) for slice 4, then delete it.
 
-**In flight — check each before acting:**
-1. *(Done: the privacy policy, #412, above.)*
-2. *(Done: PDF slice 3, #415, above.)*
-3. **Analytics slice 2 — its own Claude Desktop session**, "Build analytics slice 2 (provider integration)"
-   (`local_e4018574-f6df-40e1-88a1-4526bb1e8fdb`), started ~20:30 in its own worktree. It writes the Worker,
-   D1 schema, `wrangler` config and a setup checklist; **the owner runs every Cloudflare step** (account, login,
-   deploy, tokens) and picks the D1 region; the endpoint is a config value that sends nothing when unset. It uses
-   its own `AN2 iPhone 17 Pro` simulator. After deploy it adds the D1 region to the privacy policy and bumps its
-   date. **Check that session and `gh pr list` before any analytics work here.** It must not touch the reader or
-   PDF files; PDF work must not touch analytics files.
+- **2026-11-19:** #413 and #416 (handoffs). **#417** carries this handoff.
+- "Branches deleted" above is true of recent PRs only: 118 remote-tracking refs remain, many old. Ask the owner
+  before any bulk cleanup. `docs/handoff-migrate-slice3` (#407, merged) is one known leftover.
 
-4. **CI cold-simulator flake — its own Claude Desktop session**, "Fix CI's first-UI-test cold-simulator timeout"
-   (`local_4911e6cc-2aca-46df-b7ba-2875b3e3c58b`), started ~20:50. Twice (#408 run `43394253501`, #412 run
-   `43803195698`) the hermetic job failed only its **first** test, `AccessibilityAuditUITests`, on a freshly booted
-   simulator (a launch timeout, then "Audit failed to complete in time"); reruns passed. The session edits only
-   `ci.yml`'s UI job and that test, without blanket retries. Until it lands, a lone failure of the first test is a
-   rerun (`gh run rerun <id> --failed`), not a regression. Its PR is **#414**
-   (`claude/ci-cold-sim-warmup`), open as of 2026-11-19.
+**In flight — check each before acting (state as of 2026-11-25):**
 
-5. **Vector PDF slice 4 — building, started 2026-11-19 ~09:30.** The design was rechecked against `main` at
-   `b2c3b01`; the result is Amendment 4, eight items. Its main points: webtoon PDF rows share the image rows'
-   frame reporter and anchor grid; the canvas takes no touches (else webtoon's chrome tap breaks); off-window
-   rows drop their tiles; the flip deletes `PDFImportMode` and `PDFPageRasterizer` and removes `PDFImportTests`;
-   `isLegacyRasterPDF` drives the duplicate message; the UI fixture route needs no change, since PDFs are
-   detected by bytes. The worker spec and Amendment 4 are in `docs/superpowers/specs/pdf-slice4-worker/`
-   (`spec.md`: four pieces A–D, acceptance→test table, mutations M1–M9). The worker appends Amendment 4 to the
-   design doc as its first commit.
-   - Codex `gpt-6-luna` (medium) via Orca: dispatch `ctx_f8f53ef77a61`, task `task_4d195afb20cf`, run
-     `run_366e2086a9f0`, coordinator terminal `term_4c61b8e7-3519-4db8-b52f-083ba9fb79cf`, new top-level
-     worktree `pdf-slice4` (path in `orca worktree list`). It does one piece per turn; Piece A (Amendment 4
-     commit, webtoon rows, touches, tile release, two canvas tests) was the first. Send the next piece with
-     `orca orchestration send --to dispatch:ctx_f8f53ef77a61 --from <coordinator> …` after reviewing.
-   - Simulator: `PDF2 iPhone 17 Pro` only (`06CB4285-…`). Delete it after the PR merges.
-   - After it merges: remove the worktree and local branch, ask before the remote, release the worker, close
-     the coordinator terminal, delete `docs/superpowers/specs/pdf-slice4-worker/`. Slice 5 (manual device
-     checks) is on the deferred list.
+1. **#414, CI cold-simulator warm-up: open, all four checks green, mergeable, not merged.** Waits on the owner.
+   Session `local_4911e6cc-2aca-46df-b7ba-2875b3e3c58b` has been idle since 2026-11-15; worktree
+   `.claude/worktrees/exciting-lamport-f80042`. **It conflicts with slice 4 in `project.pbxproj`** (both add a UI
+   test file; `ci.yml` merges cleanly). Keep both sides' lines, `plutil -lint`. Until it lands, a lone failure of
+   the first hermetic test (`AccessibilityAuditUITests`) on a cold simulator is usually the known flake: read
+   where it failed, then `gh run rerun <id> --failed`.
 
-**Cleanup owed:** Orca worker `ctx_7a3d8ccb0435` reported `retained` on release earlier; it has no live process.
-Leave it.
+2. **Analytics slice 2: stalled, with uncommitted and unpushed work.** Session
+   `local_e4018574-f6df-40e1-88a1-4526bb1e8fdb` (last active 2026-11-15 ~20:37), worktree
+   `.claude/worktrees/analytics-slice2-927aae`, branch `claude/analytics-slice2-927aae`, not on the remote.
+   - Committed locally: `4aaf8e9` (design Amendment 3), `d51c194` (label answers, PRODUCT, glossary).
+   - Uncommitted: seven modified app files, plus untracked `AnalyticsTransport.swift`, `AnalyticsUploader.swift`
+     and `server/analytics-worker/`. **Do not clean or reset that worktree.** Commit it before anything else.
+   - Session memory (not rechecked): the iOS worker reported `failed` (built, but tests, lint and mutations are
+     owed); the server had 69 passing tests and 28 red mutations, not in CI. Review both as unverified.
+   - **The owner runs every Cloudflare step** (account, login, `d1 create`, deploy, tokens, logging-off checks)
+     and picks the D1 region. The endpoint sends nothing when unset. After deploy, add the region to the privacy
+     policy and bump its date. Simulator: `AN2 iPhone 17 Pro` (`56D99060-D9F7-49A9-8CD8-B0F9DC40D604`).
+     Analytics work must not touch reader or PDF files, and PDF work must not touch analytics files.
+
+3. **Vector PDF slice 4: Pieces A–C committed and pushed; Piece D owed.** Branch `eliasmagdaleno/pdf-slice4` at
+   `51a0d00`, no PR, clean worktree `~/orca/workspaces/Manga-Reader/pdf-slice4` (its gitignored
+   `Secrets.xcconfig` matches the real one; never commit it). The plan is **Amendment 4** (on the branch, `fa6686a`);
+   spec and mutations M1–M9: `docs/superpowers/specs/pdf-slice4-worker/spec.md` (on `main`).
+   - **A** (`3f24e44`, `1ebaaa8`): webtoon PDF rows, shared `WebtoonStripModifier`, no touches on the canvas,
+     window-lifecycle code. **B** (`e26c2f8`): the flip, raster path deleted, legacy duplicate message; the worker
+     reported 1,231 XCTest (5 skipped) + 417 Swift Testing. **C** (`51a0d00`): `LocalPDFReaderUITests` and its
+     `ci.yml` line.
+   - **Accepted deviation:** webtoon has no page indicator by design; restore is asserted by which page elements
+     are on screen.
+   - **Local hermetic results for C (worker's report `msg_e849df28686c`):** AccessibilityAudit 2/2, Analytics 3/3,
+     DetailSections 7/7, LibraryMigrate 5/5, LocalImport 3/3, LocalPDFReader 3/3. **MALHub has not passed in full
+     on this branch:** 5/8, then 6/8 after a simulator reboot (failures on tap/interaction timeouts).
+     RepositorySettings only partly ran (3 passed). TitleSources, Updates and SourcePreference did not run.
+     I (the coordinator) stopped both runs. The branch changes no MAL-hub file, but nothing has shown the failures
+     are only environmental. CI has not run on this branch.
+   - **Fix or prove before the PR — gaps found reviewing the review:**
+     1. `testPagedZoomKeepsThePageAndTurns` never asserts a zoom happened: it passes if double-tap does nothing.
+        Criterion 6 is unproven. Assert an observable change, and add a mutation that disables the zoom.
+     2. Tile release is unproven. `testLeavingTheWindowReleasesTilesAndReturningRedraws` puts a dummy object in
+        `layer.contents`; nothing shows that clearing `contents` frees a `CATiledLayer`'s tiles, or that
+        `LazyVStack` takes off-screen rows out of the window. Measure memory on a long PDF, or drop the claim from
+        Amendment 4 item 3.
+     3. `releasePage()` lost its `setNeedsDisplay()` in Piece A, unasked. Decide and say so in the PR.
+     4. `importPDF` runs before any check that every page has a usable crop box; only page 1 is checked (for the
+        cover). `PDFPageGeometry.drawingTransform` divides by the crop size. Add a guard or a test.
+     5. `writeCover`'s archive failure now reads "No images found" (it was a raw system error). Mention in the PR.
+   - **Piece D:** the fixes above; M1–M9 by test name with a revert and `git status` after each (M4, M6, M7, M8
+     are unit; M3 is unit and UI; M1, M2, M5, M9 are UI); the full unit suite with both counts; SwiftLint on changed
+     files; the MALHub suite alone on `main` and on the branch if it fails again; then the PR.
+   - Merge `main` into the branch first (it predates #416). Simulator: `PDF2 iPhone 17 Pro`
+     (`06CB4285-0173-4CDB-B844-A539740A7028`) only, by id.
+   - **Orca:** all three dispatches (`ctx_f8f53ef77a61`, `ctx_3133c06e4b94`, `ctx_25c30cfec09e`) report `succeeded`;
+     the last is `exited`, terminal `retained`. Owed: release them and close the coordinator terminal
+     `term_4c61b8e7-3519-4db8-b52f-083ba9fb79cf`. Run `run_366e2086a9f0`.
+   - After it merges: remove the worktree and local branch, ask before the remote, delete the `PDF2` simulator, the
+     `pdf-slice4-worker/` folder and `/private/tmp/pdf-slice4*` (build products and test attachments).
+
+**Owner's calls, open:** merge #414 and #417; a plain Pages theme for the privacy policy (the current one loads
+`anchor.min.js` from cdnjs); the D1 region.
+
+**Cleanup owed:** Orca worker `ctx_7a3d8ccb0435` reported `retained` on release earlier; leave it.
 
 **Working tree:** `MangaCarta/Info.plist` may still carry an uncommitted Xcode rewrite that drops
 `LSSupportsOpeningDocumentsInPlace` (#294). Never commit it as is. `stash@{0}` and `stash@{1}` are old Xcode churn and
@@ -81,15 +110,9 @@ main checkout.
 
 ## Next
 
-1. **Vector PDF slice 4** (building — in-flight item 5; slice 3 merged as #415): webtoon rows draw the same canvas (frame reporter
-   and strip anchors included; slice 2's `UndrawnPDFPage` webtoon row has neither, so progress capture/restore
-   can't address an undrawn PDF row), the hermetic `LocalPDFReaderUITests` (criteria 6–8, 10; add to CI's hermetic
-   list; the fixture goes through `LocalImportUITests`' `-uitest-import-fixture` route), **and the flip**: default
-   `.vector`, delete `PDFPageRasterizer`, rewrite `PDFImportTests`, and the duplicate message for a legacy raster
-   PDF ("delete it and import again for sharp pages", owner decision 1). Don't flip before both reading modes draw
-   a `.pdf` chapter. Slice 5 (manual device checks) is on the deferred testing list. The CBR/EPUB/folders design
-   also edits `LocalChapter`; whichever lands second rebases onto `pageStorage`.
-2. **Analytics slice 2** (in flight, above). Slice 3 (recommendation use) follows it. Known gaps slice 1 left, all
+1. **Vector PDF slice 4, Piece D** (in-flight item 3). Slice 5 (manual device checks) is on the deferred list. The
+   CBR/EPUB/folders design also edits `LocalChapter`; whichever lands second rebases onto `pageStorage`.
+2. **Analytics slice 2** (in-flight item 2: commit its work first). Slice 3 (recommendation use) follows it. Known gaps slice 1 left, all
    small:
    - The notice in the no-Sources Home state sits on the page background above the empty state's own fill; it reads
      as two bands. Cosmetic.
@@ -134,6 +157,19 @@ Known and deliberately unfiled:
   caller of `link` appears, add a test through it.
 
 ## Lessons from this session
+
+- **`Timed out while synthesizing event` points at the simulator or machine, but does not prove it.** MALHub tests
+  took 6–70 minutes each under a load average near 45, and two still failed after a reboot. I blamed an Android
+  emulator; that emulator was still running on 2026-11-25 at load 2. Cause unknown. Compare against `main`.
+- **Check `uptime` before a long UI run,** and don't record a suite as passed until it passes.
+- **An idle worker with no report is not a dead worker.** I finished and committed Piece C in a live worker's
+  worktree, then called it unresponsive. It reported success at 19:38 on 2026-11-19; no wait was running by then.
+  Release or stop a worker before touching its worktree, and check the Orca inbox before writing it off.
+- **Reviewing a test means finding the edit that turns it red.** I accepted the zoom test and the tile test without
+  doing that; both can pass with the behaviour missing.
+- **A spec can ask a test to read UI that doesn't exist.** Mine had the webtoon restore test read the page
+  indicator, which webtoon never shows; the worker asked instead of adding one to production, which was right.
+  Grep for each element a UI test step names before writing the spec.
 
 - **A seam that every test replaces leaves the real thing untested.** Slice 3's drawing tests all injected a
   recording `PDFPageRendering`, so the production renderer, including its y-axis flip, never ran in a test:
