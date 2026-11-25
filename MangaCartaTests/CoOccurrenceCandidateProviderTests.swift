@@ -44,6 +44,7 @@ final class CoOccurrenceCandidateProviderTests: XCTestCase {
     func testNeverReturnsReadSavedOrDismissed() async throws {
         let now = Date()
         let seed = work(21)
+        let otherSeed = work(27)
         let saved = work(22, listings: [ListingKey(sourceId: "other", mangaId: "saved-copy")])
         var dismissed = work(23)
         dismissed.removedListings = [RemovedListing(key: ListingKey(sourceId: "other", mangaId: "dismissed-copy"),
@@ -55,14 +56,16 @@ final class CoOccurrenceCandidateProviderTests: XCTestCase {
                                            ListingKey(sourceId: "fixture", mangaId: "m24")])
         let ids = [24, 25, 26]
         let dir = directory()
-        let entries = (21...26).map { [$0, 20] }
+        let entries = (21...27).map { [$0, 20] }
         let cache = try await store(dir, table: CoOccurrenceTable(pairs: [21: entries]), malIDs: ids,
                                     candidates: ids.map(manga), now: now)
         let provider = CoOccurrenceCandidateProvider(isEnabled: { true }, fetchTable: { nil },
-            loadWorks: { [seed, saved, dismissed, unidentified] }, titles: { _ in [] },
+            loadWorks: { [seed, otherSeed, saved, dismissed, unidentified] }, titles: { _ in [] },
             resolve: { _ in [:] }, store: cache)
         let excluding: Set<String> = ["saved-copy", "dismissed-copy", "x-copy", "m25"]
-        let results = try await provider.candidates(for: profile(seed), excluding: excluding, limit: 12)
+        let taste = TasteProfile(weights: [:], tagName: [:], orderedTagKeys: [], taggedMangaCount: 0,
+                                 seeds: [], workWeights: [seed.id: 2.0, otherSeed.id: 1.0])
+        let results = try await provider.candidates(for: taste, excluding: excluding, limit: 12)
         XCTAssertEqual(results.map(\.manga.id), ["m26"])
     }
 
@@ -100,6 +103,18 @@ final class CoOccurrenceCandidateProviderTests: XCTestCase {
         let result = try await provider.candidates(for: profile(seed), excluding: excludedIDs, limit: 12)
         XCTAssertTrue(result.contains { $0.manga.malId == 35 })
         try? FileManager.default.removeItem(at: dir)
+    }
+
+    func testTheHeadIsTwelveTitles() async throws {
+        let now = Date()
+        let seed = work(21)
+        let ids = Array(30...41)
+        let table = CoOccurrenceTable(pairs: [21: (30...42).map { [$0, 20] }])
+        let cache = try await store(directory(), table: table, malIDs: ids, candidates: ids.map(manga), now: now)
+        let provider = CoOccurrenceCandidateProvider(isEnabled: { true }, fetchTable: { nil },
+            loadWorks: { [seed] }, titles: { _ in [] }, resolve: { _ in [:] }, store: cache)
+        let results = try await provider.candidates(for: profile(seed), excluding: [], limit: 20)
+        XCTAssertEqual(results.map(\.manga.malId), ids)
     }
 
     func testEmptyTableReturnsNothingAndAsksNobody() async throws {
@@ -270,9 +285,12 @@ final class CoOccurrenceCandidateProviderTests: XCTestCase {
     }
 
     func testMalformedTableKeepsThePreviousOne() async throws {
+        // Valid but for its size: JSON ignores the trailing spaces.
+        let oversized = Data(#"{"v":1,"k":20,"pairs":{}}"#.utf8)
+            + Data(repeating: 32, count: CoOccurrenceTable.maximumBytes)
         XCTAssertThrowsError(try CoOccurrenceTable(data: Data(#"{"v":2,"k":20,"pairs":{}}"#.utf8)).validated())
         XCTAssertThrowsError(try CoOccurrenceTable(data: Data(#"{"v":1,"k":19,"pairs":{}}"#.utf8)).validated())
-        XCTAssertThrowsError(try CoOccurrenceTable(data: Data(repeating: 32, count: CoOccurrenceTable.maximumBytes + 1)))
+        XCTAssertThrowsError(try CoOccurrenceTable(data: oversized))
         XCTAssertThrowsError(try CoOccurrenceTable(data: Data("bad".utf8)))
         XCTAssertThrowsError(try CoOccurrenceTable(data: Data(#"{"v":1,"k":20,"pairs":{"21":[[22]]}}"#.utf8)))
 
@@ -293,8 +311,10 @@ final class CoOccurrenceCandidateProviderTests: XCTestCase {
         let seed = work(21)
         let now = Date()
         let dir = directory()
-        let store = try await store(dir, table: CoOccurrenceTable(pairs: [21: [[22, 20]]]),
-                                    malIDs: [], candidates: [], now: now.addingTimeInterval(-8 * 86400))
+        // Both caches are out of date by the reopened store's clock, so both refreshes run.
+        _ = try await self.store(dir, table: CoOccurrenceTable(pairs: [21: [[22, 20]]]),
+                                 malIDs: [], candidates: [], now: now.addingTimeInterval(-8 * 86400))
+        let store = CoOccurrenceStore(directory: dir, clock: { now })
         let provider = CoOccurrenceCandidateProvider(isEnabled: { true }, fetchTable: {
             try? await Task.sleep(nanoseconds: 1_000_000_000)
             return nil
