@@ -124,7 +124,7 @@ final class ReaderPagePipelineTests: XCTestCase {
             UIColor.red.setFill()
             UIRectFill(CGRect(x: 0, y: 0, width: 100, height: 100))
         }.write(to: input)
-        let store = LocalLibraryStore(root: directory.appendingPathComponent("library"), pdfImport: .vector)
+        let store = LocalLibraryStore(root: directory.appendingPathComponent("library"))
         let result = try await store.importArchive(at: input)
         let record: LocalItemRecord
         switch result {

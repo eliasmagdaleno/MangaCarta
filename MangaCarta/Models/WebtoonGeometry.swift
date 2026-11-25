@@ -166,6 +166,13 @@ func settleStep(target: ReadingPosition, strip: StripFrame?, viewport: CGRect,
     let slotHeight = strip.rect.height / Double(slots)
     guard slotHeight > 0 else { return .stop }
 
+    // Still wholly below the viewport after aiming at it: the scroll never took effect, so
+    // there is no error to correct by slices. Walking the aim to the strip's last slice would
+    // end the loop at the top of the chapter (ADR-0014 decision 10, amended 2026-11-25).
+    if currentAim != nil, viewport.height > 0, strip.rect.minY >= viewport.maxY {
+        return .realize(page: target.page)
+    }
+
     // The slice at or just before the target. `floor` is deliberate: it can only land the
     // reader early, never past the position they saved.
     let base = min(max(Int(target.fraction * Double(slots)), 0), slots - 1)

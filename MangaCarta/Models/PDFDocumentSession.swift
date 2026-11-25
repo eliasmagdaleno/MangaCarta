@@ -35,7 +35,8 @@ final class PDFDocumentSession {
             entry = Entry(document: document, lastUsed: accessClock)
         }
         guard pageIndex >= 0, pageIndex < entry.document.pageCount,
-              let page = entry.document.page(at: pageIndex)?.pageRef else { return nil }
+              let page = entry.document.page(at: pageIndex)?.pageRef,
+              PDFPageGeometry.isDrawable(cropBox: page.getBoxRect(.cropBox)) else { return nil }
         entries[key] = entry
         evictIfNeeded()
         return PDFDocumentPage(document: entry.document, page: page)

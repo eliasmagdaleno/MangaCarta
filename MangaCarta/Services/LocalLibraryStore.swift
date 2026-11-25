@@ -29,8 +29,6 @@ struct LocalImportProgress: Sendable, Equatable {
     let total: Int
 }
 
-enum PDFImportMode: Sendable { case raster, vector }
-
 enum LocalImportError: Error, Equatable {
     case noImages
     case unreadableArchive(ZipArchiveError)
@@ -55,12 +53,10 @@ private struct PDFImportRequest {
 actor LocalLibraryStore {
     static let shared = LocalLibraryStore(root: LocalLibraryPaths.defaultRoot)
     let root: URL
-    private let pdfImport: PDFImportMode
     private let fm = FileManager.default
 
-    init(root: URL, pdfImport: PDFImportMode = .raster) {
+    init(root: URL) {
         self.root = root
-        self.pdfImport = pdfImport
         try? fm.createDirectory(at: root, withIntermediateDirectories: true)
         let staging = root.appendingPathComponent(".staging")
         try? fm.removeItem(at: staging)
@@ -188,37 +184,11 @@ actor LocalLibraryStore {
     private func importPDF(_ request: PDFImportRequest,
                            progress: (@Sendable (LocalImportProgress) -> Void)?) async throws -> LocalImportResult {
         do {
-            if pdfImport == .vector {
-                return try await importVectorPDF(request, progress: progress)
-            }
-            let pageDir = request.item.appendingPathComponent("pages/1")
-            let files = try await PDFPageRasterizer().rasterize(source: request.archive, to: pageDir) { completed, total in
-                progress?(LocalImportProgress(fileName: request.source.lastPathComponent, completed: completed, total: total))
-            }
-            try Task.checkCancellation()
-            guard let firstFile = files.first else { throw PDFRasterizationError.unreadable }
-            try writeCover(from: pageDir.appendingPathComponent(firstFile), to: request.item.appendingPathComponent("cover.jpg"))
-            let chapter = LocalChapter(number: 1, title: request.title, pageCount: files.count, pageFiles: files)
-            let record = LocalItemRecord(itemId: request.itemId, title: request.title, sourceFilename: request.source.lastPathComponent,
-                                         sha256: request.hash, byteSize: request.byteSize, importedAt: Date(), chapters: [chapter])
-            let encoded = try JSONEncoder().encode(record)
-            try encoded.write(to: request.item.appendingPathComponent("item.json"), options: .atomic)
-            try? fm.removeItem(at: request.archive)
-            try Task.checkCancellation()
-            if fm.fileExists(atPath: request.destination.appendingPathComponent("item.json").path) {
-                try? fm.removeItem(at: request.staging)
-                return .duplicate(itemId: request.itemId)
-            }
-            try fm.moveItem(at: request.item, to: request.destination)
-            try? fm.removeItem(at: request.staging)
-            return .imported(record)
+            return try await importVectorPDF(request, progress: progress)
         } catch is CancellationError {
             throw LocalImportError.cancelled
         } catch let error as LocalImportError {
             throw error
-        } catch let error as PDFRasterizationError {
-            if error == .passwordProtected { throw LocalImportError.passwordProtectedPDF }
-            throw LocalImportError.unreadablePDF
         } catch {
             throw isOutOfSpace(error) ? LocalImportError.insufficientSpace : LocalImportError.unreadablePDF
         }
@@ -275,6 +245,16 @@ actor LocalLibraryStore {
         let url = root.appendingPathComponent(itemId).appendingPathComponent("item.json")
         guard let data = try? Data(contentsOf: url) else { return nil }
         return try? JSONDecoder().decode(LocalItemRecord.self, from: data)
+    }
+
+    func isLegacyRasterPDF(itemId: String) -> Bool {
+        guard let record = record(itemId: itemId),
+              URL(fileURLWithPath: record.sourceFilename).pathExtension.caseInsensitiveCompare("pdf") == .orderedSame
+        else { return false }
+        return record.chapters.allSatisfy { chapter in
+            if case .images = chapter.pageStorage { return true }
+            return false
+        }
     }
 
     func allRecords() -> [LocalItemRecord] {
@@ -389,7 +369,7 @@ actor LocalLibraryStore {
 
     private func writeCover(from source: URL, to destination: URL) throws {
         guard let image = UIImage(contentsOfFile: source.path), let cgImage = image.cgImage else {
-            throw PDFRasterizationError.pageUnreadable(0)
+            throw LocalImportError.noImages
         }
         let scale = min(1, 512 / max(CGFloat(cgImage.width), CGFloat(cgImage.height)))
         let size = CGSize(width: max(1, floor(CGFloat(cgImage.width) * scale)),
@@ -398,7 +378,7 @@ actor LocalLibraryStore {
         format.scale = 1
         format.opaque = true
         let thumbnail = UIGraphicsImageRenderer(size: size, format: format).image { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
-        guard let data = thumbnail.jpegData(compressionQuality: 0.9) else { throw PDFRasterizationError.pageUnreadable(0) }
+        guard let data = thumbnail.jpegData(compressionQuality: 0.9) else { throw LocalImportError.noImages }
         try data.write(to: destination, options: .atomic)
     }
 

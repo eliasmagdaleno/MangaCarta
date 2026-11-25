@@ -113,8 +113,8 @@ final class LocalImportViewModel: ObservableObject {
                         self.readingModes?.seed(mode, for: workID)
                     }
                 }
-            } else if case .duplicate = result {
-                errors.append("\(url.lastPathComponent): Already in your library")
+            } else if case .duplicate(let itemId) = result {
+                errors.append(await duplicateMessage(fileName: url.lastPathComponent, itemId: itemId, local: local))
             }
         } catch {
             if accessing { url.stopAccessingSecurityScopedResource() }
@@ -126,6 +126,13 @@ final class LocalImportViewModel: ObservableObject {
         }
         if shouldDelete { Self.deleteIfOwned(url, by: containerRoot) }
         completedFiles += 1
+    }
+
+    private func duplicateMessage(fileName: String, itemId: String, local: LocalLibraryStore) async -> String {
+        if await local.isLegacyRasterPDF(itemId: itemId) {
+            return "\(fileName): Already in your library as an older import. Delete it and import again for sharp pages."
+        }
+        return "\(fileName): Already in your library"
     }
 
     func importOpenedURL(_ url: URL) {

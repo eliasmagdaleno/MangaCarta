@@ -89,6 +89,7 @@ final class PDFPageCanvasView: UIView {
         drawingState = PDFPageCanvasDrawingState(page: page, renderer: renderer)
         super.init(frame: .zero)
         isOpaque = false
+        isUserInteractionEnabled = false
         isAccessibilityElement = false
         accessibilityElementsHidden = true
         if let tiledLayer = layer as? CATiledLayer {
@@ -111,6 +112,15 @@ final class PDFPageCanvasView: UIView {
         drawingState.clear()
         layer.contents = nil
         layer.setNeedsDisplay()
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window == nil {
+            layer.contents = nil
+        } else if pageHolder != nil {
+            layer.setNeedsDisplay()
+        }
     }
 
     nonisolated override func draw(_ layer: CALayer, in context: CGContext) {
