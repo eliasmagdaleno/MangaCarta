@@ -42,6 +42,7 @@
 		4F2D9C2B99615C0C23025BD4 /* CoOccurrenceCandidateProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE42C03FBA1E6B0EC238CDDF /* CoOccurrenceCandidateProviderTests.swift */; };
 		51F2F3F27BB459AB441DD229 /* TitleSourcesUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 736F7ECCD593E145203A656E /* TitleSourcesUITests.swift */; };
 		5552BA9016CDD6C1A8B1AE86 /* UpdatesUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 988991C0F003C55F34001352 /* UpdatesUITests.swift */; };
+		55B775F37D0524D2E1A037F0 /* AppAttestCaptureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AC4C8A9C73B9C329FEA57DE /* AppAttestCaptureTests.swift */; };
 		5976320E5D809570EFB52521 /* MALAccountPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28F0E06D7EC96A13D6FC582B /* MALAccountPresentationTests.swift */; };
 		59C62D59A91E86032670B615 /* DetailSectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F48BDC7013923DFF1F22F47 /* DetailSectionTests.swift */; };
 		5A4912206FCD4BACD63E9575 /* RepositorySettingsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FDB4839B0D46079491B9A04 /* RepositorySettingsUITests.swift */; };
@@ -224,6 +225,7 @@
 		63B0B08B21E70C6502707BF4 /* AdultContentFilterTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = AdultContentFilterTests.swift; path = AdultContentFilterTests.swift; sourceTree = "<group>"; };
 		651410493E4CE11A30957C52 /* WebtoonGeometryTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; path = WebtoonGeometryTests.swift; sourceTree = "<group>"; };
 		692709FBEDCACC3B7ADB0FA2 /* MALTokenManagerTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = MALTokenManagerTests.swift; path = MALTokenManagerTests.swift; sourceTree = "<group>"; };
+		6AC4C8A9C73B9C329FEA57DE /* AppAttestCaptureTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = AppAttestCaptureTests.swift; path = AppAttestCaptureTests.swift; sourceTree = "<group>"; };
 		6B295C51CE6541D787C8F0D1 /* UpdateSchedulerTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = UpdateSchedulerTests.swift; path = UpdateSchedulerTests.swift; sourceTree = "<group>"; };
 		6B2B7CE0937C316EF0F01BE1 /* UpdateNotifierTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = UpdateNotifierTests.swift; path = UpdateNotifierTests.swift; sourceTree = "<group>"; };
 		6B57E209F969929C978BDC9F /* ExtensionRuntimeTests.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; lastKnownFileType = sourcecode.swift; name = ExtensionRuntimeTests.swift; path = ExtensionRuntimeTests.swift; sourceTree = "<group>"; };
@@ -549,6 +551,7 @@
 				821F3803D03B4EBB777CA3CD /* AnalyticsUploaderTests.swift */,
 				0942FE88ABF69F79EB20E4EC /* PrivacyManifestTests.swift */,
 				CE42C03FBA1E6B0EC238CDDF /* CoOccurrenceCandidateProviderTests.swift */,
+				6AC4C8A9C73B9C329FEA57DE /* AppAttestCaptureTests.swift */,
 			);
 			path = MangaCartaTests;
 			sourceTree = "<group>";
@@ -866,6 +869,7 @@
 				ABBDBEB601A3A309A43965B9 /* AnalyticsUploaderTests.swift in Sources */,
 				C26AB22E05C6A6E660E00675 /* PrivacyManifestTests.swift in Sources */,
 				4F2D9C2B99615C0C23025BD4 /* CoOccurrenceCandidateProviderTests.swift in Sources */,
+				55B775F37D0524D2E1A037F0 /* AppAttestCaptureTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1033,6 +1037,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = MangaCarta/MangaCarta.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"MangaCarta/Preview Content\"";
@@ -1064,6 +1069,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = MangaCarta/MangaCarta.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"MangaCarta/Preview Content\"";
