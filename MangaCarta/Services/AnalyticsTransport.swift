@@ -9,7 +9,12 @@ protocol AnalyticsTransport: AnyObject {
 }
 
 @MainActor
-final class URLSessionAnalyticsTransport: AnalyticsTransport {
+protocol CoOccurrenceFetching {
+    func fetchCoOccurrenceTable() async -> Data?
+}
+
+@MainActor
+final class URLSessionAnalyticsTransport: AnalyticsTransport, CoOccurrenceFetching {
     private let host: String
     private let session: URLSession
 
@@ -41,6 +46,19 @@ final class URLSessionAnalyticsTransport: AnalyticsTransport {
         var request = URLRequest(url: URL(string: "https://\(host)/v1/installs/\(id.uuidString)")!)
         request.httpMethod = "DELETE"
         return await perform(request)
+    }
+
+    func fetchCoOccurrenceTable() async -> Data? {
+        var request = URLRequest(url: URL(string: "https://\(host)/v1/cooccurrence-v1.json")!)
+        request.httpMethod = "GET"
+        do {
+            let (data, response) = try await session.data(for: request)
+            guard (response as? HTTPURLResponse)?.statusCode == 200,
+                  data.count <= CoOccurrenceTable.maximumBytes else { return nil }
+            return data
+        } catch {
+            return nil
+        }
     }
 
     private func perform(_ request: URLRequest) async -> AnalyticsUploadResult {

@@ -16,7 +16,7 @@ struct CatalogueIDs: Codable, Equatable, Hashable {
 }
 
 enum ForYouReasonKind: String, Codable, CaseIterable {
-    case tag, anilist, mal, explore, other
+    case tag, cooccurrence, anilist, mal, explore, other
 }
 
 enum ReaderModeKind: String, Codable, CaseIterable {

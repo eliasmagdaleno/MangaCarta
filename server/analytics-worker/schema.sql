@@ -45,3 +45,16 @@ CREATE TABLE IF NOT EXISTS catalogue_checked (
   checked TEXT NOT NULL,
   PRIMARY KEY (kind, id)
 );
+
+-- Catalogue ids AniList returned a record for; checked-but-unanswered ids stay out of aggregates.
+CREATE TABLE IF NOT EXISTS catalogue_known (
+  kind TEXT NOT NULL CHECK (kind IN ('mal', 'anilist')),
+  id INTEGER NOT NULL,
+  PRIMARY KEY (kind, id)
+);
+
+-- The current anonymous, k-thresholded recommendation table. Replaced by daily maintenance.
+CREATE TABLE IF NOT EXISTS published (
+  name TEXT PRIMARY KEY,
+  body TEXT NOT NULL
+);

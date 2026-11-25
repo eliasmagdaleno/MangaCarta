@@ -52,6 +52,49 @@ final class AppCompositionTests: XCTestCase {
         XCTAssertNil(makeComposition().analyticsUploader)
     }
 
+    func testNoAnalyticsHostBuildsNoCoOccurrence() {
+        let composition = makeComposition()
+        XCTAssertFalse(composition.coOccurrenceEnabled)
+        let withHost = AppComposition(defaults: defaults, directory: directory,
+                                      coOccurrenceDirectory: directory.appendingPathComponent("co"),
+                                      analyticsTransport: URLSessionAnalyticsTransport(host: "analytics.example.test"))
+        XCTAssertTrue(withHost.coOccurrenceEnabled)
+    }
+
+    func testWithdrawingConsentClearsCoOccurrenceCaches() async throws {
+        let cacheDirectory = directory.appendingPathComponent("co-occurrence", isDirectory: true)
+        try FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
+        try Data("table".utf8).write(to: cacheDirectory.appendingPathComponent("cooccurrence-v1.json"))
+        try Data("pool".utf8).write(to: cacheDirectory.appendingPathComponent("cooccurrence-pool.json"))
+        defaults.set(AnalyticsConsent.granted.rawValue, forKey: AnalyticsConsentStore.consentKey)
+        // Only the consent store is held, as in the app: the composition itself is discarded.
+        let consent = AppComposition(defaults: defaults, directory: directory,
+                                     coOccurrenceDirectory: cacheDirectory, analyticsTransport: nil).analyticsConsent
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: cacheDirectory.appendingPathComponent("cooccurrence-v1.json").path))
+
+        consent.setCollecting(false)
+        try await Task.sleep(nanoseconds: 200_000_000)
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: cacheDirectory.appendingPathComponent("cooccurrence-v1.json").path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: cacheDirectory.appendingPathComponent("cooccurrence-pool.json").path))
+        XCTAssertFalse(consent.isCollecting)
+    }
+
+    func testLaunchWithoutConsentClearsExistingCoOccurrenceCaches() async throws {
+        let cacheDirectory = directory.appendingPathComponent("co-occurrence", isDirectory: true)
+        try FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
+        try Data("table".utf8).write(to: cacheDirectory.appendingPathComponent("cooccurrence-v1.json"))
+        try Data("pool".utf8).write(to: cacheDirectory.appendingPathComponent("cooccurrence-pool.json"))
+
+        _ = AppComposition(defaults: defaults, directory: directory,
+                           coOccurrenceDirectory: cacheDirectory, analyticsTransport: nil)
+        try await Task.sleep(nanoseconds: 50_000_000)
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: cacheDirectory.appendingPathComponent("cooccurrence-v1.json").path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: cacheDirectory.appendingPathComponent("cooccurrence-pool.json").path))
+    }
+
     /// ADR-0003 Amendment 9, design §4: the composition owns the image cache, and its
     /// reporter sends through the graph's one rate-limiter registry. A view reaching for
     /// `ImageCache.shared` instead would load with no reporter at all.

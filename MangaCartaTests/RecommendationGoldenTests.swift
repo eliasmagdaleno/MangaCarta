@@ -160,6 +160,22 @@ final class RecommendationGoldenTests: XCTestCase {
         try assertMatchesGolden(rendered, named: "foryou-ranking.txt")
     }
 
+    @MainActor
+    func testCoOccurrenceBlendRankingGolden() async throws {
+        let profile = Self.makeProfile()
+        let co = StubPool(items: ["D", "C", "B", "K"].map { id in
+            let score = id == "D" ? 4.0 : (id == "C" ? 3.0 : (id == "B" ? 2.0 : 1.0))
+            return ScoredManga(manga: Self.manga(id), score: score,
+                        reason: "Readers also saved this", reasonKind: .cooccurrence)
+        })
+        let blend = CompositeCandidateProvider(tag: tagProvider(), mal: malProvider(),
+                                               ani: aniProvider(), co: co)
+        let rows = try await blend.candidates(for: profile, excluding: Self.excluded, limit: 20)
+        let rendered = rows.map { "\($0.manga.id)|\(String(format: "%.4f", $0.score))|\($0.reason)" }
+            .joined(separator: "\n") + "\n"
+        try assertMatchesGolden(rendered, named: "foryou-cooccurrence-ranking.txt")
+    }
+
     // MARK: - Agreement semantics
 
     /// A pool of pre-scored candidates, for asserting blend behaviour directly.

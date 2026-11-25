@@ -171,6 +171,22 @@ struct AniListAPI {
     }
     """
 
+    private static let mediaByMALIDsQuery = """
+    query ($malIds: [Int], $perPage: Int) {
+      Page(page: 1, perPage: $perPage) {
+        media(type: MANGA, idMal_in: $malIds, isAdult: false, sort: POPULARITY_DESC) {
+          id idMal
+          title { romaji english native }
+          synonyms
+          genres
+          tags { name rank }
+          status
+          chapters
+        }
+      }
+    }
+    """
+
     /// The pool query. Returns `[]` rather than throwing when AniList has nothing:
     /// under AND semantics an empty result is a **normal outcome** for a reader whose
     /// taste is genuinely rare, and treating it as an error would abort the whole refresh
@@ -181,6 +197,13 @@ struct AniListAPI {
         let payload: PagePayload = try await perform(
             query: Self.mediaByTagsQuery,
             variables: ["tags": tags, "rank": minimumTagRank, "perPage": limit])
+        return (payload.page?.media ?? []).map { $0.toWork() }
+    }
+
+    func media(malIds: [Int], limit: Int) async throws -> [AniListWork] {
+        let payload: PagePayload = try await perform(
+            query: Self.mediaByMALIDsQuery,
+            variables: ["malIds": malIds, "perPage": limit])
         return (payload.page?.media ?? []).map { $0.toWork() }
     }
 

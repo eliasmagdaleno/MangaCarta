@@ -1011,3 +1011,106 @@ rules replace Amendment 3 items 2, 9 and 10, §7.2's "or 30 days pass", and §11
 | `URLSessionAnalyticsTransportTests.testRequestShapesAndStatusMapping` also covers 408 and 429 → retry | either mapped to rejected |
 | Worker: the oldest due ids are asked first; a recheck keeps its place | `ORDER BY kind, id`; rechecks always last; rechecks always first |
 | Worker: 2³¹ is rejected and 2³¹ − 1 accepted | the bound removed |
+
+## Amendment 5 (2026-11-25): slice 3 rechecked against `main`
+
+§9 item 2, §11.1, §12, §13 and §15 item 3 were re-read on `main` at `aff2104`, with slices 1 and 2 as built. Every
+decision above stands. These findings change *how* slice 3 is built.
+
+### Server
+
+1. **"Checked" is not "classified".** `catalogue_checked` also marks an id AniList answered nothing for, so an adult
+   title AniList doesn't know would pass Amendment 4 item 4. A new table `catalogue_known(kind, id)` holds the ids
+   AniList returned a record for. A successful classification chunk adds its answered ids and removes its unanswered
+   ones; a failed chunk changes nothing. The aggregate reads an event only when **every** non-null id on it (`mal`,
+   `anilist`) is in `catalogue_checked` **and** `catalogue_known` and is **not** in `adult_catalogue`. The table is
+   new, so `schema.sql` stays safe to run again.
+2. **The aggregate.** `work_saved` and `chapter_completed` rows with a MAL id give each install a set of distinct MAL
+   ids. A pair is published when at least **20 distinct installs** hold both. Each published id lists at most 20
+   others, by count descending then id ascending; both directions are ranked separately.
+3. **One flooding install cannot make the job quadratic.** An id is considered only if at least 20 installs hold it
+   (no pair of a rarer id can reach 20); at most 500 such ids are kept, by install count then id; and at most 100
+   ids per install, its most widely held first, ties by id. The last two are limits on work, not on privacy.
+4. **Published counts are rounded down to a multiple of 5.** The endpoint is anonymous, so someone can add fake
+   installs and watch a count; rounding hides single arrivals above the threshold, **not at it**. An install also
+   counts only once it has events received on 3 different days spanning at least 7, so fake ones need a week of
+   upkeep. **Residual risk:** k counts client-chosen ids, so it is not a guarantee against an attacker. With 19 aged
+   fake installs, a pair appearing shows that one more install holds both titles; someone who already knows a rare
+   title a reader holds could test for others. Forged pairs can also spoil suggestions. Closing this needs device
+   attestation (App Attest) or calibrated noise; neither is built. The owner decides before the Worker is deployed.
+5. **It runs daily,** last in `runDailyMaintenance`, after the adult purge, and **replaces** the table. A deleted
+   install, an expired row or a newly adult id therefore leaves the table the next night. An error leaves the
+   previous table in place. The job writes no intermediate table, so no second copy of an install id exists.
+   **Order matters:** the purge and the adult purge must succeed before anything is published.
+6. **Serving.** `GET /v1/cooccurrence-v1.json` returns the stored body (`published(name, body)`, one row), or the
+   empty table before the first run: `Content-Type: application/json`, `Cache-Control: public, max-age=86400`. Other
+   methods get 405. The wire form is `{"v":1,"k":20,"pairs":{"<mal>":[[<mal>,<count>], …]}}`.
+
+### App
+
+7. **Only a reader who agreed downloads it.** The policy says nothing happens until the reader agrees, and a download
+   shows the reader's IP address to the host. The provider returns nothing and fetches nothing unless consent is
+   granted; withdrawing it deletes the two cached files, including a fetch or a resolution still in flight. The
+   request carries no install id, query or cookie.
+8. **The host is chosen exactly as uploads are** (`AnalyticsTransportSelection`): no host, a `-uitest-` argument or a
+   Debug build means no download, and the provider is not built.
+9. **The table is read through a cache; the rail never waits** (ADR-0011's rule, and `AniListPoolStore`'s shape).
+   `Caches/analytics/cooccurrence-v1.json` is refreshed after 7 days; a failed attempt is not repeated for 24 hours,
+   across relaunches. A body over 2 MB, or with another `v`, a `k` below 20, or an undecodable shape is rejected whole and the
+   previous table stands. A pair below 20, a non-positive id or an id paired with itself is dropped on the device too.
+10. **Seeds** are the Works in `profile.workWeights` with a MAL id: read Works, which are the only ones with an
+    engagement weight. A candidate scores the sum over seeds of `weight × 1 / (1 + position)`, as the MAL pool does.
+11. **Exclusion is by MAL id as well as Listing id.** `excluding` holds Listing ids of one copy; another Source's copy
+    of a saved title has a different id. Any Work with a Listing (current or removed) in `excluding` excludes its MAL
+    id, **before** the head is taken, so the resolution budget isn't spent on titles the reader has. The resolved
+    Listing id is checked against `excluding` again at read time, and a Work that already owns the resolved Listing
+    excludes it too when that Work is excluded. The seeds themselves are always excluded.
+12. **Resolution needs titles, and the table has only ids.** One AniList request (`idMal_in`, the first 12 candidates)
+    gives every known title, then `MALReverseResolver.resolve(works:limit:)` finds the openable copy. Both run in the
+    background and are cached in `Caches/analytics/cooccurrence-pool.json`, keyed on the 12 ids; 14 days, or 24 hours
+    when nothing resolved. A thrown AniList request writes nothing. AniList is asked only about candidates, never
+    about the reader's own titles.
+13. **The blend.** `CompositeCandidateProvider` gains a fourth pool, `co`, defaulted to empty, with `wCo = 0.6`: unproven,
+    like AniList's. Reason precedence is tag < co < AniList < MAL. The agreement mean covers it. With an empty `co`
+    every existing golden row is byte-identical; that is the proof that the dark state changes nothing.
+14. **`ForYouReasonKind` gains `cooccurrence`,** shown as "Readers also saved this", which names no title. The Worker's
+    closed set gains it **in the same PR**: a server without it rejects the whole batch (Amendment 3 item 9). The
+    Worker isn't deployed yet. From now on a new value is deployed to the Worker before an app that sends it.
+
+### Policy
+
+15. The privacy policy gains the download (item 7). Its "counts … say nothing about any one person" is removed, because
+    item 4's residual risk contradicts it. §7.2's "not recomputed" and the policy's matching sentence are replaced by
+    item 5's daily recalculation. Effective date unchanged: the same day as slice 2's.
+
+### What a reader sees if only this slice ships
+
+Nothing: `ANALYTICS_HOST` is unset. Once the Worker is deployed, the table stays empty until some pair reaches 20
+installs. The privacy policy says a reader who agreed downloads the table.
+
+### Acceptance → tests → mutations
+
+| Test | Mutations it must catch |
+|---|---|
+| Worker: 19 installs publish nothing; 20 do; one install repeating a pair counts once | k = 19; `COUNT(*)` instead of distinct |
+| Worker: only `work_saved` and `chapter_completed` count; rows without a MAL id don't | another event name admitted; completions dropped |
+| Worker: an install seen on 2 days, or on 3 days within 6, does not count | days 2; span 6 |
+| Worker: an id unchecked, checked-but-unknown or adult never appears, on either id column | each of the three conditions removed, for `mal` and for `anilist` |
+| Worker: known follows the answer; unanswered ids are removed; a failed chunk changes nothing | no insert; no removal; removal on failure |
+| Worker: counts round down; a list holds at most 20, by count then id | rounding removed; cap removed; order reversed |
+| Worker: 500 ids and 100 per install, most widely held first | each cap removed |
+| Worker: a deleted install takes its pair below k on the next run; a failed run leaves the old body | replace turned into merge; body cleared first |
+| Worker: the route's body, headers, 405 and the empty table; the body holds no install id | 404 before the first run; POST accepted |
+| Worker: the `cooccurrence` reason is accepted | removed from `REASONS` |
+| `CoOccurrenceCandidateProviderTests.testPairsBelowThresholdAreDropped` | device threshold 19; threshold removed |
+| `.testNeverReturnsReadSavedOrDismissed` (through another Source's Listing of the same Work; and by resolved Listing id) | MAL-id exclusion removed; Listing re-check removed |
+| `.testExclusionHappensBeforeTheHeadIsTaken` | exclusion moved after `prefix(12)` |
+| `.testEmptyTableReturnsNothingAndAsksNobody` | AniList asked with an empty list |
+| `.testWithoutConsentNothingIsFetchedOrReturned`, `.testWithdrawingConsentDeletesTheCaches` (also with a fetch and a resolution in flight) | each gate removed; `clear` without the in-flight guard |
+| `.testTableRefreshesWeeklyAndFailureWaitsADay` (across a new store) | 8 days; floor in memory only |
+| `.testMalformedTableKeepsThePreviousOne` (v, k, size, shape) | each check removed |
+| `.testRailNeverWaits` (a fetch and a resolve that never finish) | either awaited |
+| `.testScoresBySeedWeightAndPosition`, `.testResolutionFailureWritesNothing`, `.testPoolExpiry` | weight ignored; position ignored; nil record saved; either TTL changed |
+| `CoOccurrenceTransportTests.testRequestShape` (GET, path, no body, cookie, query or install id; non-200 and oversize → nil) | wrong path; a status accepted |
+| `AppCompositionTests.testNoAnalyticsHostBuildsNoCoOccurrence` | built unconditionally |
+| `RecommendationGoldenTests`: the existing golden is unchanged; a second golden has a `co` pool | `wCo` changed; `co` omitted from the agreement mean; precedence swapped |

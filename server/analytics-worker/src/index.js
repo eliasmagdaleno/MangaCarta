@@ -12,6 +12,13 @@ const MAX_CLASSIFY = 200;
 const CLASSIFY_CHUNK = 50;
 const RECHECK_DAYS = 30;
 const RETENTION_MONTHS = 12;
+const CO_MIN_INSTALLS = 20;
+const CO_MAX_IDS = 500;
+const CO_MAX_PER_INSTALL = 100;
+const CO_MAX_NEIGHBORS = 20;
+const CO_ROUNDING = 5;
+const CO_MIN_DAYS = 3;
+const CO_MIN_SPAN_DAYS = 7;
 const EARLIEST_DAY = "2026-01-01";
 const ANILIST_URL = "https://graphql.anilist.co";
 
@@ -22,7 +29,7 @@ const PRINTABLE_ASCII = /^[\x20-\x7e]{1,32}$/;
 const ENVELOPE_KEYS = ["v", "install", "day", "app", "name"];
 
 const MODES = ["ltr", "rtl", "vertical"];
-const REASONS = ["tag", "anilist", "mal", "explore", "other"];
+const REASONS = ["tag", "cooccurrence", "anilist", "mal", "explore", "other"];
 const FILE_BUCKETS = ["1", "2-9", "10+"];
 const ADULT_CLASSES = ["none", "mixed", "adultOnly"];
 const BOOL_SETTINGS = ["notifications", "mal_sync", "show_adult"];
@@ -267,6 +274,15 @@ export async function handleRequest(request, env, now) {
       if (request.method !== "POST") return reply(405, "method not allowed", "POST");
       return await ingest(request, env, now);
     }
+    if (pathname === "/v1/cooccurrence-v1.json") {
+      if (request.method !== "GET") return reply(405, "method not allowed", "GET");
+      const row = await env.DB.prepare("SELECT body FROM published WHERE name = 'cooccurrence-v1.json'").first();
+      const body = row?.body ?? JSON.stringify({ v: 1, k: CO_MIN_INSTALLS, pairs: {} });
+      return new Response(body, {
+        status: 200,
+        headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=86400" },
+      });
+    }
     const install = /^\/v1\/installs\/([^/]+)$/.exec(pathname);
     if (install) {
       if (request.method !== "DELETE") return reply(405, "method not allowed", "DELETE");
@@ -344,6 +360,21 @@ async function classify(env, today, fetchImpl) {
       // A failed fetch marks nothing checked, so those ids are asked about again tomorrow.
       if (media === null) continue;
       const statements = [];
+      // "Known" means AniList returned a record. Checked alone doesn't say so (Amendment 5 item 1).
+      const answered = new Set(media.map((entry) => (kind === "mal" ? entry.idMal : entry.id)));
+      const known = chunk.filter((id) => answered.has(id));
+      const unknown = chunk.filter((id) => !answered.has(id));
+      // json_each keeps this to one statement per set: D1 limits the queries in one invocation.
+      statements.push(
+        env.DB.prepare("INSERT OR IGNORE INTO catalogue_known (kind, id) SELECT ?, value FROM json_each(?)")
+          .bind(kind, JSON.stringify(known)),
+        env.DB.prepare("DELETE FROM catalogue_known WHERE kind = ? AND id IN (SELECT value FROM json_each(?))")
+          .bind(kind, JSON.stringify(unknown)),
+        env.DB.prepare(
+          "INSERT INTO catalogue_checked (kind, id, checked) SELECT ?, value, ? FROM json_each(?) WHERE true " +
+            "ON CONFLICT (kind, id) DO UPDATE SET checked = excluded.checked",
+        ).bind(kind, today, JSON.stringify(chunk)),
+      );
       for (const entry of media.filter(isAdultMedia)) {
         if (Number.isSafeInteger(entry.idMal) && entry.idMal > 0) {
           statements.push(env.DB.prepare("INSERT OR IGNORE INTO adult_catalogue (kind, id) VALUES ('mal', ?)").bind(entry.idMal));
@@ -352,14 +383,6 @@ async function classify(env, today, fetchImpl) {
           statements.push(env.DB.prepare("INSERT OR IGNORE INTO adult_catalogue (kind, id) VALUES ('anilist', ?)").bind(entry.id));
         }
       }
-      for (const id of chunk) {
-        statements.push(
-          env.DB.prepare(
-            "INSERT INTO catalogue_checked (kind, id, checked) VALUES (?, ?, ?) " +
-              "ON CONFLICT (kind, id) DO UPDATE SET checked = excluded.checked",
-          ).bind(kind, id, today),
-        );
-      }
       await env.DB.batch(statements);
     }
   }
@@ -367,7 +390,8 @@ async function classify(env, today, fetchImpl) {
 
 /**
  * The daily cron: (a) the 12-month purge by `received`, (b) adult classification through
- * AniList, (c) the adult purge. In that order, so an id classified tonight is purged tonight.
+ * AniList, (c) the adult purge, (d) the recommendation table. In that order, so an id classified
+ * tonight is purged tonight, and nothing is published unless both purges succeeded.
  * @param {{ DB: D1Database }} env
  * @param {{ now: Date, fetchImpl: typeof fetch }} options
  */
@@ -377,6 +401,61 @@ export async function runDailyMaintenance(env, { now, fetchImpl }) {
   await env.DB.prepare("DELETE FROM events WHERE received < ?").bind(cutoff).run();
   await classify(env, today, fetchImpl);
   await env.DB.prepare(ADULT_PURGE).run();
+  await publishCooccurrence(env);
+}
+
+// Eligible ids are reduced to an install/id relation before pair work. MATERIALIZED keeps D1
+// and SQLite from expanding these shared stages into repeated scans.
+const COOCCURRENCE_QUERY = `
+  WITH eligible_events AS MATERIALIZED (
+    SELECT install, mal FROM events
+    WHERE name IN ('work_saved', 'chapter_completed') AND mal IS NOT NULL
+      AND EXISTS (SELECT 1 FROM catalogue_checked c JOIN catalogue_known k USING (kind, id)
+        WHERE c.kind = 'mal' AND c.id = events.mal)
+      AND NOT EXISTS (SELECT 1 FROM adult_catalogue a WHERE a.kind = 'mal' AND a.id = events.mal)
+      AND (anilist IS NULL OR (
+        EXISTS (SELECT 1 FROM catalogue_checked c JOIN catalogue_known k USING (kind, id)
+          WHERE c.kind = 'anilist' AND c.id = events.anilist)
+        AND NOT EXISTS (SELECT 1 FROM adult_catalogue a WHERE a.kind = 'anilist' AND a.id = events.anilist)))
+  ), mature AS MATERIALIZED (
+    SELECT install FROM events GROUP BY install
+    HAVING COUNT(DISTINCT received) >= ${CO_MIN_DAYS}
+      AND julianday(MAX(received)) - julianday(MIN(received)) >= ${CO_MIN_SPAN_DAYS}
+  ), install_ids AS MATERIALIZED (
+    SELECT DISTINCT install, mal FROM eligible_events WHERE install IN (SELECT install FROM mature)
+  ), id_counts AS MATERIALIZED (
+    SELECT mal, COUNT(*) AS installs FROM install_ids GROUP BY mal
+    HAVING COUNT(*) >= ${CO_MIN_INSTALLS}
+  ), kept_ids AS MATERIALIZED (
+    SELECT mal, installs FROM id_counts ORDER BY installs DESC, mal ASC LIMIT ${CO_MAX_IDS}
+  ), per_install AS MATERIALIZED (
+    SELECT i.install, i.mal, c.installs,
+      ROW_NUMBER() OVER (PARTITION BY i.install ORDER BY c.installs DESC, i.mal ASC) AS rn
+    FROM install_ids i JOIN kept_ids c USING (mal)
+  ), bounded AS MATERIALIZED (
+    SELECT install, mal FROM per_install WHERE rn <= ${CO_MAX_PER_INSTALL}
+  ), pairs AS MATERIALIZED (
+    SELECT a.mal AS source, b.mal AS target, COUNT(DISTINCT a.install) AS installs
+    FROM bounded a JOIN bounded b ON a.install = b.install AND a.mal <> b.mal
+    GROUP BY a.mal, b.mal HAVING COUNT(DISTINCT a.install) >= ${CO_MIN_INSTALLS}
+  ), ranked AS MATERIALIZED (
+    SELECT source, target, installs,
+      ROW_NUMBER() OVER (PARTITION BY source ORDER BY installs DESC, target ASC) AS rn
+    FROM pairs
+  )
+  SELECT source, target, (installs / ${CO_ROUNDING}) * ${CO_ROUNDING} AS count FROM ranked
+  WHERE rn <= ${CO_MAX_NEIGHBORS} ORDER BY source ASC, rn ASC`;
+
+async function publishCooccurrence(env) {
+  const { results } = await env.DB.prepare(COOCCURRENCE_QUERY).all();
+  const pairs = {};
+  for (const row of results) {
+    const key = String(row.source);
+    if (!pairs[key]) pairs[key] = [];
+    pairs[key].push([row.target, row.count]);
+  }
+  const body = JSON.stringify({ v: 1, k: CO_MIN_INSTALLS, pairs });
+  await env.DB.prepare("INSERT OR REPLACE INTO published (name, body) VALUES ('cooccurrence-v1.json', ?)").bind(body).run();
 }
 
 export default {
