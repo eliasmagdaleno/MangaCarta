@@ -300,4 +300,33 @@ final class WebtoonGeometryTests: XCTestCase {
                            "a measurement \(elapsed)s in should not re-arm")
         }
     }
+
+    // MARK: Capture before the reader is positioned (ADR-0014 decision 10, #418)
+
+    /// A PDF strip is measured and decoded at the top before restore starts. Capturing that as
+    /// the live position would make it the restore target.
+    func testAMeasurementBeforeTheReaderIsPositionedIsNotALivePosition() {
+        let metrics = StripMetrics()
+        metrics.frames = [0: StripFrame(rect: CGRect(x: 0, y: 0, width: 402, height: 603), isDecoded: true)]
+        metrics.viewport = CGRect(x: 0, y: 0, width: 402, height: 874)
+
+        XCTAssertFalse(metrics.capture(completedRequest: 1))
+        XCTAssertNil(metrics.live)
+
+        metrics.positionedRequest = 1
+        XCTAssertTrue(metrics.capture(completedRequest: 1))
+        XCTAssertEqual(metrics.live, ReadingPosition(page: 0, fraction: 0))
+    }
+
+    /// A completed load that hasn't been positioned yet keeps the position from before it.
+    func testALaterLoadSuspendsCaptureUntilItIsPositioned() {
+        let metrics = StripMetrics()
+        metrics.frames = [3: StripFrame(rect: CGRect(x: 0, y: 0, width: 402, height: 603), isDecoded: true)]
+        metrics.viewport = CGRect(x: 0, y: 0, width: 402, height: 874)
+        metrics.positionedRequest = 1
+        metrics.live = ReadingPosition(page: 1, fraction: 0.5)
+
+        XCTAssertFalse(metrics.capture(completedRequest: 2))
+        XCTAssertEqual(metrics.live, ReadingPosition(page: 1, fraction: 0.5))
+    }
 }

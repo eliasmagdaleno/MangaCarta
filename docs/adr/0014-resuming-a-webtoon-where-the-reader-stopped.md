@@ -641,6 +641,16 @@ decision, not the measurement.
 > the content runs out underneath it. Checked by ignoring every scroll for the first 0.8s of a restore: it
 > failed without the viewport wait and passes with both changes.
 
+> **Amended 2026-11-25 (second) — nothing is live until the reader has been positioned.** CI failed a third time
+> with the changes above, so a lost scroll was not the cause there. Decision 8 lets `live` outrank the saved
+> position, and a measurement could arrive **before** the restore task started. An undecoded image strip captures
+> `nil`, which hid this. A PDF strip is decoded from its first layout, so it captured "strip 0, top"; restore then
+> read that as its target and left the reader at the top. A slow machine only widens the gap. `StripMetrics` now
+> ignores a measurement until its restore task has finished for the current load (`positionedRequest`), and again
+> from each later load, or remount, until that one is positioned. This also covers a chapter advance and a return
+> from a paged mode. Checked by delaying the restore task 0.8s: it failed with CI's exact page frames before the
+> change and passes after it. The lost-scroll rules above stay; the probe that justified them still holds.
+
 ### 11. Every door into the reader carries the position
 
 `ChapterListView.swift:34` and `MangaDetailView.swift:411` pass

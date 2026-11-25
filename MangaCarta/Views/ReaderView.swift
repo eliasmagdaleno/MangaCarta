@@ -48,6 +48,21 @@ final class StripMetrics {
     /// Only a chapter change clears it.
     var live: ReadingPosition?
 
+    /// The load the mounted vertical reader has been positioned for, `nil` while none is mounted.
+    /// Until it names the current load, a measurement shows where the scroll view *happens* to be
+    /// — the top, on a fresh mount — and not where the reader is. Capturing it would overwrite
+    /// the target restore is about to read. Undecoded images hid this; a PDF strip is decoded
+    /// from its first layout (ADR-0014 decision 10, second 2026-11-25 amendment).
+    var positionedRequest: Int?
+
+    /// Measures the live position, if the reader has been positioned for `completedRequest`.
+    /// Returns whether the measurement counts.
+    func capture(completedRequest: Int) -> Bool {
+        guard positionedRequest == completedRequest else { return false }
+        if let position = stripPosition(frames: frames, viewport: viewport) { live = position }
+        return true
+    }
+
     /// Raised by the settle loop for its duration. Gates the *record* path, not the
     /// measurement: the loop renders overshoots it then rejects, and overshoot is the only
     /// transient `record`'s max preserves. Set from commit 3.
@@ -341,9 +356,7 @@ struct ReaderView: View {
     /// the last known position alone — and decide whether this measurement is allowed to
     /// reach the store.
     private func measurementChanged() {
-        if let position = stripPosition(frames: metrics.frames, viewport: metrics.viewport) {
-            metrics.live = position
-        }
+        guard metrics.capture(completedRequest: vm.lastCompletedRequest) else { return }
         guard !metrics.isRestoring else { return }
 
         let now = Date()
@@ -612,6 +625,7 @@ struct ReaderView: View {
             // view, but nothing guarantees it lands before the pop. Also fires on a
             // reading-mode switch, which is the other way out of this reader.
             .onDisappear {
+                metrics.positionedRequest = nil
                 guard !metrics.isRestoring else { return }
                 recordLivePosition()
             }
@@ -628,8 +642,11 @@ struct ReaderView: View {
             // advances were unaffected either way: `pages` stays populated across a commit, so
             // the reader stays mounted.
             .task(id: vm.lastCompletedRequest) {
-                guard vm.errorMessage == nil else { return }
-                await restorePosition(using: proxy)
+                let request = vm.lastCompletedRequest
+                if vm.errorMessage == nil { await restorePosition(using: proxy) }
+                // A cancelled task belongs to a load, or a mount, that is already over.
+                guard !Task.isCancelled else { return }
+                metrics.positionedRequest = request
             }
         }
     }
