@@ -61,7 +61,10 @@ struct CoOccurrencePoolRecord: Codable {
     let candidates: [Int: Manga]
 
     func isFresh(now: Date) -> Bool {
-        now.timeIntervalSince(fetchedAt) < (candidates.isEmpty ? 24 * 60 * 60 : 14 * 24 * 60 * 60)
+        // Explicitly typed: CI's older compiler can't type-check this as one expression.
+        let day: TimeInterval = 86_400
+        let lifetime: TimeInterval = candidates.isEmpty ? day : 14 * day
+        return now.timeIntervalSince(fetchedAt) < lifetime
     }
 }
 
