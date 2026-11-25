@@ -631,6 +631,16 @@ decision, not the measurement.
 > overshoot rule ("aim one slot earlier") corrects the aim that actually overshot rather than
 > recomputing the same slot from the fraction and oscillating against it.
 
+> **Amended 2026-11-25 — a lost scroll is not a landing error.** A vector PDF strip has its height on the
+> first layout, so step zero's wait ended before the scroll view could obey a scroll, with the viewport still
+> measured as 0×0. The loop read "still 1,144pt below" as an error to correct by slices, clamped the aim to the
+> strip's last slice, and stopped about 100ms in, at the top of the chapter. It failed twice on CI (#418) and
+> never on a faster machine. Two changes: step zero also waits for a measured **viewport**, and a target still
+> wholly below the viewport after an aim is re-aimed **by row** (`.realize`). That re-aim spends time, not
+> attempts, until step zero's 1.5s deadline. A visible strip keeps every earlier rule, including the stop when
+> the content runs out underneath it. Checked by ignoring every scroll for the first 0.8s of a restore: it
+> failed without the viewport wait and passes with both changes.
+
 ### 11. Every door into the reader carries the position
 
 `ChapterListView.swift:34` and `MangaDetailView.swift:411` pass

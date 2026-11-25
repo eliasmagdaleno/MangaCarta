@@ -168,7 +168,7 @@ func settleStep(target: ReadingPosition, strip: StripFrame?, viewport: CGRect,
 
     // Still wholly below the viewport after aiming at it: the scroll never took effect, so
     // there is no error to correct by slices. Walking the aim to the strip's last slice would
-    // end the loop at the top of the chapter (ADR-0014 decision 10's third amendment).
+    // end the loop at the top of the chapter (ADR-0014 decision 10, amended 2026-11-25).
     if currentAim != nil, viewport.height > 0, strip.rect.minY >= viewport.maxY {
         return .realize(page: target.page)
     }
