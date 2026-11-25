@@ -429,16 +429,22 @@ struct ReaderView: View {
         }
 
         var aim: StripAnchor?
-        for attempt in 0..<settleAttemptBudget {
+        var attempt = 0
+        while attempt < settleAttemptBudget {
             switch settleStep(target: target, strip: measuredStrip(target.page),
                               viewport: metrics.viewport, currentAim: aim, attempt: attempt) {
             case .stop:
                 return
             case .realize(let page):
+                aim = nil
                 proxy.scrollTo(page, anchor: .top)
+                // A lost scroll is waited out in time, not attempts: while the reader is still
+                // being presented, ten attempts are gone in half a second.
+                if Date() >= realizeBy { attempt += 1 }
             case .scroll(let anchor):
                 aim = anchor
                 proxy.scrollTo(anchor, anchor: .top)
+                attempt += 1
             }
             await waitForRemeasure(of: target.page)
             if Task.isCancelled { return }

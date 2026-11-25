@@ -218,6 +218,24 @@ final class WebtoonGeometryTests: XCTestCase {
         XCTAssertEqual(step, .scroll(StripAnchor(page: 5, slot: 34)))           // ⌊200/60⌋ = 3
     }
 
+    /// What a cold reader does: page 3 is laid out below the first screen before any scroll has
+    /// taken effect. Stepping slices cannot close that distance, and the last slice ends the loop
+    /// with the reader at the top of the chapter.
+    func testATargetStillBelowTheViewportIsAimedAtAgainByRow() {
+        let target = ReadingPosition(page: 2, fraction: 0.31)
+        for slot in [15, stripAnchorSlots - 1] {
+            let step = settleStep(target: target, strip: strip(viewport.maxY, 603), viewport: viewport,
+                                  currentAim: StripAnchor(page: 2, slot: slot), attempt: 1)
+            XCTAssertEqual(step, .realize(page: 2), "slot \(slot)")
+        }
+        // The first aim is still a slice: nothing has been tried yet.
+        XCTAssertEqual(settleStep(target: target, strip: strip(viewport.maxY, 603), viewport: viewport,
+                                  currentAim: nil, attempt: 0), .scroll(StripAnchor(page: 2, slot: 15)))
+        // A visible strip that runs out of content underneath keeps the old rule, and stops.
+        XCTAssertEqual(settleStep(target: target, strip: strip(viewport.maxY - 1, 603), viewport: viewport,
+                                  currentAim: StripAnchor(page: 2, slot: stripAnchorSlots - 1), attempt: 1), .stop)
+    }
+
     /// A measurement that never stabilises: the budget is the only thing that ends it, and it
     /// has to end it even while the residual is still enormous.
     func testTheBudgetStopsALoopThatIsStillNowhereNearIt() {
