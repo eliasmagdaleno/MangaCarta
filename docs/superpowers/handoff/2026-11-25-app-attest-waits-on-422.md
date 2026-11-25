@@ -49,17 +49,11 @@ Merged, branches deleted (local and remote) unless noted:
 
 **In flight — check each before acting (state as of 2026-11-25 ~14:30):**
 
-1. **Vector PDF slice 4: [#418](https://github.com/eliasmagdaleno/MangaCarta/pull/418), auto-merge ON (owner, 14:16) at `ca34b2d`.**
-   Worktree `~/orca/workspaces/Manga-Reader/pdf-slice4`. CI failed the resume test a third time at `caf42fa`. Real cause: a
-   PDF strip is decoded from its first layout, so "page 1, top" was captured as the live position before restore began
-   and became its target. Fixed with `StripMetrics.positionedRequest` (ADR-0014 decision 10, second 2026-11-25 amendment).
-   Delaying the restore 0.8 s reproduced CI's exact frames; the fix passes under the delay. At 14:30 the unit tests and SwiftLint had
-   passed and the UI tests were still pending.
-   If they fail again, the cause is elsewhere; don't merge.
-   - **After it merges:** remove the worktree and local branch; the owner approved deleting the remote. Release
-     `ctx_f8f53ef77a61`, `ctx_3133c06e4b94`, `ctx_25c30cfec09e` (run `run_366e2086a9f0`), close coordinator terminal
-     `term_4c61b8e7-3519-4db8-b52f-083ba9fb79cf`, delete the `PDF2` simulator
-     (`06CB4285-0173-4CDB-B844-A539740A7028`), `docs/superpowers/specs/pdf-slice4-worker/`, `/private/tmp/pdf4-*` and `/private/tmp/pdf-slice4*`.
+1. **Vector PDF slice 4: [#418](https://github.com/eliasmagdaleno/MangaCarta/pull/418) merged 2026-11-25 (`c388517`), cleanup done.**
+   The resume fix is `StripMetrics.positionedRequest` (ADR-0014 decision 10, second 2026-11-25 amendment). Worktree, local and
+   remote branch, the `PDF2` simulator, the worker spec folder and the temp files are removed; worker `ctx_25c30cfec09e` and the
+   coordinator terminal are closed. `ctx_f8f53ef77a61` and `ctx_3133c06e4b94` reported `retained` (ownership transferred); leave
+   them. **Read `main`'s CI run for `c388517`** (run `45713206664`): the first full one with #420 too.
 
 2. **Analytics slice 3: [#422](https://github.com/eliasmagdaleno/MangaCarta/pull/422), auto-merge ON (owner, ~14:22) at `45ff204`.** Its first CI run
    failed to compile one expression on Xcode 16.4; fixed there with typed lets. At 14:30 the rerun's unit and UI tests were pending. CI's merge-in of `main` has **not** been tested
@@ -100,7 +94,7 @@ main checkout.
 
 ## Next
 
-1. **Land #418 and #422.** PDF slice 5 (manual device checks) is on the deferred list. The
+1. **Land #422** (#418 merged). PDF slice 5 (manual device checks) is on the deferred list. The
    CBR/EPUB/folders design also edits `LocalChapter`; whichever lands second rebases onto `pageStorage`.
 2. **App Attest** (in-flight item 3): resume its session once #422 is on `main`; recheck the design against the code, then slice 1.
    Known gaps **analytics** slice 1 left, all
