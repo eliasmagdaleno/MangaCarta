@@ -60,11 +60,12 @@ Merged, branches deleted (local and remote) unless noted:
      `term_4c61b8e7-3519-4db8-b52f-083ba9fb79cf`, delete the `PDF2` simulator
      (`06CB4285-0173-4CDB-B844-A539740A7028`), `docs/superpowers/specs/pdf-slice4-worker/`, `/private/tmp/pdf4-*` and `/private/tmp/pdf-slice4*`.
 
-2. **Analytics slice 3: [#422](https://github.com/eliasmagdaleno/MangaCarta/pull/422), Auto-fix on, auto-merge off, CI just started.**
+2. **Analytics slice 3: [#422](https://github.com/eliasmagdaleno/MangaCarta/pull/422), auto-merge ON (owner, ~14:22) at `45ff204`.** Its first CI run
+   failed to compile one expression on Xcode 16.4; fixed.
    Branch `eliasmagdaleno/analytics-slice3` in `.claude/worktrees/analytics-slice2-927aae` (the local branch
    `claude/analytics-slice2-927aae`, merged as #420, is also still there). Design Amendment 5.
    - **Owner, 2026-11-25: yes** to download by consenting readers only, and **yes** to the privacy policy changes, which
-     publish on merge. **The merge itself was not asked for yet.**
+     publish on merge. **Yes** to the merge too.
    - 1,274 unit tests run (5 skipped), 91 Worker tests (not in CI), mutations app 46/46 and Worker 32/33 red (the survivor is redundant).
    - Two Luna workers built it and reported `failed` for unrun mutations; review found three real bugs their green tests missed.
    - **After it merges:** remove the worktree and local branches, the remote (ask), simulator `AN2 iPhone 17 Pro`
@@ -73,12 +74,12 @@ Merged, branches deleted (local and remote) unless noted:
    - A desktop session was moved into that worktree and back during the day; check nothing is open there before removing it.
 
 3. **App Attest:** owner decided 2026-11-25 to add it **before the Worker is deployed**. Draft:
-   `docs/superpowers/specs/2026-11-25-app-attest-design.md`.
+   `docs/superpowers/specs/2026-11-25-app-attest-design.md`. Approved 2026-11-25 without the keys-per-device count.
 
 4. **Left over from #414 (merged):** worktree `.claude/worktrees/exciting-lamport-f80042`, local branch
    `claude/ci-cold-sim-warmup`, session `local_4911e6cc-2aca-46df-b7ba-2875b3e3c58b`.
 
-**Owner's calls, open:** merge #422; App Attest's owner steps (App ID capability, one device capture); a plain Pages theme
+**Owner's calls, open:** App Attest's owner steps (App ID capability, one device capture); a plain Pages theme
 (the current one loads `anchor.min.js` from cdnjs); the D1 region. **The owner runs every Cloudflare step.** After deploy,
 add the region to the privacy policy and bump its date.
 

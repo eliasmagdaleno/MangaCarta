@@ -1,6 +1,6 @@
 # App Attest for analytics
 
-Date: 2026-11-25. Status: **draft, not rechecked against code.** Owner decision 2026-11-25: add App Attest before the
+Date: 2026-11-25. Status: **approved by the owner 2026-11-25, without the fraud metric (item 8); not rechecked against code.** Owner decision 2026-11-25: add App Attest before the
 analytics Worker is deployed. It addresses the residual risk in Amendment 5 item 4 of the analytics design (in #422).
 
 Sources (Apple, read 2026-11-25 through the documentation JSON endpoints): "Validating apps that connect to your server",
@@ -34,7 +34,7 @@ instead of any number for free. Nineteen devices, or nineteen patient weeks, sti
    the public key = credentialId; RP ID hash of `<TeamID>.<bundle id>`; counter 0; the **production** AAGUID only. Every parser is bounds-checked, depth-limited and fails closed.
 7. **Stored:** `attested_keys(install, key_id, public_key, counter)`. The receipt is not stored. DELETE removes the key row
    and challenges with the events, and the 12-month purge covers both.
-8. **No fraud metric in this version.** Apple's per-device key count over 30 days needs an Apple private key on the Worker
+8. **No fraud metric in this version (owner decision, 2026-11-25).** Apple's per-device key count over 30 days needs an Apple private key on the Worker
    and daily calls. Revisit if the counts look forged.
 9. **Off by default:** no host, `-uitest-`, Debug without the flag, or `isSupported == false` → v1 batches, as now.
 10. **Amendment 5's aggregate changes in the same PR.** Until the Worker is deployed there is no migration to write;
