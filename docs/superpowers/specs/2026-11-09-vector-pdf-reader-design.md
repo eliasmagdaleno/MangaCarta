@@ -554,3 +554,6 @@ Measured on the iPhone 17 Pro simulator, iOS 26.5; the device check stays in sli
 2. **A page whose crop box has no area is undrawn, not a failed import.** PDFKit opens such a page and reports a zero
    size. `PDFDocumentSession.page` returns `nil` for it, so both reading modes show `UndrawnPDFPage` and the other
    pages read normally. A first page like this still fails the import, because the cover needs it.
+3. **The canvas's touch setting is defensive (revises Amendment 4 item 2).** With `isUserInteractionEnabled = true`,
+   webtoon's chrome tap still toggled on iOS 26.5, so a canvas that takes touches does not hide them from the
+   `LazyVStack`'s gesture there. The property stays `false`, pinned by its unit test only.
