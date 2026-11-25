@@ -110,6 +110,10 @@ final class AnalyticsUploaderTests: XCTestCase {
         await f.uploader.drainIfDue()
         XCTAssertTrue(f.transport.batches.isEmpty)
         XCTAssertEqual(f.buffer.events.count, 1)
+        // A drain that had no consent doesn't start the fifteen-minute floor either.
+        f.consent.accept()
+        await f.uploader.drainIfDue()
+        XCTAssertEqual(f.transport.batches.count, 1)
     }
 
     /// Amendment 4: only a 2xx settles an erasure.
@@ -289,10 +293,6 @@ final class URLSessionAnalyticsTransportTests: XCTestCase {
     func testRequestShapesAndStatusMapping() async throws {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [AnalyticsStubProtocol.self]
-        let cookies = try XCTUnwrap(configuration.httpCookieStorage)
-        cookies.setCookie(try XCTUnwrap(HTTPCookie(properties: [
-            .domain: "analytics.example.test", .path: "/", .name: "track", .value: "1"
-        ])))
         defer { AnalyticsStubProtocol.reset() }
         let transport = URLSessionAnalyticsTransport(host: "analytics.example.test", configuration: configuration)
 
@@ -317,7 +317,14 @@ final class URLSessionAnalyticsTransportTests: XCTestCase {
         let delete = try XCTUnwrap(requests.dropFirst().first)
         XCTAssertEqual(delete.httpMethod, "DELETE")
         XCTAssertEqual(delete.url?.absoluteString, "https://analytics.example.test/v1/installs/\(id.uuidString)")
-        XCTAssertTrue(requests.allSatisfy { $0.value(forHTTPHeaderField: "Cookie") == nil })
+    }
+
+    /// Asserted on the configuration: a `URLProtocol` stub sees a request before cookies are added.
+    func testSessionStoresNothing() {
+        let safe = URLSessionAnalyticsTransport.hardened(.default)
+        XCTAssertNil(safe.httpCookieStorage)
+        XCTAssertFalse(safe.httpShouldSetCookies)
+        XCTAssertNil(safe.urlCache)
     }
 }
 

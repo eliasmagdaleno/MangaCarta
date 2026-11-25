@@ -60,6 +60,7 @@ final class AnalyticsUploader {
         await performPendingDeletes()
         guard consent.isCollecting, now() >= (defaults.object(forKey: nextKey) as? Date ?? .distantPast) else { return }
         var retried = false
+        // Asked again after each response: the reader may have turned analytics off meanwhile.
         while consent.isCollecting {
             let batch = Array(buffer.events.prefix(Self.batchSize))
             guard !batch.isEmpty else { break }
@@ -81,7 +82,6 @@ final class AnalyticsUploader {
                 defaults.set(min(backoff * 2, Self.maximumBackoff), forKey: backoffKey)
                 return
             }
-            if !consent.isCollecting { break }
         }
         if !retried {
             defaults.set(now().addingTimeInterval(Self.minimumInterval), forKey: nextKey)

@@ -15,6 +15,10 @@ final class URLSessionAnalyticsTransport: AnalyticsTransport {
 
     init(host: String, configuration: URLSessionConfiguration = .ephemeral) {
         self.host = host
+        session = URLSession(configuration: Self.hardened(configuration))
+    }
+
+    static func hardened(_ configuration: URLSessionConfiguration) -> URLSessionConfiguration {
         let safe = configuration.copy() as? URLSessionConfiguration ?? .ephemeral
         safe.httpCookieStorage = nil
         safe.httpShouldSetCookies = false
@@ -22,7 +26,7 @@ final class URLSessionAnalyticsTransport: AnalyticsTransport {
         safe.requestCachePolicy = .reloadIgnoringLocalCacheData
         safe.timeoutIntervalForRequest = 30
         safe.timeoutIntervalForResource = 30
-        session = URLSession(configuration: safe)
+        return safe
     }
 
     func sendBatch(_ body: Data) async -> AnalyticsUploadResult {

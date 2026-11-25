@@ -148,17 +148,19 @@ describe("classification", () => {
     assert.ok(second.every((id) => id >= 199 && id <= 400), "the older ids go before the new flood");
   });
 
-  test("a recheck keeps its place: due before ids first seen after its due date, after those before it", async () => {
-    const DB = makeD1();
-    insert(DB, { mal: 5000, received: "2026-09-01" });
-    DB.sqlite.exec("INSERT INTO catalogue_checked (kind, id, checked) VALUES ('mal', 5000, '2026-10-12')"); // due 2026-11-11
-    for (let id = 1; id <= 199; id += 1) insert(DB, { mal: id, received: "2026-11-10" });
-    for (let id = 200; id <= 300; id += 1) insert(DB, { mal: id, received: "2026-11-12" });
-    const { fetchImpl, requests } = fakeAniList([]);
-    await runDailyMaintenance({ DB }, { now: NOW, fetchImpl });
-    const asked = requests.flatMap((r) => r.body.variables.ids);
-    assert.deepEqual(asked.sort((a, b) => a - b), [...Array.from({ length: 199 }, (_, i) => i + 1), 5000]);
-  });
+  for (const { ahead, asked } of [{ ahead: 199, asked: true }, { ahead: 200, asked: false }]) {
+    test(`a recheck keeps its place: ${ahead} ids due before it, and it is ${asked ? "" : "not "}asked`, async () => {
+      const DB = makeD1();
+      insert(DB, { mal: 5000, received: "2026-09-01" });
+      DB.sqlite.exec("INSERT INTO catalogue_checked (kind, id, checked) VALUES ('mal', 5000, '2026-10-12')"); // due 2026-11-11
+      for (let id = 1; id <= ahead; id += 1) insert(DB, { mal: id, received: "2026-11-10" });
+      for (let id = 201; id <= 300; id += 1) insert(DB, { mal: id, received: "2026-11-12" });
+      const { fetchImpl, requests } = fakeAniList([]);
+      await runDailyMaintenance({ DB }, { now: NOW, fetchImpl });
+      const ids = requests.flatMap((r) => r.body.variables.ids).sort((a, b) => a - b);
+      assert.deepEqual(ids, [...Array.from({ length: ahead }, (_, i) => i + 1), ...(asked ? [5000] : [])]);
+    });
+  }
 
   test("a failed fetch marks nothing checked", async () => {
     const DB = makeD1();
