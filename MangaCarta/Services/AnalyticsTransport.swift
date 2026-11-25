@@ -44,6 +44,8 @@ final class URLSessionAnalyticsTransport: AnalyticsTransport {
             let (_, response) = try await session.data(for: request)
             guard let status = (response as? HTTPURLResponse)?.statusCode else { return .retry }
             if (200..<300).contains(status) { return .accepted }
+            // Request Timeout and Too Many Requests are temporary, not a verdict on the body.
+            if status == 408 || status == 429 { return .retry }
             if (400..<500).contains(status) { return .rejected }
             return .retry
         } catch { return .retry }

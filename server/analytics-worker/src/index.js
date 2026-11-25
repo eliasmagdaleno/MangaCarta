@@ -7,6 +7,7 @@
 
 export const MAX_BODY_BYTES = 65536;
 export const MAX_EVENTS = 100;
+const MAX_CATALOGUE_ID = 2 ** 31 - 1;
 const MAX_CLASSIFY = 200;
 const CLASSIFY_CHUNK = 50;
 const RECHECK_DAYS = 30;
@@ -52,11 +53,12 @@ function oneOf(value, allowed) {
 }
 
 function positiveId(value) {
-  if (!Number.isSafeInteger(value) || value <= 0) fail();
-  return value;
+  // AniList's ids are GraphQL Ints. One larger id would fail its whole classification chunk,
+  // every night.
+  return intIn(value, 1, MAX_CATALOGUE_ID);
 }
 
-/** An ids object: only `mal` and/or `anilist`, at least one, each a positive safe integer. */
+/** An ids object: only `mal` and/or `anilist`, at least one, each a positive 32-bit integer. */
 function catalogueIDs(value) {
   if (!isObject(value)) fail();
   const keys = Object.keys(value);
@@ -279,17 +281,22 @@ export async function handleRequest(request, env, now) {
 
 // MARK: - Daily maintenance
 
+// Oldest due first: an id never checked is due on the day it was first received, a checked id
+// when its recheck falls due. The order never depends on the id, so a client can't send low ids
+// to keep its own at the front (Amendment 4).
 const PENDING_IDS = `
-  SELECT kind, id FROM (
-    SELECT 'mal' AS kind, mal AS id FROM events WHERE mal IS NOT NULL
-    UNION SELECT 'mal', to_mal FROM events WHERE to_mal IS NOT NULL
-    UNION SELECT 'anilist', anilist FROM events WHERE anilist IS NOT NULL
-    UNION SELECT 'anilist', to_anilist FROM events WHERE to_anilist IS NOT NULL
+  SELECT seen.kind, seen.id FROM (
+    SELECT kind, id, MIN(received) AS first_received, MIN(event) AS first_event FROM (
+      SELECT 'mal' AS kind, mal AS id, received, id AS event FROM events WHERE mal IS NOT NULL
+      UNION ALL SELECT 'mal', to_mal, received, id FROM events WHERE to_mal IS NOT NULL
+      UNION ALL SELECT 'anilist', anilist, received, id FROM events WHERE anilist IS NOT NULL
+      UNION ALL SELECT 'anilist', to_anilist, received, id FROM events WHERE to_anilist IS NOT NULL
+    ) GROUP BY kind, id
   ) AS seen
-  WHERE NOT EXISTS (
-    SELECT 1 FROM catalogue_checked AS c WHERE c.kind = seen.kind AND c.id = seen.id AND c.checked > ?
-  )
-  ORDER BY kind, id
+  LEFT JOIN catalogue_checked AS c ON c.kind = seen.kind AND c.id = seen.id
+  WHERE c.checked IS NULL OR c.checked <= ?
+  ORDER BY COALESCE(date(c.checked, '+${RECHECK_DAYS} days'), seen.first_received),
+    seen.first_event, seen.kind, seen.id
   LIMIT ?`;
 
 const ADULT_PURGE = `

@@ -129,6 +129,37 @@ describe("classification", () => {
     assert.equal(DB.rows("SELECT * FROM catalogue_checked").length, 200);
   });
 
+  test("takes the oldest due ids, so a flood of low ids can't starve a real one", async () => {
+    const DB = makeD1();
+    insert(DB, { mal: 900000, received: "2026-11-10" }); // the real title, seen first
+    insert(DB, { to_anilist: 900001, received: "2026-11-10" });
+    for (let id = 1; id <= 400; id += 1) insert(DB, { mal: id });
+    const askedOn = async (day) => {
+      const { fetchImpl, requests } = fakeAniList([]);
+      await runDailyMaintenance({ DB }, { now: new Date(`${day}T12:00:00Z`), fetchImpl });
+      return requests.flatMap((r) => r.body.variables.ids);
+    };
+    const first = await askedOn("2026-11-15");
+    assert.equal(first.length, 200);
+    assert.ok(first.includes(900000) && first.includes(900001));
+    // A bigger flood arrives while 202 ids still wait, and a recheck falls due behind them.
+    for (let id = 1001; id <= 1400; id += 1) insert(DB, { mal: id, received: "2026-11-16" });
+    const second = await askedOn("2026-11-16");
+    assert.ok(second.every((id) => id >= 199 && id <= 400), "the older ids go before the new flood");
+  });
+
+  test("a recheck keeps its place: due before ids first seen after its due date, after those before it", async () => {
+    const DB = makeD1();
+    insert(DB, { mal: 5000, received: "2026-09-01" });
+    DB.sqlite.exec("INSERT INTO catalogue_checked (kind, id, checked) VALUES ('mal', 5000, '2026-10-12')"); // due 2026-11-11
+    for (let id = 1; id <= 199; id += 1) insert(DB, { mal: id, received: "2026-11-10" });
+    for (let id = 200; id <= 300; id += 1) insert(DB, { mal: id, received: "2026-11-12" });
+    const { fetchImpl, requests } = fakeAniList([]);
+    await runDailyMaintenance({ DB }, { now: NOW, fetchImpl });
+    const asked = requests.flatMap((r) => r.body.variables.ids);
+    assert.deepEqual(asked.sort((a, b) => a - b), [...Array.from({ length: 199 }, (_, i) => i + 1), 5000]);
+  });
+
   test("a failed fetch marks nothing checked", async () => {
     const DB = makeD1();
     insert(DB, { mal: 10 });

@@ -154,6 +154,30 @@ final class AnalyticsRecorderTests: XCTestCase {
                        "positive control: two clean sides record")
     }
 
+    func testOptOutResetAndDeleteEachQueueOneDelete() throws {
+        let actions: [(String, (Fixture) -> Void)] = [
+            ("opt out", { $0.consent.setCollecting(false) }),
+            ("reset", { $0.recorder.resetAnalyticsID() }),
+            ("delete", { $0.recorder.deleteMyData() })
+        ]
+        for (name, action) in actions {
+            let f = fixture()
+            f.consent.accept()
+            let id = try XCTUnwrap(f.recorder.installID)
+            action(f)
+            let deletes = AnalyticsEventBuffer(directory: f.directory.appendingPathComponent("analytics")).pendingDeletes
+            XCTAssertEqual(deletes.map(\.install), [id], name)
+            XCTAssertNil(f.recorder.installID, name)
+        }
+
+        let never = fixture()
+        never.recorder.resetAnalyticsID()
+        never.consent.decline()
+        never.recorder.deleteMyData()
+        XCTAssertTrue(AnalyticsEventBuffer(directory: never.directory.appendingPathComponent("analytics"))
+            .pendingDeletes.isEmpty)
+    }
+
     private struct Fixture {
         let directory: URL
         let consent: AnalyticsConsentStore

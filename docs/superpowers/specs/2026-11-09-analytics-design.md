@@ -979,3 +979,35 @@ Worker tests (`server/analytics-worker/test/*.test.mjs`, `node --test`):
 
 **Files that need `xcp add-file`:** `MangaCartaTests/AnalyticsUploaderTests.swift` (which also holds
 `URLSessionAnalyticsTransportTests`) and `MangaCartaTests/PrivacyManifestTests.swift`.
+
+## Amendment 4 (2026-11-25): slice 2's review findings
+
+A security review of slice 2, before it merged, found three defects, two of them written into this design. These
+rules replace Amendment 3 items 2, 9 and 10, §7.2's "or 30 days pass", and §11.3's "4xx" where they differ.
+
+1. **Only a 2xx settles a delete.** Amendment 3 item 2 dropped a queued delete on any 4xx, so a rate limit (429)
+   silently lost a reader's erasure. Any other answer keeps it. The id is always a valid UUID, so no answer can mean
+   "never": the server returns 204 for an unknown id. The cost of a server that always refuses is one small request
+   per queued id per drain.
+2. **A delete never expires.** The 30-day limit lost the erasure of a reader who stayed offline, while the server kept
+   their rows for up to 12 months. `PendingAnalyticsDelete.queued` is still stored but no longer read. The privacy
+   policy's "for up to 30 days" becomes "until the server confirms it".
+3. **408 and 429 are retried, for batches too.** §11.3 drops a 4xx batch so that a schema rejection cannot loop; these
+   two statuses say nothing about the body. They keep the events and back off like a 5xx.
+4. **Classification takes the oldest due id first.** `PENDING_IDS` ordered by id, so a flood of fake low ids kept real
+   ones waiting for ever. An unchecked id is now due the day it was first received, and a checked one 30 days after its
+   check; ties go to the earlier event. A flood can still *delay* ids that arrive after it (200 a night), because an
+   anonymous endpoint cannot tell a fake id from a real one. **Slice 3 must therefore read only events whose ids are in
+   `catalogue_checked`**, so an unclassified title never reaches a published count.
+5. **Catalogue ids are at most 2³¹ − 1.** AniList's are GraphQL `Int`s. A single larger id makes AniList refuse the
+   whole chunk it is in, and nothing in a refused chunk is marked checked, so it would be asked again every night.
+
+### Tests and mutations that change
+
+| Test | Mutations it must catch |
+|---|---|
+| `AnalyticsUploaderTests.testQueuedDeleteIsKeptUntilAccepted` (replaces `testQueuedDeleteRetriesUntilAnswered`; rejected and retry both keep it, 2xx removes it) | removed on rejected; removed on retry; kept on accepted |
+| `.testOldQueuedDeleteIsStillSent` (replaces `testQueuedDeleteExpiresAfterThirtyDays`; 400 days) | an expiry restored |
+| `URLSessionAnalyticsTransportTests.testRequestShapesAndStatusMapping` also covers 408 and 429 → retry | either mapped to rejected |
+| Worker: the oldest due ids are asked first; a recheck keeps its place | `ORDER BY kind, id`; rechecks always last; rechecks always first |
+| Worker: 2³¹ is rejected and 2³¹ − 1 accepted | the bound removed |

@@ -5,7 +5,6 @@ final class AnalyticsUploader {
     static let batchSize = 100
     static let minimumInterval: TimeInterval = 15 * 60
     static let maximumBackoff: TimeInterval = 24 * 60 * 60
-    static let deleteLifetime: TimeInterval = 30 * 24 * 60 * 60
 
     private let buffer: AnalyticsEventBuffer
     private let consent: AnalyticsConsentStore
@@ -50,14 +49,10 @@ final class AnalyticsUploader {
 
     private func performPendingDeletes() async {
         for pending in buffer.pendingDeletes {
-            if now().timeIntervalSince(pending.queued) > Self.deleteLifetime {
-                buffer.removePendingDelete(pending.install)
-                continue
-            }
-            switch await transport.deleteInstall(pending.install) {
-            case .accepted, .rejected: buffer.removePendingDelete(pending.install)
-            case .retry: continue
-            }
+            // Only the server's confirmation settles an erasure (Amendment 4): any other answer,
+            // however old the request, is asked again on the next drain.
+            let result = await transport.deleteInstall(pending.install)
+            if result == .accepted { buffer.removePendingDelete(pending.install) }
         }
     }
 
@@ -70,8 +65,11 @@ final class AnalyticsUploader {
             guard !batch.isEmpty else { break }
             let payload = Batch(v: AnalyticsEnvelope.schemaVersion, events: batch)
             let result: AnalyticsUploadResult
-            do { result = await transport.sendBatch(try JSONEncoder().encode(payload)) }
-            catch { result = .retry }
+            do {
+                result = await transport.sendBatch(try JSONEncoder().encode(payload))
+            } catch {
+                result = .retry
+            }
             switch result {
             case .accepted, .rejected:
                 buffer.remove(sent: batch)

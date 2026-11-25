@@ -82,6 +82,17 @@ final class AnalyticsSettingsUITests: XCTestCase {
         XCTAssertTrue(shown.otherElements["analyticsNotice"].waitForExistence(timeout: 10))
     }
 
+    func testPrivacyPolicyLinkIsShown() throws {
+        let app = launch(region: "GBR", storageID: "TEST_RUNNER_\(UUID().uuidString)")
+        openSettings(app)
+        XCTAssertTrue(app.switches["analyticsToggle"].waitForExistence(timeout: 10))
+        let link = app.descendants(matching: .any).matching(identifier: "analyticsPrivacyPolicy").firstMatch
+        for _ in 0..<8 where !(link.exists && link.isHittable) { app.swipeUp() }
+        XCTAssertTrue(link.isHittable)
+        XCTAssertEqual(link.label, "Privacy policy")
+        attach("privacy-policy-link", app)
+    }
+
     private func launch(region: String? = nil, arguments: [String] = [], storageID: String) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = arguments

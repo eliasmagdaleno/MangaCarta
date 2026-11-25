@@ -54,6 +54,7 @@ describe("POST /v1/events — a valid batch", () => {
   test("every event name is accepted and stored with its columns and canonical attrs", async () => {
     const cases = [
       [event("work_saved", { ids: { mal: 11 } }), { mal: 11, anilist: null, attrs: "{}" }],
+      [event("work_saved", { ids: { mal: 2 ** 31 - 1 } }), { mal: 2147483647, attrs: "{}" }],
       [event("work_unsaved", { ids: { anilist: 12 } }), { mal: null, anilist: 12, attrs: "{}" }],
       [event("rec_not_interested", { ids: { mal: 13, anilist: 113 } }), { mal: 13, anilist: 113, attrs: "{}" }],
       [event("rec_more_like_this", { ids: { anilist: 14, mal: 4 } }), { mal: 4, anilist: 14, attrs: "{}" }],
@@ -130,6 +131,7 @@ describe("POST /v1/events — each invalid input rejects the whole batch with 40
     "zero id": batch(event("work_saved", { ids: { mal: 0 } })),
     "negative id": batch(event("work_saved", { ids: { anilist: -3 } })),
     "string id": batch(event("work_saved", { ids: { mal: "12" } })),
+    "id above 32 bits": batch(event("work_saved", { ids: { mal: 2 ** 31 } })),
     "unsafe integer id": batch(event("work_saved", { ids: { mal: 2 ** 53 } })),
     "non-integer to id": batch(event("mlt_opened", { from: { mal: 1 }, to: { mal: 2.5 } })),
     "empty ids": batch(event("work_saved", { ids: {} })),
