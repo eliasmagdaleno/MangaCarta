@@ -422,7 +422,9 @@ struct ReaderView: View {
         // ADR-0013's fixed 50ms sleep: the wait is now on the thing the scroll needs, not on
         // a number that happened to work.
         let realizeBy = Date().addingTimeInterval(settleRealizeTimeout)
-        while measuredStrip(target.page) == nil {
+        // The viewport too: a PDF strip has its height at once, before the scroll view can obey a
+        // scroll, and the loop cannot tell a lost scroll from a landed one without it.
+        while measuredStrip(target.page) == nil || metrics.viewport.height <= 0 {
             guard !Task.isCancelled, Date() < realizeBy else { return }
             proxy.scrollTo(target.page, anchor: .top)
             try? await Task.sleep(for: .milliseconds(settlePollInterval))
