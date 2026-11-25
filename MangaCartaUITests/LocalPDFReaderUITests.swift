@@ -21,14 +21,21 @@ final class LocalPDFReaderUITests: XCTestCase {
         XCTAssertTrue(waitForLabel(indicator, "Page 1 of 6", timeout: 10))
         attach(app, name: "pdf-paged-page-one")
 
-        pageOne.doubleTap()
-        XCTAssertTrue(waitForLabel(pageOne, "Page 1 of 6", timeout: 5))
+        // A zoomed page's accessibility frame is clipped to the screen, so zoom is read from pixels.
+        let fittedInk = try inkHeight(in: app)
+        XCTAssertGreaterThan(fittedInk, 0)
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).doubleTap()
+        XCTAssertTrue(try waitForInkHeight(in: app, timeout: 8) { $0 > fittedInk * 2 },
+                      "a double tap should zoom the page")
+        XCTAssertEqual(pageOne.label, "Page 1 of 6")
         XCTAssertTrue(indicator.waitForExistence(timeout: 5))
         attach(app, name: "pdf-paged-zoomed-page-one")
 
-        pageOne.doubleTap()
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).doubleTap()
+        XCTAssertTrue(try waitForInkHeight(in: app, timeout: 8) { abs($0 - fittedInk) <= fittedInk / 10 },
+                      "a second double tap should fit the page again")
         app.swipeLeft()
-        let pageTwo = app.descendants(matching: .any)["Page 2 of 6"]
+        let pageTwo = pageElement(2, in: app)
         XCTAssertTrue(pageTwo.waitForExistence(timeout: 10))
         XCTAssertTrue(waitForLabel(indicator, "Page 2 of 6", timeout: 10))
         attach(app, name: "pdf-paged-page-two")
@@ -117,9 +124,10 @@ final class LocalPDFReaderUITests: XCTestCase {
         )).firstMatch
     }
 
+    /// The page itself. The page indicator carries the same label, so it is excluded by identifier.
     private func pageElement(_ number: Int, in app: XCUIApplication) -> XCUIElement {
         app.descendants(matching: .any).matching(NSPredicate(
-            format: "label == %@", "Page \(number) of 6"
+            format: "label == %@ AND identifier != 'readerPageIndicator'", "Page \(number) of 6"
         )).firstMatch
     }
 
@@ -164,6 +172,33 @@ final class LocalPDFReaderUITests: XCTestCase {
         let predicate = NSPredicate(format: "label == %@", label)
         let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
         return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+    }
+
+    private func waitForInkHeight(in app: XCUIApplication, timeout: TimeInterval,
+                                  where matches: (Int) -> Bool) throws -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if matches(try inkHeight(in: app)) { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.3))
+        }
+        return matches(try inkHeight(in: app))
+    }
+
+    /// How many pixel rows in the middle of the screen, clear of the chrome, hold the page's black text.
+    private func inkHeight(in app: XCUIApplication) throws -> Int {
+        let image = try XCTUnwrap(app.screenshot().image.cgImage)
+        let width = image.width
+        let height = image.height
+        let context = try XCTUnwrap(CGContext(
+            data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width,
+            space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue
+        ))
+        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        let pixels = try XCTUnwrap(context.data).assumingMemoryBound(to: UInt8.self)
+        let middle = (height / 4)..<(height * 3 / 4)
+        return middle.filter { row in
+            UnsafeBufferPointer(start: pixels + row * width, count: width).contains { $0 < 60 }
+        }.count
     }
 
     private func waitForHittable(_ element: XCUIElement, _ hittable: Bool, timeout: TimeInterval) -> Bool {

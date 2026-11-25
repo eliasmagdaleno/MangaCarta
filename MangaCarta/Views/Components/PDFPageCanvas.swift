@@ -80,8 +80,6 @@ final class PDFPageCanvasView: UIView {
     override static var layerClass: AnyClass { CATiledLayer.self }
 
     nonisolated private let drawingState: PDFPageCanvasDrawingState
-    /// Test seam for confirming that returning to a window requests a redraw.
-    private(set) var redrawRequestCount = 0
 
     var pageHolder: PDFPageHolder? {
         drawingState.snapshot().0
@@ -107,12 +105,13 @@ final class PDFPageCanvasView: UIView {
 
     func setPage(_ page: PDFDocumentPage, renderer: any PDFPageRendering) {
         drawingState.update(page: page, renderer: renderer)
-        requestRedraw()
+        layer.setNeedsDisplay()
     }
 
     func releasePage() {
         drawingState.clear()
         layer.contents = nil
+        layer.setNeedsDisplay()
     }
 
     override func didMoveToWindow() {
@@ -120,13 +119,8 @@ final class PDFPageCanvasView: UIView {
         if window == nil {
             layer.contents = nil
         } else if pageHolder != nil {
-            requestRedraw()
+            layer.setNeedsDisplay()
         }
-    }
-
-    private func requestRedraw() {
-        redrawRequestCount += 1
-        layer.setNeedsDisplay()
     }
 
     nonisolated override func draw(_ layer: CALayer, in context: CGContext) {

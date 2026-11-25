@@ -540,3 +540,17 @@ sized by `PDFPageGeometry.displayedSize` and opened by the reader's `PDFDocument
 
 Slice 4's acceptance: criteria 6, 7, 8 and 10, the flip (item 4) and the duplicate message (item 5). Slice 5 (the
 manual device checks) follows the merge.
+
+## Amendment 5 (2026-11-25): measured, and two corrections to Amendment 4
+
+Measured on the iPhone 17 Pro simulator, iOS 26.5; the device check stays in slice 5.
+
+1. **What frees an off-screen page's tiles (revises Amendment 4 item 3).** Forty full-screen canvases, drawn and
+   then removed from the window while still held, went from 569 MB to 73 MB; with the `contents = nil` line removed,
+   to 81 MB. So Core Animation frees a `CATiledLayer`'s tiles itself when it leaves the window, and clearing
+   `contents` adds little. `LazyVStack` also takes far-off rows out of the view tree: scrolling a 60-page webtoon kept
+   at most 20 canvases and the footprint flat near 105 MB, with or without the line. The line stays, and the redraw
+   on return is then required: once `contents` is cleared, a returning canvas without it drew nothing.
+2. **A page whose crop box has no area is undrawn, not a failed import.** PDFKit opens such a page and reports a zero
+   size. `PDFDocumentSession.page` returns `nil` for it, so both reading modes show `UndrawnPDFPage` and the other
+   pages read normally. A first page like this still fails the import, because the cover needs it.
