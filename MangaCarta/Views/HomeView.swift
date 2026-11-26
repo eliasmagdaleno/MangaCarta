@@ -240,6 +240,7 @@ private struct HomeScreen: View {
             }
             .navigationTitle("Read")
             .navigationBarTitleDisplayMode(.large)
+            .modifier(UITestUpdatesRoute())
             .fileImporter(isPresented: $showingImporter,
                           allowedContentTypes: [UTType.zip, UTType.mangaCartaCBZ, UTType.pdf],
                           allowsMultipleSelection: true) { result in

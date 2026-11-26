@@ -165,6 +165,168 @@ final class UpdatesUITests: XCTestCase {
         attach(app, name: "10-notification-action-marked-read")
     }
 
+    // MARK: - Updates screen (spec 2026-11-09, slice 2)
+    //
+    // Reached through `-uitest-open-updates`, a debug-only route that pushes the screen from
+    // Home at launch. Slice 3 replaces it with Home's and Library's real entry points.
+
+    /// AC 7, minus the Home link slice 3 adds: day sections, Work groups and chapter rows,
+    /// a chapter that reaches the reader, and a discovery with no chapter behind it.
+    func testUpdatesDestinationShowsDayWorkAndChapterRows() throws {
+        let app = launchUpdatesScreen(state: "updates-screen")
+
+        XCTAssertTrue(app.navigationBars["Updates"].waitForExistence(timeout: 10))
+        XCTAssertTrue(heading(in: app, "Today").exists, "the answering Work was discovered today")
+        XCTAssertTrue(heading(in: app, "Yesterday").exists, "the failing Work was discovered yesterday")
+        XCTAssertTrue(workHeader(in: app, title: "Fixture Update Title").exists)
+        XCTAssertTrue(app.staticTexts["4 new chapters"].exists, "the header counts new chapters, not unread")
+
+        let chapter3 = chapterLink(in: app, containing: "Fixture Chapter 3")
+        XCTAssertTrue(chapter3.waitForExistence(timeout: 10), "chapter metadata loads for an expanded Work")
+        XCTAssertTrue(chapterLink(in: app, containing: "Fixture Chapter 2").exists)
+        XCTAssertFalse(chapterLink(in: app, containing: "Fixture Chapter 1").exists,
+                       "a chapter that was not newly discovered is not listed")
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "updatesChapterUnresolved")
+            .matching(NSPredicate(format: "label CONTAINS %@", "Chapter 4")).firstMatch.exists,
+                      "a discovery the Source no longer lists stays visible")
+        XCTAssertTrue(app.buttons["updatesViewChapterList"].firstMatch.exists,
+                      "and offers the chapter list instead")
+        attach(app, name: "11-updates-screen")
+
+        chapter3.tap()
+        XCTAssertTrue(app.buttons["readerCloseButton"].waitForExistence(timeout: 10),
+                      "a chapter row opens the reader")
+    }
+
+    /// AC 9: Mark all seen empties the inbox and leaves every chapter unread.
+    func testMarkAllSeenAnnouncesAndPreservesUnread() throws {
+        let app = launchUpdatesScreen(state: "updates-screen")
+        let markAll = app.buttons["updatesMarkAllSeenButton"]
+        XCTAssertTrue(markAll.waitForExistence(timeout: 10))
+        XCTAssertTrue(markAll.isEnabled)
+        let chapter2 = chapterLink(in: app, containing: "Fixture Chapter 2")
+        XCTAssertTrue(chapter2.waitForExistence(timeout: 10))
+        XCTAssertTrue(chapter2.label.contains("Unread"), "precondition: \(chapter2.label)")
+        XCTAssertTrue(chapter2.label.contains("NEW"), "new is spoken, not only stamped: \(chapter2.label)")
+
+        markAll.tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["updatesUpToDate"].waitForExistence(timeout: 5))
+        XCTAssertFalse(workHeader(in: app, title: "Fixture Update Title").exists)
+        XCTAssertTrue(markAll.exists, "the control stays where focus was")
+        XCTAssertFalse(markAll.isEnabled, "and has nothing left to do")
+        attach(app, name: "12-updates-all-seen")
+
+        // Seen is not read: the same chapter is still unread on the detail page.
+        app.tabBars.buttons["Library"].tap()
+        let card = app.buttons.matching(identifier: "libraryCoverCard")
+            .matching(NSPredicate(format: "label CONTAINS %@", "Fixture Update Title")).firstMatch
+        XCTAssertTrue(card.waitForExistence(timeout: 10))
+        card.tap()
+        let detailRow = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Fixture Chapter 2")).firstMatch
+        for _ in 0..<4 where !detailRow.exists { app.swipeUp() }
+        XCTAssertTrue(detailRow.waitForExistence(timeout: 10))
+        XCTAssertTrue(detailRow.label.contains("Unread"), "seen is not read: \(detailRow.label)")
+    }
+
+    /// The per-Work "Mark seen" in the Work row's trailing menu clears that Work alone.
+    func testPerWorkMarkSeenFromTrailingMenu() throws {
+        let app = launchUpdatesScreen(state: "updates-screen")
+        let menu = app.buttons["Actions for Second Fixture Title"]
+        XCTAssertTrue(menu.waitForExistence(timeout: 10))
+
+        menu.tap()
+        let markSeen = app.buttons["Mark seen"]
+        XCTAssertTrue(markSeen.waitForExistence(timeout: 5))
+        markSeen.tap()
+
+        XCTAssertTrue(waitForAbsence(of: workHeader(in: app, title: "Second Fixture Title")))
+        XCTAssertFalse(heading(in: app, "Yesterday").exists, "its day section goes with it")
+        XCTAssertTrue(workHeader(in: app, title: "Fixture Update Title").exists, "the other Work stays")
+        XCTAssertTrue(app.staticTexts["3 new chapters"].exists)
+    }
+
+    /// AC 12: the up-to-date state, the no-saved-Works state, a load failure that keeps its
+    /// rows, and a refresh failure that names its Source without erasing known rows.
+    func testUpdatesEmptyStateAndRefreshFailure() throws {
+        var app = launchUpdatesScreen(state: "refresh-complete")
+        XCTAssertTrue(app.descendants(matching: .any)["updatesUpToDate"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["You’re up to date"].exists)
+        XCTAssertTrue(app.buttons["updatesScreenRefreshButton"].exists, "refresh stays available")
+        XCTAssertFalse(app.buttons["updatesMarkAllSeenButton"].isEnabled)
+        attach(app, name: "13-updates-up-to-date")
+        app.terminate()
+
+        app = launchUpdatesScreen(state: "empty")
+        XCTAssertTrue(app.descendants(matching: .any)["updatesNoSavedWorks"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["Browse Titles"].exists)
+        app.terminate()
+
+        app = launchUpdatesScreen(state: "updates-screen")
+        let failing = workHeader(in: app, title: "Second Fixture Title")
+        XCTAssertTrue(failing.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["updatesChaptersRetry"].waitForExistence(timeout: 10),
+                      "a Source that fails to list chapters offers Try Again")
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "updatesChapterUnresolved")
+            .matching(NSPredicate(format: "label CONTAINS %@", "Chapter 2")).firstMatch.exists,
+                      "and keeps the discovered chapter's row")
+
+        app.buttons["updatesScreenRefreshButton"].tap()
+        let notice = app.descendants(matching: .any)["updatesRecoveryNotice"]
+        XCTAssertTrue(notice.waitForExistence(timeout: 15), "a failed check is named after refresh")
+        XCTAssertTrue(notice.label.contains("Failing Fixture"), notice.label)
+        XCTAssertTrue(failing.exists, "failed data is unknown, not a vanished chapter")
+        XCTAssertTrue(workHeader(in: app, title: "Fixture Update Title").exists)
+        attach(app, name: "14-updates-refresh-failure")
+    }
+
+    /// AC 11's reachability half: at the largest accessibility size the controls and a
+    /// chapter link are still there and hittable.
+    func testUpdatesAccessibilityAtLargeText() throws {
+        let app = launchUpdatesScreen(state: "updates-screen", accessibilitySize: true)
+        XCTAssertTrue(app.buttons["updatesMarkAllSeenButton"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["updatesMarkAllSeenButton"].isHittable)
+        XCTAssertTrue(app.buttons["updatesScreenRefreshButton"].isHittable)
+        XCTAssertTrue(heading(in: app, "Today").exists)
+
+        let chapter = chapterLink(in: app, containing: "Fixture Chapter 3")
+        for _ in 0..<6 where !(chapter.exists && chapter.isHittable) { app.swipeUp() }
+        XCTAssertTrue(chapter.isHittable, "a chapter link is reachable at accessibility sizes")
+        attach(app, name: "15-updates-large-text")
+    }
+
+    private func launchUpdatesScreen(state: String, accessibilitySize: Bool = false) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments += ["-uitest-updates-state", state, "-uitest-open-updates"]
+        if accessibilitySize {
+            app.launchArguments += ["-UIPreferredContentSizeCategoryName",
+                                    "UICTContentSizeCategoryAccessibilityXXXL"]
+        }
+        app.launch()
+        return app
+    }
+
+    private func heading(in app: XCUIApplication, _ title: String) -> XCUIElement {
+        app.descendants(matching: .any).matching(identifier: "updatesDayHeading")
+            .matching(NSPredicate(format: "label == %@", title)).firstMatch
+    }
+
+    private func workHeader(in app: XCUIApplication, title: String) -> XCUIElement {
+        app.buttons.matching(identifier: "updatesWorkHeader")
+            .matching(NSPredicate(format: "label BEGINSWITH %@", title + ",")).firstMatch
+    }
+
+    private func chapterLink(in app: XCUIApplication, containing text: String) -> XCUIElement {
+        app.buttons.matching(identifier: "updatesChapterLink")
+            .matching(NSPredicate(format: "label CONTAINS %@", text)).firstMatch
+    }
+
+    private func waitForAbsence(of element: XCUIElement) -> Bool {
+        let predicate = NSPredicate(format: "exists == false")
+        return XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: element)],
+                              timeout: 5) == .completed
+    }
+
     private func updateRow(in app: XCUIApplication, title: String) -> XCUIElement {
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", title + ",")).firstMatch
     }

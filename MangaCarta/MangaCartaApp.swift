@@ -156,6 +156,8 @@ struct MangaCartaApp: App {
                 ? SourceRegistry(sources: [UpdatesUITestSource(), UpdatesUITestAltSource()])
                 : updateState == .notificationActions
                 ? SourceRegistry(sources: [NotificationActionsUITestSource()])
+                : updateState == .updatesScreen
+                ? SourceRegistry(sources: [UpdatesScreenUITestSource(), FailingUpdatesUITestSource()])
                 : SourceRegistry(sources: [UpdatesUITestSource()])
         }
         if ProcessInfo.processInfo.arguments.contains("-uitest-zero-sources") {
@@ -451,6 +453,9 @@ enum UpdatesUITestFixture {
         /// more than a tidier spelling.
         case twoListings = "two-listings"
         case notificationActions = "notification-actions"
+        /// The Updates screen (spec 2026-11-09, slice 2): one Work whose Source answers,
+        /// with a discovered chapter it no longer lists, and one whose Source always fails.
+        case updatesScreen = "updates-screen"
     }
 
     static var state: State? {
@@ -474,7 +479,8 @@ enum UpdatesUITestFixture {
     static func seed(_ state: State, in composition: AppComposition) {
         guard state != .empty else { return }
         let sourceID = state == .notificationActions
-            ? NotificationActionsUITestSource.sourceID : UpdatesUITestSource.sourceID
+            ? NotificationActionsUITestSource.sourceID
+            : state == .updatesScreen ? UpdatesScreenUITestSource.sourceID : UpdatesUITestSource.sourceID
         let title = state == .notificationActions ? "Notification Action Title" : "Fixture Update Title"
         let manga = Manga(id: "update-fixture", sourceId: sourceID,
                           title: title, description: "", status: "ongoing",
@@ -500,6 +506,22 @@ enum UpdatesUITestFixture {
                                   status: "ongoing", year: nil, coverURL: nil, malId: nil)
             let alternateWork = composition.works.mint(from: alternate)
             composition.works.merge(alternateWork, into: workId)
+        case .updatesScreen:
+            // Chapters 2–4 are new; the Source lists 1–3, so 4 has no chapter behind it.
+            _ = composition.updates.absorb(workId: workId, listing: listing,
+                                           rawNumbers: ["1"], now: .now)
+            _ = composition.updates.absorb(workId: workId, listing: listing,
+                                           rawNumbers: ["1", "2", "3", "4"], now: .now)
+            let failing = Manga(id: "failing-fixture", sourceId: FailingUpdatesUITestSource.sourceID,
+                                title: "Second Fixture Title", description: "", status: "ongoing",
+                                year: nil, coverURL: nil, malId: nil)
+            composition.library.toggle(failing)
+            let failingWork = composition.works.mint(from: failing)
+            let yesterday = Date.now.addingTimeInterval(-86_400)
+            _ = composition.updates.absorb(workId: failingWork, listing: ListingKey(failing),
+                                           rawNumbers: ["1"], now: yesterday)
+            _ = composition.updates.absorb(workId: failingWork, listing: ListingKey(failing),
+                                           rawNumbers: ["1", "2"], now: yesterday)
         case .notificationActions:
             _ = composition.updates.absorb(workId: workId, listing: listing,
                                            rawNumbers: ["1"], now: .now)
@@ -558,6 +580,35 @@ struct NotificationActionsUITestSource: MangaSource {
     func chapters(mangaId: String) async throws -> [Chapter] {
         (1...3).map { Chapter(id: "na-chapter-\($0)", number: "\($0)", title: nil) }
     }
+    func pageURLs(chapterId: String, preferDataSaver: Bool) async throws -> [URL] { [] }
+}
+
+/// The Updates screen's answering Source: chapters 1–3, titled so a row can be found by name.
+struct UpdatesScreenUITestSource: MangaSource {
+    static let sourceID = "updates-screen-ui-test"
+    let id = sourceID
+    let name = "Updates Screen Fixture"
+    func search(title: String, limit: Int, offset: Int) async throws -> [Manga] { [] }
+    func popular(limit: Int, offset: Int) async throws -> [Manga] { [] }
+    func mangaDetail(id: String) async throws -> MangaDetail {
+        MangaDetail(description: "", authors: [], tags: [], contentRating: nil)
+    }
+    func chapters(mangaId: String) async throws -> [Chapter] {
+        (1...3).map { Chapter(id: "us-chapter-\($0)", number: "\($0)", title: "Fixture Chapter \($0)") }
+    }
+    func pageURLs(chapterId: String, preferDataSaver: Bool) async throws -> [URL] { [] }
+}
+
+/// A Source that is registered but never answers: the Updates screen's load-failure row and,
+/// through a refresh, its recovery notice.
+struct FailingUpdatesUITestSource: MangaSource {
+    static let sourceID = "failing-updates-ui-test"
+    let id = sourceID
+    let name = "Failing Fixture"
+    func search(title: String, limit: Int, offset: Int) async throws -> [Manga] { [] }
+    func popular(limit: Int, offset: Int) async throws -> [Manga] { [] }
+    func mangaDetail(id: String) async throws -> MangaDetail { throw URLError(.notConnectedToInternet) }
+    func chapters(mangaId: String) async throws -> [Chapter] { throw URLError(.notConnectedToInternet) }
     func pageURLs(chapterId: String, preferDataSaver: Bool) async throws -> [URL] { [] }
 }
 
