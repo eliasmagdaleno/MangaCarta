@@ -1,0 +1,46 @@
+{
+  "runner": "worker",
+  "mutations": [
+    {
+      "id": "W1",
+      "description": "subtractMonths no longer clamps to the end of a shorter month",
+      "file": "server/analytics-worker/src/index.js",
+      "old": "target.setUTCDate(Math.min(dayOfMonth, lastDay));",
+      "new": "target.setUTCDate(dayOfMonth);",
+      "tests": [
+        "test/maintenance.test.mjs",
+        "clamps to the end of a shorter month"
+      ]
+    },
+    {
+      "id": "W2",
+      "description": "classification recheck window 30 -> 31 days (whole suite)",
+      "file": "server/analytics-worker/src/index.js",
+      "old": "const RECHECK_DAYS = 30;",
+      "new": "const RECHECK_DAYS = 31;",
+      "tests": [
+        ".*"
+      ]
+    },
+    {
+      "id": "W3",
+      "description": "syntax error in subtractMonths",
+      "file": "server/analytics-worker/src/index.js",
+      "old": "export function subtractMonths(day, months) {",
+      "new": "export function subtractMonths(day, months) {{",
+      "tests": [
+        "test/maintenance.test.mjs"
+      ]
+    },
+    {
+      "id": "W4",
+      "description": "text that is not in the file",
+      "file": "server/analytics-worker/src/index.js",
+      "old": "this text does not appear anywhere",
+      "new": "x",
+      "tests": [
+        "test/maintenance.test.mjs"
+      ]
+    }
+  ]
+}

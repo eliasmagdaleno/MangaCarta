@@ -1,0 +1,29 @@
+{
+  "runner": "swift",
+  "mutations": [
+    {
+      "id": "S1",
+      "description": "a Work's ordinals listed oldest first",
+      "file": "MangaCarta/Models/UpdatesTimeline.swift",
+      "old": "ordinals: ordinals.sorted(by: >)",
+      "new": "ordinals: ordinals.sorted(by: <)",
+      "tests": ["MangaCartaTests/UpdatesPresentationTests"]
+    },
+    {
+      "id": "S2",
+      "description": "same-title tie-break by id reversed",
+      "file": "MangaCarta/Models/UpdatesTimeline.swift",
+      "old": "case .orderedSame: return lhs.id.raw.uuidString < rhs.id.raw.uuidString",
+      "new": "case .orderedSame: return lhs.id.raw.uuidString > rhs.id.raw.uuidString",
+      "tests": ["MangaCartaTests/UpdatesPresentationTests"]
+    },
+    {
+      "id": "S3",
+      "description": "type error: today declared as Int (does not compile)",
+      "file": "MangaCarta/Models/UpdatesTimeline.swift",
+      "old": "let today = calendar.startOfDay(for: now)",
+      "new": "let today: Int = calendar.startOfDay(for: now)",
+      "tests": ["MangaCartaTests/UpdatesPresentationTests"]
+    }
+  ]
+}
