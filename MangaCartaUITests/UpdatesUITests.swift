@@ -197,8 +197,11 @@ final class UpdatesUITests: XCTestCase {
         XCTAssertEqual(entry.label, "Updates, 2 titles", "the chip counts Works with new chapters")
         XCTAssertTrue(app.buttons.matching(identifier: "libraryCoverCard").firstMatch.exists,
                       "positive control: Library's grid is showing before the tap")
+        XCTAssertGreaterThanOrEqual(entry.frame.height, 44, "the chip is a 44-point target")
 
-        entry.tap()
+        // Near the top edge, outside the drawn capsule: the 44 points must be tappable, not
+        // only laid out.
+        entry.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.05)).tap()
 
         XCTAssertTrue(app.navigationBars["Updates"].waitForExistence(timeout: 10))
         XCTAssertTrue(workHeader(in: app, title: "Fixture Update Title").exists)

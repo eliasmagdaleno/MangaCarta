@@ -324,9 +324,12 @@ struct BookmarksView: View {
             .padding(.vertical, 6)
             .background(Capsule().fill(Ink.surface))
             .overlay(Capsule().strokeBorder(Ink.hairline, lineWidth: 1))
+            // Inside the label: a plain button's hit region is its label, so a frame on the
+            // link itself is drawn but not tappable (#326).
+            .frame(minHeight: 44)
+            .contentShape(.rect)
         }
         .buttonStyle(.plain)
-        .frame(minHeight: 44)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(count == 1 ? "Updates, 1 title" : "Updates, \(count) titles")
         .accessibilityHint("Opens Updates")
