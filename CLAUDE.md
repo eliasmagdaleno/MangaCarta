@@ -20,14 +20,16 @@ package manager — pure SwiftUI + Foundation. Xcode project only (no SPM/CocoaP
 
 One non-obvious requirement applies to **every** `xcodebuild` invocation here:
 
-- **Target the iPhone 17 Pro simulator** (`-destination 'platform=iOS Simulator,name=iPhone 17 Pro'`).
+- **Target the iPhone 17 Pro simulator on iOS 26.5**
+  (`-destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5'`). Keep the `OS=`: `name=`
+  alone means `OS:latest`, which finds no iPhone 17 Pro on this machine's newer runtimes and fails.
   It is also the device holding the seeded fixture (see `scripts/seed-simulator.sh`), so a
   run against a different device gets an empty library and quietly different results.
 - **Use parallel testing.** This repository now runs on an M5 MacBook with enough overhead for
   Xcode's cloned simulator instances. Leave parallel testing enabled (the default), or pass
   `-parallel-testing-enabled YES` when an explicit setting is useful.
-- **CI's toolchain is a major version behind this machine's.** The workflow pins `macos-15`,
-  which builds with Xcode 16.4 / Swift 6.0; local development is on Xcode 26.x / Swift 6.2. So a
+- **CI's toolchain is well behind this machine's.** The workflow pins `macos-15`,
+  which builds with Xcode 16.4 / Swift 6.0; local development is on Xcode 27.2 / Swift 6.4. So a
   green local build proves nothing about CI when the change uses newer language syntax. This has
   already cost one red run: `extension BGTask: @MainActor BGTaskLike {}` — an SE-0470 *isolated
   conformance*, Swift 6.2 only — compiled locally and failed on CI with `error: unknown attribute
@@ -38,7 +40,7 @@ One non-obvious requirement applies to **every** `xcodebuild` invocation here:
 Run a single test class or method (Swift Testing / XCTest via `xcodebuild`):
 
 ```sh
-xcodebuild -scheme MangaCarta -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+xcodebuild -scheme MangaCarta -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' \
   test -only-testing:MangaCartaTests/MangaCartaTests/<testMethod>
 ```
 
