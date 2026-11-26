@@ -459,7 +459,7 @@ enum UpdatesUITestFixture {
         /// `updatesScreen` plus four more updated Works, one past Home's summary limit, so
         /// Home shows its "View all" link (slice 3).
         case updatesHomeLink = "updates-home-link"
-        /// `updatesScreen` plus a real notification for the second Work, scheduled when the
+        /// `updatesHomeLink` plus a real notification for its last Work, scheduled when the
         /// app enters the background, for the notification-tap route (slice 3).
         case notificationTap = "notification-tap"
 
@@ -533,7 +533,8 @@ enum UpdatesUITestFixture {
                                            rawNumbers: ["1"], now: yesterday)
             _ = composition.updates.absorb(workId: failingWork, listing: ListingKey(failing),
                                            rawNumbers: ["1", "2"], now: yesterday)
-            if state == .updatesHomeLink {
+            var extraWorks: [(work: WorkID, manga: Manga)] = []
+            if state == .updatesHomeLink || state == .notificationTap {
                 let earlier = Date.now.addingTimeInterval(-3 * 86_400)
                 for index in 1...UpdateTuning.homeSummaryLimit - 1 {
                     let extra = Manga(id: "extra-fixture-\(index)", sourceId: UpdatesScreenUITestSource.sourceID,
@@ -545,11 +546,12 @@ enum UpdatesUITestFixture {
                                                    rawNumbers: ["1"], now: earlier)
                     _ = composition.updates.absorb(workId: extraWork, listing: ListingKey(extra),
                                                    rawNumbers: ["1", "2"], now: earlier)
+                    extraWorks.append((extraWork, extra))
                 }
             }
-            if state == .notificationTap {
-                // The second Work: below today's, so landing on it needs a scroll and a focus.
-                let event = UpdateEvent(workId: failingWork, title: failing.title, newChapterCount: 1,
+            if state == .notificationTap, let notified = extraWorks.last {
+                // The last Work in the oldest section: off screen until the focus scrolls to it.
+                let event = UpdateEvent(workId: notified.work, title: notified.manga.title, newChapterCount: 1,
                                         didExceedCap: false, isAdult: false,
                                         discoveredOrdinals: [ChapterOrdinal.parse("2")!])
                 scheduleWhenBackgrounded(event, in: composition)

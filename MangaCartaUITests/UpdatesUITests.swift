@@ -225,7 +225,7 @@ final class UpdatesUITests: XCTestCase {
 
         XCUIDevice.shared.press(.home)
         let banner = springboard.descendants(matching: .any).matching(
-            NSPredicate(format: "label CONTAINS %@", "new chapter of Second Fixture Title")
+            NSPredicate(format: "label CONTAINS %@", "new chapter of Extra Fixture Title 4")
         ).firstMatch
         XCTAssertTrue(banner.waitForExistence(timeout: 30), "the scheduled notification is delivered")
         banner.tap()
@@ -233,14 +233,15 @@ final class UpdatesUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Updates"].waitForExistence(timeout: 15),
                       "a notification tap lands on Updates")
         XCTAssertTrue(app.tabBars.buttons["Library"].isSelected, "from the Library tab")
-        let focused = workHeader(in: app, title: "Second Fixture Title")
+        let focused = workHeader(in: app, title: "Extra Fixture Title 4")
         XCTAssertTrue(focused.waitForExistence(timeout: 5))
         XCTAssertEqual(focused.value as? String, "From your notification",
                        "the focus is spoken, not only outlined")
-        XCTAssertTrue(focused.isHittable, "the notified Work is scrolled into view")
+        XCTAssertTrue(focused.isHittable, "the notified Work, last in the inbox, is scrolled into view")
         XCTAssertTrue(app.staticTexts["From your notification"].exists, "and labelled on screen")
-        let other = workHeader(in: app, title: "Fixture Update Title")
-        XCTAssertEqual(other.value as? String ?? "", "", "only the notified Work is focused")
+        XCTAssertEqual(app.buttons.matching(identifier: "updatesWorkHeader")
+            .matching(NSPredicate(format: "value == %@", "From your notification")).count, 1,
+                       "only the notified Work is focused")
         XCTAssertFalse(app.buttons["readerCloseButton"].exists, "no chapter is opened")
         attach(app, name: "17-updates-notification-focus")
     }
