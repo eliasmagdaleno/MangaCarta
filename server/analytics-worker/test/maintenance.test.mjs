@@ -65,6 +65,19 @@ describe("adult purge", () => {
 });
 
 describe("classification", () => {
+  test("an id is rechecked 30 days after its check, not a day sooner or later", async () => {
+    // NOW is 2026-11-15. Checked 30 days ago (2026-10-16): due, so asked. Checked 29 days ago
+    // (2026-10-17): still inside the window, so not asked. A 29- or 31-day window flips one.
+    const DB = makeD1();
+    insert(DB, { mal: 20 });
+    insert(DB, { mal: 21 });
+    DB.sqlite.exec(`INSERT INTO catalogue_checked (kind, id, checked) VALUES ('mal', 20, '2026-10-16'), ('mal', 21, '2026-10-17')`);
+    const { fetchImpl, requests } = fakeAniList([]);
+    await runDailyMaintenance({ DB }, { now: NOW, fetchImpl });
+    const asked = requests.flatMap((r) => r.body.variables.ids);
+    assert.deepEqual(asked, [20]);
+  });
+
   test("records isAdult or Hentai ids, skips ids checked within 30 days, and sends no install id to AniList", async () => {
     const DB = makeD1();
     insert(DB, { mal: 10 }); // isAdult
