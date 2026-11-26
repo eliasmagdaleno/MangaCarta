@@ -212,4 +212,4 @@ enabled only in that test. Endpoint attestation tests use a narrowly scoped nonc
 that sample to issued challenges; assertion tests generate P-256 keys. These do not establish Apple's real
 assertion format. The optional `test/fixtures/device-capture.json` test verifies the owner's attestation and
 two assertions without mocks when the capture exists; until then it is skipped. No capture is fabricated.
-Run `node scripts/mutate-appattest.mjs <report.md>` to repeat the App Attest mutation audit.
+Repeat the App Attest mutation audit with `python3 -I scripts/mutate.py docs/superpowers/specs/app-attest-mutations.json` from the repository root.
