@@ -95,11 +95,32 @@ final class UpdateStateStore: ObservableObject {
         states[workId] = state; markDirty()
     }
 
+    /// Marks one Work seen: the Updates screen's per-Work "Mark seen", and the detail and
+    /// chapter-list hooks.
     func clearNewlyDiscovered(workId: WorkID) {
+        clearNewlyDiscovered(workIds: [workId])
+    }
+
+    /// Marks every given Work seen in one publish and one save — the Updates screen's
+    /// "Mark all seen", which passes `UpdatesTimeline.workIds` so only displayed Library
+    /// Works are touched.
+    ///
+    /// Clears `newlyDiscovered` and nothing else. "Seen" is not "read" (ADR-0021): the
+    /// frontier, baseline, `newestDiscoveryAt`, check dates and mute stay, and this store has
+    /// no path to History at all. Idempotent — already-clear Works are skipped, and a call
+    /// that changes nothing schedules no save.
+    func clearNewlyDiscovered(workIds: some Sequence<WorkID>) {
         loadIfNeeded()
-        guard var state = states[workId], !state.newlyDiscovered.isEmpty else { return }
-        state.newlyDiscovered = []
-        states[workId] = state
+        var next = states
+        var changed = false
+        for workId in workIds {
+            guard var state = next[workId], !state.newlyDiscovered.isEmpty else { continue }
+            state.newlyDiscovered = []
+            next[workId] = state
+            changed = true
+        }
+        guard changed else { return }
+        states = next
         markDirty()
     }
 

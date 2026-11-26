@@ -205,7 +205,7 @@ npm test
 ```
 
 The tests run the Worker's handlers directly against an in-memory SQLite database standing in for D1, with a
-fake AniList — nothing touches the network or Cloudflare. CI does not run them yet.
+fake AniList — nothing touches the network or Cloudflare. CI runs them as the "Worker tests" job (Node 24).
 
 Apple's recorded sample verifies without mocks at its recorded validity time, with category 1 explicitly
 enabled only in that test. Endpoint attestation tests use a narrowly scoped nonce hash stand-in to adapt

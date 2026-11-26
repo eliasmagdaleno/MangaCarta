@@ -89,6 +89,39 @@ jobs:
             echo "Code changed:"
             echo "$code"
           fi
+  # The analytics Worker's own tests (`server/analytics-worker`). Plain
+  # `node --test` over a D1 stand-in built on `node:sqlite` — no packages to
+  # install, under a second to run — so it rides an Ubuntu runner, not the
+  # macOS one. Node 24 because `node:sqlite` needs 22.13 or later (the Worker's
+  # README). Like every job here it always runs and always reports, so it can
+  # be made a required check without blocking docs-only PRs.
+  worker-tests:
+    name: Worker tests
+    runs-on: ubuntu-latest
+    needs: changes
+    timeout-minutes: 10
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v5
+        if: needs.changes.outputs.code == 'true'
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        if: needs.changes.outputs.code == 'true'
+        with:
+          node-version: 24
+
+      - name: Run the Worker tests
+        if: needs.changes.outputs.code == 'true'
+        working-directory: server/analytics-worker
+        run: |
+          node --version
+          npm test
+
+      - name: Documentation only — nothing to test
+        if: needs.changes.outputs.code != 'true'
+        run: echo "No code changed; the Worker tests were skipped."
+
   # Static analysis / style. Runs in parallel with the tests as its own check,
   # so you can see at a glance whether it was code or style that failed.
   lint:

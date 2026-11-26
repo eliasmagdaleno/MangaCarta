@@ -20,14 +20,16 @@ package manager — pure SwiftUI + Foundation. Xcode project only (no SPM/CocoaP
 
 One non-obvious requirement applies to **every** `xcodebuild` invocation here:
 
-- **Target the iPhone 17 Pro simulator** (`-destination 'platform=iOS Simulator,name=iPhone 17 Pro'`).
+- **Target the iPhone 17 Pro simulator on iOS 26.5**
+  (`-destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5'`). Keep the `OS=`: `name=`
+  alone means `OS:latest`, which finds no iPhone 17 Pro on this machine's newer runtimes and fails.
   It is also the device holding the seeded fixture (see `scripts/seed-simulator.sh`), so a
   run against a different device gets an empty library and quietly different results.
 - **Use parallel testing.** This repository now runs on an M5 MacBook with enough overhead for
   Xcode's cloned simulator instances. Leave parallel testing enabled (the default), or pass
   `-parallel-testing-enabled YES` when an explicit setting is useful.
-- **CI's toolchain is a major version behind this machine's.** The workflow pins `macos-15`,
-  which builds with Xcode 16.4 / Swift 6.0; local development is on Xcode 26.x / Swift 6.2. So a
+- **CI's toolchain is well behind this machine's.** The workflow pins `macos-15`,
+  which builds with Xcode 16.4 / Swift 6.0; local development is on Xcode 27.2 / Swift 6.4. So a
   green local build proves nothing about CI when the change uses newer language syntax. This has
   already cost one red run: `extension BGTask: @MainActor BGTaskLike {}` — an SE-0470 *isolated
   conformance*, Swift 6.2 only — compiled locally and failed on CI with `error: unknown attribute
@@ -38,12 +40,41 @@ One non-obvious requirement applies to **every** `xcodebuild` invocation here:
 Run a single test class or method (Swift Testing / XCTest via `xcodebuild`):
 
 ```sh
-xcodebuild -scheme MangaCarta -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+xcodebuild -scheme MangaCarta -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' \
   test -only-testing:MangaCartaTests/MangaCartaTests/<testMethod>
 ```
 
 For interactive work, opening `MangaCarta.xcodeproj` in Xcode and using ⌘B / ⌘U is
 usually faster than the CLI.
+
+### Mutation testing
+
+Prove a test by breaking the code it guards. Use `scripts/mutate.py`; don't write a one-off
+script for each feature. Write a JSON list of exact `old` → `new` edits, each with the tests
+that should catch it, then run:
+
+```sh
+python3 -I scripts/mutate.py my-mutations.json --report mutations.md
+```
+
+```json
+{ "runner": "swift",
+  "mutations": [
+    { "id": "S1", "description": "ordinals listed oldest first",
+      "file": "MangaCarta/Models/UpdatesTimeline.swift",
+      "old": "ordinals.sorted(by: >)", "new": "ordinals.sorted(by: <)",
+      "tests": ["MangaCartaTests/UpdatesPresentationTests"] } ] }
+```
+
+The script runs a green baseline first. It refuses to start if a target file is dirty, and
+it always restores the file. Each mutation is reported as KILLED, SURVIVED or ERROR; a build
+failure is ERROR, never KILLED. Paste the table it prints into the PR. `"runner": "worker"`
+runs node:test in `server/analytics-worker` instead, with test files or name patterns as
+`tests`. Mark a mutation no test can detect with `"equivalent": "<why>"`. Use `--check` to
+validate a file without running anything. For the full format, run
+`python3 -I scripts/mutate.py --help`. Worked examples are in `scripts/mutate-examples/`; each is built to produce one of each
+outcome, so they exit 1.
+The self-test is `python3 -I -m unittest discover -s scripts -p 'test_mutate.py'`.
 
 ## Architecture
 
