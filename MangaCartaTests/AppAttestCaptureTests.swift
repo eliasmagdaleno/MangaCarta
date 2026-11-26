@@ -20,11 +20,13 @@ final class AppAttestCaptureTests: XCTestCase {
     static let challengeHex = "4d616e6761436172746120417070417474657374206361707475726520763031"
     /// A fixed analytics id, upper-case as the app spells it. The hash uses it lower-cased.
     static let install = "0A7E57C0-FFEE-4C0D-8A11-C0FFEE000001"
+    // swiftlint:disable line_length
     /// Two fixed v1 bodies, signed byte for byte.
     static let bodies = [
         #"{"v":1,"events":[{"v":1,"install":"0A7E57C0-FFEE-4C0D-8A11-C0FFEE000001","day":"2026-11-25","app":"1.0 (1)","name":"app_active"}]}"#,
         #"{"v":1,"events":[{"v":1,"install":"0A7E57C0-FFEE-4C0D-8A11-C0FFEE000001","day":"2026-11-25","app":"1.0 (1)","name":"search_used"}]}"#,
     ]
+    // swiftlint:enable line_length
 
     func testCaptureAttestationAndAssertions() async throws {
         let service = DCAppAttestService.shared
@@ -58,7 +60,7 @@ final class AppAttestCaptureTests: XCTestCase {
             "capturedAt": ISO8601DateFormatter().string(from: Date()),
         ]
         let json = try JSONSerialization.data(withJSONObject: capture, options: [.sortedKeys])
-        let line = String(decoding: json, as: UTF8.self)
+        let line = try XCTUnwrap(String(bytes: json, encoding: .utf8))
         print("APP_ATTEST_CAPTURE \(line)")
         let attachment = XCTAttachment(string: line)
         attachment.name = "device-capture.json"
