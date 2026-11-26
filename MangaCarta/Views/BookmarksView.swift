@@ -11,7 +11,6 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct BookmarksView: View {
-    static let updatesFilterID = "updates"
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var history: HistoryStore
     @EnvironmentObject private var works: WorkStore
@@ -41,8 +40,8 @@ struct BookmarksView: View {
         GridItem(.adaptive(minimum: 104, maximum: 180), spacing: Gutter.rail)
     ]
 
-    init(initialCollectionId: String = "all", opensNotifiedWorks: Bool = false) {
-        _selectedCollectionId = State(initialValue: initialCollectionId)
+    init(opensNotifiedWorks: Bool = false) {
+        _selectedCollectionId = State(initialValue: "all")
         self.opensNotifiedWorks = opensNotifiedWorks
     }
 
@@ -192,11 +191,10 @@ struct BookmarksView: View {
                                     registry: registry, listingCountCache: listingCountCache,
                                     composition: extensionComposition)
             }
-            // A tapped new-chapter notification opens the Work's detail page (#343).
+            // A tapped new-chapter notification opens Updates focused on its Work, never a
+            // chapter and no longer the detail page (Updates spec, owner decision 2).
             .navigationDestination(item: notifiedWork) { workId in
-                if let manga = notifiedManga(workId) {
-                    MangaDetailView(manga: manga, registry: registry)
-                }
+                UpdatesView(focusedWork: workId)
             }
             // A request for a Work no longer saved can't be answered; drop it rather than
             // leave it pending to open the page by surprise if the Work is saved again.
@@ -282,11 +280,7 @@ struct BookmarksView: View {
                     count: library.items.count
                 )
 
-                collectionTabChip(
-                    id: Self.updatesFilterID,
-                    title: "Updates",
-                    count: updateMangaIDs.count
-                )
+                updatesChip
 
                 // Enabled collections tabs
                 ForEach(library.enabledCollections) { collection in
@@ -307,6 +301,37 @@ struct BookmarksView: View {
                 .fill(Ink.hairline)
                 .frame(height: 1)
         }
+    }
+
+    /// Not a filter: Updates is its own destination (spec 2026-11-09, entry point 2). The chip
+    /// stays in the bar where readers already look for it, and pushes the screen.
+    private var updatesChip: some View {
+        let count = updatedWorkCount
+        return NavigationLink {
+            UpdatesView()
+        } label: {
+            HStack(spacing: 5) {
+                Text("Updates")
+                    .font(.subheadline.weight(.medium))
+                Text("(\(count))")
+                    .font(.caption)
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.semibold))
+                    .accessibilityHidden(true)
+            }
+            .foregroundStyle(count > 0 ? Ink.seal : Ink.secondary)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 6)
+            .background(Capsule().fill(Ink.surface))
+            .overlay(Capsule().strokeBorder(Ink.hairline, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .frame(minHeight: 44)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(count == 1 ? "Updates, 1 title" : "Updates, \(count) titles")
+        .accessibilityHint("Opens Updates")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("libraryUpdatesEntry")
     }
 
     private func collectionTabChip(id: String, title: String, count: Int) -> some View {
@@ -352,7 +377,7 @@ struct BookmarksView: View {
         )
     }
 
-    /// The same Listing the Updates row opens (`WorkUpdateRow`).
+    /// Whether the notified Work is still saved, through the same summaries Updates shows.
     private func notifiedManga(_ workId: WorkID) -> Manga? {
         LibraryUpdatesPresentation.summaries(
             works: works, library: library, history: history,
@@ -360,11 +385,12 @@ struct BookmarksView: View {
         ).first { $0.id == workId }?.displayManga
     }
 
-    private var updateMangaIDs: Set<String> {
-        return Set(LibraryUpdatesPresentation.summaries(
+    /// Works with newly discovered chapters: what Updates lists.
+    private var updatedWorkCount: Int {
+        LibraryUpdatesPresentation.summaries(
             works: works, library: library, history: history,
             updates: updates
-        ).filter { $0.newlyDiscoveredCount > 0 }.map(\.displayManga.id))
+        ).filter { $0.newlyDiscoveredCount > 0 }.count
     }
 
     /// The saved card's Work, for the mute control (notification-actions Amendment 1 item 4).
@@ -382,10 +408,7 @@ struct BookmarksView: View {
     }
 
     private var displayedLibraryItems: [LibraryItem] {
-        if selectedCollectionId == Self.updatesFilterID {
-            return library.items.filter { updateMangaIDs.contains($0.id) }
-        }
-        return library.items(in: selectedCollectionId)
+        library.items(in: selectedCollectionId)
     }
 }
 

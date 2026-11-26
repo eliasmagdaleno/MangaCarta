@@ -120,8 +120,9 @@ private struct HomeScreen: View {
                                 }
                                 if discoveredUpdates.count > UpdateTuning.homeSummaryLimit {
                                     NavigationLink("View all \(discoveredUpdates.count) updates") {
-                                        BookmarksView(initialCollectionId: BookmarksView.updatesFilterID)
+                                        UpdatesView()
                                     }
+                                    .accessibilityIdentifier("homeViewAllUpdates")
                                     .font(.subheadline.bold())
                                     .foregroundStyle(Ink.seal)
                                     .padding(.horizontal, Gutter.page)
@@ -240,7 +241,6 @@ private struct HomeScreen: View {
             }
             .navigationTitle("Read")
             .navigationBarTitleDisplayMode(.large)
-            .modifier(UITestUpdatesRoute())
             .fileImporter(isPresented: $showingImporter,
                           allowedContentTypes: [UTType.zip, UTType.mangaCartaCBZ, UTType.pdf],
                           allowsMultipleSelection: true) { result in

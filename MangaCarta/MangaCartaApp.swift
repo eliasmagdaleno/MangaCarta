@@ -156,7 +156,7 @@ struct MangaCartaApp: App {
                 ? SourceRegistry(sources: [UpdatesUITestSource(), UpdatesUITestAltSource()])
                 : updateState == .notificationActions
                 ? SourceRegistry(sources: [NotificationActionsUITestSource()])
-                : updateState == .updatesScreen
+                : updateState.usesUpdatesScreenSources
                 ? SourceRegistry(sources: [UpdatesScreenUITestSource(), FailingUpdatesUITestSource()])
                 : SourceRegistry(sources: [UpdatesUITestSource()])
         }
@@ -456,6 +456,17 @@ enum UpdatesUITestFixture {
         /// The Updates screen (spec 2026-11-09, slice 2): one Work whose Source answers,
         /// with a discovered chapter it no longer lists, and one whose Source always fails.
         case updatesScreen = "updates-screen"
+        /// `updatesScreen` plus four more updated Works, one past Home's summary limit, so
+        /// Home shows its "View all" link (slice 3).
+        case updatesHomeLink = "updates-home-link"
+        /// `updatesScreen` plus a real notification for the second Work, scheduled when the
+        /// app enters the background, for the notification-tap route (slice 3).
+        case notificationTap = "notification-tap"
+
+        /// The states built on the Updates screen's two Sources.
+        var usesUpdatesScreenSources: Bool {
+            self == .updatesScreen || self == .updatesHomeLink || self == .notificationTap
+        }
     }
 
     static var state: State? {
@@ -480,7 +491,7 @@ enum UpdatesUITestFixture {
         guard state != .empty else { return }
         let sourceID = state == .notificationActions
             ? NotificationActionsUITestSource.sourceID
-            : state == .updatesScreen ? UpdatesScreenUITestSource.sourceID : UpdatesUITestSource.sourceID
+            : state.usesUpdatesScreenSources ? UpdatesScreenUITestSource.sourceID : UpdatesUITestSource.sourceID
         let title = state == .notificationActions ? "Notification Action Title" : "Fixture Update Title"
         let manga = Manga(id: "update-fixture", sourceId: sourceID,
                           title: title, description: "", status: "ongoing",
@@ -506,7 +517,7 @@ enum UpdatesUITestFixture {
                                   status: "ongoing", year: nil, coverURL: nil, malId: nil)
             let alternateWork = composition.works.mint(from: alternate)
             composition.works.merge(alternateWork, into: workId)
-        case .updatesScreen:
+        case .updatesScreen, .updatesHomeLink, .notificationTap:
             // Chapters 2–4 are new; the Source lists 1–3, so 4 has no chapter behind it.
             _ = composition.updates.absorb(workId: workId, listing: listing,
                                            rawNumbers: ["1"], now: .now)
@@ -522,30 +533,58 @@ enum UpdatesUITestFixture {
                                            rawNumbers: ["1"], now: yesterday)
             _ = composition.updates.absorb(workId: failingWork, listing: ListingKey(failing),
                                            rawNumbers: ["1", "2"], now: yesterday)
+            if state == .updatesHomeLink {
+                let earlier = Date.now.addingTimeInterval(-3 * 86_400)
+                for index in 1...UpdateTuning.homeSummaryLimit - 1 {
+                    let extra = Manga(id: "extra-fixture-\(index)", sourceId: UpdatesScreenUITestSource.sourceID,
+                                      title: "Extra Fixture Title \(index)", description: "",
+                                      status: "ongoing", year: nil, coverURL: nil, malId: nil)
+                    composition.library.toggle(extra)
+                    let extraWork = composition.works.mint(from: extra)
+                    _ = composition.updates.absorb(workId: extraWork, listing: ListingKey(extra),
+                                                   rawNumbers: ["1"], now: earlier)
+                    _ = composition.updates.absorb(workId: extraWork, listing: ListingKey(extra),
+                                                   rawNumbers: ["1", "2"], now: earlier)
+                }
+            }
+            if state == .notificationTap {
+                // The second Work: below today's, so landing on it needs a scroll and a focus.
+                let event = UpdateEvent(workId: failingWork, title: failing.title, newChapterCount: 1,
+                                        didExceedCap: false, isAdult: false,
+                                        discoveredOrdinals: [ChapterOrdinal.parse("2")!])
+                scheduleWhenBackgrounded(event, in: composition)
+            }
         case .notificationActions:
             _ = composition.updates.absorb(workId: workId, listing: listing,
                                            rawNumbers: ["1"], now: .now)
             _ = composition.updates.absorb(workId: workId, listing: listing,
                                            rawNumbers: ["1", "2", "3"], now: .now)
             // A real notification for UpdatesUITests.testDeliveredNotificationMarkReadAction,
-            // built by the production notifier, capturing chapter 2 only. It is scheduled when
-            // the app *enters the background*, so it can never fire while the app is still in
-            // front (a fixed delay from launch did, whenever permission was already granted).
-            Task { @MainActor in
-                guard await composition.notifier.authorizationSummary() != .unavailable else { return }
-                if await composition.notifier.shouldOfferAuthorization() {
-                    await composition.notifier.requestAuthorizationIfNeeded()
-                }
-                let event = UpdateEvent(workId: workId, title: manga.title, newChapterCount: 1,
-                                        didExceedCap: false, isAdult: false,
-                                        discoveredOrdinals: [ChapterOrdinal.parse("2")!])
-                let backgrounded = NotificationCenter.default.notifications(
-                    named: UIApplication.didEnterBackgroundNotification)
-                for await _ in backgrounded {
-                    await composition.notifier.schedule(
-                        [event], trigger: UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false))
-                    break
-                }
+            // capturing chapter 2 only.
+            let event = UpdateEvent(workId: workId, title: manga.title, newChapterCount: 1,
+                                    didExceedCap: false, isAdult: false,
+                                    discoveredOrdinals: [ChapterOrdinal.parse("2")!])
+            scheduleWhenBackgrounded(event, in: composition)
+        }
+    }
+
+    /// Builds the notification with the production notifier, so its category and payload are
+    /// production's. It is scheduled when the app *enters the background*, so it can never
+    /// fire while the app is still in front (a fixed delay from launch did, whenever
+    /// permission was already granted).
+    @MainActor
+    private static func scheduleWhenBackgrounded(_ event: UpdateEvent, in composition: AppComposition) {
+        Task { @MainActor in
+            guard await composition.notifier.authorizationSummary() != .unavailable else { return }
+            if await composition.notifier.shouldOfferAuthorization() {
+                await composition.notifier.requestAuthorizationIfNeeded()
+            }
+            let backgrounded = NotificationCenter.default.notifications(
+                named: UIApplication.didEnterBackgroundNotification)
+            for await _ in backgrounded {
+                await composition.notifier.schedule(
+                    [event], trigger: UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false))
+                break
             }
         }
     }

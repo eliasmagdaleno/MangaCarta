@@ -104,7 +104,8 @@ struct ContentView: View {
             }
         }
         .environment(\.selectAppTab) { selectedTab = $0 }
-        // A tapped new-chapter notification opens its Work from the Library tab (#343).
+        // A tapped new-chapter notification opens Updates, focused on its Work, from the
+        // Library tab (#343; Updates spec owner decision 2).
         // `onReceive` also sees a request made before this view existed (a cold launch).
         .onReceive(workNavigator.$requestedWork) { workId in
             if workId != nil { selectedTab = .bookmarks }

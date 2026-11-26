@@ -1,9 +1,9 @@
 import Foundation
 
-/// The navigation sink a new-chapter notification routes into (ADR-0021: "Opening a
-/// notification routes to the Work's chapter list"). The composition hands `open` to the
-/// notifier as its `openWork`; the Library tab observes `requestedWork` and pushes the
-/// Work's detail page.
+/// The navigation sink a new-chapter notification routes into. The composition hands `open`
+/// to the notifier as its `openWork`; the Library tab observes `requestedWork` and pushes
+/// Updates focused on the Work (Updates spec, owner decision 2). It never opens a chapter
+/// (ADR-0021).
 @MainActor
 final class WorkNavigator: ObservableObject {
     @Published var requestedWork: WorkID?

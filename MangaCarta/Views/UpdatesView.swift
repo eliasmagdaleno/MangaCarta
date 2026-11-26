@@ -2,8 +2,9 @@
 //  UpdatesView.swift
 //  MangaCarta
 //
-//  The Updates destination (spec 2026-11-09, slice 2): newly discovered chapters, by the
-//  local day of each Work's newest discovery, then by Work.
+//  The Updates destination (spec 2026-11-09): newly discovered chapters, by the local day
+//  of each Work's newest discovery, then by Work. Home's "View all", Library's Updates chip
+//  and a tapped new-chapter notification all open it.
 //
 
 import SwiftUI
@@ -11,12 +12,18 @@ import SwiftUI
 /// Reads the graph's registry and fulfillment coordinator from the environment and hands
 /// them to the screen, whose `@StateObject` loader is built in `init` — before the
 /// environment exists (the same reason as `HomeView`).
+///
+/// `focusedWork` is the Work a tapped notification named: the screen scrolls it into view and
+/// marks it, and opens nothing. The reader chooses the detail page or a chapter (ADR-0021;
+/// spec owner decision 2).
 struct UpdatesView: View {
+    var focusedWork: WorkID?
+
     @EnvironmentObject private var registry: SourceRegistry
     @EnvironmentObject private var fulfillment: FulfillmentCoordinator
 
     var body: some View {
-        UpdatesScreen(registry: registry, fulfillment: fulfillment)
+        UpdatesScreen(registry: registry, fulfillment: fulfillment, focusedWork: focusedWork)
     }
 }
 
@@ -29,11 +36,17 @@ private struct UpdatesScreen: View {
     @EnvironmentObject private var works: WorkStore
     @EnvironmentObject private var updates: UpdateStateStore
     @Environment(\.selectAppTab) private var selectAppTab
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Works the reader collapsed. Groups start expanded; collapsing one stops it fetching.
     @State private var collapsed: Set<WorkID> = []
+    /// VoiceOver lands on the focused Work's header, not on the screen's first element.
+    @AccessibilityFocusState private var voiceOverFocus: WorkID?
 
-    init(registry: SourceRegistry, fulfillment: FulfillmentCoordinator) {
+    private let focusedWork: WorkID?
+
+    init(registry: SourceRegistry, fulfillment: FulfillmentCoordinator, focusedWork: WorkID?) {
+        self.focusedWork = focusedWork
         _registry = ObservedObject(wrappedValue: registry)
         _loader = StateObject(wrappedValue: UpdatesChapterLoader(
             resolve: UpdatesChapterLoader.live(registry: registry, fulfillment: fulfillment)))
@@ -44,36 +57,41 @@ private struct UpdatesScreen: View {
             works: works, library: library, history: history, updates: updates, registry: registry)
         let timeline = UpdatesTimeline(summaries: summaries, updates: updates)
 
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: Gutter.section) {
-                if library.items.isEmpty {
-                    noSavedWorks
-                } else {
-                    UpdatesScreenHeader(
-                        newChapterCount: timeline.newChapterCount,
-                        lastChecked: summaries.compactMap(\.lastSuccessfulCheck).max(),
-                        isRefreshing: library.isRefreshing,
-                        refresh: { Task { await refresh() } },
-                        markAllSeen: { markAllSeen(timeline) })
-
-                    let recovery = Set(summaries.flatMap(\.recoverySummaries)).sorted()
-                    if !recovery.isEmpty {
-                        InkNotice("Couldn't check \(recovery.joined(separator: ", ")). Pull to refresh to try again.")
-                            .padding(.horizontal, Gutter.page)
-                            .accessibilityIdentifier("updatesRecoveryNotice")
-                    }
-
-                    if timeline.isEmpty {
-                        upToDate
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: Gutter.section) {
+                    if library.items.isEmpty {
+                        noSavedWorks
                     } else {
-                        ForEach(timeline.sections) { section in
-                            daySection(section)
+                        UpdatesScreenHeader(
+                            newChapterCount: timeline.newChapterCount,
+                            lastChecked: summaries.compactMap(\.lastSuccessfulCheck).max(),
+                            isRefreshing: library.isRefreshing,
+                            refresh: { Task { await refresh() } },
+                            markAllSeen: { markAllSeen(timeline) })
+
+                        let recovery = Set(summaries.flatMap(\.recoverySummaries)).sorted()
+                        if !recovery.isEmpty {
+                            InkNotice("Couldn't check \(recovery.joined(separator: ", ")). Pull to refresh to try again.")
+                                .padding(.horizontal, Gutter.page)
+                                .accessibilityIdentifier("updatesRecoveryNotice")
+                        }
+
+                        if timeline.isEmpty {
+                            upToDate
+                        } else {
+                            ForEach(timeline.sections) { section in
+                                daySection(section)
+                            }
                         }
                     }
                 }
+                .padding(.top, 4)
+                .padding(.bottom, 32)
             }
-            .padding(.top, 4)
-            .padding(.bottom, 32)
+            .onAppear { reveal(focusedWork, with: proxy) }
+            // A second notification tapped while the screen is up moves the focus to its Work.
+            .onChange(of: focusedWork) { _, workId in reveal(workId, with: proxy) }
         }
         .background(Ink.background)
         .refreshable { await refresh() }
@@ -97,8 +115,11 @@ private struct UpdatesScreen: View {
                     request: { loader.request(group.id, displayManga: group.summary.displayManga) },
                     retry: { loader.retry(group.id, displayManga: group.summary.displayManga) },
                     markSeen: { markSeen(group) },
-                    openSettings: { selectAppTab(.settings) })
+                    openSettings: { selectAppTab(.settings) },
+                    isFocused: group.id == focusedWork,
+                    voiceOverFocus: $voiceOverFocus)
                 .padding(.horizontal, Gutter.page)
+                .id(group.id)
             }
         }
     }
@@ -137,6 +158,17 @@ private struct UpdatesScreen: View {
 
     private func toggle(_ workId: WorkID) {
         if collapsed.contains(workId) { collapsed.remove(workId) } else { collapsed.insert(workId) }
+    }
+
+    /// Scrolls the notified Work into view, then moves VoiceOver to it. A Work no longer in
+    /// the inbox (seen or read since the notification) has nothing to reveal, and the screen
+    /// opens at the top as usual.
+    private func reveal(_ workId: WorkID?, with proxy: ScrollViewProxy) {
+        guard let workId else { return }
+        withAnimation(reduceMotion ? nil : .snappy) {
+            proxy.scrollTo(workId, anchor: .top)
+        }
+        voiceOverFocus = workId
     }
 
     private func markAllSeen(_ timeline: UpdatesTimeline) {
@@ -202,13 +234,17 @@ private struct UpdatesScreenHeader: View {
             if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: Gutter.rail) }
 
             HStack(spacing: 8) {
-                Button("Refresh", systemImage: "arrow.clockwise", action: refresh)
-                    .labelStyle(.iconOnly)
-                    .frame(minWidth: 44, minHeight: 44)
-                    .disabled(isRefreshing)
-                    .accessibilityLabel(isRefreshing ? "Refreshing updates" : "Refresh updates")
-                    .accessibilityHint("Checks saved titles for new chapters")
-                    .accessibilityIdentifier("updatesScreenRefreshButton")
+                // The 44-point frame is on the label, inside the button, so it is the hit area
+                // too; outside, the audit measured only the glyph.
+                Button(action: refresh) {
+                    Image(systemName: "arrow.clockwise")
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(.rect)
+                }
+                .disabled(isRefreshing)
+                .accessibilityLabel(isRefreshing ? "Refreshing updates" : "Refresh updates")
+                .accessibilityHint("Checks saved titles for new chapters")
+                .accessibilityIdentifier("updatesScreenRefreshButton")
 
                 Button("Mark all seen", action: markAllSeen)
                     .font(.subheadline.bold())
@@ -249,9 +285,14 @@ private struct UpdatesWorkGroup: View {
     let retry: () -> Void
     let markSeen: () -> Void
     let openSettings: () -> Void
+    /// The Work a tapped notification named. Shown by an outline *and* a label, never by
+    /// colour alone (spec, Accessibility).
+    let isFocused: Bool
+    var voiceOverFocus: AccessibilityFocusState<WorkID?>.Binding
 
     @EnvironmentObject private var registry: SourceRegistry
     @EnvironmentObject private var history: HistoryStore
+    @EnvironmentObject private var updates: UpdateStateStore
     @Environment(\.imageCache) private var imageCache
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -269,8 +310,11 @@ private struct UpdatesWorkGroup: View {
         }
         .padding(12)
         .background(RoundedRectangle(cornerRadius: 12).fill(Ink.surface))
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Ink.hairline, lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 12)
+            .strokeBorder(isFocused ? Ink.seal : Ink.hairline, lineWidth: isFocused ? 2 : 1))
     }
+
+    static let focusedText = "From your notification"
 
     // MARK: Header
 
@@ -295,6 +339,11 @@ private struct UpdatesWorkGroup: View {
                     .accessibilityHidden(true)
 
                     VStack(alignment: .leading, spacing: 4) {
+                        if isFocused {
+                            Text(Self.focusedText)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Ink.seal)
+                        }
                         Text(summary.displayManga.title)
                             .font(.inkDisplay(17))
                             .foregroundStyle(Ink.primary)
@@ -311,17 +360,26 @@ private struct UpdatesWorkGroup: View {
                 .contentShape(.rect)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(summary.accessibilityLabel)
+                .accessibilityValue(isFocused ? Self.focusedText : "")
                 .accessibilityHint("Opens the title's chapter list")
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("updatesWorkHeader")
+            .accessibilityFocused(voiceOverFocus, equals: group.id)
             .accessibilityAction(named: "Mark seen", markSeen)
+            // The header is one element, so the menu's items are also offered as named actions,
+            // as `WorkUpdateRow` does.
+            .accessibilityAction(named: muteTitle, toggleMute)
 
             VStack(spacing: 0) {
                 Menu {
                     Button("Mark seen", systemImage: "checkmark.circle", action: markSeen)
                         .accessibilityIdentifier("updatesWorkMarkSeen")
-                    // The notification-actions spec adds Mute/Unmute here.
+                    // Notification-actions Amendment 1 item 4: the same control as `WorkUpdateRow`'s.
+                    Button(action: toggleMute) {
+                        Label(muteTitle, systemImage: summary.isMuted ? "bell" : "bell.slash")
+                    }
+                    .accessibilityIdentifier("workMuteToggle")
                 } label: {
                     Image(systemName: "ellipsis.circle")
                         .font(.title3)
@@ -343,6 +401,14 @@ private struct UpdatesWorkGroup: View {
         }
     }
 
+    private var muteTitle: String {
+        summary.isMuted ? "Unmute notifications" : "Mute notifications"
+    }
+
+    private func toggleMute() {
+        updates.setMuted(!summary.isMuted, workId: summary.id)
+    }
+
     private var newText: String {
         group.ordinals.count == 1 ? "1 new chapter" : "\(group.ordinals.count) new chapters"
     }
@@ -362,8 +428,12 @@ private struct UpdatesWorkGroup: View {
                 VStack(alignment: .leading, spacing: 6) {
                     InkNotice("Couldn't load chapters. \(message)")
                     HStack(spacing: 16) {
-                        Button("Try Again", action: retry)
-                            .accessibilityIdentifier("updatesChaptersRetry")
+                        Button(action: retry) {
+                            Text("Try Again")
+                                .frame(minHeight: 44)
+                                .contentShape(.rect)
+                        }
+                        .accessibilityIdentifier("updatesChaptersRetry")
                         chapterListLink
                     }
                     .font(.subheadline.bold())
@@ -419,8 +489,12 @@ private struct UpdatesWorkGroup: View {
     }
 
     private var chapterListLink: some View {
-        NavigationLink("View chapter list") {
+        NavigationLink {
             MangaDetailView(manga: summary.displayManga, registry: registry)
+        } label: {
+            Text("View chapter list")
+                .frame(minHeight: 44)
+                .contentShape(.rect)
         }
         .accessibilityIdentifier("updatesViewChapterList")
     }
@@ -469,21 +543,4 @@ private struct UpdatesWorkGroup: View {
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("updatesChapterUnresolved")
     }
-}
-
-// MARK: - Temporary UI-test route
-
-/// Pushes `UpdatesView` at launch under `-uitest-open-updates`, so the slice 2 UI tests can
-/// reach the screen before slice 3 replaces Home's and Library's "View all" links with real
-/// entry points. Debug-only, and a no-op without the argument. Slice 3 deletes it.
-struct UITestUpdatesRoute: ViewModifier {
-#if DEBUG
-    @State private var isPresented = ProcessInfo.processInfo.arguments.contains("-uitest-open-updates")
-
-    func body(content: Content) -> some View {
-        content.navigationDestination(isPresented: $isPresented) { UpdatesView() }
-    }
-#else
-    func body(content: Content) -> some View { content }
-#endif
 }

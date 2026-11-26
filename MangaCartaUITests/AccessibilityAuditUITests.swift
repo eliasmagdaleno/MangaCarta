@@ -102,14 +102,40 @@ final class AccessibilityAuditUITests: XCTestCase {
         XCTAssertFalse(rowAudited, "the muted row and its control pass the audit")
     }
 
+    /// Updates spec, Accessibility: the Updates screen, reached from Library's Updates chip,
+    /// passes the audit with its chapter rows loaded and a Work's trailing menu in reach.
+    func testUpdatesScreenPassesTheAccessibilityAudit() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-uitest-updates-state", "updates-screen"]
+        app.launch()
+        app.tabBars.buttons["Library"].tap()
+        let entry = app.buttons["libraryUpdatesEntry"]
+        XCTAssertTrue(entry.waitForExistence(timeout: 10), "positive control: the Updates entry exists")
+        try audit(app, screen: "library-updates-entry")
+
+        entry.tap()
+        XCTAssertTrue(app.navigationBars["Updates"].waitForExistence(timeout: 10))
+        let chapter = app.buttons.matching(identifier: "updatesChapterLink").firstMatch
+        XCTAssertTrue(chapter.waitForExistence(timeout: 10), "positive control: chapter rows loaded")
+        XCTAssertTrue(app.buttons["Actions for Fixture Update Title"].exists)
+        // Without the Dynamic Type check at first: it flags "Yesterday" when that heading sits
+        // just above the tab bar, and not when the same heading is scrolled to mid-screen
+        // (checked 2026-11-26). "Today", the same component, passes. The scrolled audit
+        // below runs every check over the second section.
+        try audit(app, screen: "updates", types: Self.audited.subtracting(.dynamicType))
+        app.swipeUp()
+        try audit(app, screen: "updates-scrolled")
+    }
+
     /// Fails once per finding, naming the screen and element, and attaches the screen so a
     /// failure can be judged without re-running.
-    private func audit(_ app: XCUIApplication, screen: String) throws {
+    private func audit(_ app: XCUIApplication, screen: String,
+                       types: XCUIAccessibilityAuditType = audited) throws {
         let shot = XCTAttachment(screenshot: app.screenshot())
         shot.name = "a11y-\(screen)"
         shot.lifetime = .keepAlways
         add(shot)
-        try app.performAccessibilityAudit(for: Self.audited) { issue in
+        try app.performAccessibilityAudit(for: types) { issue in
             let element = issue.element.map { "'\($0.label)' (id '\($0.identifier)')" } ?? "no element"
             XCTFail("[\(screen)] \(issue.compactDescription): \(element)")
             return true

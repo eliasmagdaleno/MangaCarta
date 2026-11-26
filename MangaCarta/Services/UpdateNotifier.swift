@@ -156,7 +156,7 @@ final class UpdateNotifier {
         guard let raw = userInfo[Self.workIdUserInfoKey] as? String,
               let uuid = UUID(uuidString: raw),
               let resolved = works.work(WorkID(raw: uuid))?.id else { return }
-        // Route to the Work's chapter list. A notification never opens a chapter.
+        // Route to Updates, focused on the Work. A notification never opens a chapter.
         openWork(resolved)
     }
 
