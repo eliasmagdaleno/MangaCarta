@@ -41,6 +41,19 @@ final class MALEntityResolver {
         static let unresolved = WorkResolution(malId: nil, harvestedTitles: [])
     }
 
+    struct ScoredCandidate: Equatable {
+        let malID: Int
+        let matchedTitle: String
+        let score: Double
+        let titles: [String]
+        let isAmbiguous: Bool
+    }
+
+    private struct MALPool {
+        let candidates: [(id: Int, titles: [String])]
+        let failure: Error?
+    }
+
     private let store: EntityResolutionStore
     private let matcher: MALTitleMatcher
     private let search: Search
@@ -114,29 +127,8 @@ final class MALEntityResolver {
             }
         }
 
-        // One search per known title, unioned into ONE candidate pool. Deliberately not
-        // one match per title: a maximum across independent ranked lists has no runner-up,
-        // so it would route around the ambiguity guard (ADR-0008).
-        var pool: [Int: MALCandidate] = [:]
-        var failure: Error?
-        for title in work.knownTitles.prefix(titleSearchLimit) {
-            do {
-                // First spelling wins; MAL returns the same title set for a given id, so
-                // later duplicates carry no new matcher fuel.
-                for candidate in try await search(title) where pool[candidate.malId] == nil {
-                    pool[candidate.malId] = candidate
-                }
-            } catch {
-                failure = error
-            }
-        }
-
-        // Sorted by id because dictionary iteration order is randomized per process, and
-        // the matcher's sort is not stable — without this, tied candidates could resolve
-        // differently between launches.
-        let candidates = pool.values
-            .sorted { $0.malId < $1.malId }
-            .map { (id: $0.malId, titles: $0.titles) }
+        let pool = try await malPool(for: work)
+        let candidates = pool.candidates
 
         // Matching is free, so it uses *every* known title even though only the first few
         // were searched.
@@ -149,12 +141,90 @@ final class MALEntityResolver {
         // computed from incomplete evidence is not trustworthy, so it is not reported as
         // one: `.unmatched` is fingerprinted on title count and would otherwise sit stale
         // for the full TTL on the strength of one network blip.
-        if let failure { throw failure }
+        if let failure = pool.failure { throw failure }
 
         // MAL had its chance on every spelling this Work knows. Ask MangaDex — unless this
         // Work is already MangaDex's own (ADR-0019).
         guard Self.isBridgeable(work) else { return .unresolved }
         return try await bridged(sourceTitles: work.knownTitles)
+    }
+
+    /// Lists all confident candidates without using identity/cache fast paths or writing
+    /// resolution memory. The UI uses this for both Match and Change match, so it always
+    /// searches even when a Work already has a MAL id or cached resolution.
+    func candidates(for work: Work) async throws -> [ScoredCandidate] {
+        let pool = try await malPool(for: work)
+        let ranked = matcher.acceptedScores(sourceTitles: work.knownTitles, candidates: pool.candidates)
+        if !ranked.isEmpty {
+            return ranked.map { item in
+                let titles = pool.candidates.first(where: { $0.id == item.id })?.titles ?? []
+                let matchedTitle = Self.bestMatchedTitle(sourceTitles: work.knownTitles, titles: titles)
+                return ScoredCandidate(malID: item.id, matchedTitle: matchedTitle, score: item.score,
+                                       titles: titles, isAmbiguous: item.isAmbiguous)
+            }
+        }
+        if let failure = pool.failure { throw failure }
+        guard Self.isBridgeable(work) else { return [] }
+        // The bridge can return id-less Listings for slice 4's Listing suggestions. This
+        // slice only exposes MAL candidates, so id-less rows are intentionally omitted.
+        let bridge = try await bridgeMALPool(sourceTitles: work.knownTitles)
+        let bridgePool = bridge.candidates
+        let candidates = matcher.acceptedScores(sourceTitles: work.knownTitles, candidates: bridgePool)
+        if candidates.isEmpty, let failure = bridge.failure { throw failure }
+        return candidates.map { item in
+            let titles = bridgePool.first(where: { $0.id == item.id })?.titles ?? []
+            return ScoredCandidate(malID: item.id,
+                                   matchedTitle: Self.bestMatchedTitle(sourceTitles: work.knownTitles, titles: titles),
+                                   score: item.score, titles: titles, isAmbiguous: item.isAmbiguous)
+        }
+    }
+
+    private func bridgeMALPool(sourceTitles: [String]) async throws ->
+        (candidates: [(id: Int, titles: [String])], failure: Error?) {
+        var listings: [String: Manga] = [:]
+        var failure: Error?
+        for title in sourceTitles.prefix(titleSearchLimit) {
+            do {
+                for listing in try await bridgeSearch(title) where listings[listing.id] == nil {
+                    listings[listing.id] = listing
+                }
+            } catch { failure = error }
+        }
+        let idBearing = listings.values.filter { $0.malId != nil }
+        var byMalID: [Int: [String]] = [:]
+        for listing in idBearing {
+            if let id = listing.malId { byMalID[id, default: []].append(contentsOf: Self.titles(of: listing)) }
+        }
+        let pool = byMalID.keys.sorted().map { (id: $0, titles: byMalID[$0] ?? []) }
+        return (pool, failure)
+    }
+
+    /// One search per known title, unioned into a single pool; this shared construction
+    /// ensures listing and automatic resolution see the same candidates.
+    private func malPool(for work: Work) async throws -> MALPool {
+        var pool: [Int: MALCandidate] = [:]
+        var failure: Error?
+        for title in work.knownTitles.prefix(titleSearchLimit) {
+            do {
+                for candidate in try await search(title) where pool[candidate.malId] == nil {
+                    pool[candidate.malId] = candidate
+                }
+            } catch { failure = error }
+        }
+        let ordered = pool.values.sorted { $0.malId < $1.malId }
+            .map { (id: $0.malId, titles: $0.titles) }
+        return MALPool(candidates: ordered, failure: failure)
+    }
+
+    private static func bestMatchedTitle(sourceTitles: [String], titles: [String]) -> String {
+        var best = (title: titles.first ?? "", score: -1.0)
+        for source in sourceTitles {
+            for title in titles {
+                let score = MALTitleMatcher.similarity(MALTitleMatcher.normalize(source), MALTitleMatcher.normalize(title))
+                if score > best.score { best = (title, score) }
+            }
+        }
+        return best.title
     }
 
     // MARK: - The MangaDex bridge (ADR-0016, scoped by ADR-0019)

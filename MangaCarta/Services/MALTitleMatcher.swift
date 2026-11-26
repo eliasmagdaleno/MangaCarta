@@ -117,6 +117,19 @@ struct MALTitleMatcher {
         }.map { ($0.1, $0.2) }
     }
 
+    /// Threshold-qualified candidates with the same ambiguity rule used by `bestMatch`.
+    func acceptedScores<ID>(sourceTitles: [String],
+                            candidates: [(id: ID, titles: [String])]) -> [(id: ID, score: Double, isAmbiguous: Bool)] {
+        let ranked = rankedScores(sourceTitles: sourceTitles, candidates: candidates)
+            .filter { $0.score >= acceptanceThreshold }
+        return ranked.enumerated().map { index, candidate in
+            (candidate.id, candidate.score,
+             ranked.enumerated().contains { otherIndex, other in
+                 otherIndex != index && abs(other.score - candidate.score) < ambiguityMargin
+             })
+        }
+    }
+
     func rankedScores<ID>(sourceTitle: String,
                           candidates: [(id: ID, titles: [String])]) -> [(id: ID, score: Double)] {
         rankedScores(sourceTitles: [sourceTitle], candidates: candidates)
