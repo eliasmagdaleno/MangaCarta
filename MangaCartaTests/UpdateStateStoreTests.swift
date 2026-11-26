@@ -105,6 +105,86 @@ final class UpdateStateStoreTests {
     }
 
     @MainActor
+    @Test("Bulk mark-seen clears only newly discovered; read state, frontier and mute survive a reload")
+    func bulkMarkSeenLeavesReadStateUntouched() throws {
+        let directory = makeDirectory()
+        let suite = TestDefaults("UpdateStateStoreTests")
+        let works = WorkStore(directory: directory)
+        let history = HistoryStore(defaults: suite.defaults, works: works)
+        let updates = UpdateStateStore(directory: directory, works: works)
+        let listingA = ListingKey(sourceId: "mangadex", mangaId: "bulk-a")
+        let listingB = ListingKey(sourceId: "mangadex", mangaId: "bulk-b")
+        let listingC = ListingKey(sourceId: "mangadex", mangaId: "bulk-c")
+        let mangaA = manga(listingA)
+        let workA = works.mint(from: mangaA)
+        let workB = works.mint(from: manga(listingB))
+        let workC = works.mint(from: manga(listingC))
+        for (work, listing) in [(workA, listingA), (workB, listingB), (workC, listingC)] {
+            _ = updates.absorb(workId: work, listing: listing, rawNumbers: ["1"], now: date(1))
+            _ = updates.absorb(workId: work, listing: listing, rawNumbers: ["2", "3"], now: date(2))
+        }
+        updates.setMuted(true, workId: workA)
+        let readChapter = Chapter(id: "a-2", number: "2", title: nil)
+        history.markRead(manga: mangaA, chapter: readChapter)
+        let beforeA = try #require(updates.state(for: workA))
+        let beforeB = try #require(updates.state(for: workB))
+        let beforeC = try #require(updates.state(for: workC))
+        updates.flush() // so only the clear below can make the next flush write
+
+        updates.clearNewlyDiscovered(workIds: [workA, workB])
+        updates.flush()
+        let reloaded = UpdateStateStore(directory: directory, works: works)
+
+        var expectedA = beforeA
+        expectedA.newlyDiscovered = []
+        var expectedB = beforeB
+        expectedB.newlyDiscovered = []
+        #expect(reloaded.state(for: workA) == expectedA,
+                "only newlyDiscovered goes; frontier, baseline, discovery date, checks and mute stay")
+        #expect(reloaded.state(for: workB) == expectedB, "every listed Work is cleared, not only the first")
+        #expect(reloaded.state(for: workC) == beforeC, "a Work not passed in keeps its discoveries")
+        #expect(reloaded.state(for: workA)?.isMuted == true)
+        #expect(history.isRead(readChapter, in: mangaA), "seen is never read, and never unread either")
+        #expect(!history.isRead(Chapter(id: "a-3", number: "3", title: nil), in: mangaA),
+                "marking seen did not mark the other discovered chapter read")
+    }
+
+    @MainActor
+    @Test("Mark-seen is idempotent and a no-op schedules no save")
+    func markSeenIsIdempotent() throws {
+        let fixture = fixture()
+        _ = fixture.updates.absorb(workId: fixture.workId, listing: fixture.listing, rawNumbers: ["1"], now: date(1))
+        fixture.updates.flush()
+        // Remove the saved file: a flush only writes it back if something marked the store dirty.
+        let file = fixture.directory.appendingPathComponent("updates.json")
+        try FileManager.default.removeItem(at: file)
+
+        fixture.updates.clearNewlyDiscovered(workIds: [fixture.workId, WorkID()])
+        fixture.updates.clearNewlyDiscovered(workId: fixture.workId)
+        fixture.updates.flush()
+
+        #expect(!FileManager.default.fileExists(atPath: file.path), "nothing to clear, so nothing saved")
+        #expect(fixture.updates.state(for: WorkID()) == nil, "an unknown Work is not given empty state")
+    }
+
+    @MainActor
+    @Test("Per-Work mark-seen clears that Work alone")
+    func perWorkMarkSeen() throws {
+        let fixture = fixture()
+        let other = ListingKey(sourceId: "mangadex", mangaId: "other")
+        let otherWork = fixture.works.mint(from: manga(other))
+        for (work, listing) in [(fixture.workId, fixture.listing), (otherWork, other)] {
+            _ = fixture.updates.absorb(workId: work, listing: listing, rawNumbers: ["1"], now: date(1))
+            _ = fixture.updates.absorb(workId: work, listing: listing, rawNumbers: ["2"], now: date(2))
+        }
+
+        fixture.updates.clearNewlyDiscovered(workId: fixture.workId)
+
+        #expect(fixture.updates.state(for: fixture.workId)?.newlyDiscovered.isEmpty == true)
+        #expect(fixture.updates.state(for: otherWork)?.newlyDiscovered == [ordinal("2")])
+    }
+
+    @MainActor
     @Test("Listing backoff doubles and a success clears it")
     func backoffDoublesAndClears() throws {
         let fixture = fixture()
