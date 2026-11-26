@@ -565,6 +565,17 @@
         "."
       ],
       "equivalent": "Without an App ID no key can be attested (the endpoints are 404), and a key stored earlier still fails verifyAssertion's RP ID check, because SHA256 of the missing App ID matches no device's RP ID hash; the batch is still answered 409."
+    },
+    {
+      "id": "A57",
+      "description": "intermediate's issuer not compared with the root's subject",
+      "file": "server/analytics-worker/src/appattest.js",
+      "old": "equal(intermediate.issuer, root.subject)",
+      "new": "true",
+      "tests": [
+        "."
+      ],
+      "equivalent": "The intermediate's signature is still verified with the pinned root's key, so no intermediate with another issuer can pass; no test can build one that reaches this check alone."
     }
   ]
 }
