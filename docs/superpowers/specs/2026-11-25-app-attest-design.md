@@ -170,3 +170,26 @@ Every row's mutations are run; the PR records each result.
 | DELETE removes key and challenge; nightly purge removes expired challenges and keys idle over 12 months | either left behind |
 | aggregate: 20 unattested installs publish nothing; 20 attested do; maturity counts only attested rows | `attested` filter removed from pairs; from maturity |
 | device capture (once committed): attestation and both assertions verify with `APP_ATTEST_APP_ID` | — |
+
+## Amendment 2 (2026-11-25): no developer account yet; the entitlement and the capture wait
+
+The owner has no paid Apple Developer Program membership yet (2026-11-25). A personal team can't hold the App Attest
+capability, so Amendment 1 item 9's entitlement file would break every device build. This changes item 9 and the
+slice plan:
+
+1. **Slice 1 ships without the entitlement.** No `MangaCarta.entitlements`, no `CODE_SIGN_ENTITLEMENTS`. The
+   capture test stays. It skips on the simulator (`isSupported` is false there, checked on iOS 27.2), and on a device
+   whose provisioning profile (`embedded.mobileprovision`) grants no production App Attest environment. The skip
+   names what is missing.
+2. **A small separate change follows enrollment,** before slice 2:
+   - the owner enrolls, enables App Attest for `Elias-Magdaleno.Manga-Reader` and confirms the prefix `V2BG9SHQYS`;
+   - that change adds the entitlement (`appattest-environment = production`);
+   - the owner runs the capture once on their iPhone, and the capture is committed as
+     `server/analytics-worker/test/fixtures/device-capture.json`, which turns on the Worker test that reads it.
+3. **Unproven until then:**
+   - that the app produces a real attestation on a device;
+   - that the Worker accepts one from this App ID (our RP ID, and the category a development build reports);
+   - Apple's assertion signature format. The assertion tests use a key the test makes itself.
+
+   Apple's sample attestation proves every attestation check against a genuine Apple-signed object, but for another
+   App ID.
