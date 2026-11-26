@@ -366,6 +366,26 @@ struct UpdatesScreenTests {
         #expect(await gate.started == ["kept", "dropped", "kept"])
     }
 
+    @Test("A fetch still running when a refresh lands is fetched again once it finishes")
+    func loaderRefetchesRequestInFlightAcrossRefresh() async throws {
+        let gate = ChapterGate()
+        let loader = UpdatesChapterLoader(resolve: Self.resolver(GatedSource(gate: gate)))
+        let work = WorkID()
+        loader.request(work, displayManga: Self.manga("racing"))
+        try await Self.until { await gate.started.count == 1 }
+
+        loader.invalidate(keeping: [work])
+        loader.request(work, displayManga: Self.manga("racing"))   // what the screen does after refresh
+        await gate.openAndReleaseAll()
+
+        try await Self.until { await gate.started.count == 2 }
+        try await Self.until { loader.inFlight == 0 }
+        #expect(await gate.started == ["racing", "racing"], "fetched once more, not twice more")
+        guard case .loaded? = loader.resolutions[work] else {
+            Issue.record("the refetch lands as loaded, not a stuck spinner"); return
+        }
+    }
+
     @Test("An ordinal missing from fetched chapters stays visible; order is discovery order, not the Source's")
     func keepsUnknownChapterOrdinalVisible() {
         let ordinals = ["4", "3", "2"].compactMap(ChapterOrdinal.parse)

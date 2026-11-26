@@ -42,9 +42,12 @@ final class UpdatesChapterLoader: ObservableObject {
     private var queue: [(WorkID, UpdatesChapterTarget)] = []
     /// Works whose answer predates the last refresh; the next `request` fetches them again.
     private var stale: Set<WorkID> = []
-    /// Bumped by `invalidate`, so an answer that was in flight across a refresh is dropped
-    /// rather than overwriting the newer request's answer.
+    /// The ticket of each Work's latest started request. An answer whose ticket is no longer
+    /// current (a `retry` started a newer one) is dropped rather than overwriting it.
     private var generation: [WorkID: Int] = [:]
+    /// Works whose request was already running when a refresh invalidated them. Their answer
+    /// predates the refresh, so `finish` applies it and then fetches once more.
+    private var refetchWhenDone: Set<WorkID> = []
 
     /// - Parameter resolve: picks the Listing and Source for a Work, or `nil` when none is
     ///   registered. Production passes `live(registry:fulfillment:)`; tests pass a stub.
@@ -102,11 +105,18 @@ final class UpdatesChapterLoader: ObservableObject {
     func invalidate(keeping workIds: Set<WorkID>) {
         resolutions = resolutions.filter { workIds.contains($0.key) }
         queue.removeAll { !workIds.contains($0.0) }
+        let queued = Set(queue.map(\.0))
         for workId in resolutions.keys {
-            if case .loading = resolutions[workId] { continue }
+            if case .loading = resolutions[workId] {
+                // Still queued: it will start after the refresh, so its answer is current.
+                // Already running: its answer is from before the refresh — fetch again after.
+                if !queued.contains(workId) { refetchWhenDone.insert(workId) }
+                continue
+            }
             stale.insert(workId)
         }
         stale.formIntersection(workIds)
+        refetchWhenDone.formIntersection(workIds)
     }
 
     private func pump() {
@@ -140,6 +150,10 @@ final class UpdatesChapterLoader: ObservableObject {
             resolutions[workId] = .loaded(manga: target.manga, chapters: chapters)
         case .failure(let error):
             resolutions[workId] = .failed(manga: target.manga, message: error.localizedDescription)
+        }
+        // The answer is shown meanwhile, as a stale answer is during any refetch.
+        if refetchWhenDone.remove(workId) != nil {
+            queue.append((workId, target))
         }
     }
 }
