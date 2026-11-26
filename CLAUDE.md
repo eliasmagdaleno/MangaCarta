@@ -45,6 +45,35 @@ xcodebuild -scheme MangaCarta -destination 'platform=iOS Simulator,name=iPhone 1
 For interactive work, opening `MangaCarta.xcodeproj` in Xcode and using ⌘B / ⌘U is
 usually faster than the CLI.
 
+### Mutation testing
+
+Prove a test by breaking the code it guards. Use `scripts/mutate.py`; don't write a one-off
+script for each feature. Write a JSON list of exact `old` → `new` edits, each with the tests
+that should catch it, then run:
+
+```sh
+python3 -I scripts/mutate.py my-mutations.json --report mutations.md
+```
+
+```json
+{ "runner": "swift",
+  "mutations": [
+    { "id": "S1", "description": "ordinals listed oldest first",
+      "file": "MangaCarta/Models/UpdatesTimeline.swift",
+      "old": "ordinals.sorted(by: >)", "new": "ordinals.sorted(by: <)",
+      "tests": ["MangaCartaTests/UpdatesPresentationTests"] } ] }
+```
+
+The script runs a green baseline first. It refuses to start if a target file is dirty, and
+it always restores the file. Each mutation is reported as KILLED, SURVIVED or ERROR; a build
+failure is ERROR, never KILLED. Paste the table it prints into the PR. `"runner": "worker"`
+runs node:test in `server/analytics-worker` instead, with test files or name patterns as
+`tests`. Mark a mutation no test can detect with `"equivalent": "<why>"`. Use `--check` to
+validate a file without running anything. For the full format, run
+`python3 -I scripts/mutate.py --help`. Worked examples are in `scripts/mutate-examples/`; each is built to produce one of each
+outcome, so they exit 1.
+The self-test is `python3 -I -m unittest discover -s scripts -p 'test_mutate.py'`.
+
 ## Architecture
 
 MVVM over a source-abstraction layer. Data flows: `MangaSource` (protocol, network) →
