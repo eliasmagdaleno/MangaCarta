@@ -58,23 +58,6 @@ final class UpdatesUITests: XCTestCase {
         attach(app, name: "03-updates-refresh-complete")
     }
 
-    func testUpdatesFilterExposesSelectedState() throws {
-        let app = launch(state: "updates-filter")
-
-        app.tabBars.buttons["Library"].tap()
-        let updates = app.buttons.matching(
-            NSPredicate(format: "label BEGINSWITH %@", "Updates")
-        ).firstMatch
-        XCTAssertTrue(updates.waitForExistence(timeout: 10))
-        updates.tap()
-
-        XCTAssertEqual(updates.value as? String, "Selected",
-                       "the Updates filter must expose selection beyond its color")
-        XCTAssertTrue(app.buttons.matching(identifier: "libraryCoverCard").firstMatch.exists,
-                      "the selected filter should retain the fixture's discovered work")
-        attach(app, name: "04-updates-filter-selected")
-    }
-
     func testSettingsShowsNotificationAuthorizationRowAtAccessibilitySize() throws {
         let app = launch(state: "not-checked", accessibilitySize: true)
 
@@ -165,21 +148,27 @@ final class UpdatesUITests: XCTestCase {
         attach(app, name: "10-notification-action-marked-read")
     }
 
-    // MARK: - Updates screen (spec 2026-11-09, slice 2)
+    // MARK: - Updates screen (spec 2026-11-09)
     //
-    // Reached through `-uitest-open-updates`, a debug-only route that pushes the screen from
-    // Home at launch. Slice 3 replaces it with Home's and Library's real entry points.
+    // Every test reaches the screen through a real entry point: Home's "View all", Library's
+    // Updates chip, or a delivered notification.
 
-    /// AC 7, minus the Home link slice 3 adds: day sections, Work groups and chapter rows,
+    /// AC 7: Home's "View all" opens Updates, with day sections, Work groups and chapter rows,
     /// a chapter that reaches the reader, and a discovery with no chapter behind it.
     func testUpdatesDestinationShowsDayWorkAndChapterRows() throws {
-        let app = launchUpdatesScreen(state: "updates-screen")
+        let app = launch(state: "updates-home-link")
+        let viewAll = app.buttons["homeViewAllUpdates"]
+        for _ in 0..<6 where !(viewAll.exists && viewAll.isHittable) { app.swipeUp() }
+        XCTAssertTrue(viewAll.waitForExistence(timeout: 10), "six updated Works are past Home's limit")
+        XCTAssertEqual(viewAll.label, "View all 6 updates")
+        viewAll.tap()
 
         XCTAssertTrue(app.navigationBars["Updates"].waitForExistence(timeout: 10))
         XCTAssertTrue(heading(in: app, "Today").exists, "the answering Work was discovered today")
         XCTAssertTrue(heading(in: app, "Yesterday").exists, "the failing Work was discovered yesterday")
         XCTAssertTrue(workHeader(in: app, title: "Fixture Update Title").exists)
-        XCTAssertTrue(app.staticTexts["4 new chapters"].exists, "the header counts new chapters, not unread")
+        XCTAssertTrue(app.staticTexts["8 new chapters"].exists,
+                      "the header counts new chapters (3 + 1 + 4 extras × 1), not unread")
 
         let chapter3 = chapterLink(in: app, containing: "Fixture Chapter 3")
         XCTAssertTrue(chapter3.waitForExistence(timeout: 10), "chapter metadata loads for an expanded Work")
@@ -196,6 +185,90 @@ final class UpdatesUITests: XCTestCase {
         chapter3.tap()
         XCTAssertTrue(app.buttons["readerCloseButton"].waitForExistence(timeout: 10),
                       "a chapter row opens the reader")
+    }
+
+    /// AC 8: Library's Updates chip opens the same screen. It is not a filter any more, so the
+    /// cover grid is never what it leaves on screen.
+    func testLibraryUpdatesEntryOpensDedicatedDestination() throws {
+        let app = launch(state: "updates-screen")
+        app.tabBars.buttons["Library"].tap()
+        let entry = app.buttons["libraryUpdatesEntry"]
+        XCTAssertTrue(entry.waitForExistence(timeout: 10))
+        XCTAssertEqual(entry.label, "Updates, 2 titles", "the chip counts Works with new chapters")
+        XCTAssertTrue(app.buttons.matching(identifier: "libraryCoverCard").firstMatch.exists,
+                      "positive control: Library's grid is showing before the tap")
+        XCTAssertGreaterThanOrEqual(entry.frame.height, 44, "the chip is a 44-point target")
+
+        // Near the top edge, outside the drawn capsule: the 44 points must be tappable, not
+        // only laid out.
+        entry.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.05)).tap()
+
+        XCTAssertTrue(app.navigationBars["Updates"].waitForExistence(timeout: 10))
+        XCTAssertTrue(workHeader(in: app, title: "Fixture Update Title").exists)
+        XCTAssertTrue(workHeader(in: app, title: "Second Fixture Title").exists)
+        XCTAssertFalse(app.buttons.matching(identifier: "libraryCoverCard").firstMatch.exists,
+                       "Updates replaces the grid; it does not filter it")
+        attach(app, name: "16-updates-from-library")
+    }
+
+    /// AC 10: tapping a delivered notification selects Library, pushes Updates and focuses the
+    /// notified Work: scrolled to, outlined, and labelled. It opens no chapter and no detail
+    /// page (ADR-0021; owner decision 2). The notification is production's, scheduled by
+    /// `UpdateNotifier.schedule` when the app goes to the background.
+    func testNotificationTapRoutesToFocusedUpdatesWork() throws {
+        let app = launch(state: "notification-tap")
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let allow = springboard.alerts.buttons["Allow"]
+        if allow.waitForExistence(timeout: 4) { allow.tap() }
+        XCTAssertTrue(app.tabBars.buttons["Home"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.tabBars.buttons["Home"].isSelected, "precondition: the app opens on Home")
+
+        XCUIDevice.shared.press(.home)
+        let banner = springboard.descendants(matching: .any).matching(
+            NSPredicate(format: "label CONTAINS %@", "new chapter of Extra Fixture Title 4")
+        ).firstMatch
+        XCTAssertTrue(banner.waitForExistence(timeout: 30), "the scheduled notification is delivered")
+        banner.tap()
+
+        XCTAssertTrue(app.navigationBars["Updates"].waitForExistence(timeout: 15),
+                      "a notification tap lands on Updates")
+        XCTAssertTrue(app.tabBars.buttons["Library"].isSelected, "from the Library tab")
+        let focused = workHeader(in: app, title: "Extra Fixture Title 4")
+        XCTAssertTrue(focused.waitForExistence(timeout: 5))
+        XCTAssertEqual(focused.value as? String, "From your notification",
+                       "the focus is spoken, not only outlined")
+        XCTAssertTrue(focused.isHittable, "the notified Work, last in the inbox, is scrolled into view")
+        XCTAssertTrue(app.staticTexts["From your notification"].exists, "and labelled on screen")
+        XCTAssertEqual(app.buttons.matching(identifier: "updatesWorkHeader")
+            .matching(NSPredicate(format: "value == %@", "From your notification")).count, 1,
+                       "only the notified Work is focused")
+        XCTAssertFalse(app.buttons["readerCloseButton"].exists, "no chapter is opened")
+        attach(app, name: "17-updates-notification-focus")
+    }
+
+    /// Notification-actions Amendment 1 item 4: the Work row's trailing menu mutes and unmutes,
+    /// through the same store the Library card reads.
+    func testWorkMenuMutesAndUnmutes() throws {
+        let app = launchUpdatesScreen(state: "updates-screen")
+        let header = workHeader(in: app, title: "Second Fixture Title")
+        XCTAssertTrue(header.waitForExistence(timeout: 10))
+        XCTAssertFalse(header.label.contains("Muted"), "precondition: \(header.label)")
+
+        let menu = app.buttons["Actions for Second Fixture Title"]
+        menu.tap()
+        let mute = app.buttons["Mute notifications"]
+        XCTAssertTrue(mute.waitForExistence(timeout: 5), "the menu offers Mute beside Mark seen")
+        XCTAssertTrue(app.buttons["Mark seen"].exists)
+        mute.tap()
+        XCTAssertTrue(waitForLabel(of: header, toContain: "Muted"), "the row says it is muted")
+        XCTAssertTrue(header.exists, "muting is not marking seen: the Work stays listed")
+        attach(app, name: "18-updates-work-muted")
+
+        menu.tap()
+        let unmute = app.buttons["Unmute notifications"]
+        XCTAssertTrue(unmute.waitForExistence(timeout: 5), "a muted Work offers Unmute")
+        unmute.tap()
+        XCTAssertTrue(waitForLabel(of: header, toLack: "Muted"), "the row is unmuted again")
     }
 
     /// AC 9: Mark all seen empties the inbox and leaves every chapter unread.
@@ -246,8 +319,10 @@ final class UpdatesUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["3 new chapters"].exists)
     }
 
-    /// AC 12: the up-to-date state, the no-saved-Works state, a load failure that keeps its
-    /// rows, and a refresh failure that names its Source without erasing known rows.
+    /// AC 12: the up-to-date state, a load failure that keeps its rows, and a refresh failure
+    /// that names its Source without erasing known rows. The no-saved-Works state is not
+    /// launched here: with nothing saved, neither Home's link nor Library's chip is shown, so
+    /// a reader only meets it by unsaving everything while Updates is open.
     func testUpdatesEmptyStateAndRefreshFailure() throws {
         var app = launchUpdatesScreen(state: "refresh-complete")
         XCTAssertTrue(app.descendants(matching: .any)["updatesUpToDate"].waitForExistence(timeout: 10))
@@ -255,11 +330,6 @@ final class UpdatesUITests: XCTestCase {
         XCTAssertTrue(app.buttons["updatesScreenRefreshButton"].exists, "refresh stays available")
         XCTAssertFalse(app.buttons["updatesMarkAllSeenButton"].isEnabled)
         attach(app, name: "13-updates-up-to-date")
-        app.terminate()
-
-        app = launchUpdatesScreen(state: "empty")
-        XCTAssertTrue(app.descendants(matching: .any)["updatesNoSavedWorks"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.buttons["Browse Titles"].exists)
         app.terminate()
 
         app = launchUpdatesScreen(state: "updates-screen")
@@ -289,20 +359,29 @@ final class UpdatesUITests: XCTestCase {
         XCTAssertTrue(app.buttons["updatesScreenRefreshButton"].isHittable)
         XCTAssertTrue(heading(in: app, "Today").exists)
 
+        // No horizontal clipping: the controls and the Work header fit the window's width.
+        let width = app.windows.firstMatch.frame.maxX
+        for element in [app.buttons["updatesMarkAllSeenButton"], app.buttons["updatesScreenRefreshButton"],
+                        workHeader(in: app, title: "Fixture Update Title")] {
+            XCTAssertLessThanOrEqual(element.frame.maxX, width, "\(element.identifier) fits the width")
+            XCTAssertGreaterThanOrEqual(element.frame.minX, 0, "\(element.identifier) fits the width")
+        }
+
         let chapter = chapterLink(in: app, containing: "Fixture Chapter 3")
         for _ in 0..<6 where !(chapter.exists && chapter.isHittable) { app.swipeUp() }
         XCTAssertTrue(chapter.isHittable, "a chapter link is reachable at accessibility sizes")
+        XCTAssertLessThanOrEqual(chapter.frame.maxX, width, "the chapter link fits the width")
         attach(app, name: "15-updates-large-text")
     }
 
+    /// Opens Updates the way a reader does from Library: the Updates chip.
     private func launchUpdatesScreen(state: String, accessibilitySize: Bool = false) -> XCUIApplication {
-        let app = XCUIApplication()
-        app.launchArguments += ["-uitest-updates-state", state, "-uitest-open-updates"]
-        if accessibilitySize {
-            app.launchArguments += ["-UIPreferredContentSizeCategoryName",
-                                    "UICTContentSizeCategoryAccessibilityXXXL"]
-        }
-        app.launch()
+        let app = launch(state: state, accessibilitySize: accessibilitySize)
+        app.tabBars.buttons["Library"].tap()
+        let entry = app.buttons["libraryUpdatesEntry"]
+        XCTAssertTrue(entry.waitForExistence(timeout: 10), "Library shows its Updates entry")
+        entry.tap()
+        XCTAssertTrue(app.navigationBars["Updates"].waitForExistence(timeout: 10))
         return app
     }
 

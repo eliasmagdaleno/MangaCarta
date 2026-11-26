@@ -166,3 +166,29 @@ uniform-frequency promise.
   identity.
 - Cross-device sync ships: decide which device or service owns the notification baseline and how to
   deduplicate delivery across devices.
+
+## Amendment 1 — a notification opens Updates, focused on its Work (2026-11-26)
+
+The original text above stands in full except for where opening a notification lands. Where
+"One Work produces one notification per refresh" says opening a notification "routes to the Work's
+chapter list", read: **opening a notification opens the Updates screen, focused on that Work.** It
+still never opens a chapter, newest or otherwise.
+
+### What prompted it
+
+The Updates screen ([spec](../superpowers/specs/2026-11-09-updates-screen-design.md)) became the
+Library's inbox for newly discovered chapters, grouped by day and Work, with per-Work and
+screen-level "Mark seen". The owner decided where a notification should land (spec, "Owner
+decisions", 2026-11-09, decision 2): on Updates, focused on the Work, and the reader then chooses
+the detail page or a chapter. That keeps this ADR's reason for never opening the newest chapter
+(tapping a notification is not evidence the reader wants to skip earlier unread chapters) and
+gives every update surface one destination.
+
+### What it changes
+
+- A tap selects the Library tab and pushes Updates with the notified Work scrolled into view,
+  outlined, labelled "From your notification", and given VoiceOver focus. If the Work is no longer
+  in the inbox, Updates opens at the top as usual.
+- Arriving on Updates does not clear `newly discovered`; only "Mark seen", "Mark all seen" or the
+  chapter list's existing clearing hooks do (spec owner decision 1). `newly discovered` and
+  `unread` stay separate state, as above.
