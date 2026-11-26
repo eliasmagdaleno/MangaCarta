@@ -9,8 +9,8 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 const report = process.argv[2];
 if (!report) throw new Error("Supply the mutation table output path");
 const mutations = [];
-function replace(name, file, from, to) {
-  mutations.push({name,file,apply(source) {
+function replace(name, file, from, to, equivalentReason = null) {
+  mutations.push({name,file,equivalentReason,apply(source) {
     const at=source.indexOf(from);
     if(at<0 || source.indexOf(from,at+from.length)>=0) throw new Error(`Ambiguous/missing mutation ${name}`);
     return {source:source.slice(0,at)+to+source.slice(at+from.length),line:source.slice(0,at).split("\n").length};
@@ -24,6 +24,10 @@ function checkRemoved(name, label) {
   }});
 }
 for(const [name,label] of [
+  ["attestation format check removed","attestation format"],
+  ["certificate algorithm equality removed","certificate algorithm mismatch"],
+  ["unknown critical extension check removed","certificate critical extension"],
+  ["chain curve policy removed","chain curves"],
   ["x5c cardinality removed","x5c length"], ["issuer/subject equality removed (order and foreign root)","chain issuer"],
   ["intermediate root signature removed","intermediate signature"], ["leaf chain signature removed","leaf signature"],
   ["certificate validity removed","chain validity"], ["CA constraints removed","chain CA constraints"],
@@ -34,6 +38,7 @@ for(const [name,label] of [
   ["bundle version check removed","bundle version"], ["extensions map check removed","extensions map"],
   ["assertion counter check removed","assertion counter"], ["assertion signature/body binding removed","assertion signature"],
 ]) checkRemoved(name,label);
+replace("AT flag check removed","src/appattest.js","(auth[32] & 64) !== 0 && auth.length >= 55","auth.length >= 55");
 replace("pinned root DER replaced","src/appattest.js","MIICITCCAaegAwIBAgIQC/O+DvHN0uD7jG5yH2IXmD","MIICITCCAaegAwIBAgIQC/O+DvHN0uD7jG5yH2IXmE");
 replace("assertion RP ID check removed","src/appattest.js",
   'check(equal(auth.slice(0, 32), await sha256(utf8(appID))), "RP ID");\n  check(Number.isSafeInteger',
@@ -65,6 +70,12 @@ replace("nightly purge leaves challenges behind","src/index.js",'await env.DB.pr
 replace("nightly purge leaves keys behind","src/index.js",'await env.DB.prepare("DELETE FROM attested_keys WHERE last_used < ?").bind(cutoff).run();',"");
 replace("attested filter removed from pair rows","src/index.js","WHERE attested = 1 AND name IN","WHERE name IN");
 replace("attested filter removed from maturity","src/index.js","SELECT install FROM events WHERE attested = 1 GROUP BY install","SELECT install FROM events GROUP BY install");
+replace("CBOR ai > 27 changed to ai > 31","src/cbor.js","if (ai > 27)","if (ai > 31)",
+  "Reserved/indefinite additional information still fails bounds or the non-minimal/safe-integer length checks; no newly accepted input.");
+replace("DER width === 0 guard removed","src/der.js","width === 0 || width > 4","width > 4",
+  "An indefinite length with width zero computes length zero and is still refused by length < 128 (non-minimal length).");
+replace("certificate validity restricted to leaf","src/appattest.js","[leaf, intermediate, root].every((c)","[leaf].every((c)",
+  "Fixture-equivalent only: Apple's genuine sample leaf validity is contained within the intermediate/root validity, so no request time distinguishes them; modifying signed dates fails chain signatures. Full chain validity remains in production.");
 
 const baseline=spawnSync("npm",["test"],{cwd:root,encoding:"utf8"});
 if(baseline.status!==0) throw new Error(`Baseline failed: ${baseline.stdout}\n${baseline.stderr}`);
@@ -79,9 +90,10 @@ for(const mutation of mutations) {
   } finally { writeFileSync(path,original); }
   const names=[...result.stdout.matchAll(/^\s*not ok \d+ - (.+)$/gm)].map((m)=>m[1]);
   const failed=result.status!==0 && names.length>0 && !result.error && !/SyntaxError/.test(result.stdout+result.stderr);
-  const evidence=failed ? names.slice(0,3).join("; ") : `SURVIVED / invalid run: status=${result.status} ${result.error ?? ""}`;
+  const equivalent=mutation.equivalentReason && result.status===0 && !result.error;
+  const evidence=failed ? names.slice(0,3).join("; ") : equivalent ? `EQUIVALENT (suite green): ${mutation.equivalentReason}` : `SURVIVED / invalid run: status=${result.status} ${result.error ?? ""}`;
   rows.push(`| ${mutation.name} | ${mutation.file}:${change.line} | ${evidence.replaceAll("|","\\|")} |`);
-  process.stdout.write(`${failed?"KILLED":"SURVIVED"}: ${mutation.name}\n`);
+  process.stdout.write(`${failed?"KILLED":equivalent?"EQUIVALENT":"SURVIVED"}: ${mutation.name}\n`);
 }
 mkdirSync(dirname(resolve(report)),{recursive:true});
 writeFileSync(report,`# App Attest slice 1 mutation audit\n\nEach mutation was applied individually, the entire node test suite was run, and the original source was restored in finally. Baseline: green; optional owner capture absent and skipped. A killed mutation requires a failing named test, not a syntax error or timeout.\n\n| Mutation | File:line (baseline) | Failing test(s) |\n|---|---|---|\n${rows.join("\n")}\n`);

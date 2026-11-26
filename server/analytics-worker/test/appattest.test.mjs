@@ -17,6 +17,17 @@ test("Apple sample attestation verifies including its real P384/SHA256 leaf sign
 
 // Fail on the particular check, so rejection by a different check cannot mask its removal.
 const cases = [
+  ["foreign format", "attestation format", (o) => o.set("fmt", "packed")],
+  ["missing AT flag", "attested credential data", (o) => { o.get("authData")[32] &= ~64; }],
+  ["certificate algorithm mismatch", "certificate algorithm mismatch", (o) => editCert(o, 0, (t) => {
+    t.children[1].children[0].value[t.children[1].children[0].value.length - 1] = 3; // Outer SHA384, inner SHA256.
+  })],
+  ["unknown critical leaf extension", "certificate critical extension", (o) => editCert(o, 0, (t) => {
+    const unknown = der(48, concat(der(6, Uint8Array.of(42, 3, 4)), Uint8Array.of(1, 1, 255), der(4, der(48, new Uint8Array()))));
+    t.children[0].children[7].children[0].children.push(decodeDER(unknown));
+  })],
+  ["P384 leaf", "chain curves", (o) => editCert(o, 0, (t) => changeCurve(t, "P-384"))],
+  ["P256 intermediate", "chain curves", (o) => editCert(o, 1, (t) => changeCurve(t, "P-256"))],
   ["x5c order", "chain issuer", (o) => o.get("attStmt").get("x5c").reverse()],
   ["x5c cardinality", "x5c length", (o) => o.get("attStmt").get("x5c").pop()],
   ["foreign root", "chain issuer", (o) => {
@@ -56,6 +67,15 @@ const cases = [
 function editCert(o, i, edit) {
   const chain = o.get("attStmt").get("x5c"), cert = decodeDER(chain[i]);
   edit(cert); chain[i] = encodeDER(cert);
+}
+function changeCurve(cert, curve) {
+  // Keep the SPKI internally consistent so the chain-curve policy is reached before
+  // any public-key import or signature check. The tampered TBS cannot be Apple-signed.
+  const spki = cert.children[0].children[6];
+  spki.children[0].children[1].value = curve === "P-384"
+    ? Uint8Array.of(43, 129, 4, 0, 34) : Uint8Array.of(42, 134, 72, 206, 61, 3, 1, 7);
+  spki.children[1].value = new Uint8Array(curve === "P-384" ? 98 : 66);
+  spki.children[1].value[1] = 4;
 }
 function extOffset(o) { return decodeCBOR(o.get("authData"),{offset:87,trailing:true}).offset; }
 function changeExtensions(o, edit) {
