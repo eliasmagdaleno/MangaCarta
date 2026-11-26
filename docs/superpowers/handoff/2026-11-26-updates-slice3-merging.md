@@ -1,6 +1,6 @@
-# Handoff: Updates slice 3 (#432) auto-merging; #429 and #431 merged
+# Handoff: Updates screen done (#432 merged); local matching slice 1 in flight
 
-Date: 2026-11-26 (~12:10). This is the one live handoff. The previous one,
+Date: 2026-11-26 (~12:10, updated ~13:25). This is the one live handoff. The previous one,
 `archive/2026-11-26-updates-slice2-app-attest.md`, is superseded, and every open item in it is carried here.
 Recheck GitHub, the worktrees and the working tree before acting.
 
@@ -78,22 +78,25 @@ Merged, branches deleted (local and remote) unless noted:
   enrolls and the client slice ships (design item 1, intended).
 - **2026-11-26 cleanup:** worktrees, local and remote branches for #414, #427, #428, #429, #430, #431 removed (owner
   approved each remote delete); sessions for App Attest slice 1, Updates slice 2, #414 and #427/#428 archived.
+- **2026-11-26:** **#432 Updates slice 3** (`464484c`, merged 12:29, all five checks green). **The Updates screen is
+  complete.** Home's "View all" and Library's Updates chip push `UpdatesView`; a notification tap pushes
+  `UpdatesView(focusedWork:)` from Library (scrolls to the Work, outline plus "From your notification", VoiceOver focus;
+  never opens a chapter); Mute/Unmute in the Work-row menu and as a named action; the `-uitest-open-updates` route is
+  deleted. ADR-0021 Amendment 1 records the new landing. 12/12 mutations killed. **Known limit, accepted:** with
+  Updates already open from the Library chip, a notification tap pushes a second Updates on top. Worktree, local and
+  remote branch removed (owner approved the remote delete); session archived.
 
-**In flight — check each before acting (state as of 2026-11-26 ~12:10):**
+**In flight — check each before acting (state as of 2026-11-26 ~13:25):**
 
-1. **Updates slice 3: [#432](https://github.com/eliasmagdaleno/MangaCarta/pull/432)**, branch
-   `claude/updates-screen-slice3-048090`, session `local_1641a32b-d772-49a2-9106-5d9944faaff8`. **Auto-merge (squash) is
-   on at the owner's request**; at ~12:05 SwiftLint, Worker tests and "Detect code changes" had passed, build/unit and
-   hermetic UI were running. Home's "View all" and Library's Updates chip push `UpdatesView`; a notification tap pushes
-   `UpdatesView(focusedWork:)` from Library (scrolls to the Work, outline plus "From your notification", VoiceOver focus;
-   never opens a chapter); Mute/Unmute in the Work-row menu and as a named action; the `-uitest-open-updates` route is
-   deleted. ADR-0021 Amendment 1 records the new landing. Claude's review found the chip's 44 pt frame outside the
-   plain-button label (not tappable); fixed in `a88ed8b` with a height-and-top-edge test (mutation R9). 12/12 mutations
-   killed; 1,777 local tests passed, 0 failed.
-   - **Known limit, accepted:** with Updates already open from the Library chip, a notification tap pushes a second
-     Updates on top. Home's link can't stack (its own stack). Listed in the PR body.
-   - **After it merges:** remove its worktree and local branch, ask the owner before deleting the remote, offer to archive
-     the session. If it fails CI instead, read where it failed before blaming the branch.
+1. **Local matching slice 1** (design `docs/superpowers/specs/2026-11-09-local-library-matching-design.md`, slice 1:
+   title evidence, `LocalMatchStore`/`local-matches.json`, the read-only `MALEntityResolver.candidates(for:)` seam;
+   no UI). Orca Codex worker `gpt-6-luna` medium, dispatch `ctx_eae09a87775a`, task `task_05635b62d1e5`, run
+   `run_06aad222f094`, coordinator terminal `term_c81c33f9-9dab-44e5-b230-37b87ceb4b7b`. Worktree
+   `/Users/eliasmagdaleno/orca/workspaces/Manga-Reader/local-matching-slice1`, branched from `origin/main` at `56fe1ae`
+   (before #432; merge `main` before pushing). Told to commit, **not push, no PR**, and to write
+   `docs/superpowers/specs/local-matching-slice1-mutations.{json,md}` via `scripts/mutate.py` (≥10 mutations, all
+   killed). **Next step:** when it reports, review the diff and rerun its mutations yourself before pushing; then open
+   the PR. The worker is kept open (new worktree); release it once it's done.
 2. **Left over from this handoff's PR:** worktree `.claude/worktrees/handoff-1126pm`, branch `docs/handoff-2026-11-26-pm`.
 
 **Owner's calls, open:** making **Worker tests** a required check; App Attest's owner steps, once enrolled (App ID
@@ -110,8 +113,8 @@ main checkout.
 
 ## Next
 
-1. **Land #432** (in flight, item 1). That finishes the Updates screen; nothing of its spec is left but the accepted
-   stacking limit.
+1. **Local matching** (owner chose it 2026-11-26): land slice 1 (in flight, item 1), then slices 2–5 per the design
+   (identity/linking + coordinator; metadata eligibility; detail UX; ordinal/progress hardening).
 2. **App Attest** is merged on the Worker side. Everything further (entitlement, device capture, the app's client that
    attests and signs batches) waits on the owner's enrollment. The Worker deploy is the owner's call.
    Known gaps **analytics** slice 1 left, all small:
@@ -135,10 +138,9 @@ Small follow-ups from notification actions (#403, merged; not filed):
 - A notification whose chosen Source needs a Cloudflare challenge, or is slow, does nothing on Mark Read by design
   (no partial marks, no WebView from the background). Only unit-tested with a throwing fetch.
 
-The rest of the feature queue is specced and on `main` (the coordinator recommends local matching next):
-- Updates screen (slices 1–2 merged; slice 3 is #432);
+The rest of the feature queue is specced and on `main` (Updates screen is done; local matching is under way):
 - widgets (check first whether a personal team can sign the App Group it needs);
-- local matching (it shares `WorkStore.addListing` from #390; its design says so);
+- local matching (slice 1 in flight; it shares `WorkStore.addListing` from #390; its design says so);
 - CBR/EPUB/folders;
 - vector PDF (build done; slice 5 is manual device checks, deferred);
 - Komga/OPDS (needs ADR-0029 before slice 2);
