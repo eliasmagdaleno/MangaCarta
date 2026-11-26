@@ -53,23 +53,24 @@ Merged, branches deleted (local and remote) unless noted:
    The resume fix is `StripMetrics.positionedRequest` (ADR-0014 decision 10, second 2026-11-25 amendment). Worktree, local and
    remote branch, the `PDF2` simulator, the worker spec folder and the temp files are removed; worker `ctx_25c30cfec09e` and the
    coordinator terminal are closed. `ctx_f8f53ef77a61` and `ctx_3133c06e4b94` reported `retained` (ownership transferred); leave
-   them. **Read `main`'s CI run for `c388517`** (run `45713206664`): the first full one with #420 too.
+   them. Its own run on `main` was cancelled by #422's; see item 2.
 
 2. **Analytics slice 3: [#422](https://github.com/eliasmagdaleno/MangaCarta/pull/422) merged 2026-11-25 (`5f1bd15`), cleanup done.**
    Design Amendment 5; the privacy policy changes published on merge. Worktree, both local branches, the remote branch, the
    `AN2` simulator, `/private/tmp/an3*` and coordinator terminal are removed. Its push cancelled #418's run on `main` mid-UI-tests
-   (every finished suite had passed), so **run `45717123177` is the first on `main` with #418, #420 and #422 together: read it.**
+   (every finished suite had passed). **Run `45717123177`, the first on `main` with #418, #420 and #422 together, passed** (all four jobs).
    Desktop session `local_e4018574-f6df-40e1-88a1-4526bb1e8fdb` ("Build analytics slice 2") pointed at the removed worktree;
    archive it if the owner agrees.
 
-3. **App Attest:** owner decided 2026-11-25 to add it **before the Worker is deployed**. Draft:
-   `docs/superpowers/specs/2026-11-25-app-attest-design.md`. Approved 2026-11-25 without the keys-per-device count.
-   - The owner started session `local_26f8f31a-ccbf-45ba-aa96-e2e4931fd94d` ("Build App Attest for analytics (slice 1)",
-     branch `claude/dreamy-proskuriakova-d26ccd`). It stopped at once because #422 wasn't merged, and changed nothing. Its worktree
-     is at `84734ef`, before #424, #418 and #422. **Once #422 is merged, resume that session** rather than starting another;
-     have it fast-forward to `origin/main` first and reread this handoff.
-   - It needs the owner's App ID capability (`Elias-Magdaleno.Manga-Reader`, team `V2BG9SHQYS` in the project file) and one
-     attestation captured on their iPhone. Neither is done as far as this session knows.
+3. **App Attest slice 1: building** in session `local_26f8f31a-ccbf-45ba-aa96-e2e4931fd94d` ("Build App Attest for analytics
+   (slice 1)"), branch `claude/dreamy-proskuriakova-d26ccd`, resumed 2026-11-25 ~15:20 after #422 merged. Design:
+   `docs/superpowers/specs/2026-11-25-app-attest-design.md` plus its Amendment 1 (rechecked against `main` and Apple's pages).
+   As of ~18:45 the branch has the Amendment, Apple's sample attestation as a Worker fixture, a device-only capture test and the
+   production entitlement (`6d73445`, skips on the simulator as intended), and Worker verification (`b8946de`, from an Orca
+   Codex Sol worker). Not pushed, no PR yet. Its automatic security review of `6d73445` hit HTTP 429 and reruns on push.
+   - **Owner steps, still open:** turn on the App Attest capability for App ID `Elias-Magdaleno.Manga-Reader` (team
+     `V2BG9SHQYS`), and capture one attestation on the iPhone. The session holds the exact instructions.
+   - Review its work, including its mutations, before calling it done.
 
 4. **Left over from #414 (merged):** worktree `.claude/worktrees/exciting-lamport-f80042`, local branch
    `claude/ci-cold-sim-warmup`, session `local_4911e6cc-2aca-46df-b7ba-2875b3e3c58b`.
