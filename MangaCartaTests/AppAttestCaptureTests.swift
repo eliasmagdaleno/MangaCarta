@@ -14,7 +14,7 @@ import XCTest
 ///
 /// It is also skipped while the build carries no App Attest entitlement. The entitlement is held
 /// back until the owner enrolls in the Apple Developer Program: a personal team can't sign it, so
-/// adding it earlier would break every device build (App Attest design, Amendment 1).
+/// adding it earlier would break every device build (App Attest design, Amendment 2).
 final class AppAttestCaptureTests: XCTestCase {
     /// 32 fixed bytes standing in for a Worker challenge. The Worker test seeds it as issued.
     static let challengeHex = "4d616e6761436172746120417070417474657374206361707475726520763031"
