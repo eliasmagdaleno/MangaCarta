@@ -1,0 +1,581 @@
+{
+  "_comment": "App Attest slice 1 mutations (design Amendment 1's table). Run: python3 -I scripts/mutate.py docs/superpowers/specs/app-attest-mutations.json --report mutations.md. Each runs the whole Worker suite.",
+  "runner": "worker",
+  "mutations": [
+    {
+      "id": "A1",
+      "description": "attestation format check removed",
+      "file": "server/analytics-worker/src/appattest.js",
+      "old": "  check(obj.get(\"fmt\") === \"apple-appattest\", \"attestation format\");",
+      "new": "  check(true, \"attestation format\");",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A2",
+      "description": "certificate algorithm equality removed",
+      "file": "server/analytics-worker/src/appattest.js",
+      "old": "  check(equal(c[2].raw, cert[1].raw), \"certificate algorithm mismatch\");",
+      "new": "  check(true, \"certificate algorithm mismatch\");",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A3",
+      "description": "unknown critical extension check removed",
+      "file": "server/analytics-worker/src/appattest.js",
+      "old": "    check(fields.length !== 3 || [OID.constraints, OID.usage].includes(id), \"certificate critical extension\");",
+      "new": "    check(true, \"certificate critical extension\");",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A4",
+      "description": "chain curve policy removed",
+      "file": "server/analytics-worker/src/appattest.js",
+      "old": "  check(leaf.curve === \"P-256\" && intermediate.curve === \"P-384\", \"chain curves\");",
+      "new": "  check(true, \"chain curves\");",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A5",
+      "description": "x5c cardinality removed",
+      "file": "server/analytics-worker/src/appattest.js",
+      "old": "  check(Array.isArray(x5c) && x5c.length === 2, \"x5c length\");",
+      "new": "  check(true, \"x5c length\");",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A6",
+      "description": "issuer/subject equality removed (order and foreign root)",
+      "file": "server/analytics-worker/src/appattest.js",
+      "old": "  check(equal(leaf.issuer, intermediate.subject) && equal(intermediate.issuer, root.subject), \"chain issuer\");",
+      "new": "  check(true, \"chain issuer\");",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A7",
+      "description": "intermediate root signature removed",
+      "file": "server/analytics-worker/src/appattest.js",
+      "old": "  check(await signatureValid(intermediate, root), \"intermediate signature\");",
+      "new": "  check(true, \"intermediate signature\");",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A8",
+      "description": "leaf chain signature removed",
+      "file": "server/analytics-worker/src/appattest.js",
+      "old": "  check(await signatureValid(leaf, intermediate), \"leaf signature\");",
+      "new": "  check(true, \"leaf signature\");",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A9",
+      "description": "certificate validity removed",
+      "file": "server/analytics-worker/src/appattest.js",
+      "old": "  check(Number.isFinite(+now) && [leaf, intermediate, root].every((c) => +now >= c.from && +now <= c.to), \"chain validity\");",
+      "new": "  check(true, \"chain validity\");",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A10",
+      "description": "CA constraints removed",
+      "file": "server/analytics-worker/src/appattest.js",
+      "old": "  check(!leaf.ca && intermediate.ca && root.ca, \"chain CA constraints\");",
+      "new": "  check(true, \"chain CA constraints\");",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A11",
+      "description": "nonce comparison removed",
+      "file": "server/analytics-worker/src/appattest.js",
+      "old": "  check(equal(nonce, await sha256(concat(auth, clientDataHash))), \"attestation nonce\");",
+      "new": "  check(true, \"attestation nonce\");",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A12",
+      "description": "key ID hash comparison removed",
+      "file": "server/analytics-worker/src/appattest.js",
+      "old": "  check(equal(key, await sha256(leaf.publicKey)), \"key ID hash\");",
+      "new": "  check(true, \"key ID hash\");",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A13",
+      "description": "credential ID comparison removed",
+      "file": "server/analytics-worker/src/appattest.js",
+      "old": "  check(length === 32 && equal(auth.slice(55, 55 + length), key), \"credential ID\");",
+      "new": "  check(true, \"credential ID\");",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A14",
+      "description": "RP ID comparison removed",
+      "file": "server/analytics-worker/src/appattest.js",
+      "old": "  check(equal(auth.slice(0, 32), await sha256(utf8(appID))), \"RP ID\");\n  check(counter === 0, \"attestation counter\");",
+      "new": "  check(true, \"RP ID\");\n  check(counter === 0, \"attestation counter\");",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A15",
+      "description": "attestation counter-zero check removed",
+      "file": "server/analytics-worker/src/appattest.js",
+      "old": "  check(counter === 0, \"attestation counter\");",
+      "new": "  check(true, \"attestation counter\");",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A16",
+      "description": "production AAGUID check removed",
+      "file": "server/analytics-worker/src/appattest.js",
+      "old": "  check(equal(auth.slice(37, 53), concat(utf8(\"appattest\"), new Uint8Array(7))), \"production AAGUID\");",
+      "new": "  check(true, \"production AAGUID\");",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A17",
+      "description": "COSE/certificate equality removed",
+      "file": "server/analytics-worker/src/appattest.js",
+      "old": "  check(m.get(1) === 2 && m.get(3) === -7 && m.get(-1) === 1 &&\n    equal(m.get(-2), leaf.publicKey.slice(1, 33)) && equal(m.get(-3), leaf.publicKey.slice(33)), \"COSE key\");",
+      "new": "  check(true, \"COSE key\");",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A18",
+      "description": "category check removed (1, 5, missing)",
+      "file": "server/analytics-worker/src/appattest.js",
+      "old": "  check(cat instanceof Uint8Array && cat.length === 4 && categories.includes(new DataView(cat.buffer, cat.byteOffset, 4).getUint32(0, true)), \"validation category\");",
+      "new": "  check(true, \"validation category\");",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A19",
+      "description": "bundle version check removed",
+      "file": "server/analytics-worker/src/appattest.js",
+      "old": "  check(typeof version === \"string\" && /^[\\x20-\\x7e]{1,32}$/.test(version), \"bundle version\");",
+      "new": "  check(true, \"bundle version\");",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A20",
+      "description": "extensions map check removed",
+      "file": "server/analytics-worker/src/appattest.js",
+      "old": "  check(ext instanceof Map, \"extensions map\");",
+      "new": "  check(true, \"extensions map\");",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A21",
+      "description": "assertion counter check removed",
+      "file": "server/analytics-worker/src/appattest.js",
+      "old": "  check(Number.isSafeInteger(storedCounter) && counter > storedCounter, \"assertion counter\");",
+      "new": "  check(true, \"assertion counter\");",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A22",
+      "description": "assertion signature/body binding removed",
+      "file": "server/analytics-worker/src/appattest.js",
+      "old": "  check(await crypto.subtle.verify({ name: \"ECDSA\", hash: \"SHA-256\" }, key, derSignature(obj.get(\"signature\"), 32), nonce), \"assertion signature\");",
+      "new": "  check(true, \"assertion signature\");",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A23",
+      "description": "AT flag check removed",
+      "file": "server/analytics-worker/src/appattest.js",
+      "old": "  check((auth[32] & 64) !== 0 && auth.length >= 55, \"attested credential data\");",
+      "new": "  check(auth.length >= 55, \"attested credential data\");",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A24",
+      "description": "pinned root DER replaced",
+      "file": "server/analytics-worker/src/appattest.js",
+      "old": "export const APPLE_ROOT_BASE64 = \"MIICITCCAaegAwIBAgIQC/O+DvHN0uD7jG5yH2IXmDAKBggqhkjOPQQDAzBSMSYwJAYDVQQDDB1BcHBsZSBBcHAgQXR0ZXN0YXRpb24gUm9vdCBDQTETMBEGA1UECgwKQXBwbGUgSW5jLjETMBEGA1UECAwKQ2FsaWZvcm5pYTAeFw0yMDAzMTgxODMyNTNaFw00NTAzMTUwMDAwMDBaMFIxJjAkBgNVBAMMHUFwcGxlIEFwcCBBdHRlc3RhdGlvbiBSb290IENBMRMwEQYDVQQKDApBcHBsZSBJbmMuMRMwEQYDVQQIDApDYWxpZm9ybmlhMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAERTHhmLW07ATaFQIEVwTtT4dyctdhNbJhFs/Ii2FdCgAHGbpphY3+d8qjuDngIN3WVhQUBHAoMeQ/cLiP1sOUtgjqK9auYen1mMEvRq9Sk3Jm5X8U62H+xTD3FE9TgS41o0IwQDAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBSskRBTM72+aEH/pwyp5frq5eWKoTAOBgNVHQ8BAf8EBAMCAQYwCgYIKoZIzj0EAwMDaAAwZQIwQgFGnByvsiVbpTKwSga0kP0e8EeDS4+sQmTvb7vn53O5+FRXgeLhpJ06ysC5PrOyAjEAp5U4xDgEgllF7En3VcE3iexZZtKeYnpqtijVoyFraWVIyd/dganmrduC1bmTBGwD\";",
+      "new": "export const APPLE_ROOT_BASE64 = \"MIICITCCAaegAwIBAgIQC/O+DvHN0uD7jG5yH2IXmEAKBggqhkjOPQQDAzBSMSYwJAYDVQQDDB1BcHBsZSBBcHAgQXR0ZXN0YXRpb24gUm9vdCBDQTETMBEGA1UECgwKQXBwbGUgSW5jLjETMBEGA1UECAwKQ2FsaWZvcm5pYTAeFw0yMDAzMTgxODMyNTNaFw00NTAzMTUwMDAwMDBaMFIxJjAkBgNVBAMMHUFwcGxlIEFwcCBBdHRlc3RhdGlvbiBSb290IENBMRMwEQYDVQQKDApBcHBsZSBJbmMuMRMwEQYDVQQIDApDYWxpZm9ybmlhMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAERTHhmLW07ATaFQIEVwTtT4dyctdhNbJhFs/Ii2FdCgAHGbpphY3+d8qjuDngIN3WVhQUBHAoMeQ/cLiP1sOUtgjqK9auYen1mMEvRq9Sk3Jm5X8U62H+xTD3FE9TgS41o0IwQDAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBSskRBTM72+aEH/pwyp5frq5eWKoTAOBgNVHQ8BAf8EBAMCAQYwCgYIKoZIzj0EAwMDaAAwZQIwQgFGnByvsiVbpTKwSga0kP0e8EeDS4+sQmTvb7vn53O5+FRXgeLhpJ06ysC5PrOyAjEAp5U4xDgEgllF7En3VcE3iexZZtKeYnpqtijVoyFraWVIyd/dganmrduC1bmTBGwD\";",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A25",
+      "description": "assertion RP ID check removed",
+      "file": "server/analytics-worker/src/appattest.js",
+      "old": "  check(equal(auth.slice(0, 32), await sha256(utf8(appID))), \"RP ID\");\n  check(Number.isSafeInteger(storedCounter) && counter > storedCounter, \"assertion counter\");",
+      "new": "  check(true, \"RP ID\");\n  check(Number.isSafeInteger(storedCounter) && counter > storedCounter, \"assertion counter\");",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A26",
+      "description": "counter comparison accepts equality (>=)",
+      "file": "server/analytics-worker/src/appattest.js",
+      "old": "  check(Number.isSafeInteger(storedCounter) && counter > storedCounter, \"assertion counter\");",
+      "new": "  check(Number.isSafeInteger(storedCounter) && counter >= storedCounter, \"assertion counter\");",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A27",
+      "description": "CBOR bounds check removed",
+      "file": "server/analytics-worker/src/cbor.js",
+      "old": "    if (!Number.isSafeInteger(n) || n < 0 || at + n > bytes.length) throw new Error(\"CBOR bounds\");",
+      "new": "    ",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A28",
+      "description": "CBOR depth limit removed",
+      "file": "server/analytics-worker/src/cbor.js",
+      "old": "    if (depth > maxDepth) throw new Error(\"CBOR depth\");",
+      "new": "    ",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A29",
+      "description": "CBOR non-minimal lengths allowed",
+      "file": "server/analytics-worker/src/cbor.js",
+      "old": "      if (!Number.isSafeInteger(n) || n < (width === 1 ? 24 : 2 ** (8 * (width / 2)))) throw new Error(\"CBOR non-minimal length\");",
+      "new": "      ",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A30",
+      "description": "CBOR duplicate map keys allowed",
+      "file": "server/analytics-worker/src/cbor.js",
+      "old": "        if (keys.has(identity)) throw new Error(\"CBOR duplicate key\");",
+      "new": "        ",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A31",
+      "description": "CBOR trailing bytes allowed",
+      "file": "server/analytics-worker/src/cbor.js",
+      "old": "  if (!trailing && at !== bytes.length) throw new Error(\"CBOR trailing bytes\");",
+      "new": "  ",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A32",
+      "description": "DER length bounds check removed",
+      "file": "server/analytics-worker/src/der.js",
+      "old": "    if (stop > end) throw new Error(\"DER length bounds\");",
+      "new": "    ",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A33",
+      "description": "DER depth limit removed",
+      "file": "server/analytics-worker/src/der.js",
+      "old": "    if (depth > maxDepth) throw new Error(\"DER depth\");",
+      "new": "    ",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A34",
+      "description": "DER non-minimal length allowed",
+      "file": "server/analytics-worker/src/der.js",
+      "old": "      if (length < 128) throw new Error(\"DER non-minimal length\");",
+      "new": "      ",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A35",
+      "description": "challenge expiry removed",
+      "file": "server/analytics-worker/src/index.js",
+      "old": "  const issued = await env.DB.prepare(\"DELETE FROM challenges WHERE install = ? AND expires > ? RETURNING challenge\")",
+      "new": "  const issued = await env.DB.prepare(\"DELETE FROM challenges WHERE install = ? AND ? IS NOT NULL RETURNING challenge\")",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A36",
+      "description": "challenge reuse allowed",
+      "file": "server/analytics-worker/src/index.js",
+      "old": "  const issued = await env.DB.prepare(\"DELETE FROM challenges WHERE install = ? AND expires > ? RETURNING challenge\")",
+      "new": "  const issued = await env.DB.prepare(\"SELECT challenge FROM challenges WHERE install = ? AND expires > ?\")",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A37",
+      "description": "clientDataHash omits install",
+      "file": "server/analytics-worker/src/index.js",
+      "old": "      clientDataHash: await sha256(concat(unbase64(issued.challenge, 32), utf8(install))),",
+      "new": "      clientDataHash: await sha256(unbase64(issued.challenge, 32)),",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A38",
+      "description": "key uniqueness removed",
+      "file": "server/analytics-worker/schema.sql",
+      "old": "  key_id TEXT NOT NULL UNIQUE,",
+      "new": "  key_id TEXT NOT NULL,",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A39",
+      "description": "unknown key check removed",
+      "file": "server/analytics-worker/src/index.js",
+      "old": "    if (!stored) return reply(409, \"assertion failed\");",
+      "new": "    ",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A40",
+      "description": "wrapper/event install match removed",
+      "file": "server/analytics-worker/src/index.js",
+      "old": "    if (!env.APP_ATTEST_APP_ID || rows.some((r) => r.install !== signed.install)) return reply(409, \"assertion failed\");",
+      "new": "    if (!env.APP_ATTEST_APP_ID || false) return reply(409, \"assertion failed\");",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A41",
+      "description": "counter trigger removed",
+      "file": "server/analytics-worker/schema.sql",
+      "old": "WHEN NEW.counter <= OLD.counter",
+      "new": "WHEN 0",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A42",
+      "description": "counter update moved after inserts",
+      "file": "server/analytics-worker/src/index.js",
+      "old": "  if (signed) statements.unshift(env.DB.prepare(\"UPDATE attested_keys SET counter = ?, last_used = ? WHERE install = ? AND key_id = ?\")",
+      "new": "  if (signed) statements.push(env.DB.prepare(\"UPDATE attested_keys SET counter = ?, last_used = ? WHERE install = ? AND key_id = ?\")",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A43",
+      "description": "attested insertion flag removed",
+      "file": "server/analytics-worker/src/index.js",
+      "old": "        row.mal, row.anilist, row.to_mal, row.to_anilist, row.attrs, signed ? 1 : 0,",
+      "new": "        row.mal, row.anilist, row.to_mal, row.to_anilist, row.attrs, 0,",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A44",
+      "description": "v1 path removed",
+      "file": "server/analytics-worker/src/index.js",
+      "old": "  let signed = null;",
+      "new": "  let signed = null; if (json?.v !== 2) return reply(409, \"assertion failed\");",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A45",
+      "description": "body cap only applies to wrapper",
+      "file": "server/analytics-worker/src/index.js",
+      "old": "  if (bytes.length > MAX_BODY_BYTES) fail();",
+      "new": "  if (!signed && bytes.length > MAX_BODY_BYTES) fail();",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A46",
+      "description": "request cap doubled",
+      "file": "server/analytics-worker/src/index.js",
+      "old": "export const MAX_REQUEST_BYTES = 131072;",
+      "new": "export const MAX_REQUEST_BYTES = 262144;",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A47",
+      "description": "DELETE leaves key behind",
+      "file": "server/analytics-worker/src/index.js",
+      "old": "  await env.DB.batch([\"events\", \"attested_keys\", \"challenges\"].map((table) =>",
+      "new": "  await env.DB.batch([\"events\", \"challenges\"].map((table) =>",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A48",
+      "description": "DELETE leaves challenge behind",
+      "file": "server/analytics-worker/src/index.js",
+      "old": "  await env.DB.batch([\"events\", \"attested_keys\", \"challenges\"].map((table) =>",
+      "new": "  await env.DB.batch([\"events\", \"attested_keys\"].map((table) =>",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A49",
+      "description": "nightly purge leaves challenges behind",
+      "file": "server/analytics-worker/src/index.js",
+      "old": "  await env.DB.prepare(\"DELETE FROM challenges WHERE expires <= ?\").bind(Math.floor(+now / 1000)).run();",
+      "new": "  ",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A50",
+      "description": "nightly purge leaves keys behind",
+      "file": "server/analytics-worker/src/index.js",
+      "old": "  await env.DB.prepare(\"DELETE FROM attested_keys WHERE last_used < ?\").bind(cutoff).run();",
+      "new": "  ",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A51",
+      "description": "attested filter removed from pair rows",
+      "file": "server/analytics-worker/src/index.js",
+      "old": "    WHERE attested = 1 AND name IN ('work_saved', 'chapter_completed') AND mal IS NOT NULL",
+      "new": "    WHERE name IN ('work_saved', 'chapter_completed') AND mal IS NOT NULL",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A52",
+      "description": "attested filter removed from maturity",
+      "file": "server/analytics-worker/src/index.js",
+      "old": "    SELECT install FROM events WHERE attested = 1 GROUP BY install",
+      "new": "    SELECT install FROM events GROUP BY install",
+      "tests": [
+        "."
+      ]
+    },
+    {
+      "id": "A53",
+      "description": "CBOR ai > 27 changed to ai > 31",
+      "file": "server/analytics-worker/src/cbor.js",
+      "old": "      if (ai > 27) throw new Error(\"CBOR indefinite/reserved\");",
+      "new": "      if (ai > 31) throw new Error(\"CBOR indefinite/reserved\");",
+      "tests": [
+        "."
+      ],
+      "equivalent": "Reserved/indefinite additional information still fails bounds or the non-minimal/safe-integer length checks; no newly accepted input."
+    },
+    {
+      "id": "A54",
+      "description": "DER width === 0 guard removed",
+      "file": "server/analytics-worker/src/der.js",
+      "old": "      if (width === 0 || width > 4) throw new Error(\"DER indefinite/length\");",
+      "new": "      if (width > 4) throw new Error(\"DER indefinite/length\");",
+      "tests": [
+        "."
+      ],
+      "equivalent": "An indefinite length with width zero computes length zero and is still refused by length < 128 (non-minimal length)."
+    },
+    {
+      "id": "A55",
+      "description": "certificate validity restricted to leaf",
+      "file": "server/analytics-worker/src/appattest.js",
+      "old": "  check(Number.isFinite(+now) && [leaf, intermediate, root].every((c) => +now >= c.from && +now <= c.to), \"chain validity\");",
+      "new": "  check(Number.isFinite(+now) && [leaf].every((c) => +now >= c.from && +now <= c.to), \"chain validity\");",
+      "tests": [
+        "."
+      ],
+      "equivalent": "Fixture-equivalent only: Apple's genuine sample leaf validity is contained within the intermediate/root validity, so no request time distinguishes them; modifying signed dates fails chain signatures. Full chain validity remains in production."
+    },
+    {
+      "id": "A56",
+      "description": "v2 batch accepted while no App ID is configured",
+      "file": "server/analytics-worker/src/index.js",
+      "old": "if (!env.APP_ATTEST_APP_ID || rows.some((r) => r.install !== signed.install))",
+      "new": "if (rows.some((r) => r.install !== signed.install))",
+      "tests": [
+        "."
+      ],
+      "equivalent": "Without an App ID no key can be attested (the endpoints are 404), and a key stored earlier still fails verifyAssertion's RP ID check, because SHA256 of the missing App ID matches no device's RP ID hash; the batch is still answered 409."
+    },
+    {
+      "id": "A57",
+      "description": "intermediate's issuer not compared with the root's subject",
+      "file": "server/analytics-worker/src/appattest.js",
+      "old": "equal(intermediate.issuer, root.subject)",
+      "new": "true",
+      "tests": [
+        "."
+      ],
+      "equivalent": "The intermediate's signature is still verified with the pinned root's key, so no intermediate with another issuer can pass; no test can build one that reaches this check alone."
+    }
+  ]
+}

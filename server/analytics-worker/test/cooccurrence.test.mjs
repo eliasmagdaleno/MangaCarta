@@ -9,14 +9,14 @@ function uuid(n) {
 }
 
 /** Events for one install, plus the history that lets it count: three days over a week. */
-function addInstall(DB, install, ids, { name = "work_saved", anilist = null, days = ["2026-11-08", "2026-11-10"] } = {}) {
+function addInstall(DB, install, ids, { name = "work_saved", anilist = null, days = ["2026-11-08", "2026-11-10"], attested = 1 } = {}) {
   for (const day of days) {
-    DB.sqlite.prepare("INSERT INTO events (install, day, received, app, name, attrs) VALUES (?, ?, ?, 'test', 'app_active', '{}')")
-      .run(install, day, day);
+    DB.sqlite.prepare("INSERT INTO events (install, day, received, app, name, attrs, attested) VALUES (?, ?, ?, 'test', 'app_active', '{}', ?)")
+      .run(install, day, day, attested);
   }
   for (const mal of ids) {
-    DB.sqlite.prepare("INSERT INTO events (install, day, received, app, name, mal, anilist, attrs) VALUES (?, '2026-11-15', '2026-11-15', 'test', ?, ?, ?, '{}')")
-      .run(install, name, mal, anilist);
+    DB.sqlite.prepare("INSERT INTO events (install, day, received, app, name, mal, anilist, attrs, attested) VALUES (?, '2026-11-15', '2026-11-15', 'test', ?, ?, ?, '{}', ?)")
+      .run(install, name, mal, anilist, attested);
   }
 }
 
@@ -227,4 +227,27 @@ test("cooccurrence is an accepted closed-set reason", async () => {
   const body = { v: 1, events: [{ v: 1, install: uuid(1), day: "2026-11-15", app: "test", name: "for_you_opened", ids: { mal: 1 }, rank: 0, reason: "cooccurrence" }] };
   const response = await handleRequest(new Request("https://x/v1/events", { method: "POST", body: JSON.stringify(body) }), { DB }, NOW);
   assert.equal(response.status, 204);
+});
+
+test("twenty unattested installs publish nothing; twenty attested publish a pair", async () => {
+  const DB = makeD1();
+  classifyIds(DB, "mal", [1, 2]);
+  for (let i=1;i<=20;i++) addInstall(DB,uuid(i),[1,2],{attested:0});
+  // Attested history cannot make unattested pair rows count.
+  for (let i=1;i<=20;i++) addInstall(DB,uuid(i),[],{attested:1, days:["2026-11-08","2026-11-10","2026-11-15"]});
+  assert.deepEqual((await aggregate(DB)).pairs,{});
+  for (let i=1;i<=20;i++) addInstall(DB,uuid(i),[1,2],{attested:1});
+  assert.deepEqual((await aggregate(DB)).pairs,{1:[[2,20]],2:[[1,20]]});
+});
+
+test("maturity ignores unattested history even when pair rows are attested", async () => {
+  const DB = makeD1();
+  classifyIds(DB,"mal",[1,2]);
+  for(let i=1;i<=20;i++) {
+    addInstall(DB,uuid(i),[],{attested:0});
+    addInstall(DB,uuid(i),[1,2],{attested:1,days:[]});
+  }
+  assert.deepEqual((await aggregate(DB)).pairs,{});
+  for(let i=1;i<=20;i++) addInstall(DB,uuid(i),[],{attested:1});
+  assert.deepEqual((await aggregate(DB)).pairs,{1:[[2,20]],2:[[1,20]]});
 });

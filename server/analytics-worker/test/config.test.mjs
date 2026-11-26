@@ -31,6 +31,7 @@ test("wrangler.toml has observability off, logpush = false, preview_urls = false
   const config = parseTOML(readFileSync(new URL("wrangler.toml", root), "utf8"));
   assert.equal(config.name, "mangacarta-analytics");
   assert.equal(config.main, "src/index.js");
+  assert.equal(config.vars.APP_ATTEST_APP_ID, "V2BG9SHQYS.Elias-Magdaleno.Manga-Reader");
   assert.equal(config.workers_dev, true);
   assert.equal(config.preview_urls, false);
   assert.equal(config.logpush, false);

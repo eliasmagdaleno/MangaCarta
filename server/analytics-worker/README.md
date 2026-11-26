@@ -3,12 +3,14 @@
 The server half of opt-in analytics: one Cloudflare Worker and one D1 database. It accepts batches of the
 events in the analytics design (`docs/superpowers/specs/2026-11-09-analytics-design.md`, §2 and Amendments 3–5),
 deletes one install's events on request, runs a daily purge, and publishes anonymous co-occurrence counts. It reads only the request body: no IP
-address, user agent, header or time of day is read or stored.
+address, user agent or header is read or stored. Events store UTC days only; short-lived App Attest
+challenges alone store an expiry to the second.
 
 | File | What it is |
 |---|---|
 | `src/index.js` | The Worker: ingest and delete endpoints, `GET /v1/cooccurrence-v1.json`, and daily maintenance |
-| `schema.sql` | The D1 tables (`events`, `adult_catalogue`, `catalogue_checked`, `catalogue_known`, `published`). Safe to run again |
+| `src/appattest.js`, `src/cbor.js`, `src/der.js` | App Attest verification, pinned Apple root, and bounded parsers; WebCrypto only |
+| `schema.sql` | Event, catalogue, publication, key and challenge tables, plus the replay trigger. Safe to run again |
 | `wrangler.toml` | Deploy config. Every logging switch is off; each line says why |
 | `test/` | `node --test` tests over a D1 stand-in built on `node:sqlite` |
 
@@ -17,7 +19,29 @@ from this directory (`server/analytics-worker/`).
 
 ## Recommendation table
 
-Daily maintenance publishes distinct-install, k ≥ 20 MAL co-occurrence counts from saved and completed Works at `GET /v1/cooccurrence-v1.json`. After changing the Worker or schema, re-run setup steps **6 (schema)** and **7 (deploy)**.
+Daily maintenance publishes distinct-install, k ≥ 20 MAL co-occurrence counts from attested saved and completed Works at `GET /v1/cooccurrence-v1.json`. Maturity (three received days spanning seven days) also counts only attested events. After changing the Worker or schema, re-run setup steps **6 (schema)** and **7 (deploy)**.
+
+## App Attest endpoints
+
+Enable the App ID's App Attest capability in the Apple developer account and confirm its prefix before
+device capture or deployment. `[vars].APP_ATTEST_APP_ID` in `wrangler.toml` is
+`V2BG9SHQYS.Elias-Magdaleno.Manga-Reader`. Without it, challenge/attestation routes return 404 and v2 returns 409.
+
+| Request | Result |
+|---|---|
+| `POST /v1/challenges {"install":"<UUID>"}` | 200 `{"challenge":"<standard base64>"}`; 32 random bytes, once only, ten minutes; replaces an older challenge |
+| `POST /v1/attestations {"install":"<UUID>","key":"<base64>","attestation":"<base64>"}` | 204 after verification; 400 on failure; replaces this install's key and resets its counter; a key cannot belong to two installs |
+| `POST /v1/events {"v":2,"install":"<UUID>","key":"<base64>","assertion":"<base64>","body":"<v1 JSON string>"}` | 204 with `attested=1`; 409 for a failed assertion, with no events stored; malformed requests are 400 |
+| Existing v1 event batches | Still 204 with `attested=0`; still count for feature analytics |
+| `DELETE /v1/installs/<UUID>` | 204, deleting events, key and outstanding challenge together |
+
+Attestation binds `SHA256(challenge bytes || lower-case install UTF-8)`. Assertions sign the exact
+decoded `body` bytes; all events must match the wrapper's install. The request cap is 128 KB, the body
+cap remains 64 KB, keys are 32 bytes, attestations at most 16 KB, assertions at most 1 KB (decoded).
+A failed assertion tells the app to discard its key and resend v1; a storage failure remains 500 for retry.
+The counter update and inserts share a transaction; the database trigger rejects concurrent replays.
+Nightly maintenance removes expired challenges and keys unused for over twelve calendar months.
+Receipts are neither verified nor stored, per the approved design's fraud-metric omission.
 
 ## Owner setup checklist
 
@@ -161,7 +185,7 @@ Deletion:
 
 ```sh
 npx wrangler@4.162.0 d1 execute mangacarta-analytics --remote \
-  --command "DELETE FROM events WHERE install = lower('<id>')"
+  --command "DELETE FROM events WHERE install = lower('<id>'); DELETE FROM attested_keys WHERE install = lower('<id>'); DELETE FROM challenges WHERE install = lower('<id>');"
 ```
 
 Check the id looks like a UUID (`xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`) before pasting it into a command.
@@ -182,3 +206,10 @@ npm test
 
 The tests run the Worker's handlers directly against an in-memory SQLite database standing in for D1, with a
 fake AniList — nothing touches the network or Cloudflare. CI runs them as the "Worker tests" job (Node 24).
+
+Apple's recorded sample verifies without mocks at its recorded validity time, with category 1 explicitly
+enabled only in that test. Endpoint attestation tests use a narrowly scoped nonce hash stand-in to adapt
+that sample to issued challenges; assertion tests generate P-256 keys. These do not establish Apple's real
+assertion format. The optional `test/fixtures/device-capture.json` test verifies the owner's attestation and
+two assertions without mocks when the capture exists; until then it is skipped. No capture is fabricated.
+Repeat the App Attest mutation audit with `python3 -I scripts/mutate.py docs/superpowers/specs/app-attest-mutations.json` from the repository root.

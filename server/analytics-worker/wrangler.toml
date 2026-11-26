@@ -40,3 +40,6 @@ database_id = "REPLACE_WITH_ID_FROM_wrangler_d1_create"
 # Daily maintenance at 03:17 UTC: 12-month purge, adult classification, adult purge (§7.1).
 [triggers]
 crons = ["17 3 * * *"]
+
+[vars]
+APP_ATTEST_APP_ID = "V2BG9SHQYS.Elias-Magdaleno.Manga-Reader"
