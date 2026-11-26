@@ -181,4 +181,4 @@ npm test
 ```
 
 The tests run the Worker's handlers directly against an in-memory SQLite database standing in for D1, with a
-fake AniList — nothing touches the network or Cloudflare. CI does not run them yet.
+fake AniList — nothing touches the network or Cloudflare. CI runs them as the "Worker tests" job (Node 24).
