@@ -33,30 +33,37 @@ final class LocalMatchingCoordinator {
         if let listing = remoteListing, !sourceAvailable(listing.sourceId) {
             return .failed("That reading source is unavailable. Try again later.")
         }
-        let incumbentForIDs = works.workId(externalId: ids)
-        if let listing = remoteListing, let owner = works.workId(for: ListingKey(listing)),
-           owner != localID && !(combine && owner == incumbentForIDs) {
-            return .failed("That listing is already linked to another title.")
-        }
         if let incumbent = works.workId(externalId: ids), incumbent != localID, !combine {
             let title = works.work(incumbent)?.displayTitle ?? "this title"
             return .combineRequired(incumbent: incumbent,
                                     warning: "This will combine with \(title) in your library. This can't be undone.")
         }
-
-        guard let survivor = works.confirmExternalIds(ids, on: localID),
-              let live = works.canonicalWorkID(survivor) else {
-            return .failed("Couldn’t save this match. Try again.")
+        guard works.canConfirmExternalIds(ids, on: localID, linking: remoteListing) else {
+            return .failed("Couldn’t link that reading source. Try again.")
         }
+
+        let survivorBeforeWrite = works.workId(externalId: ids) ?? localID
+        let existingIDs = works.work(survivorBeforeWrite)?.externalIds
+        let introducedMalID = existingIDs?.mal == nil ? ids.mal : nil
+        let introducedAniListID = existingIDs?.anilist == nil ? ids.anilist : nil
+        let live = works.confirmExternalIds(ids, on: localID)
+        var confirmedRemoteListing: ListingKey?
         if let listing = remoteListing {
             switch works.linkListing(listing, to: live) {
-            case .added, .alreadyLinked: break
-            default: return .failed("Couldn’t link that reading source. Try again.")
+            case .added:
+                confirmedRemoteListing = ListingKey(listing)
+            case .alreadyLinked:
+                break
+            case .belongsToOtherWork, .workNotFound:
+                preconditionFailure("preflighted local match Listing link became invalid")
             }
         }
-        let record = LocalMatchRecord(localWorkID: live, confirmedAt: date, status: .confirmed,
+        let record = LocalMatchRecord(localWorkID: live, originalLocalWorkID: localID,
+                                      confirmedAt: date, status: .confirmed,
                                       malID: ids.mal, aniListID: ids.anilist,
-                                      remoteListing: remoteListing.map(ListingKey.init), evidence: evidence)
+                                      remoteListing: confirmedRemoteListing,
+                                      introducedMalID: introducedMalID,
+                                      introducedAniListID: introducedAniListID, evidence: evidence)
         matches.save(record)
         metadataChanged(live)
         progress.workMetadataChanged(live)
@@ -68,13 +75,15 @@ final class LocalMatchingCoordinator {
             return "Couldn’t unmatch this title. Try again."
         }
         guard let record = matches.record(for: workID) ?? matches.record(for: live) else { return nil }
+        guard record.status == .confirmed else { return nil }
         if let remote = record.remoteListing, remote.sourceId != LocalSource.sourceID,
            work.listings.contains(remote) {
-            works.removeListing(remote)
+            _ = works.removeListing(remote, from: live, keepingReadState: true)
         }
-        works.removeExternalIds(ExternalIDs(mal: record.malID, anilist: record.aniListID), from: live)
+        works.removeExternalIds(ExternalIDs(mal: record.introducedMalID,
+                                            anilist: record.introducedAniListID), from: live)
         matches.markUnmatched(workID: live, at: date)
-        progress.unmatch(workID: live)
+        progress.unmatch(workID: record.originalLocalWorkID)
         return nil
     }
 }

@@ -25,29 +25,43 @@ struct LocalMatchEvidence: Codable, Equatable {
 
 struct LocalMatchRecord: Codable, Equatable {
     var localWorkID: WorkID
+    var originalLocalWorkID: WorkID
     var confirmedAt: Date
     var status: LocalMatchStatus
     var malID: Int?
     var aniListID: Int?
     var remoteListing: ListingKey?
+    var introducedMalID: Int?
+    var introducedAniListID: Int?
     var evidence: [LocalMatchEvidence]
 
-    init(localWorkID: WorkID, confirmedAt: Date = Date(), status: LocalMatchStatus,
+    init(localWorkID: WorkID, originalLocalWorkID: WorkID? = nil,
+         confirmedAt: Date = Date(), status: LocalMatchStatus,
          malID: Int? = nil, aniListID: Int? = nil, remoteListing: ListingKey? = nil,
+         introducedMalID: Int? = nil, introducedAniListID: Int? = nil,
          evidence: [LocalMatchEvidence] = []) {
-        self.localWorkID = localWorkID; self.confirmedAt = confirmedAt; self.status = status
-        self.malID = malID; self.aniListID = aniListID; self.remoteListing = remoteListing; self.evidence = evidence
+        self.localWorkID = localWorkID; self.originalLocalWorkID = originalLocalWorkID ?? localWorkID
+        self.confirmedAt = confirmedAt; self.status = status
+        self.malID = malID; self.aniListID = aniListID; self.remoteListing = remoteListing
+        self.introducedMalID = introducedMalID; self.introducedAniListID = introducedAniListID
+        self.evidence = evidence
     }
 
-    private enum CodingKeys: String, CodingKey { case localWorkID, confirmedAt, status, malID, aniListID, remoteListing, evidence }
+    private enum CodingKeys: String, CodingKey {
+        case localWorkID, originalLocalWorkID, confirmedAt, status, malID, aniListID
+        case remoteListing, introducedMalID, introducedAniListID, evidence
+    }
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         localWorkID = try c.decode(WorkID.self, forKey: .localWorkID)
+        originalLocalWorkID = try c.decodeIfPresent(WorkID.self, forKey: .originalLocalWorkID) ?? localWorkID
         confirmedAt = try c.decodeIfPresent(Date.self, forKey: .confirmedAt) ?? .distantPast
         status = try c.decodeIfPresent(LocalMatchStatus.self, forKey: .status) ?? .unmatched
         malID = try c.decodeIfPresent(Int.self, forKey: .malID)
         aniListID = try c.decodeIfPresent(Int.self, forKey: .aniListID)
         remoteListing = try c.decodeIfPresent(ListingKey.self, forKey: .remoteListing)
+        introducedMalID = try c.decodeIfPresent(Int.self, forKey: .introducedMalID)
+        introducedAniListID = try c.decodeIfPresent(Int.self, forKey: .introducedAniListID)
         evidence = try c.decodeIfPresent([LocalMatchEvidence].self, forKey: .evidence) ?? []
     }
 }

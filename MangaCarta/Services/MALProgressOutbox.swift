@@ -211,10 +211,12 @@ final class MALProgressOutbox: MALProgressOutboxProtocol {
 
     func removeUndelivered(userID: Int, workID: WorkID) throws {
         ready = ready.filter { key, item in
-            !(key.userID == userID && item.workID == workID)
+            guard key.userID == userID, let itemWorkID = item.workID else { return true }
+            return itemWorkID != workID
         }
         deferred = deferred.filter { key, _ in
-            !(key.userID == userID && key.workID == workID)
+            guard key.userID == userID else { return true }
+            return key.workID != workID
         }
         try save()
     }

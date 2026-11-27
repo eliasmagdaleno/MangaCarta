@@ -53,20 +53,20 @@
     },
     {
       "id": "LM6",
-      "description": "Unmatch removes only rows owned by the Work",
+      "description": "Unmatch keeps rows with another recorded Work id",
       "file": "MangaCarta/Services/MALProgressOutbox.swift",
-      "old": "!(key.userID == userID && item.workID == workID)",
-      "new": "!(key.userID == userID && item.workID != workID)",
+      "old": "return itemWorkID != workID",
+      "new": "return itemWorkID == workID",
       "tests": [
         "MangaCartaTests/MALProgressOutboxTests/testRemoveUndeliveredKeepsDeliveredHistoryAndOtherWorkRows"
       ]
     },
     {
       "id": "LM7",
-      "description": "Unmatch removes deferred rows for the Work",
+      "description": "Unmatch removes only deferred rows with the original Work id",
       "file": "MangaCarta/Services/MALProgressOutbox.swift",
-      "old": "!(key.userID == userID && key.workID == workID)",
-      "new": "!(key.userID == userID && key.workID != workID)",
+      "old": "return key.workID != workID",
+      "new": "return key.workID == workID",
       "tests": [
         "MangaCartaTests/MALProgressOutboxTests/testRemoveUndeliveredKeepsDeliveredHistoryAndOtherWorkRows"
       ]
@@ -105,8 +105,8 @@
       "id": "LM11",
       "description": "Unmatch clears active external ids",
       "file": "MangaCarta/Services/LocalMatchingCoordinator.swift",
-      "old": "works.removeExternalIds(ExternalIDs(mal: record.malID, anilist: record.aniListID), from: live)",
-      "new": "works.setExternalIds(ExternalIDs(), on: live)",
+      "old": "ExternalIDs(mal: record.introducedMalID,\n                                            anilist: record.introducedAniListID)",
+      "new": "ExternalIDs(mal: record.malID, anilist: record.aniListID)",
       "tests": [
         "MangaCartaTests/LocalMatchingCoordinatorTests/testUnmatchAfterMergeDoesNotSplitWorks"
       ]
@@ -119,6 +119,76 @@
       "new": "AddListingResult.alreadyLinked",
       "tests": [
         "MangaCartaTests/WorkStoreTests/testExplicitLinkListingPreservesBothListingsWithoutRecordingIDs"
+      ]
+    },
+    {
+      "id": "LM15",
+      "description": "Validate listing merge feasibility before changing Work identity",
+      "file": "MangaCarta/Services/LocalMatchingCoordinator.swift",
+      "old": "guard works.canConfirmExternalIds(ids, on: localID, linking: remoteListing) else {",
+      "new": "guard true else {",
+      "tests": [
+        "MangaCartaTests/LocalMatchingCoordinatorTests/testFailedListingLinkDoesNotPersistPartialMerge"
+      ]
+    },
+    {
+      "id": "LM16",
+      "description": "Only record a remote Listing newly attached by this match",
+      "file": "MangaCarta/Services/LocalMatchingCoordinator.swift",
+      "old": "remoteListing: confirmedRemoteListing,\n                                      introducedMalID: introducedMalID,",
+      "new": "remoteListing: confirmedRemoteListing ?? remoteListing.map(ListingKey.init),\n                                      introducedMalID: introducedMalID,",
+      "tests": [
+        "MangaCartaTests/LocalMatchingCoordinatorTests/testUnmatchKeepsIncumbentListingAlreadyPresentBeforeConfirmation"
+      ]
+    },
+    {
+      "id": "LM17",
+      "description": "Only clear the external id value that was confirmed",
+      "file": "MangaCarta/Services/WorkStore.swift",
+      "old": "value.externalIds.mal == malID",
+      "new": "value.externalIds.mal != malID",
+      "tests": [
+        "MangaCartaTests/LocalMatchingCoordinatorTests/testUnmatchClearsOnlyTheRecordedExternalIDValue"
+      ]
+    },
+    {
+      "id": "LM18",
+      "description": "Do not remove an external id the incumbent already owned",
+      "file": "MangaCarta/Services/LocalMatchingCoordinator.swift",
+      "old": "let introducedMalID = existingIDs?.mal == nil ? ids.mal : nil",
+      "new": "let introducedMalID = ids.mal",
+      "tests": [
+        "MangaCartaTests/LocalMatchingCoordinatorTests/testUnmatchPreservesIncumbentExternalIDAndProgress"
+      ]
+    },
+    {
+      "id": "LM19",
+      "description": "Remove an external id newly introduced by this confirmation",
+      "file": "MangaCarta/Services/LocalMatchingCoordinator.swift",
+      "old": "let introducedMalID = existingIDs?.mal == nil ? ids.mal : nil",
+      "new": "let introducedMalID: Int? = nil",
+      "tests": [
+        "MangaCartaTests/LocalMatchingCoordinatorTests/testUnmatchRemovesExternalIDIntroducedByNonCombineMatch"
+      ]
+    },
+    {
+      "id": "LM20",
+      "description": "Remove alias progress under the original local Work id",
+      "file": "MangaCarta/Services/LocalMatchingCoordinator.swift",
+      "old": "progress.unmatch(workID: record.originalLocalWorkID)",
+      "new": "progress.unmatch(workID: live)",
+      "tests": [
+        "MangaCartaTests/LocalMatchingCoordinatorTests/testUnmatchAfterMergeRemovesPromotedAliasProgressOnly"
+      ]
+    },
+    {
+      "id": "LM21",
+      "description": "Decode slice 1 records with the original id fallback",
+      "file": "MangaCarta/Models/LocalMatchRecord.swift",
+      "old": "originalLocalWorkID = try c.decodeIfPresent(WorkID.self, forKey: .originalLocalWorkID) ?? localWorkID",
+      "new": "originalLocalWorkID = try c.decode(WorkID.self, forKey: .originalLocalWorkID)",
+      "tests": [
+        "MangaCartaTests/LocalMatchStoreTests/testSliceOneLocalMatchesFileDecodesWithoutReviewFields"
       ]
     }
   ]

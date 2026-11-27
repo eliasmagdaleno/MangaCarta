@@ -102,6 +102,134 @@ final class LocalMatchingCoordinatorTests: XCTestCase {
         XCTAssertEqual(outbox.nextEligible(userID: 7, at: .distantFuture)?.desiredProgress, 7)
     }
 
+    @MainActor func testUnmatchAfterMergeRemovesPromotedAliasProgressOnly() throws {
+        let dir = makeTestDirectory("LocalMatchUnmatchMergedProgress")
+        let works = WorkStore(directory: dir)
+        let incumbent = works.mint(from: manga("incumbent", mal: 93))
+        let local = works.mint(from: manga("local", source: LocalSource.sourceID))
+        let other = works.mint(from: manga("other", source: LocalSource.sourceID))
+        let outbox = MALProgressOutbox(directory: dir)
+        try outbox.defer(userID: 7, workID: local, desiredProgress: 8, completedAt: Date())
+        try outbox.enqueue(userID: 7, mangaID: 94, desiredProgress: 3, completedAt: Date(), workID: other)
+        let progress = progressCoordinator(outbox: outbox, works: works)
+        let store = LocalMatchStore(directory: dir)
+        let coordinator = LocalMatchingCoordinator(works: works, matches: store, progress: progress,
+                                                   metadataChanged: { _ in })
+
+        XCTAssertEqual(coordinator.confirm(localWorkID: local,
+            ids: ExternalIDs(mal: 93, anilist: nil), combine: true), .confirmed(incumbent))
+        XCTAssertEqual(outbox.nextEligible(userID: 7, at: .distantFuture)?.mangaID, 93)
+        try outbox.defer(userID: 7, workID: local, desiredProgress: 9, completedAt: Date())
+        XCTAssertEqual(outbox.summary(userID: 7).deferred, 1)
+
+        XCTAssertNil(coordinator.unmatch(workID: local))
+
+        XCTAssertEqual(outbox.nextEligible(userID: 7, at: .distantFuture)?.mangaID, 94)
+        XCTAssertEqual(outbox.summary(userID: 7).pending, 1)
+        XCTAssertEqual(outbox.summary(userID: 7).deferred, 0)
+    }
+
+    @MainActor func testFailedListingLinkDoesNotPersistPartialMerge() {
+        let dir = makeTestDirectory("LocalMatchFailedListingPreflight")
+        let works = WorkStore(directory: dir)
+        let local = works.mint(from: manga("local", source: LocalSource.sourceID))
+        let remote = manga("remote", source: "remote")
+        XCTAssertEqual(works.linkListing(remote, to: local), .added)
+        XCTAssertEqual(works.removeListing(ListingKey(remote), from: local, keepingReadState: true), .removed)
+        let incumbent = works.mint(from: manga("incumbent", source: "incumbent", mal: 95))
+        XCTAssertEqual(works.linkListing(remote, to: incumbent), .added)
+        let store = LocalMatchStore(directory: dir)
+        let coordinator = LocalMatchingCoordinator(works: works, matches: store,
+            progress: progressCoordinator(outbox: MALProgressOutbox(directory: dir)), metadataChanged: { _ in })
+        let localBefore = works.work(local)
+        let incumbentBefore = works.work(incumbent)
+
+        guard case .failed = coordinator.confirm(localWorkID: local,
+            ids: ExternalIDs(mal: 95, anilist: nil), remoteListing: remote, combine: true) else {
+            return XCTFail("expected listing refusal")
+        }
+
+        XCTAssertEqual(works.canonicalWorkID(local), local)
+        XCTAssertEqual(works.work(local)?.listings, localBefore?.listings)
+        XCTAssertEqual(works.work(local)?.removedListings, localBefore?.removedListings)
+        XCTAssertEqual(works.work(local)?.externalIds, localBefore?.externalIds)
+        XCTAssertEqual(works.work(incumbent)?.listings, incumbentBefore?.listings)
+        XCTAssertEqual(works.work(incumbent)?.removedListings, incumbentBefore?.removedListings)
+        XCTAssertEqual(works.work(incumbent)?.externalIds, incumbentBefore?.externalIds)
+        XCTAssertNil(store.record(for: local))
+    }
+
+    @MainActor func testUnmatchKeepsIncumbentListingAlreadyPresentBeforeConfirmation() {
+        let dir = makeTestDirectory("LocalMatchUnmatchExistingListing")
+        let works = WorkStore(directory: dir)
+        let remote = manga("remote", source: "remote")
+        let incumbent = works.mint(from: manga("incumbent", source: "incumbent", mal: 96))
+        XCTAssertEqual(works.linkListing(remote, to: incumbent), .added)
+        let localListing = manga("local", source: LocalSource.sourceID)
+        let local = works.mint(from: localListing)
+        let store = LocalMatchStore(directory: dir)
+        let coordinator = LocalMatchingCoordinator(works: works, matches: store,
+            progress: progressCoordinator(outbox: MALProgressOutbox(directory: dir)), metadataChanged: { _ in })
+
+        XCTAssertEqual(coordinator.confirm(localWorkID: local, ids: ExternalIDs(mal: 96, anilist: nil),
+            remoteListing: remote, combine: true), .confirmed(incumbent))
+        XCTAssertNil(coordinator.unmatch(workID: local))
+
+        XCTAssertTrue(works.work(incumbent)?.listings.contains(ListingKey(remote)) == true)
+        XCTAssertTrue(works.work(incumbent)?.listings.contains(ListingKey(localListing)) == true)
+    }
+
+    @MainActor func testUnmatchPreservesIncumbentExternalIDAndProgress() throws {
+        let dir = makeTestDirectory("LocalMatchKeepIncumbentIdentity")
+        let works = WorkStore(directory: dir)
+        let incumbent = works.mint(from: manga("incumbent", mal: 5))
+        let local = works.mint(from: manga("local", source: LocalSource.sourceID))
+        let outbox = MALProgressOutbox(directory: dir)
+        try outbox.enqueue(userID: 7, mangaID: 5, desiredProgress: 3,
+                           completedAt: Date(), workID: incumbent)
+        let coordinator = LocalMatchingCoordinator(works: works, matches: LocalMatchStore(directory: dir),
+            progress: progressCoordinator(outbox: outbox, works: works), metadataChanged: { _ in })
+
+        XCTAssertEqual(coordinator.confirm(localWorkID: local, ids: ExternalIDs(mal: 5, anilist: nil),
+                                            combine: true), .confirmed(incumbent))
+        XCTAssertNil(coordinator.unmatch(workID: local))
+
+        XCTAssertEqual(works.work(incumbent)?.externalIds.mal, 5)
+        XCTAssertEqual(outbox.nextEligible(userID: 7, at: .distantFuture)?.workID, incumbent)
+        XCTAssertEqual(outbox.summary(userID: 7).pending, 1)
+    }
+
+    @MainActor func testUnmatchRemovesExternalIDIntroducedByNonCombineMatch() {
+        let dir = makeTestDirectory("LocalMatchRemoveIntroducedID")
+        let works = WorkStore(directory: dir)
+        let local = works.mint(from: manga("local", source: LocalSource.sourceID))
+        let coordinator = LocalMatchingCoordinator(works: works, matches: LocalMatchStore(directory: dir),
+            progress: progressCoordinator(outbox: MALProgressOutbox(directory: dir), works: works),
+            metadataChanged: { _ in })
+
+        XCTAssertEqual(coordinator.confirm(localWorkID: local,
+            ids: ExternalIDs(mal: 7, anilist: nil)), .confirmed(local))
+        XCTAssertEqual(works.work(local)?.externalIds.mal, 7)
+        XCTAssertNil(coordinator.unmatch(workID: local))
+        XCTAssertNil(works.work(local)?.externalIds.mal)
+    }
+
+    @MainActor func testUnmatchClearsOnlyTheRecordedExternalIDValue() {
+        let dir = makeTestDirectory("LocalMatchUnmatchDifferentExternalID")
+        let works = WorkStore(directory: dir)
+        let local = works.mint(from: manga("local", source: LocalSource.sourceID))
+        _ = works.confirmExternalIds(ExternalIDs(mal: 97, anilist: nil), on: local)
+        let store = LocalMatchStore(directory: dir)
+        store.save(LocalMatchRecord(localWorkID: local, status: .confirmed, malID: 98,
+                                    introducedMalID: 98))
+        let coordinator = LocalMatchingCoordinator(works: works, matches: store,
+            progress: progressCoordinator(outbox: MALProgressOutbox(directory: dir)), metadataChanged: { _ in })
+
+        XCTAssertNil(coordinator.unmatch(workID: local))
+
+        XCTAssertEqual(works.work(local)?.externalIds.mal, 97)
+    }
+
     @MainActor func testUnmatchAfterMergeDoesNotSplitWorks() {
         let dir = makeTestDirectory("LocalMatchMergedUnmatch")
         let works = WorkStore(directory: dir)
@@ -119,7 +247,7 @@ final class LocalMatchingCoordinatorTests: XCTestCase {
         XCTAssertNil(coordinator.unmatch(workID: local))
         XCTAssertEqual(works.work(local)?.id, incumbent)
         XCTAssertEqual(Set(works.work(incumbent)?.listings ?? []), Set([ListingKey(incumbentListing), ListingKey(localListing)]))
-        XCTAssertNil(works.work(incumbent)?.externalIds.mal)
+        XCTAssertEqual(works.work(incumbent)?.externalIds.mal, 61)
     }
 
     @MainActor func testFailedMatchDoesNotPersistPartialIdentity() {
@@ -139,9 +267,11 @@ final class LocalMatchingCoordinatorTests: XCTestCase {
         XCTAssertFalse(works.work(id)?.listings.contains(ListingKey(remote)) ?? true)
     }
 
-    @MainActor private func progressCoordinator(outbox: MALProgressOutbox) -> MALProgressCoordinator {
+    @MainActor private func progressCoordinator(outbox: MALProgressOutbox,
+                                                works: WorkStore? = nil) -> MALProgressCoordinator {
         MALProgressCoordinator(outbox: outbox, client: LocalMatchDelivery(), account: LocalMatchAccount(),
-                               malID: { _ in nil })
+                               malID: { works?.work($0)?.externalIds.mal },
+                               canonicalWorkID: { works?.canonicalWorkID($0) ?? $0 })
     }
 
     private func manga(_ id: String, source: String = "mangadex", mal: Int? = nil) -> Manga {
