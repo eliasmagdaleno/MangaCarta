@@ -115,8 +115,8 @@
       "id": "E14",
       "description": "ordinary unknown Sources retain legacy participation fallback",
       "file": "MangaCarta/Services/AppComposition.swift",
-      "old": "resolvedRegistry.source(id: key.sourceId)?.participatesInUpdates ?? true",
-      "new": "resolvedRegistry.source(id: key.sourceId)?.participatesInUpdates == true",
+      "old": "MetadataUpgradeQueue.metadataEligibility(for: work, matches: localMatches) { key in\n                                                     resolvedRegistry.source(id: key.sourceId)?.participatesInUpdates ?? true",
+      "new": "MetadataUpgradeQueue.metadataEligibility(for: work, matches: localMatches) { key in\n                                                     resolvedRegistry.source(id: key.sourceId)?.participatesInUpdates == true",
       "tests": [
         "MangaCartaTests/AppCompositionTests/testProgressDeferredForAnUnresolvedWorkIsPromotedWhenTheQueueLearnsItsMALID"
       ]
