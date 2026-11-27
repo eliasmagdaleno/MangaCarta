@@ -9,8 +9,7 @@ struct LocalTitleEvidence: Equatable {
         var seen = Set<String>()
         var result: [String] = []
         for item in items {
-            let filenameStem = URL(fileURLWithPath: item.sourceFilename)
-                .deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " ")
+            let filenameStem = LocalLibraryStore.filenameTitle(for: URL(fileURLWithPath: item.sourceFilename))
             for candidate in [item.comicInfo?.series, item.comicInfo?.title, filenameStem].compactMap({ $0 }) {
                 let title = candidate.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !title.isEmpty && seen.insert(title).inserted { result.append(title) }

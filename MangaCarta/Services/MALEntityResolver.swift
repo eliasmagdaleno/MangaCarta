@@ -54,6 +54,14 @@ final class MALEntityResolver {
         let failure: Error?
     }
 
+    private struct BridgePool {
+        let ordered: [Manga]
+        let idBearing: [Manga]
+        let idLess: [Manga]
+        let byMALID: [Int: [String]]
+        let failure: Error?
+    }
+
     private let store: EntityResolutionStore
     private let matcher: MALTitleMatcher
     private let search: Search
@@ -167,20 +175,20 @@ final class MALEntityResolver {
         guard Self.isBridgeable(work) else { return [] }
         // The bridge can return id-less Listings for slice 4's Listing suggestions. This
         // slice only exposes MAL candidates, so id-less rows are intentionally omitted.
-        let bridge = try await bridgeMALPool(sourceTitles: work.knownTitles)
-        let bridgePool = bridge.candidates
-        let candidates = matcher.acceptedScores(sourceTitles: work.knownTitles, candidates: bridgePool)
+        let bridge = try await bridgePool(sourceTitles: work.knownTitles)
+        let bridgeCandidates = bridge.byMALID.keys.sorted()
+            .map { (id: $0, titles: bridge.byMALID[$0] ?? []) }
+        let candidates = matcher.acceptedScores(sourceTitles: work.knownTitles, candidates: bridgeCandidates)
         if candidates.isEmpty, let failure = bridge.failure { throw failure }
         return candidates.map { item in
-            let titles = bridgePool.first(where: { $0.id == item.id })?.titles ?? []
+            let titles = bridgeCandidates.first(where: { $0.id == item.id })?.titles ?? []
             return ScoredCandidate(malID: item.id,
                                    matchedTitle: Self.bestMatchedTitle(sourceTitles: work.knownTitles, titles: titles),
                                    score: item.score, titles: titles, isAmbiguous: item.isAmbiguous)
         }
     }
 
-    private func bridgeMALPool(sourceTitles: [String]) async throws ->
-        (candidates: [(id: Int, titles: [String])], failure: Error?) {
+    private func bridgePool(sourceTitles: [String]) async throws -> BridgePool {
         var listings: [String: Manga] = [:]
         var failure: Error?
         for title in sourceTitles.prefix(titleSearchLimit) {
@@ -190,13 +198,15 @@ final class MALEntityResolver {
                 }
             } catch { failure = error }
         }
-        let idBearing = listings.values.filter { $0.malId != nil }
+        let ordered = listings.values.sorted { $0.id < $1.id }
+        let idBearing = ordered.filter { $0.malId != nil }
+        let idLess = ordered.filter { $0.malId == nil }
         var byMalID: [Int: [String]] = [:]
         for listing in idBearing {
             if let id = listing.malId { byMalID[id, default: []].append(contentsOf: Self.titles(of: listing)) }
         }
-        let pool = byMalID.keys.sorted().map { (id: $0, titles: byMalID[$0] ?? []) }
-        return (pool, failure)
+        return BridgePool(ordered: ordered, idBearing: idBearing, idLess: idLess,
+                          byMALID: byMalID, failure: failure)
     }
 
     /// One search per known title, unioned into a single pool; this shared construction
@@ -255,29 +265,17 @@ final class MALEntityResolver {
     /// series was identified but carries no MAL link — those titles are worth keeping
     /// regardless, because `knownTitles` growing is what reopens an `.unmatched` Work.
     private func bridged(sourceTitles: [String]) async throws -> WorkResolution {
-        var pool: [String: Manga] = [:]
-        var failure: Error?
-        for title in sourceTitles.prefix(titleSearchLimit) {
-            do {
-                for listing in try await bridgeSearch(title) where pool[listing.id] == nil {
-                    pool[listing.id] = listing
-                }
-            } catch {
-                failure = error
-            }
-        }
-        guard !pool.isEmpty else {
+        let pool = try await bridgePool(sourceTitles: sourceTitles)
+        guard !pool.ordered.isEmpty else {
             // Nothing to reason about. A failure here is transient and must not be
             // remembered as an answer, same rule as the MAL round above.
-            if let failure { throw failure }
+            if let failure = pool.failure { throw failure }
             return .unresolved
         }
 
         // Sorted for the same reason the MAL pool is: dictionary order is randomized per
         // process and the matcher's sort is not stable, so ties would resolve differently
         // between launches.
-        let ordered = pool.values.sorted { $0.id < $1.id }
-
         // **The partition** (ADR-0016 Decision 3). MangaDex carries variant entries whose
         // alt-title lists contain the canonical title verbatim — *Tower of God (Book
         // Version)* ties the real series at 1.000 — and measured against the live API those
@@ -285,23 +283,19 @@ final class MALEntityResolver {
         // question being asked, so it does not belong in the ranking that answers it.
         // Removing it is not loosening the ambiguity guard; it is declining to count a
         // non-answer as a competing answer.
-        let idBearing = ordered.filter { $0.malId != nil }
-        let idLess = ordered.filter { $0.malId == nil }
+        let idBearing = pool.idBearing
+        let idLess = pool.idLess
 
         // Within the id-bearing pool, collapsing by `malId` *is* right — two entries that
         // agree on the id are two spellings of one answer, not a doubt — and it is safe
         // here precisely because every key is non-nil. Titles union rather than first-wins:
         // matching is free and more spellings can only help.
-        var byMalId: [Int: [String]] = [:]
-        for listing in idBearing {
-            byMalId[listing.malId!, default: []].append(contentsOf: Self.titles(of: listing))
-        }
-        let idCandidates = byMalId
+        let idCandidates = pool.byMALID
             .sorted { $0.key < $1.key }
             .map { (id: $0.key, titles: $0.value) }
 
         if let matched = matcher.bestMatch(sourceTitles: sourceTitles, candidates: idCandidates) {
-            return WorkResolution(malId: matched, harvestedTitles: byMalId[matched] ?? [])
+            return WorkResolution(malId: matched, harvestedTitles: pool.byMALID[matched] ?? [])
         }
 
         // Ordering is not an optimization: matching the id-less pool first would let a
@@ -309,8 +303,8 @@ final class MALEntityResolver {
         guard let matchedListingId = matcher.bestMatch(
                 sourceTitles: sourceTitles,
                 candidates: idLess.map { (id: $0.id, titles: Self.titles(of: $0)) }),
-              let identified = pool[matchedListingId] else {
-            if let failure { throw failure }
+              let identified = pool.ordered.first(where: { $0.id == matchedListingId }) else {
+            if let failure = pool.failure { throw failure }
             return .unresolved
         }
 

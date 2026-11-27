@@ -98,7 +98,7 @@ actor LocalLibraryStore {
                 try? fm.removeItem(at: staging)
                 return .duplicate(itemId: itemId)
             }
-            let filenameTitle = source.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " ")
+            let filenameTitle = Self.filenameTitle(for: source)
             let isPDF = bytes.starts(with: Data("%PDF-".utf8))
                 || source.pathExtension.caseInsensitiveCompare("pdf") == .orderedSame
             if isPDF {
@@ -166,6 +166,10 @@ actor LocalLibraryStore {
             if error is CancellationError { throw LocalImportError.cancelled }
             throw error
         }
+    }
+
+    static func filenameTitle(for source: URL) -> String {
+        source.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " ")
     }
 
     private func readComicInfo(from reader: ZipArchiveReader) throws -> ComicInfo? {

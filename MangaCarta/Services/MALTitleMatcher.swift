@@ -87,14 +87,8 @@ struct MALTitleMatcher {
     /// precision-biased matcher repeatedly does not preserve precision (ADR-0008).
     func bestMatch<ID>(sourceTitles: [String],
                        candidates: [(id: ID, titles: [String])]) -> ID? {
-        let scored = rankedScores(sourceTitles: sourceTitles, candidates: candidates)
-        guard !scored.isEmpty else { return nil }
-
-        guard let best = scored.first, best.score >= acceptanceThreshold else { return nil }
-        // Ambiguity guard rejects even exact matches (1.0) if the runner-up is too close.
-        if scored.count >= 2, best.score - scored[1].score < ambiguityMargin {
-            return nil   // too close to call — precision over recall
-        }
+        guard let best = acceptedScores(sourceTitles: sourceTitles, candidates: candidates).first,
+              !best.isAmbiguous else { return nil }
         return best.id
     }
 
@@ -117,16 +111,16 @@ struct MALTitleMatcher {
         }.map { ($0.1, $0.2) }
     }
 
-    /// Threshold-qualified candidates with the same ambiguity rule used by `bestMatch`.
+    /// Threshold-qualified candidates, with ambiguity checked against every scored result.
     func acceptedScores<ID>(sourceTitles: [String],
                             candidates: [(id: ID, titles: [String])]) -> [(id: ID, score: Double, isAmbiguous: Bool)] {
-        let ranked = rankedScores(sourceTitles: sourceTitles, candidates: candidates)
-            .filter { $0.score >= acceptanceThreshold }
-        return ranked.enumerated().map { index, candidate in
-            (candidate.id, candidate.score,
-             ranked.enumerated().contains { otherIndex, other in
-                 otherIndex != index && abs(other.score - candidate.score) < ambiguityMargin
-             })
+        let scored = rankedScores(sourceTitles: sourceTitles, candidates: candidates)
+        return scored.enumerated().compactMap { index, candidate in
+            guard candidate.score >= acceptanceThreshold else { return nil }
+            let isAmbiguous = scored.enumerated().contains { otherIndex, other in
+                otherIndex != index && abs(other.score - candidate.score) < ambiguityMargin
+            }
+            return (candidate.id, candidate.score, isAmbiguous)
         }
     }
 
