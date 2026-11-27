@@ -8,9 +8,8 @@
 | E8 | confirmation requests the metadata queue after saving the match | KILLED | `LocalMatchingCoordinatorTests/testConfirmPostsMetadataChangeForCanonicalSurvivor()` |
 | E9 | Local remains excluded from content refresh | KILLED | `LibraryRefreshCoordinatorTests/matchedLocalWorkIsNeverContentRefreshed()` +1 more |
 | E10 | rejected match records with provider ids stay ineligible | KILLED | `MetadataUpgradeQueueTests/testRejectedLocalMatchWithProviderIDIsIneligible()` |
-| E11 | Local plus participating remote Listing remains eligible without a match record | KILLED | `MetadataUpgradeQueueTests/testLocalAndRemoteWorkWithoutMatchRecordRemainsEligible()` |
+| E11 | Local plus unregistered remote Listing remains eligible without a match record | KILLED | `MetadataUpgradeQueueTests/testLocalAndUnregisteredRemoteWorkWithoutMatchRecordRemainsEligible()` |
 | E12 | local-only Work without a match record stays ineligible | KILLED | `MetadataUpgradeQueueTests/testLocalOnlyWorkWithoutMatchRecordIsIneligible()` |
-| E13 | unregistered remote Listing does not qualify a confirmed local Work without ids | KILLED | `MetadataUpgradeQueueTests/testConfirmedLocalWorkWithUnregisteredRemoteListingAndNoIDsIsIneligible()` |
 | E14 | ordinary unknown Sources retain legacy participation fallback | KILLED | `AppCompositionTests/testProgressDeferredForAnUnresolvedWorkIsPromotedWhenTheQueueLearnsItsMALID()` |
 
-12 killed, 0 survived, 0 equivalent, 0 error (of 12).
+11 killed, 0 survived, 0 equivalent, 0 error (of 11).

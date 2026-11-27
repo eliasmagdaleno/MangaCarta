@@ -35,8 +35,8 @@
       "id": "E6",
       "description": "ordinary remote Works retain their existing eligibility",
       "file": "MangaCarta/Services/MetadataUpgradeQueue.swift",
-      "old": "return remoteListings.contains(where: listingParticipates)",
-      "new": "return false",
+      "old": "if remoteListings.contains(where: listingParticipates) { return true }",
+      "new": "if false { return true }",
       "tests": [
         "MangaCartaTests/MetadataUpgradeQueueTests/testOrdinaryRemoteWorkUsesProductionEligibilityPredicate"
       ]
