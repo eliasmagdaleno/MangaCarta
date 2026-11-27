@@ -96,9 +96,9 @@
       "description": "Confirmation promotes deferred MAL progress",
       "file": "MangaCarta/Services/LocalMatchingCoordinator.swift",
       "old": "progress.workMetadataChanged(live)",
-      "new": "progress.workMetadataChanged(localID)",
+      "new": "progress.flush()",
       "tests": [
-        "MangaCartaTests/MALProgressCoordinatorTests/testLocalConfirmationPromotesDeferredProgressThroughAlias"
+        "MangaCartaTests/LocalMatchingCoordinatorTests/testConfirmPromotesDeferredProgressThroughMergedAlias"
       ]
     },
     {
