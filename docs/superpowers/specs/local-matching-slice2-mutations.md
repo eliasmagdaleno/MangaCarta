@@ -19,5 +19,6 @@
 | LM19 | Remove an external id newly introduced by this confirmation | KILLED | `LocalMatchingCoordinatorTests/testUnmatchRemovesExternalIDIntroducedByNonCombineMatch()` |
 | LM20 | Remove alias progress under the original local Work id | KILLED | `LocalMatchingCoordinatorTests/testUnmatchAfterMergeRemovesPromotedAliasProgressOnly()` |
 | LM21 | Decode slice 1 records with the original id fallback | KILLED | `LocalMatchStoreTests/testSliceOneLocalMatchesFileDecodesWithoutReviewFields()` |
+| LM22 | Do not remove an external id already held by the local Work before combine | KILLED | `LocalMatchingCoordinatorTests/testUnmatchPreservesLocalExternalIDMergedIntoIncumbent()` |
 
-19 killed, 0 survived, 0 equivalent, 0 error (of 19).
+20 killed, 0 survived, 0 equivalent, 0 error (of 20).

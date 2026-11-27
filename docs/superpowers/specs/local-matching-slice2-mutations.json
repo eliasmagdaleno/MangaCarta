@@ -155,7 +155,7 @@
       "id": "LM18",
       "description": "Do not remove an external id the incumbent already owned",
       "file": "MangaCarta/Services/LocalMatchingCoordinator.swift",
-      "old": "let introducedMalID = existingIDs?.mal == nil ? ids.mal : nil",
+      "old": "let introducedMalID = localExistingIDs?.mal == nil && existingIDs?.mal == nil\n            ? ids.mal : nil",
       "new": "let introducedMalID = ids.mal",
       "tests": [
         "MangaCartaTests/LocalMatchingCoordinatorTests/testUnmatchPreservesIncumbentExternalIDAndProgress"
@@ -165,7 +165,7 @@
       "id": "LM19",
       "description": "Remove an external id newly introduced by this confirmation",
       "file": "MangaCarta/Services/LocalMatchingCoordinator.swift",
-      "old": "let introducedMalID = existingIDs?.mal == nil ? ids.mal : nil",
+      "old": "let introducedMalID = localExistingIDs?.mal == nil && existingIDs?.mal == nil\n            ? ids.mal : nil",
       "new": "let introducedMalID: Int? = nil",
       "tests": [
         "MangaCartaTests/LocalMatchingCoordinatorTests/testUnmatchRemovesExternalIDIntroducedByNonCombineMatch"
