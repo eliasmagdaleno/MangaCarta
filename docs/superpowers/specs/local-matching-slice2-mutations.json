@@ -1,0 +1,125 @@
+{
+  "runner": "swift",
+  "mutations": [
+    {
+      "id": "LM1",
+      "description": "Cancel must stop before confirmation",
+      "file": "MangaCarta/Services/LocalMatchingCoordinator.swift",
+      "old": "!combine {",
+      "new": "combine {",
+      "tests": [
+        "MangaCartaTests/LocalMatchingCoordinatorTests/testCancelledCombineDoesNotWrite"
+      ]
+    },
+    {
+      "id": "LM2",
+      "description": "Preserve the irreversible warning wording",
+      "file": "MangaCarta/Services/LocalMatchingCoordinator.swift",
+      "old": "This can't be undone.",
+      "new": "This can be undone.",
+      "tests": [
+        "MangaCartaTests/LocalMatchingCoordinatorTests/testCancelledCombineDoesNotWrite"
+      ]
+    },
+    {
+      "id": "LM3",
+      "description": "Unavailable Source must fail before identity writes",
+      "file": "MangaCarta/Services/LocalMatchingCoordinator.swift",
+      "old": "!sourceAvailable(listing.sourceId)",
+      "new": "sourceAvailable(listing.sourceId)",
+      "tests": [
+        "MangaCartaTests/LocalMatchingCoordinatorTests/testFailedMatchDoesNotPersistPartialIdentity"
+      ]
+    },
+    {
+      "id": "LM4",
+      "description": "Explicit identity merge keeps incumbent Work id",
+      "file": "MangaCarta/Services/WorkStore.swift",
+      "old": "merge(id, into: live)",
+      "new": "merge(live, into: id)",
+      "tests": [
+        "MangaCartaTests/LocalMatchingCoordinatorTests/testUnmatchAfterMergeDoesNotSplitWorks"
+      ]
+    },
+    {
+      "id": "LM5",
+      "description": "Deferred Work aliases are followed during promotion",
+      "file": "MangaCarta/Services/MALProgressCoordinator.swift",
+      "old": "deferredID == workID || canonicalWorkID(deferredID) == survivor",
+      "new": "deferredID == workID",
+      "tests": [
+        "MangaCartaTests/LocalMatchingCoordinatorTests/testConfirmPromotesDeferredProgressThroughMergedAlias"
+      ]
+    },
+    {
+      "id": "LM6",
+      "description": "Unmatch removes only rows owned by the Work",
+      "file": "MangaCarta/Services/MALProgressOutbox.swift",
+      "old": "!(key.userID == userID && item.workID == workID)",
+      "new": "!(key.userID == userID && item.workID != workID)",
+      "tests": [
+        "MangaCartaTests/MALProgressOutboxTests/testRemoveUndeliveredKeepsDeliveredHistoryAndOtherWorkRows"
+      ]
+    },
+    {
+      "id": "LM7",
+      "description": "Unmatch removes deferred rows for the Work",
+      "file": "MangaCarta/Services/MALProgressOutbox.swift",
+      "old": "!(key.userID == userID && key.workID == workID)",
+      "new": "!(key.userID == userID && key.workID != workID)",
+      "tests": [
+        "MangaCartaTests/MALProgressOutboxTests/testRemoveUndeliveredKeepsDeliveredHistoryAndOtherWorkRows"
+      ]
+    },
+    {
+      "id": "LM8",
+      "description": "Confirmed match records stay confirmed",
+      "file": "MangaCarta/Services/LocalMatchingCoordinator.swift",
+      "old": "status: .confirmed,",
+      "new": "status: .unmatched,",
+      "tests": [
+        "MangaCartaTests/LocalMatchingCoordinatorTests/testConfirmPostsMetadataChangeForCanonicalSurvivor"
+      ]
+    },
+    {
+      "id": "LM9",
+      "description": "Confirmation announces canonical metadata changes",
+      "file": "MangaCarta/Services/LocalMatchingCoordinator.swift",
+      "old": "metadataChanged(live)",
+      "new": "metadataChanged(localID)",
+      "tests": [
+        "MangaCartaTests/LocalMatchingCoordinatorTests/testConfirmPostsMetadataChangeForCanonicalSurvivor"
+      ]
+    },
+    {
+      "id": "LM10",
+      "description": "Confirmation promotes deferred MAL progress",
+      "file": "MangaCarta/Services/LocalMatchingCoordinator.swift",
+      "old": "progress.workMetadataChanged(live)",
+      "new": "progress.workMetadataChanged(localID)",
+      "tests": [
+        "MangaCartaTests/MALProgressCoordinatorTests/testLocalConfirmationPromotesDeferredProgressThroughAlias"
+      ]
+    },
+    {
+      "id": "LM11",
+      "description": "Unmatch clears active external ids",
+      "file": "MangaCarta/Services/LocalMatchingCoordinator.swift",
+      "old": "works.removeExternalIds(ExternalIDs(mal: record.malID, anilist: record.aniListID), from: live)",
+      "new": "works.setExternalIds(ExternalIDs(), on: live)",
+      "tests": [
+        "MangaCartaTests/LocalMatchingCoordinatorTests/testUnmatchAfterMergeDoesNotSplitWorks"
+      ]
+    },
+    {
+      "id": "LM12",
+      "description": "Explicit link operation must attach the Listing",
+      "file": "MangaCarta/Services/WorkStore.swift",
+      "old": "addListing(listing, to: work, recordExternalIds: false)",
+      "new": "AddListingResult.alreadyLinked",
+      "tests": [
+        "MangaCartaTests/WorkStoreTests/testExplicitLinkListingPreservesBothListingsWithoutRecordingIDs"
+      ]
+    }
+  ]
+}

@@ -82,6 +82,20 @@ final class WorkStore: ObservableObject {
         return listingIndex[listing].flatMap(resolve)
     }
 
+    /// The live id for an id that may have been retired by an external-id merge.
+    func canonicalWorkID(_ id: WorkID) -> WorkID? {
+        loadIfNeeded()
+        return resolve(id)
+    }
+
+    /// Explicitly attaches a remote Listing to a Work without recording its IDs. The
+    /// caller has already confirmed the identity; external-ID ownership is handled by
+    /// `setExternalIds` through the incumbent-survives merge path.
+    @discardableResult
+    func linkListing(_ listing: Manga, to work: WorkID) -> AddListingResult {
+        addListing(listing, to: work, recordExternalIds: false)
+    }
+
     @discardableResult
     func addListing(_ listing: Manga, to work: WorkID, recordExternalIds: Bool) -> AddListingResult {
         loadIfNeeded()
@@ -321,12 +335,37 @@ final class WorkStore: ObservableObject {
 
     /// Records external ids on a Work, unioning with what's already there.
     /// Called when resolution learns an id the Listing didn't publish.
-    func setExternalIds(_ ids: ExternalIDs, on id: WorkID) {
+    @discardableResult
+    func setExternalIds(_ ids: ExternalIDs, on id: WorkID) -> WorkID? {
         loadIfNeeded()
         defer { markDirty() }
-        guard let resolved = resolve(id) else { return }
-        guard let value = works[resolved] else { return }
-        absorb(filteredExternalIDs(ids, for: value.listings, excluding: resolved), into: resolved, title: "")
+        guard let resolved = resolve(id), let value = works[resolved] else { return nil }
+        let filtered = filteredExternalIDs(ids, for: value.listings, excluding: resolved)
+        _ = absorb(filtered, into: resolved, title: "")
+        return resolve(resolved)
+    }
+
+    /// Applies an explicitly confirmed identity. Unlike resolver learning, this may
+    /// claim an incumbent's id and therefore uses the existing incumbent-survives merge.
+    @discardableResult
+    func confirmExternalIds(_ ids: ExternalIDs, on id: WorkID) -> WorkID? {
+        loadIfNeeded()
+        defer { markDirty() }
+        guard let resolved = resolve(id), works[resolved] != nil else { return nil }
+        _ = absorb(ids, into: resolved, title: "")
+        return resolve(resolved)
+    }
+
+    /// Removes provider IDs from the canonical Work while retaining its identity and
+    /// all Listings, history and read state.
+    func removeExternalIds(_ ids: ExternalIDs, from id: WorkID) {
+        loadIfNeeded()
+        guard let resolved = resolve(id), var value = works[resolved] else { return }
+        if ids.mal != nil { value.externalIds.mal = nil }
+        if ids.anilist != nil { value.externalIds.anilist = nil }
+        works[resolved] = value
+        reindexExternalIds(of: resolved)
+        markDirty()
     }
 
     /// Adds spellings to a Work's `knownTitles`, unioning with what's already there.

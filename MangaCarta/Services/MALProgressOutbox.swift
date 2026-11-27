@@ -33,6 +33,7 @@ struct MALProgressOutboxItem: Codable, Equatable {
     var retryCount: Int
     var nextAttemptAt: Date
     var failure: MALProgressFailure?
+    var workID: WorkID?
 }
 
 /// A count-only view of an account's queue. Deliberately carries no titles or ids so it
@@ -47,7 +48,7 @@ struct MALProgressOutboxSummary: Equatable {
 /// representation, atomic writes, and quarantine stay inside the outbox; callers see only
 /// queue operations.
 protocol MALProgressOutboxProtocol: AnyObject {
-    func enqueue(userID: Int, mangaID: Int, desiredProgress: Int, completedAt: Date) throws
+    func enqueue(userID: Int, mangaID: Int, desiredProgress: Int, completedAt: Date, workID: WorkID?) throws
     func `defer`(userID: Int, workID: WorkID, desiredProgress: Int, completedAt: Date) throws
     func promote(userID: Int, workID: WorkID, toMangaID mangaID: Int) throws
     /// The Work ids an account has progress deferred under, as recorded at completion time.
@@ -59,6 +60,7 @@ protocol MALProgressOutboxProtocol: AnyObject {
                     nextAttemptAt: Date) throws
     func summary(userID: Int) -> MALProgressOutboxSummary
     func clear(userID: Int) throws
+    func removeUndelivered(userID: Int, workID: WorkID) throws
     func flush() throws
 }
 
@@ -95,13 +97,14 @@ final class MALProgressOutbox: MALProgressOutboxProtocol {
     }
 
     func enqueue(userID: Int, mangaID: Int, desiredProgress: Int,
-                 completedAt: Date) throws {
+                 completedAt: Date, workID: WorkID? = nil) throws {
         let key = Key(userID: userID, mangaID: mangaID)
         if var item = ready[key] {
             let increased = desiredProgress > item.desiredProgress
             item.desiredProgress = max(item.desiredProgress, desiredProgress)
             item.firstCompletedAt = min(item.firstCompletedAt, completedAt)
             item.latestCompletedAt = max(item.latestCompletedAt, completedAt)
+            if item.workID == nil { item.workID = workID }
             if increased {
                 item.retryCount = 0
                 item.nextAttemptAt = completedAt
@@ -118,6 +121,7 @@ final class MALProgressOutbox: MALProgressOutboxProtocol {
                 retryCount: 0,
                 nextAttemptAt: completedAt,
                 failure: nil
+                ,workID: workID
             )
         }
         try save()
@@ -151,7 +155,8 @@ final class MALProgressOutbox: MALProgressOutboxProtocol {
         let key = DeferredKey(userID: userID, workID: workID)
         guard let item = deferred.removeValue(forKey: key) else { return }
         try enqueue(userID: userID, mangaID: mangaID,
-                    desiredProgress: item.desiredProgress, completedAt: item.latestCompletedAt)
+                    desiredProgress: item.desiredProgress, completedAt: item.latestCompletedAt,
+                    workID: workID)
         let readyKey = Key(userID: userID, mangaID: mangaID)
         if var merged = ready[readyKey] {
             merged.firstCompletedAt = min(merged.firstCompletedAt, item.firstCompletedAt)
@@ -201,6 +206,16 @@ final class MALProgressOutbox: MALProgressOutboxProtocol {
     func clear(userID: Int) throws {
         ready = ready.filter { $0.value.userID != userID }
         deferred = deferred.filter { $0.value.userID != userID }
+        try save()
+    }
+
+    func removeUndelivered(userID: Int, workID: WorkID) throws {
+        ready = ready.filter { key, item in
+            !(key.userID == userID && item.workID == workID)
+        }
+        deferred = deferred.filter { key, _ in
+            !(key.userID == userID && key.workID == workID)
+        }
         try save()
     }
 
