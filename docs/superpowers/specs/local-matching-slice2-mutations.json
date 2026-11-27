@@ -190,6 +190,16 @@
       "tests": [
         "MangaCartaTests/LocalMatchStoreTests/testSliceOneLocalMatchesFileDecodesWithoutReviewFields"
       ]
+    },
+    {
+      "id": "LM22",
+      "description": "Do not remove an external id already held by the local Work before combine",
+      "file": "MangaCarta/Services/LocalMatchingCoordinator.swift",
+      "old": "let introducedAniListID = localExistingIDs?.anilist == nil && existingIDs?.anilist == nil\n            ? ids.anilist : nil",
+      "new": "let introducedAniListID = existingIDs?.anilist == nil ? ids.anilist : nil",
+      "tests": [
+        "MangaCartaTests/LocalMatchingCoordinatorTests/testUnmatchPreservesLocalExternalIDMergedIntoIncumbent"
+      ]
     }
   ]
 }

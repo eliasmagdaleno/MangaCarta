@@ -44,8 +44,11 @@ final class LocalMatchingCoordinator {
 
         let survivorBeforeWrite = works.workId(externalId: ids) ?? localID
         let existingIDs = works.work(survivorBeforeWrite)?.externalIds
-        let introducedMalID = existingIDs?.mal == nil ? ids.mal : nil
-        let introducedAniListID = existingIDs?.anilist == nil ? ids.anilist : nil
+        let localExistingIDs = works.work(localID)?.externalIds
+        let introducedMalID = localExistingIDs?.mal == nil && existingIDs?.mal == nil
+            ? ids.mal : nil
+        let introducedAniListID = localExistingIDs?.anilist == nil && existingIDs?.anilist == nil
+            ? ids.anilist : nil
         let live = works.confirmExternalIds(ids, on: localID)
         var confirmedRemoteListing: ListingKey?
         if let listing = remoteListing {

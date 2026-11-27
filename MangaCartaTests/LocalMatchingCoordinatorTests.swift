@@ -214,6 +214,24 @@ final class LocalMatchingCoordinatorTests: XCTestCase {
         XCTAssertNil(works.work(local)?.externalIds.mal)
     }
 
+    @MainActor func testUnmatchPreservesLocalExternalIDMergedIntoIncumbent() {
+        let dir = makeTestDirectory("LocalMatchKeepLocalExternalID")
+        let works = WorkStore(directory: dir)
+        let incumbent = works.mint(from: manga("incumbent", mal: 5))
+        let local = works.mint(from: manga("local", source: LocalSource.sourceID))
+        _ = works.setExternalIds(ExternalIDs(mal: nil, anilist: 9), on: local)
+        let coordinator = LocalMatchingCoordinator(works: works, matches: LocalMatchStore(directory: dir),
+            progress: progressCoordinator(outbox: MALProgressOutbox(directory: dir), works: works),
+            metadataChanged: { _ in })
+
+        XCTAssertEqual(coordinator.confirm(localWorkID: local, ids: ExternalIDs(mal: 5, anilist: 9),
+                                            combine: true), .confirmed(incumbent))
+        XCTAssertNil(coordinator.unmatch(workID: local))
+
+        XCTAssertEqual(works.work(incumbent)?.externalIds.mal, 5)
+        XCTAssertEqual(works.work(incumbent)?.externalIds.anilist, 9)
+    }
+
     @MainActor func testUnmatchClearsOnlyTheRecordedExternalIDValue() {
         let dir = makeTestDirectory("LocalMatchUnmatchDifferentExternalID")
         let works = WorkStore(directory: dir)
