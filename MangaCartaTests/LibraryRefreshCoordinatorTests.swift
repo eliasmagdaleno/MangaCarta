@@ -5,6 +5,20 @@ import Testing
 @Suite("Library refresh coordinator")
 struct LibraryRefreshCoordinatorTests {
     @MainActor
+    @Test("Matched local Work is never content refreshed")
+    func matchedLocalWorkIsNeverContentRefreshed() async {
+        let local = StubSource(id: LocalSource.sourceID, chapters: ["local": ["1"]], participatesInUpdates: false)
+        let fixture = Fixture(sources: [local])
+        defer { fixture.suite.remove() }
+        let id = fixture.mint("local", source: LocalSource.sourceID, malId: 44)
+        fixture.works.setExternalIds(ExternalIDs(mal: 44, anilist: nil), on: id)
+
+        await fixture.coordinator.refreshLibrary()
+
+        #expect(await local.askedIds().isEmpty)
+    }
+
+    @MainActor
     @Test("Mixed remote and local refresh only fetches participating remote")
     func mixedRemoteAndLocalRefreshOnlyFetchesParticipatingRemote() async {
         let remote = StubSource(id: "remote", chapters: ["remote": ["1"]])

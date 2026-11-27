@@ -1,0 +1,115 @@
+{
+  "runner": "swift",
+  "mutations": [
+    {
+      "id": "E1",
+      "description": "unmatched tombstones with provider ids stay ineligible",
+      "file": "MangaCarta/Services/MetadataUpgradeQueue.swift",
+      "old": "record.status == .confirmed",
+      "new": "true",
+      "tests": [
+        "MangaCartaTests/MetadataUpgradeQueueTests/testUnmatchedLocalWorkRemainsIneligible"
+      ]
+    },
+    {
+      "id": "E2",
+      "description": "MAL ids admit confirmed local Works",
+      "file": "MangaCarta/Services/MetadataUpgradeQueue.swift",
+      "old": "record.malID != nil || record.aniListID != nil",
+      "new": "record.aniListID != nil",
+      "tests": [
+        "MangaCartaTests/MetadataUpgradeQueueTests/testMatchedLocalWorkCanRequestProviderMetadata"
+      ]
+    },
+    {
+      "id": "E3",
+      "description": "AniList ids admit confirmed local Works",
+      "file": "MangaCarta/Services/MetadataUpgradeQueue.swift",
+      "old": "record.aniListID != nil",
+      "new": "false",
+      "tests": [
+        "MangaCartaTests/MetadataUpgradeQueueTests/testAniListOnlyConfirmedIDCanFetchMetadata"
+      ]
+    },
+    {
+      "id": "E6",
+      "description": "ordinary remote Works retain their existing eligibility",
+      "file": "MangaCarta/Services/MetadataUpgradeQueue.swift",
+      "old": "if remoteListings.contains(where: listingParticipates) { return true }",
+      "new": "if false { return true }",
+      "tests": [
+        "MangaCartaTests/MetadataUpgradeQueueTests/testOrdinaryRemoteWorkUsesProductionEligibilityPredicate"
+      ]
+    },
+    {
+      "id": "E7",
+      "description": "request cancels an idle sleep as a wake, not as stop",
+      "file": "MangaCarta/Services/MetadataUpgradeQueue.swift",
+      "old": "idleSleepWasWoken = true",
+      "new": "idleSleepWasWoken = false",
+      "tests": [
+        "MangaCartaTests/MetadataUpgradeQueueTests/testRequestWakesIdleLoopAndUpgradesRequestedWork"
+      ]
+    },
+    {
+      "id": "E8",
+      "description": "confirmation requests the metadata queue after saving the match",
+      "file": "MangaCarta/Services/LocalMatchingCoordinator.swift",
+      "old": "requestMetadata(live)",
+      "new": "requestMetadata(WorkID())",
+      "tests": [
+        "MangaCartaTests/LocalMatchingCoordinatorTests/testConfirmPostsMetadataChangeForCanonicalSurvivor"
+      ]
+    },
+    {
+      "id": "E9",
+      "description": "Local remains excluded from content refresh",
+      "file": "MangaCarta/Services/LibraryRefreshCoordinator.swift",
+      "old": "guard registry.source(id: listing.sourceId)?.participatesInUpdates ?? true else { return false }",
+      "new": "guard true else { return false }",
+      "tests": [
+        "MangaCartaTests/LibraryRefreshCoordinatorTests"
+      ]
+    },
+    {
+      "id": "E10",
+      "description": "rejected match records with provider ids stay ineligible",
+      "file": "MangaCarta/Services/MetadataUpgradeQueue.swift",
+      "old": "record.status == .confirmed",
+      "new": "record.status == .rejected",
+      "tests": [
+        "MangaCartaTests/MetadataUpgradeQueueTests/testRejectedLocalMatchWithProviderIDIsIneligible"
+      ]
+    },
+    {
+      "id": "E11",
+      "description": "Local plus unregistered remote Listing remains eligible without a match record",
+      "file": "MangaCarta/Services/MetadataUpgradeQueue.swift",
+      "old": "if remoteListings.contains(where: listingParticipates) { return true }",
+      "new": "if false { return true }",
+      "tests": [
+        "MangaCartaTests/MetadataUpgradeQueueTests/testLocalAndUnregisteredRemoteWorkWithoutMatchRecordRemainsEligible"
+      ]
+    },
+    {
+      "id": "E12",
+      "description": "local-only Work without a match record stays ineligible",
+      "file": "MangaCarta/Services/MetadataUpgradeQueue.swift",
+      "old": "guard let record = matches.record(for: work.id), record.status == .confirmed else { return false }",
+      "new": "guard let record = matches.record(for: work.id), record.status == .confirmed else { return true }",
+      "tests": [
+        "MangaCartaTests/MetadataUpgradeQueueTests/testLocalOnlyWorkWithoutMatchRecordIsIneligible"
+      ]
+    },
+    {
+      "id": "E14",
+      "description": "ordinary unknown Sources retain legacy participation fallback",
+      "file": "MangaCarta/Services/AppComposition.swift",
+      "old": "MetadataUpgradeQueue.metadataEligibility(for: work, matches: localMatches) { key in\n                                                     resolvedRegistry.source(id: key.sourceId)?.participatesInUpdates ?? true",
+      "new": "MetadataUpgradeQueue.metadataEligibility(for: work, matches: localMatches) { key in\n                                                     resolvedRegistry.source(id: key.sourceId)?.participatesInUpdates == true",
+      "tests": [
+        "MangaCartaTests/AppCompositionTests/testProgressDeferredForAnUnresolvedWorkIsPromotedWhenTheQueueLearnsItsMALID"
+      ]
+    }
+  ]
+}

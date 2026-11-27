@@ -77,7 +77,8 @@ final class LocalMatchingCoordinatorTests: XCTestCase {
         let local = works.mint(from: manga("local", source: LocalSource.sourceID))
         let coordinator = LocalMatchingCoordinator(works: works, matches: LocalMatchStore(directory: dir),
             progress: progressCoordinator(outbox: MALProgressOutbox(directory: dir)),
-            metadataChanged: { XCTAssertEqual($0, incumbent) })
+            metadataChanged: { XCTAssertEqual($0, incumbent) },
+            requestMetadata: { XCTAssertEqual($0, incumbent) })
         XCTAssertEqual(coordinator.confirm(localWorkID: local,
             ids: ExternalIDs(mal: 52, anilist: nil), combine: true), .confirmed(incumbent))
         XCTAssertEqual(LocalMatchStore(directory: dir).record(for: incumbent)?.status, .confirmed)

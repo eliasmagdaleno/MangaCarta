@@ -13,15 +13,18 @@ final class LocalMatchingCoordinator {
     private let progress: MALProgressCoordinator
     private let sourceAvailable: (String) -> Bool
     private let metadataChanged: (WorkID) -> Void
+    private let requestMetadata: (WorkID) -> Void
 
     init(works: WorkStore, matches: LocalMatchStore, progress: MALProgressCoordinator,
          sourceAvailable: @escaping (String) -> Bool = { _ in true },
-         metadataChanged: @escaping (WorkID) -> Void) {
+         metadataChanged: @escaping (WorkID) -> Void,
+         requestMetadata: @escaping (WorkID) -> Void = { _ in }) {
         self.works = works
         self.matches = matches
         self.progress = progress
         self.sourceAvailable = sourceAvailable
         self.metadataChanged = metadataChanged
+        self.requestMetadata = requestMetadata
     }
 
     func confirm(localWorkID: WorkID, ids: ExternalIDs, remoteListing: Manga? = nil,
@@ -69,6 +72,7 @@ final class LocalMatchingCoordinator {
                                       introducedAniListID: introducedAniListID, evidence: evidence)
         matches.save(record)
         metadataChanged(live)
+        requestMetadata(live)
         progress.workMetadataChanged(live)
         return .confirmed(live)
     }

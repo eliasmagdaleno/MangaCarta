@@ -12,6 +12,11 @@ import XCTest
 
 final class AniListAPITests: XCTestCase {
 
+    private actor RequestCapture {
+        private(set) var body: String?
+        func store(_ body: String?) { self.body = body }
+    }
+
     // MARK: - Fixtures
 
     /// Solo Leveling, recorded live. A manhwa (the coverage gap that motivated
@@ -72,6 +77,24 @@ final class AniListAPITests: XCTestCase {
                                    RankedTag(name: "War", rank: 90)])
         XCTAssertEqual(work.publicationStatus, .finished)
         XCTAssertEqual(work.chapterTotal, 201)
+    }
+
+    func testFetchByAniListIdUsesAniListIDQueryVariable() async throws {
+        let capture = RequestCapture()
+        let api = AniListAPI(transport: { request in
+            let body = request.httpBody.flatMap { String(data: $0, encoding: .utf8) }
+            await capture.store(body)
+            return (Self.soloLevelingJSON, self.http(200))
+        })
+
+        let work = try await api.work(anilistId: 105_398)
+
+        XCTAssertEqual(work.anilistId, 105_398)
+        let capturedBody = await capture.body
+        let body = try XCTUnwrap(capturedBody)
+        let requestBody = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(body.utf8)) as? [String: Any])
+        XCTAssertEqual(requestBody["variables"] as? [String: Int], ["id": 105_398])
+        XCTAssertTrue((requestBody["query"] as? String)?.contains("Media(type: MANGA, id: $id") == true)
     }
 
     /// Order is romaji → english → native → synonyms, mirroring
