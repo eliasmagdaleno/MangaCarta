@@ -159,7 +159,7 @@ final class MetadataUpgradeQueueTests: XCTestCase {
         let works = makeStore()
         let id = works.mint(from: listing("local-item", source: LocalSource.sourceID))
         let matches = LocalMatchStore(directory: makeTestDirectory("UnmatchedMetadata"))
-        matches.markUnmatched(workID: id)
+        matches.save(LocalMatchRecord(localWorkID: id, status: .unmatched, malID: 81))
         let queue = makeQueue(works: works, listingParticipates: { $0.sourceId != LocalSource.sourceID },
             metadataEligibility: { work in MetadataUpgradeQueue.metadataEligibility(for: work, matches: matches) {
                 $0.sourceId != LocalSource.sourceID
@@ -238,6 +238,29 @@ final class MetadataUpgradeQueueTests: XCTestCase {
         XCTAssertFalse(MetadataUpgradeQueue.metadataEligibility(for: work, matches: matches) {
             $0.sourceId != "remote"
         })
+    }
+
+    @MainActor func testOrdinaryRemoteWorkUsesProductionEligibilityPredicate() async {
+        let works = makeStore()
+        let id = works.mint(from: listing("remote-work", source: "remote"))
+        let matches = LocalMatchStore(directory: makeTestDirectory("RemoteWorkEligibility"))
+        let queue = makeQueue(works: works, metadataEligibility: { work in
+            MetadataUpgradeQueue.metadataEligibility(for: work, matches: matches) { _ in true }
+        })
+
+        let step = await queue.drainOnce(now: noon)
+
+        XCTAssertEqual(step, .upgraded(id))
+    }
+
+    @MainActor func testRejectedLocalMatchWithProviderIDIsIneligible() throws {
+        let works = makeStore()
+        let id = works.mint(from: listing("local-item", source: LocalSource.sourceID))
+        let matches = LocalMatchStore(directory: makeTestDirectory("RejectedMetadata"))
+        matches.save(LocalMatchRecord(localWorkID: id, status: .rejected, malID: 82))
+        let work = try XCTUnwrap(works.work(id))
+
+        XCTAssertFalse(MetadataUpgradeQueue.metadataEligibility(for: work, matches: matches) { _ in true })
     }
 
     /// The whole happy path in one: an unresolved Work with no snapshot is resolved
