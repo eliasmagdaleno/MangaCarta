@@ -59,14 +59,20 @@ final class MetadataUpgradeQueue: ObservableObject {
     private var idleSleepWasWoken = false
 
     static func metadataEligibility(for work: Work, matches: LocalMatchStore,
-                                    listingParticipates: (ListingKey) -> Bool) -> Bool {
+                                    listingParticipates: (ListingKey) -> Bool,
+                                    registeredListingParticipates: ((ListingKey) -> Bool)? = nil) -> Bool {
         let remoteListings = work.listings.filter { $0.sourceId != LocalSource.sourceID }
-        guard work.listings.contains(where: { $0.sourceId == LocalSource.sourceID }) else {
+        let hasLocalListing = work.listings.contains { $0.sourceId == LocalSource.sourceID }
+        guard hasLocalListing else {
             return remoteListings.contains(where: listingParticipates)
+        }
+        if let registeredListingParticipates {
+            if remoteListings.contains(where: registeredListingParticipates) { return true }
+        } else if remoteListings.contains(where: listingParticipates) {
+            return true
         }
         guard let record = matches.record(for: work.id), record.status == .confirmed else { return false }
         return record.malID != nil || record.aniListID != nil
-            || remoteListings.contains(where: listingParticipates)
     }
 
     init(works: WorkStore,
