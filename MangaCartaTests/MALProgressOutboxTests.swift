@@ -50,6 +50,25 @@ final class MALProgressOutboxTests: XCTestCase {
         XCTAssertNil(outbox.nextEligible(userID: 7, at: now.addingTimeInterval(1)))
     }
 
+    func testRemoveUndeliveredKeepsDeliveredHistoryAndOtherWorkRows() throws {
+        let outbox = MALProgressOutbox(directory: makeDirectory())
+        let now = Date(timeIntervalSince1970: 100)
+        let workA = WorkID()
+        let workB = WorkID()
+        try outbox.enqueue(userID: 7, mangaID: 42, desiredProgress: 4, completedAt: now, workID: workA)
+        try outbox.enqueue(userID: 7, mangaID: 45, desiredProgress: 8, completedAt: now, workID: workA)
+        try outbox.enqueue(userID: 7, mangaID: 43, desiredProgress: 5, completedAt: now, workID: workB)
+        try outbox.enqueue(userID: 7, mangaID: 44, desiredProgress: 6, completedAt: now)
+        try outbox.markDelivered(try XCTUnwrap(outbox.nextEligible(userID: 7, at: now)))
+        try outbox.defer(userID: 7, workID: workA, desiredProgress: 9, completedAt: now)
+        try outbox.removeUndelivered(userID: 7, workID: workA)
+        XCTAssertEqual(outbox.nextEligible(userID: 7, at: now)?.mangaID, 43)
+        XCTAssertEqual(outbox.summary(userID: 7).pending, 2)
+        XCTAssertEqual(outbox.summary(userID: 7).deferred, 0)
+        XCTAssertEqual(outbox.nextEligible(userID: 7, at: now.addingTimeInterval(1))?.mangaID, 43,
+                       "delivered progress is not recreated by unmatching")
+    }
+
     // MARK: - Persistence
 
     func testPendingProgressSurvivesReconstructionFromDisk() throws {

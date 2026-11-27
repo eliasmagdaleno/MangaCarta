@@ -139,7 +139,7 @@ final class MALProgressCoordinator {
             if let mangaID = completion.manga.malId ?? malID(completion.workID) {
                 try outbox.enqueue(userID: userID, mangaID: mangaID,
                                    desiredProgress: completion.progress,
-                                   completedAt: completion.completedAt)
+                                   completedAt: completion.completedAt, workID: completion.workID)
             } else {
                 // No MAL id yet. The progress subsystem never title-matches on its own; it
                 // waits for the existing resolution path and promotes on the signal below.
@@ -203,6 +203,13 @@ final class MALProgressCoordinator {
 
     func flush() {
         try? outbox.flush()
+    }
+
+    /// Removes pending (never delivered) progress associated with this Work. A previously
+    /// sent update is history at MAL and cannot be retracted here.
+    func unmatch(workID: WorkID) {
+        guard let userID = account.syncUserID else { return }
+        try? outbox.removeUndelivered(userID: userID, workID: workID)
     }
 
     /// Drains, then sleeps the backoff it just scheduled and drains again, until the queue

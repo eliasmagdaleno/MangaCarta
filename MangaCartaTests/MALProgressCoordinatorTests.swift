@@ -257,6 +257,19 @@ final class MALProgressCoordinatorTests: XCTestCase {
         XCTAssertEqual(outbox.summary(userID: 7).pending, 1)
     }
 
+    func testLocalConfirmationPromotesDeferredProgressThroughAlias() {
+        let works = WorkStore(directory: makeTestDirectory("MALProgressCoordinatorTests.localAlias"))
+        let incumbent = works.mint(from: listing("incumbent", source: "mangadex", malId: 781))
+        let local = works.mint(from: listing("local", source: LocalSource.sourceID))
+        let coordinator = makeCoordinator(works: works)
+        coordinator.chapterCompleted(completion(workID: local, progress: 7, sourceId: LocalSource.sourceID))
+        _ = works.confirmExternalIds(ExternalIDs(mal: 781, anilist: nil), on: local)
+        coordinator.workMetadataChanged(incumbent)
+        XCTAssertEqual(outbox.summary(userID: 7).deferred, 0)
+        XCTAssertEqual(outbox.nextEligible(userID: 7, at: now)?.mangaID, 781)
+        XCTAssertEqual(outbox.nextEligible(userID: 7, at: now)?.desiredProgress, 7)
+    }
+
     /// Any merge path, not only resolution: A is merged into B before either has a MAL id,
     /// and B learns one later. The row under A is promoted when B is announced.
     func testDeferredProgressUnderAWorkMergedByAnotherPathIsPromotedWhenTheSurvivorLearnsItsMALID() {

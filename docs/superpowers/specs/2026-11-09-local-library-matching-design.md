@@ -446,3 +446,22 @@ not silently attach it; Match… must be opened again.
 acceptance threshold. This keeps the top non-ambiguous candidate equal to `resolve`'s pick; the
 original “another threshold-clearing candidate” wording would let the sheet show a match the
 resolver refused (ADR-0008 precision bias).
+
+## Amendment 2 (2026-11-27)
+
+The owner decision revises acceptance criterion 9's statement that Unmatch “after a merge removes
+external IDs.” Unmatch removes only provider IDs introduced by that confirmation; an incumbent
+Work keeps every external ID it already held, so its metadata and MAL sync remain available.
+`LocalMatchRecord` keeps `localWorkID` as the canonical survivor and records
+`originalLocalWorkID` (the local Work id before a possible merge), plus optional
+`introducedMalID` and `introducedAniListID`. The introduced fields are set only when confirmation
+adds an ID the survivor did not already hold. Unmatch clears each introduced value only if the
+survivor still holds that same value. The new fields decode as absent for slice 1 records, with
+`originalLocalWorkID` defaulting to `localWorkID`; the on-disk version remains 1 because this is a
+backward-compatible Codable extension.
+
+Unmatch removes undelivered ready and deferred MAL progress rows recorded under
+`originalLocalWorkID`, while retaining rows under the incumbent's own id and all delivered history.
+The outbox coalesces ready rows by account and MAL id and preserves the first non-nil `workID`.
+Therefore, if a local row coalesces with an incumbent row already attributed to the incumbent, that
+shared row remains queued after Unmatch; its attribution cannot distinguish the local contribution.

@@ -730,6 +730,17 @@ final class WorkStoreTests: XCTestCase {
         XCTAssertTrue(store.work(id)?.listings.contains(ListingKey(b)) == true)
     }
 
+    @MainActor func testExplicitLinkListingPreservesBothListingsWithoutRecordingIDs() {
+        let store = makeStore()
+        let local = listing("local", source: LocalSource.sourceID)
+        let remote = listing("remote", source: "remote", malId: 88)
+        let id = store.mint(from: local)
+        XCTAssertEqual(store.linkListing(remote, to: id), .added)
+        XCTAssertEqual(Set(store.work(id)?.listings ?? []), Set([ListingKey(local), ListingKey(remote)]))
+        XCTAssertNil(store.work(id)?.externalIds.mal)
+        XCTAssertEqual(store.workId(for: ListingKey(remote)), id)
+    }
+
     @MainActor func testAddListingBelongsToOtherWorkChangesNothing() {
         let store = makeStore(); let a = listing("a"); let b = listing("b", source: "other")
         let first = store.mint(from: a); let second = store.mint(from: b)
