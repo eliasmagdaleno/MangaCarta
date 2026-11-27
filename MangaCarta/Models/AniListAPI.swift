@@ -135,6 +135,20 @@ struct AniListAPI {
     }
     """
 
+    private static let mediaByIDQuery = """
+    query ($id: Int) {
+      Media(type: MANGA, id: $id, isAdult: false) {
+        id idMal
+        title { romaji english native }
+        synonyms
+        genres
+        tags { name rank }
+        status
+        chapters
+      }
+    }
+    """
+
     /// The whole 425-tag vocabulary in one 27 KB request (ADR-0011). `category` is a
     /// property of a tag *name*, globally, so it is fetched once and cached rather than
     /// persisted onto every Work.
@@ -212,6 +226,13 @@ struct AniListAPI {
     func work(malId: Int) async throws -> AniListWork {
         let payload: MediaPayload = try await perform(query: Self.mediaQuery,
                                                       variables: ["malId": malId])
+        guard let media = payload.media else { throw AniListError.notFound }
+        return media.toWork()
+    }
+
+    func work(anilistId: Int) async throws -> AniListWork {
+        let payload: MediaPayload = try await perform(query: Self.mediaByIDQuery,
+                                                      variables: ["id": anilistId])
         guard let media = payload.media else { throw AniListError.notFound }
         return media.toWork()
     }

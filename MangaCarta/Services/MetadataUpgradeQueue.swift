@@ -53,6 +53,21 @@ final class MetadataUpgradeQueue: ObservableObject {
     /// owns metadata and must not grow a dependency on whoever is listening (ADR-0010).
     private let workMetadataChanged: (WorkID) -> Void
     private let listingParticipates: (ListingKey) -> Bool
+    private let metadataEligibility: (Work) -> Bool
+    private var requestedWorkIDs: Set<WorkID> = []
+    private var idleSleepTask: Task<Void, Error>?
+    private var idleSleepWasWoken = false
+
+    static func metadataEligibility(for work: Work, matches: LocalMatchStore,
+                                    listingParticipates: (ListingKey) -> Bool) -> Bool {
+        let remoteListings = work.listings.filter { $0.sourceId != LocalSource.sourceID }
+        guard work.listings.contains(where: { $0.sourceId == LocalSource.sourceID }) else {
+            return remoteListings.contains(where: listingParticipates)
+        }
+        guard let record = matches.record(for: work.id), record.status == .confirmed else { return false }
+        return record.malID != nil || record.aniListID != nil
+            || remoteListings.contains(where: listingParticipates)
+    }
 
     init(works: WorkStore,
          anilist: AniListAPI = AniListAPI(),
@@ -63,7 +78,8 @@ final class MetadataUpgradeQueue: ObservableObject {
          now: @escaping () -> Date = Date.init,
          sleep: @escaping Sleep = { try await Task.sleep(nanoseconds: UInt64($0 * 1_000_000_000)) },
          workMetadataChanged: @escaping (WorkID) -> Void = { _ in },
-         listingParticipates: @escaping (ListingKey) -> Bool = { _ in true }) {
+         listingParticipates: @escaping (ListingKey) -> Bool = { _ in true },
+         metadataEligibility: ((Work) -> Bool)? = nil) {
         self.works = works
         self.anilist = anilist
         self.rateLimiter = rateLimiter
@@ -74,6 +90,9 @@ final class MetadataUpgradeQueue: ObservableObject {
         self.sleep = sleep
         self.workMetadataChanged = workMetadataChanged
         self.listingParticipates = listingParticipates
+        self.metadataEligibility = metadataEligibility ?? { work in
+            work.listings.contains(where: listingParticipates)
+        }
     }
 
     /// The last engagement-weight map the recommender pushed (ADR-0009). **Replaces**
@@ -104,11 +123,26 @@ final class MetadataUpgradeQueue: ObservableObject {
     /// request would be a far worse trade than losing at most one attempt record.
     func stop() {
         if loopTask != nil { Self.log.info("loop stopped") }
+        idleSleepWasWoken = false
+        idleSleepTask?.cancel()
         loopTask?.cancel()
         loopTask = nil
     }
 
     func flush() { memory.flush() }
+
+    /// Wakes the serial drain after a newly confirmed local identity. The id is retained
+    /// until a normal scan sees it; `start()` remains the scene-activation fallback.
+    func request(workID: WorkID) {
+        requestedWorkIDs.insert(workID)
+        memory.forget(workID)
+        if loopTask == nil {
+            start()
+        } else if let idleSleepTask {
+            idleSleepWasWoken = true
+            idleSleepTask.cancel()
+        }
+    }
 
     /// One branch. A tripped breaker returns `.idle` exactly as an empty scan does, so the
     /// loop never needs to know *why* it is idling (ADR-0010).
@@ -116,8 +150,18 @@ final class MetadataUpgradeQueue: ObservableObject {
         while !Task.isCancelled {
             if await drainOnce(now: now()) == .idle {
                 Self.log.debug("idle — sleeping \(self.idleInterval, format: .fixed(precision: 0))s")
-                // `Task.sleep` throws only on cancellation, so a throw here means stop.
-                do { try await sleep(idleInterval) } catch { return }
+                // Keep the injected sleep on this actor so tests can safely observe it.
+                // A request cancels only this child and sets the discriminator below;
+                // stop cancels both tasks without setting it.
+                idleSleepWasWoken = false
+                idleSleepTask = Task { try await sleep(idleInterval) }
+                do {
+                    try await idleSleepTask?.value
+                } catch {
+                    guard idleSleepWasWoken, !Task.isCancelled else { return }
+                }
+                idleSleepTask = nil
+                idleSleepWasWoken = false
             }
         }
     }
@@ -137,10 +181,17 @@ final class MetadataUpgradeQueue: ObservableObject {
             endPass()
             return .idle
         }
+        requestedWorkIDs.remove(work.id)
 
         let resolved: MALEntityResolver.WorkResolution
         do {
-            resolved = try await resolver.resolve(work)
+            if let malId = work.externalIds.mal {
+                resolved = MALEntityResolver.WorkResolution(malId: malId, harvestedTitles: [])
+            } else if work.externalIds.anilist != nil {
+                resolved = MALEntityResolver.WorkResolution(malId: nil, harvestedTitles: [])
+            } else {
+                resolved = try await resolver.resolve(work)
+            }
         } catch let error where permanentStatus(of: error) != nil {
             // An *answer*, not an outage. Recorded as `.unmatched` because that is exactly
             // the reopen condition wanted: a new synonym changes the query, and nothing
@@ -177,7 +228,8 @@ final class MetadataUpgradeQueue: ObservableObject {
             knownTitlesCount = grown
         }
 
-        guard let malId = resolved.malId else {
+        let malId = resolved.malId ?? work.externalIds.mal
+        guard malId != nil || work.externalIds.anilist != nil else {
             // Neither MAL nor the MangaDex bridge produced a confident match. That is an
             // answer, and it is fingerprinted on the title count so a new synonym reopens
             // it at once — against the harvested count, per the note above.
@@ -196,7 +248,7 @@ final class MetadataUpgradeQueue: ObservableObject {
         // Written BEFORE the fetch (ADR-0009): a transient AniList failure must not
         // rewind the Work to a resolution case. This may merge, which is intended and
         // is safe precisely because no snapshot exists yet to lose.
-        works.setExternalIds(ExternalIDs(mal: malId, anilist: nil), on: work.id)
+        if let malId { works.setExternalIds(ExternalIDs(mal: malId, anilist: nil), on: work.id) }
 
         // Resolve before you remember (ADR-0010). The line above may have merged this
         // Work away; `work(_:)` follows the alias, so `live.id` is the survivor.
@@ -219,17 +271,22 @@ final class MetadataUpgradeQueue: ObservableObject {
         let api = anilist
         let result: AniListWork
         do {
-            Self.log.debug("""
-                fetching AniList for "\(self.label(live), privacy: .public)" (mal \(malId, privacy: .public))
-                """)
-            result = try await rateLimiter.run { try await api.work(malId: malId) }
+            let providerId = malId.map { "mal \($0)" } ?? "AniList \(work.externalIds.anilist ?? 0)"
+            Self.log.debug("fetching AniList for \(self.label(live), privacy: .public) (\(providerId, privacy: .public))")
+            result = try await rateLimiter.run {
+                if let malId { return try await api.work(malId: malId) }
+                guard let anilistId = work.externalIds.anilist else { throw AniListError.notFound }
+                return try await api.work(anilistId: anilistId)
+            }
         } catch AniListError.notFound {
             // The one terminal AniListError. Only the TTL reopens it — re-matching yields
             // the same id forever — and it is an answer, so it does not feed the breaker.
-            Self.log.info("""
-                absent from AniList "\(self.label(live), privacy: .public)" (mal \(malId, privacy: .public))
-                """)
-            memory.record(.absentFromProvider(malId: malId), for: live.id, now: now)
+            Self.log.info("absent from AniList for \(self.label(live), privacy: .public)")
+            if let malId {
+                memory.record(.absentFromProvider(malId: malId), for: live.id, now: now)
+            } else {
+                memory.record(.unmatched(knownTitlesCount: live.knownTitles.count), for: live.id, now: now)
+            }
             return progress(live.id)
         } catch {
             Self.log.error("""
@@ -251,7 +308,11 @@ final class MetadataUpgradeQueue: ObservableObject {
                 empty AniList record "\(self.label(live), privacy: .public)" \
                 (anilist \(result.anilistId, privacy: .public)) — snapshot left provisional
                 """)
-            memory.record(.absentFromProvider(malId: malId), for: live.id, now: now)
+            if let malId {
+                memory.record(.absentFromProvider(malId: malId), for: live.id, now: now)
+            } else {
+                memory.record(.unmatched(knownTitlesCount: live.knownTitles.count), for: live.id, now: now)
+            }
             return progress(live.id)
         }
 
@@ -337,13 +398,18 @@ final class MetadataUpgradeQueue: ObservableObject {
         let eligible = all
             .filter { !failedThisPass.contains($0) }
             .compactMap { works.work($0) }
-            .filter { $0.listings.contains(where: listingParticipates) }
+            .filter { metadataEligibility($0) }
             // Staleness AND attempt memory. The store can only ever apply the first half,
             // which is why the whole predicate lives here (ADR-0009).
             .filter { $0.snapshot == nil || $0.snapshot?.isStale(now: now) == true }
             .filter { !memory.suppresses($0, now: now) }
 
-        let picked = eligible.min { orders($0, before: $1) }
+        let picked = eligible.min { lhs, rhs in
+            let lhsRequested = requestedWorkIDs.contains(lhs.id)
+            let rhsRequested = requestedWorkIDs.contains(rhs.id)
+            if lhsRequested != rhsRequested { return lhsRequested }
+            return orders(lhs, before: rhs)
+        }
         // Answers "why is nothing happening?" — an empty eligible list against a non-empty
         // store is the normal quiet state, not a fault: everything is either fresh or
         // suppressed by attempt memory.

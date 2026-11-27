@@ -109,7 +109,8 @@ final class MetadataUpgradeQueueTests: XCTestCase {
                            idleInterval: TimeInterval = 60,
                            sleep: @escaping MetadataUpgradeQueue.Sleep = { _ in },
                            workMetadataChanged: @escaping (WorkID) -> Void = { _ in },
-                           listingParticipates: @escaping (ListingKey) -> Bool = { _ in true })
+                           listingParticipates: @escaping (ListingKey) -> Bool = { _ in true },
+                           metadataEligibility: ((Work) -> Bool)? = nil)
         -> MetadataUpgradeQueue {
         MetadataUpgradeQueue(
             works: works,
@@ -123,7 +124,8 @@ final class MetadataUpgradeQueueTests: XCTestCase {
             now: { self.noon },
             sleep: sleep,
             workMetadataChanged: workMetadataChanged,
-            listingParticipates: listingParticipates)
+            listingParticipates: listingParticipates,
+            metadataEligibility: metadataEligibility)
     }
 
     // MARK: - The upgrade path
@@ -134,6 +136,108 @@ final class MetadataUpgradeQueueTests: XCTestCase {
         let queue = makeQueue(works: works, listingParticipates: { $0.sourceId != "local" })
         let step = await queue.drainOnce(now: noon)
         XCTAssertEqual(step, .idle)
+    }
+
+    @MainActor func testMatchedLocalWorkCanRequestProviderMetadata() async {
+        let works = makeStore()
+        let id = works.mint(from: listing("local-item", source: LocalSource.sourceID))
+        works.setExternalIds(ExternalIDs(mal: 121_496, anilist: nil), on: id)
+        let matches = LocalMatchStore(directory: makeTestDirectory("MatchedMetadata"))
+        matches.save(LocalMatchRecord(localWorkID: id, status: .confirmed, malID: 121_496))
+        let queue = makeQueue(works: works, resolver: makeResolver(search: { _ in XCTFail("known id should skip search"); return [] }),
+            listingParticipates: { $0.sourceId != LocalSource.sourceID },
+            metadataEligibility: { work in MetadataUpgradeQueue.metadataEligibility(for: work, matches: matches) {
+                $0.sourceId != LocalSource.sourceID
+            }
+            })
+        let step = await queue.drainOnce(now: noon)
+        XCTAssertEqual(step, .upgraded(id))
+        XCTAssertEqual(works.work(id)?.snapshot?.provider, .anilist)
+    }
+
+    @MainActor func testUnmatchedLocalWorkRemainsIneligible() async {
+        let works = makeStore()
+        let id = works.mint(from: listing("local-item", source: LocalSource.sourceID))
+        let matches = LocalMatchStore(directory: makeTestDirectory("UnmatchedMetadata"))
+        matches.markUnmatched(workID: id)
+        let queue = makeQueue(works: works, listingParticipates: { $0.sourceId != LocalSource.sourceID },
+            metadataEligibility: { work in MetadataUpgradeQueue.metadataEligibility(for: work, matches: matches) {
+                $0.sourceId != LocalSource.sourceID
+            }
+            })
+        let step = await queue.drainOnce(now: noon)
+        XCTAssertEqual(step, .idle)
+    }
+
+    @MainActor func testDisabledSourceListingIsNotFetchedButConfirmedIDStillUpgrades() async {
+        let works = makeStore()
+        let localID = works.mint(from: listing("local-item", source: LocalSource.sourceID))
+        _ = works.linkListing(listing("disabled-listing", source: "disabled"), to: localID)
+        works.setExternalIds(ExternalIDs(mal: 121_496, anilist: nil), on: localID)
+        let matches = LocalMatchStore(directory: makeTestDirectory("DisabledMetadata"))
+        matches.save(LocalMatchRecord(localWorkID: localID, status: .confirmed, malID: 121_496))
+        var participatingListings: [ListingKey] = []
+        let queue = makeQueue(works: works, resolver: makeResolver(search: { _ in XCTFail("confirmed id should bypass resolver"); return [] }),
+            listingParticipates: { key in participatingListings.append(key); return key.sourceId != "disabled" && key.sourceId != LocalSource.sourceID },
+            metadataEligibility: { work in MetadataUpgradeQueue.metadataEligibility(for: work, matches: matches) {
+                key in key.sourceId != "disabled" && key.sourceId != LocalSource.sourceID
+            }
+            })
+        let step = await queue.drainOnce(now: noon)
+        XCTAssertEqual(step, .upgraded(localID))
+        XCTAssertFalse(participatingListings.contains { $0.sourceId == "disabled" })
+        XCTAssertEqual(works.work(localID)?.snapshot?.provider, .anilist)
+    }
+
+    @MainActor func testAniListOnlyConfirmedIDCanFetchMetadata() async {
+        let works = makeStore()
+        let id = works.mint(from: listing("local-item", source: LocalSource.sourceID))
+        works.setExternalIds(ExternalIDs(mal: nil, anilist: 105_398), on: id)
+        let matches = LocalMatchStore(directory: makeTestDirectory("AniListOnlyMetadata"))
+        matches.save(LocalMatchRecord(localWorkID: id, status: .confirmed, aniListID: 105_398))
+        let queue = makeQueue(works: works,
+            resolver: makeResolver(search: { _ in XCTFail("known AniList id should skip search"); return [] }),
+            metadataEligibility: { work in MetadataUpgradeQueue.metadataEligibility(for: work, matches: matches) {
+                $0.sourceId != LocalSource.sourceID
+            }
+            })
+
+        let step = await queue.drainOnce(now: noon)
+
+        XCTAssertEqual(step, .upgraded(id))
+        XCTAssertEqual(works.work(id)?.snapshot?.provider, .anilist)
+    }
+
+    @MainActor func testUnconfirmedLocalWorkIsIneligibleThroughProductionPredicate() async {
+        let works = makeStore()
+        let id = works.mint(from: listing("local-item", source: LocalSource.sourceID))
+        let matches = LocalMatchStore(directory: makeTestDirectory("UnconfirmedMetadata"))
+        let queue = makeQueue(works: works, listingParticipates: { $0.sourceId != LocalSource.sourceID },
+            metadataEligibility: { work in MetadataUpgradeQueue.metadataEligibility(for: work, matches: matches) {
+                $0.sourceId != LocalSource.sourceID
+            }
+            })
+        let step = await queue.drainOnce(now: noon)
+        XCTAssertEqual(step, .idle)
+        XCTAssertNil(works.work(id)?.snapshot)
+    }
+
+    @MainActor func testConfirmedLocalWorkCanUseParticipatingRemoteListingWithoutProviderID() throws {
+        let works = makeStore()
+        let local = listing("local-item", source: LocalSource.sourceID)
+        let id = works.mint(from: local)
+        let remote = listing("remote-copy", source: "remote")
+        _ = works.linkListing(remote, to: id)
+        let matches = LocalMatchStore(directory: makeTestDirectory("RemoteListingEligibility"))
+        matches.save(LocalMatchRecord(localWorkID: id, status: .confirmed, remoteListing: ListingKey(remote)))
+        let work = try XCTUnwrap(works.work(id))
+
+        XCTAssertTrue(MetadataUpgradeQueue.metadataEligibility(for: work, matches: matches) {
+            $0.sourceId == "remote"
+        })
+        XCTAssertFalse(MetadataUpgradeQueue.metadataEligibility(for: work, matches: matches) {
+            $0.sourceId != "remote"
+        })
     }
 
     /// The whole happy path in one: an unresolved Work with no snapshot is resolved
@@ -580,6 +684,72 @@ final class MetadataUpgradeQueueTests: XCTestCase {
         await Task.yield()                            // a leaked second loop would run here
 
         XCTAssertEqual(sleeps, 1)
+    }
+
+    @MainActor func testRequestWakesIdleLoopAndUpgradesRequestedWork() async {
+        let works = makeStore()
+        let queue = makeQueue(works: works, sleep: { _ in
+            try await Task.sleep(nanoseconds: 60_000_000_000)
+        })
+        queue.start()
+        for _ in 0..<10 { await Task.yield() }
+
+        let id = works.mint(from: listing("requested", source: "remote", malId: 121_496))
+        queue.request(workID: id)
+        try? await Task.sleep(nanoseconds: 500_000_000)
+
+        XCTAssertEqual(works.work(id)?.snapshot?.provider, .anilist)
+        queue.stop()
+        await queue.loopTask?.value
+    }
+
+    @MainActor func testStopStillEndsAnIdleLoop() async {
+        let queue = makeQueue(works: makeStore(), sleep: { _ in
+            try await Task.sleep(nanoseconds: 60_000_000_000)
+        })
+        queue.start()
+        for _ in 0..<10 { await Task.yield() }
+        let task = queue.loopTask
+        queue.stop()
+        await task?.value
+        XCTAssertNil(queue.loopTask)
+    }
+
+    @MainActor func testRequestWhileDrainingKeepsOneSerialLoop() async {
+        let works = makeStore()
+        let firstID = works.mint(from: listing("first", source: "remote"))
+        let requestedID = works.mint(from: listing("requested-second", source: "remote"))
+        var activeSearches = 0
+        var maximumActiveSearches = 0
+        var pending: [(String, CheckedContinuation<[MALCandidate], Never>)] = []
+        let resolver = makeResolver(search: { title in
+            let results = await withCheckedContinuation { continuation in
+                activeSearches += 1
+                maximumActiveSearches = max(maximumActiveSearches, activeSearches)
+                pending.append((title, continuation))
+            }
+            activeSearches -= 1
+            return results
+        })
+        let queue = makeQueue(works: works, resolver: resolver)
+        queue.start()
+        for _ in 0..<100 where pending.isEmpty { await Task.yield() }
+        XCTAssertEqual(pending.count, 1)
+
+        queue.request(workID: requestedID)
+        let first = pending.removeFirst()
+        first.1.resume(returning: [MALCandidate(malId: 71, titles: [first.0])])
+        for _ in 0..<500 where pending.isEmpty { await Task.yield() }
+        XCTAssertEqual(pending.count, 1)
+        XCTAssertEqual(maximumActiveSearches, 1)
+
+        let second = pending.removeFirst()
+        second.1.resume(returning: [MALCandidate(malId: 72, titles: [second.0])])
+        for _ in 0..<500 where works.work(requestedID)?.snapshot?.provider != .anilist { await Task.yield() }
+        XCTAssertEqual(works.work(requestedID)?.snapshot?.provider, .anilist)
+        XCTAssertEqual(maximumActiveSearches, 1)
+        _ = firstID
+        queue.stop()
     }
 
     /// A debounced save that never fires because the app was suspended is a lost write,

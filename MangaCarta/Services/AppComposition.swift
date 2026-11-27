@@ -469,6 +469,7 @@ struct AppComposition {
         // rail, deciding whether to explain itself (ADR-0015) — and if they saw different
         // records the notice would contradict the drain.
         let memory = UpgradeAttemptMemory(directory: directory)
+        let localMatches = LocalMatchStore(directory: directory)
         // `resolver: nil` leaves `MetadataUpgradeQueue` to build its own, as it always has.
         // A `VerificationSwitches` override sat here from 2026-08-11 to 2026-08-13 to
         // instrument the ADR-0019 runs; it was `#if DEBUG` and nil unless an environment
@@ -482,7 +483,11 @@ struct AppComposition {
                                                 malProgress?.workMetadataChanged(id)
                                              }, listingParticipates: { [resolvedRegistry] key in
                                                  resolvedRegistry.source(id: key.sourceId)?.participatesInUpdates ?? true
-                                            })
+                                             }, metadataEligibility: { [resolvedRegistry, localMatches] work in
+                                                 MetadataUpgradeQueue.metadataEligibility(for: work, matches: localMatches) { key in
+                                                     resolvedRegistry.source(id: key.sourceId)?.participatesInUpdates ?? true
+                                                 }
+                                             })
 
         let vocab = TagVocabularyStore(fetch: { try await limiter.run { try await anilist.tagVocabulary() } })
         let pool = AniListPoolStore()
