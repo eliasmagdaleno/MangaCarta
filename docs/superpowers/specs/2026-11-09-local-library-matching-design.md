@@ -439,3 +439,10 @@ not silently attach it; Match… must be opened again.
 3. **AniList progress sync does not ship in this work.** Ship MAL metadata/progress and the
    provider-neutral completion seam first; AniList writes are a separately reviewable outbox with
    its own authentication and conflict policy.
+
+## Amendment 1 (2026-11-26)
+
+`isAmbiguous` is computed against every scored candidate, not only candidates clearing the
+acceptance threshold. This keeps the top non-ambiguous candidate equal to `resolve`'s pick; the
+original “another threshold-clearing candidate” wording would let the sheet show a match the
+resolver refused (ADR-0008 precision bias).
