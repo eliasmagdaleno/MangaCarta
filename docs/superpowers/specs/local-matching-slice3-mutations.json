@@ -83,12 +83,12 @@
     },
     {
       "id": "E11",
-      "description": "Local plus participating remote Listing remains eligible without a match record",
+      "description": "Local plus unregistered remote Listing remains eligible without a match record",
       "file": "MangaCarta/Services/MetadataUpgradeQueue.swift",
-      "old": "if remoteListings.contains(where: registeredListingParticipates) { return true }",
+      "old": "if remoteListings.contains(where: listingParticipates) { return true }",
       "new": "if false { return true }",
       "tests": [
-        "MangaCartaTests/MetadataUpgradeQueueTests/testLocalAndRemoteWorkWithoutMatchRecordRemainsEligible"
+        "MangaCartaTests/MetadataUpgradeQueueTests/testLocalAndUnregisteredRemoteWorkWithoutMatchRecordRemainsEligible"
       ]
     },
     {
@@ -99,16 +99,6 @@
       "new": "guard let record = matches.record(for: work.id), record.status == .confirmed else { return true }",
       "tests": [
         "MangaCartaTests/MetadataUpgradeQueueTests/testLocalOnlyWorkWithoutMatchRecordIsIneligible"
-      ]
-    },
-    {
-      "id": "E13",
-      "description": "unregistered remote Listing does not qualify a confirmed local Work without ids",
-      "file": "MangaCarta/Services/MetadataUpgradeQueue.swift",
-      "old": "remoteListings.contains(where: registeredListingParticipates)",
-      "new": "remoteListings.contains(where: listingParticipates)",
-      "tests": [
-        "MangaCartaTests/MetadataUpgradeQueueTests/testConfirmedLocalWorkWithUnregisteredRemoteListingAndNoIDsIsIneligible"
       ]
     },
     {

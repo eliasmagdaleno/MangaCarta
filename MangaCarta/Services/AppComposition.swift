@@ -486,8 +486,6 @@ struct AppComposition {
                                              }, metadataEligibility: { [resolvedRegistry, localMatches] work in
                                                  MetadataUpgradeQueue.metadataEligibility(for: work, matches: localMatches) { key in
                                                      resolvedRegistry.source(id: key.sourceId)?.participatesInUpdates ?? true
-                                                 } registeredListingParticipates: { key in
-                                                     resolvedRegistry.source(id: key.sourceId)?.participatesInUpdates == true
                                                  }
                                              })
 

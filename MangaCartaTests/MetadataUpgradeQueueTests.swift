@@ -232,10 +232,8 @@ final class MetadataUpgradeQueueTests: XCTestCase {
         matches.save(LocalMatchRecord(localWorkID: id, status: .confirmed, remoteListing: ListingKey(remote)))
         let work = try XCTUnwrap(works.work(id))
 
-        XCTAssertTrue(MetadataUpgradeQueue.metadataEligibility(for: work, matches: matches,
-            listingParticipates: { _ in true }, registeredListingParticipates: { $0.sourceId == "remote" }))
-        XCTAssertFalse(MetadataUpgradeQueue.metadataEligibility(for: work, matches: matches,
-            listingParticipates: { _ in true }, registeredListingParticipates: { _ in false }))
+        XCTAssertTrue(MetadataUpgradeQueue.metadataEligibility(for: work, matches: matches) { $0.sourceId == "remote" })
+        XCTAssertFalse(MetadataUpgradeQueue.metadataEligibility(for: work, matches: matches) { $0.sourceId != "remote" })
     }
 
     @MainActor func testLocalAndRemoteWorkWithoutMatchRecordRemainsEligible() throws {
@@ -246,7 +244,7 @@ final class MetadataUpgradeQueueTests: XCTestCase {
         let work = try XCTUnwrap(works.work(id))
 
         XCTAssertTrue(MetadataUpgradeQueue.metadataEligibility(for: work, matches: matches,
-            listingParticipates: { _ in true }, registeredListingParticipates: { $0.sourceId == "remote" }))
+            listingParticipates: { _ in true }))
     }
 
     @MainActor func testLocalOnlyWorkWithoutMatchRecordIsIneligible() throws {
@@ -256,21 +254,18 @@ final class MetadataUpgradeQueueTests: XCTestCase {
         let work = try XCTUnwrap(works.work(id))
 
         XCTAssertFalse(MetadataUpgradeQueue.metadataEligibility(for: work, matches: matches,
-            listingParticipates: { _ in true }, registeredListingParticipates: { _ in true }))
+            listingParticipates: { _ in true }))
     }
 
-    @MainActor func testConfirmedLocalWorkWithUnregisteredRemoteListingAndNoIDsIsIneligible() throws {
+    @MainActor func testLocalAndUnregisteredRemoteWorkWithoutMatchRecordRemainsEligible() throws {
         let works = makeStore()
         let id = works.mint(from: listing("local-item", source: LocalSource.sourceID))
         let remote = listing("legacy-copy", source: "unregistered")
         _ = works.linkListing(remote, to: id)
         let matches = LocalMatchStore(directory: makeTestDirectory("UnregisteredRemoteEligibility"))
-        matches.save(LocalMatchRecord(localWorkID: id, status: .confirmed,
-                                      remoteListing: ListingKey(remote)))
         let work = try XCTUnwrap(works.work(id))
 
-        XCTAssertFalse(MetadataUpgradeQueue.metadataEligibility(for: work, matches: matches,
-            listingParticipates: { _ in true }, registeredListingParticipates: { _ in false }))
+        XCTAssertTrue(MetadataUpgradeQueue.metadataEligibility(for: work, matches: matches) { _ in true })
     }
 
     @MainActor func testOrdinaryRemoteWorkUsesProductionEligibilityPredicate() async {
