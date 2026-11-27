@@ -482,10 +482,10 @@ struct AppComposition {
                                             workMetadataChanged: { [weak malProgress] id in
                                                 malProgress?.workMetadataChanged(id)
                                              }, listingParticipates: { [resolvedRegistry] key in
-                                                 resolvedRegistry.source(id: key.sourceId)?.participatesInUpdates ?? true
+                                                 resolvedRegistry.source(id: key.sourceId)?.participatesInUpdates == true
                                              }, metadataEligibility: { [resolvedRegistry, localMatches] work in
                                                  MetadataUpgradeQueue.metadataEligibility(for: work, matches: localMatches) { key in
-                                                     resolvedRegistry.source(id: key.sourceId)?.participatesInUpdates ?? true
+                                                     resolvedRegistry.source(id: key.sourceId)?.participatesInUpdates == true
                                                  }
                                              })
 

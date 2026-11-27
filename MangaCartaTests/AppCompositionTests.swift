@@ -295,7 +295,8 @@ final class AppCompositionTests: XCTestCase {
     /// id, and its metadata signal has to be wired to the same coordinator for that waiting
     /// progress to become sendable.
     func testProgressDeferredForAnUnresolvedWorkIsPromotedWhenTheQueueLearnsItsMALID() async {
-        let composition = signedInComposition()
+        let source = MetadataQueueSource()
+        let composition = signedInComposition(registry: SourceRegistry(sources: [source], defaults: defaults))
 
         completeRead(composition, Manga(id: "md-1", sourceId: "mangadex", title: "Solo Leveling",
                                         description: "", status: "ongoing", year: nil,
@@ -542,6 +543,19 @@ final class AppCompositionTests: XCTestCase {
 private struct AppCompositionAnalyticsSource: MangaSource {
     let id = "analytics-composition-test"
     let name = "Analytics Composition Test"
+
+    func search(title: String, limit: Int, offset: Int) async throws -> [Manga] { [] }
+    func popular(limit: Int, offset: Int) async throws -> [Manga] { [] }
+    func mangaDetail(id: String) async throws -> MangaDetail {
+        MangaDetail(description: "", authors: [], tags: [], contentRating: nil)
+    }
+    func chapters(mangaId: String) async throws -> [Chapter] { [] }
+    func pageURLs(chapterId: String, preferDataSaver: Bool) async throws -> [URL] { [] }
+}
+
+private struct MetadataQueueSource: MangaSource {
+    let id = "mangadex"
+    let name = "Metadata Queue Test"
 
     func search(title: String, limit: Int, offset: Int) async throws -> [Manga] { [] }
     func popular(limit: Int, offset: Int) async throws -> [Manga] { [] }
